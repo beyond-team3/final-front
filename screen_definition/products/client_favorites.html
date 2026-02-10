@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">즐겨찾기</h2>
+                
+                <!-- 
+                    ========================================
+                    여기부터 각 화면별 컨텐츠를 작성하세요
+                    ========================================
+                -->
+                <style>
+    /* client_list.html과 스타일 동일 (재사용) */
+    .client-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+    .product-card { background: white; border: 1px solid #eee; border-radius: 8px; height: 240px; position: relative; overflow: hidden; }
+    .card-content { padding: 20px; }
+    .prod-name { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+    .prod-desc { font-size: 14px; color: #7f8c8d; }
+    
+    /* 즐겨찾기 페이지 전용 */
+    .star-fixed {
+        position: absolute;
+        top: 10px; right: 10px;
+        font-size: 24px;
+        color: #f1c40f; 
+        z-index: 10;
+        
+        /* [수정됨] 마우스 커서 및 텍스트 선택 방지 */
+        cursor: pointer;            /* 손가락 모양 커서 강제 */
+        user-select: none;          /* 텍스트 드래그/선택 방지 */
+        -webkit-user-select: none;  /* 크롬/사파리 호환성 */
+        
+        text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        transition: transform 0.2s; /* 클릭 시 살짝 움직이는 효과 추가 가능 */
+    }
+
+    .star-fixed:hover {
+        transform: scale(1.1); /* (선택사항) 마우스 올리면 살짝 커짐 */
+    }
+    
+    .btn-back { padding: 8px 16px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+</style>
+
+<div class="client-header">
+    <h2 class="screen-title" style="margin:0; border:none;">즐겨찾기 목록</h2>
+    <button class="btn-back" onclick="location.href='client_list.html'">전체 목록으로</button>
+</div>
+
+<div class="product-grid" id="favGrid">
+    </div>
+
+<script>
+    // 상품 데이터 (실제로는 서버 DB지만, 여기선 Mock Data로 동일하게 맞춤)
+    const products = [
+        { id: 1, name: '베테랑 고추', desc: '탄저병에 강하고 매운맛이 일품.', img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?w=400' },
+        { id: 2, name: '꿀수박 1호', desc: '13Brix 이상 고당도 수박.', img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400' },
+        { id: 3, name: '청정 오이', desc: '아삭한 식감, 저장성 우수.', img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?w=400' },
+        { id: 4, name: '햇살 토마토', desc: '단단한 과육, 붉은 빛깔.', img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400' },
+    ];
+
+    function getFavorites() {
+        const stored = localStorage.getItem('myFavorites');
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    function saveFavorites(favArray) {
+        localStorage.setItem('myFavorites', JSON.stringify(favArray));
+    }
+
+    function renderFavs() {
+        const grid = document.getElementById('favGrid');
+        grid.innerHTML = '';
+        
+        const favIds = getFavorites();
+
+        // 즐겨찾기 된 ID만 필터링하여 실제 상품 찾기
+        const myFavProducts = products.filter(p => favIds.includes(p.id));
+
+        if (myFavProducts.length === 0) {
+            grid.innerHTML = '<div class="empty-msg">즐겨찾기한 상품이 없습니다.</div>';
+            return;
+        }
+
+        myFavProducts.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'product-card';
+            // 카드 클릭 시 상세 이동 (별표 클릭 제외)
+            card.onclick = (e) => {
+                if(!e.target.classList.contains('star-fixed')) {
+                    location.href = 'client_detail.html';
+                }
+            };
+
+            card.innerHTML = `
+                <div class="star-fixed" onclick="removeFav(${p.id})">★</div>
+                <div style="height: 140px; background: #eee; background-image: url('${p.img}'); background-size: cover;"></div>
+                <div class="card-content">
+                    <div class="prod-name">${p.name}</div>
+                    <div class="prod-desc">${p.desc}</div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // 즐겨찾기 해제 함수
+    function removeFav(id) {
+        if(confirm('즐겨찾기에서 삭제하시겠습니까?')) {
+            let favs = getFavorites();
+            // 해당 ID 제거
+            favs = favs.filter(favId => favId !== id);
+            // 저장
+            saveFavorites(favs);
+            // 화면 다시 그리기 (삭제된 항목 사라짐)
+            renderFavs();
+        }
+    }
+
+    // 초기 실행
+    renderFavs();
+</script>
+                
+                <!-- 
+                    ========================================
+                    화면별 컨텐츠 작성 영역 끝
+                    ========================================
+                -->
+                
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>
