@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    
+        /* ===== 캘린더 화면 스타일 (화이트 톤) ===== */
+        .calendar-page {
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .calendar-left { flex: 1 1 auto; min-width: 640px; }
+        .calendar-right { width: 360px; flex: 0 0 360px; }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: #ffffff;
+            border: 1px solid #e9edf2;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .toolbar-left, .toolbar-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .select {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border: 1px solid #e3e7ee;
+            border-radius: 10px;
+            background: #fff;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+        .select label { color: #6b7a8c; font-weight: 600; font-size: 12px; }
+        .select select {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 13px;
+            color: #2c3e50;
+            cursor: pointer;
+        }
+
+        .btn {
+            border: 1px solid #dfe6ef;
+            background: #ffffff;
+            color: #2c3e50;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: background-color 0.2s ease, transform 0.05s ease, border-color 0.2s ease;
+        }
+        .btn:hover { background: #f6f8fb; border-color: #cfd9e6; }
+        .btn:active { transform: translateY(1px); }
+
+        .btn-primary { border-color: #2d89ef33; background: #2d89ef; color: #fff; }
+        .btn-primary:hover { background: #2577d1; }
+        .btn-ghost { background: #f7f9fc; }
+
+        .role-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border: 1px solid #e3e7ee;
+            border-radius: 10px;
+            background: #fff;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+        .role-toggle input { accent-color: #2d89ef; }
+
+        .calendar-shell { display: grid; grid-template-columns: 1fr; gap: 14px; }
+
+        .calendar-card {
+            border: 1px solid #e9edf2;
+            border-radius: 12px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .calendar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid #eef2f6;
+            background: #fff;
+        }
+
+        .month-title { font-size: 18px; font-weight: 800; color: #2c3e50; letter-spacing: 0.2px; }
+        .month-nav { display: flex; gap: 8px; align-items: center; }
+
+        .icon-btn {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            border: 1px solid #dfe6ef;
+            background: #fff;
+            cursor: pointer;
+            font-size: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #2c3e50;
+        }
+        .icon-btn:hover { background: #f6f8fb; border-color: #cfd9e6; }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0;
+            border-top: 1px solid #eef2f6;
+        }
+
+        .dow {
+            padding: 10px 12px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #6b7a8c;
+            background: #fbfcfe;
+            border-bottom: 1px solid #eef2f6;
+        }
+
+        .day-cell {
+            aspect-ratio: 1 / 1;
+            border-right: 1px solid #eef2f6;
+            border-bottom: 1px solid #eef2f6;
+            padding: 10px 10px 8px;
+            cursor: pointer;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+        .day-cell:nth-child(7n) { border-right: none; }
+        .day-cell.muted { background: #fbfcfe; color: #9aa7b6; }
+        .day-num { font-size: 13px; font-weight: 800; color: inherit; }
+
+        .badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            border: 1px solid #e3e7ee;
+            background: #f7f9fc;
+            color: #425b76;
+            max-width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .badge.history { background: #fff7e8; border-color: #ffe2b7; color: #8a5a00; }
+        .badge.personal { background: #e8f7ee; border-color: #bfe9ce; color: #0f5a2a; }
+
+        .pill {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid #e3e7ee;
+            background: #fff;
+            color: #425b76;
+            flex: 0 0 auto;
+        }
+        .pill.history { background: #fff7e8; border-color: #ffe2b7; color: #8a5a00; }
+        .pill.personal { background: #e8f7ee; border-color: #bfe9ce; color: #0f5a2a; }
+
+        .side-card { border: 1px solid #e9edf2; border-radius: 12px; background: #fff; overflow: hidden; }
+        .side-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #eef2f6;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .side-title { font-size: 15px; font-weight: 800; color: #2c3e50; }
+
+        .carousel { padding: 12px 16px 0; }
+        .carousel-img {
+            width: 100%;
+            height: 190px;
+            border-radius: 12px;
+            border: 1px solid #eef2f6;
+            background: #f7f9fc;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .carousel-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .carousel-caption { margin-top: 10px; font-weight: 800; color: #2c3e50; font-size: 13px; }
+
+        .recommend-list { padding: 10px 10px 14px; }
+        .recommend-item {
+            padding: 10px 10px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .recommend-item:hover { background: #f6f8fb; }
+        .recommend-name {
+            font-weight: 800; color: #2c3e50; font-size: 13px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .recommend-tag {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid #e3e7ee;
+            background: #f7f9fc;
+            color: #6b7a8c;
+            flex: 0 0 auto;
+        }
+
+        /* 모달 */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2500; /* header(1000)보다 위 */
+            padding: 24px;
+        }
+        .modal-backdrop.open { display: flex; }
+        .modal-backdrop.offset-header {
+            align-items: flex-start;
+            padding-top: 84px;
+        }
+
+        .modal {
+            width: min(720px, 100%);
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #e9edf2;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.18);
+            overflow: hidden;
+            max-height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #eef2f6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .modal-title { font-size: 15px; font-weight: 900; color: #2c3e50; }
+
+        .modal-close {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            border: 1px solid #dfe6ef;
+            background: #fff;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .modal-close:hover { background: #f6f8fb; border-color: #cfd9e6; }
+
+        .modal-body {
+            padding: 14px 16px 16px;
+            overflow: auto;
+        }
+        .modal-section-title {
+            font-size: 12px;
+            font-weight: 900;
+            color: #6b7a8c;
+            letter-spacing: 0.4px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .modal-list { display: grid; gap: 10px; }
+        .modal-item {
+            border: 1px solid #eef2f6;
+            background: #fbfcfe;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+        }
+        .modal-item:hover { background: #f6f8fb; }
+
+        .modal-item-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .modal-item-title {
+            font-weight: 900;
+            color: #2c3e50;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal-item-desc {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #6b7a8c;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-grid .full { grid-column: 1 / -1; }
+
+        .field { display: grid; gap: 6px; }
+        .field label { font-size: 12px; font-weight: 900; color: #6b7a8c; }
+
+        .field input, .field textarea, .field select {
+            width: 100%;
+            padding: 10px 10px;
+            border-radius: 10px;
+            border: 1px solid #dfe6ef;
+            outline: none;
+            font-size: 13px;
+            color: #2c3e50;
+            background: #fff;
+        }
+        .field textarea { min-height: 92px; resize: vertical; }
+
+        .modal-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 1120px) {
+            .calendar-page { flex-direction: column; }
+            .calendar-left { min-width: 0; }
+            .calendar-right { width: 100%; flex: 1 1 auto; }
+        }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+</style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                
+                <h2 class="screen-title">캘린더</h2>
+
+                <!-- 캘린더 화면 -->
+                <section class="calendar-page" id="calendarPage">
+
+                    <!-- 좌측/중앙: 필터 + 달력 -->
+                    <div class="calendar-left">
+                        <div class="toolbar">
+                            <div class="toolbar-left">
+                                <div class="select">
+                                    <label for="salesSelector">영업</label>
+                                    <select id="salesSelector">
+                                        <option value="ALL">전체</option>
+                                        <option value="RFQ">견적요청</option>
+                                        <option value="QUOTATION">견적</option>
+                                        <option value="CONTRACT">계약</option>
+                                        <option value="ORDER">주문</option>
+                                        <option value="INVOICE">청구</option>
+                                    </select>
+                                </div>
+
+                                <div class="select">
+                                    <label for="clientSelector">거래처</label>
+                                    <select id="clientSelector">
+                                        <option value="ALL">전체</option>
+                                        <option value="C001">대상팜</option>
+                                        <option value="C002">그린농원</option>
+                                        <option value="C003">해오름농장</option>
+                                    </select>
+                                </div>
+
+                                <div class="select">
+                                    <label for="employeeSelector">사원</label>
+                                    <select id="employeeSelector" disabled>
+                                        <option value="ALL">전체</option>
+                                        <option value="E001">김영업</option>
+                                        <option value="E002">이영업</option>
+                                        <option value="E003">박영업</option>
+                                    </select>
+                                </div>
+
+                                <div class="role-toggle" title="프로토타입용 권한 토글">
+                                    <input type="checkbox" id="isAdmin" />
+                                    <label for="isAdmin">관리자</label>
+                                </div>
+
+                                <button class="btn btn-ghost" id="resetFilters">초기화</button>
+                            </div>
+
+                            <div class="toolbar-right">
+                                <button class="btn btn-primary" id="addScheduleBtn">+ 일정 추가</button>
+                            </div>
+                        </div>
+
+                        <div class="calendar-shell">
+                            <div class="calendar-card">
+                                <div class="calendar-header">
+                                    <div class="month-nav">
+                                        <button class="icon-btn" id="prevMonth" aria-label="이전 달">‹</button>
+                                    </div>
+
+                                    <div class="month-title" id="monthTitle">YYYY.MM</div>
+
+                                    <div class="month-nav">
+                                        <button class="icon-btn" id="nextMonth" aria-label="다음 달">›</button>
+                                    </div>
+                                </div>
+
+                                <div class="calendar-grid" id="calendarGrid"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <aside class="calendar-right">
+                        <div class="side-card">
+                            <div class="side-header">
+                                <div class="side-title">이번달 판매 추천</div>
+                                <span style="font-size:12px;color:#6b7a8c;">자동 슬라이드</span>
+                            </div>
+
+                            <div class="carousel">
+                                <div class="carousel-img" id="recommendImage">
+                                    <img alt="추천 상품 이미지" id="recommendImgTag"/>
+                                </div>
+                                <div class="carousel-caption" id="recommendCaption">-</div>
+                            </div>
+
+                            <div class="recommend-list" id="recommendList"></div>
+                        </div>
+                    </aside>
+                </section>
+
+                <!-- 모달: 날짜별 일정 리스트 -->
+                <div class="modal-backdrop" id="dayModal">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
+                        <div class="modal-header">
+                            <div class="modal-title" id="dayModalTitle">일정 목록</div>
+                            <button class="modal-close" data-close="dayModal" aria-label="닫기">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="modal-section-title">요청 정보</div>
+                            <div class="modal-list" id="dayModalList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 모달: 일정 상세 -->
+                <div class="modal-backdrop offset-header" id="detailModal">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+                        <div class="modal-header">
+                            <div class="modal-title" id="detailModalTitle">일정 상세</div>
+                            <button class="modal-close" data-close="detailModal" aria-label="닫기">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="modal-section-title">요청 정보</div>
+                            <div id="detailBody" style="display:grid; gap:10px;"></div>
+                            <div class="modal-actions" id="detailActions"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 모달: 개인 일정 추가/수정 -->
+                <div class="modal-backdrop" id="editModal">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+                        <div class="modal-header">
+                            <div class="modal-title" id="editModalTitle">개인 일정 추가</div>
+                            <button class="modal-close" data-close="editModal" aria-label="닫기">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="modal-section-title">요청 정보</div>
+                            <div class="form-grid">
+                                <div class="field">
+                                    <label for="editDate">날짜</label>
+                                    <input id="editDate" type="date"/>
+                                </div>
+                                <div class="field">
+                                    <label for="editTime">시간</label>
+                                    <input id="editTime" type="time"/>
+                                </div>
+
+                                <div class="field full">
+                                    <label for="editTitle">제목</label>
+                                    <input id="editTitle" type="text" placeholder="예: 거래처 미팅 준비"/>
+                                </div>
+
+                                <div class="field full">
+                                    <label for="editDesc">설명</label>
+                                    <textarea id="editDesc" placeholder="예: 자료 정리, 방문 일정 확정 등"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="modal-actions">
+                                <button class="btn" id="cancelEdit">취소</button>
+                                <button class="btn btn-primary" id="saveEdit">저장</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            
+                
+            </div>
+        </div>
+    </main>
+
+    
+    <script>
+        // ===== 기존: 사이드바 토글 기능 =====
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // ===== 기존: 네비게이션 아이템 클릭 이벤트 =====
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                navItems.forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ===== 기존: ESC 키로 사이드바 닫기 =====
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+
+        // ============================================================
+        // 캘린더 화면 로직 (프로토타입)
+        // ============================================================
+
+        // ---- 유틸 ----
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+        const ym = (d) => `${d.getFullYear()}.${pad2(d.getMonth() + 1)}`;
+
+        // ---- 권한(프로토타입) ----
+        const isAdmin = document.getElementById('isAdmin');
+        const employeeSelector = document.getElementById('employeeSelector');
+        isAdmin.addEventListener('change', () => {
+            employeeSelector.disabled = !isAdmin.checked;
+        });
+
+        // ---- 필터 상태 (히스토리 일정에만 적용) ----
+        const filterState = { sales: 'ALL', client: 'ALL', employee: 'ALL' };
+
+        const salesSelector = document.getElementById('salesSelector');
+        const clientSelector = document.getElementById('clientSelector');
+
+        salesSelector.addEventListener('change', () => {
+            filterState.sales = salesSelector.value;
+            renderAll();
+        });
+
+        clientSelector.addEventListener('change', () => {
+            filterState.client = clientSelector.value;
+            renderAll();
+        });
+
+        employeeSelector.addEventListener('change', () => {
+            filterState.employee = employeeSelector.value;
+            renderAll();
+        });
+
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            filterState.sales = 'ALL';
+            filterState.client = 'ALL';
+            filterState.employee = 'ALL';
+            salesSelector.value = 'ALL';
+            clientSelector.value = 'ALL';
+            employeeSelector.value = 'ALL';
+            renderAll();
+        });
+
+        // ---- 데이터(샘플) ----
+        const events = [
+            {
+                id: 'H-001',
+                type: 'history',
+                historyCategory: 'RFQ',
+                title: '견적요청서 접수',
+                desc: '대상팜 - 봄작기 수박 대목 견적요청서 생성',
+                date: '2026-02-03',
+                time: '10:30',
+                clientId: 'C001',
+                clientName: '대상팜',
+                employeeId: 'E001',
+                employeeName: '김영업',
+                docType: '견적요청서',
+                docNo: 'RFQ-2026-0203-001'
+            },
+            {
+                id: 'H-002',
+                type: 'history',
+                historyCategory: 'QUOTATION',
+                title: '견적서 발행',
+                desc: '그린농원 - 토마토(방울) 종자 견적서 발행',
+                date: '2026-02-06',
+                time: '14:00',
+                clientId: 'C002',
+                clientName: '그린농원',
+                employeeId: 'E002',
+                employeeName: '이영업',
+                docType: '견적서',
+                docNo: 'Q-2026-0206-002'
+            },
+            {
+                id: 'H-003',
+                type: 'history',
+                historyCategory: 'CONTRACT',
+                title: '계약서 승인 요청',
+                desc: '해오름농장 - 2026 봄작 계약서 승인 요청',
+                date: '2026-02-10',
+                time: '09:20',
+                clientId: 'C003',
+                clientName: '해오름농장',
+                employeeId: 'E001',
+                employeeName: '김영업',
+                docType: '계약서',
+                docNo: 'C-2026-0210-003'
+            },
+            {
+                id: 'H-004',
+                type: 'history',
+                historyCategory: 'ORDER',
+                title: '주문서 생성',
+                desc: '대상팜 - 수박 대목 500판 주문서 생성',
+                date: '2026-02-18',
+                time: '16:10',
+                clientId: 'C001',
+                clientName: '대상팜',
+                employeeId: 'E003',
+                employeeName: '박영업',
+                docType: '주문서',
+                docNo: 'O-2026-0218-004'
+            },
+            {
+                id: 'H-005',
+                type: 'history',
+                historyCategory: 'INVOICE',
+                title: '청구서 발행',
+                desc: '그린농원 - 2월 납품분 청구서 발행',
+                date: '2026-02-22',
+                time: '11:40',
+                clientId: 'C002',
+                clientName: '그린농원',
+                employeeId: 'E002',
+                employeeName: '이영업',
+                docType: '청구서',
+                docNo: 'I-2026-0222-005'
+            },
+            {
+                id: 'P-101',
+                type: 'personal',
+                title: '개인 일정: 현장 방문 준비',
+                desc: '방문 체크리스트 및 샘플 발송 확인',
+                date: '2026-02-10',
+                time: '13:30'
+            },
+            {
+                id: 'P-102',
+                type: 'personal',
+                title: '개인 일정: 주간 회고',
+                desc: '이번 주 이슈/성과 정리',
+                date: '2026-02-14',
+                time: '18:00'
+            }
+        ];
+
+        // ---- 달력 상태 ----
+        let viewDate = new Date(2026, 1, 1); // 2026-02 (0-based)
+        let selectedDate = null;
+
+        // ---- 추천(샘플) : 자동 회전 ----
+        const makeSvgDataUrl = (title, sub) => {
+            const svg = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="900" height="520">
+                    <defs>
+                        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#f5f7fb"/>
+                            <stop offset="100%" stop-color="#e6eefb"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#g)"/>
+                    <circle cx="780" cy="110" r="70" fill="#dbe8ff"/>
+                    <circle cx="820" cy="150" r="30" fill="#cfe1ff"/>
+                    <text x="60" y="170" font-size="44" font-family="Segoe UI, Noto Sans KR, sans-serif" fill="#2c3e50" font-weight="800">${title}</text>
+                    <text x="60" y="230" font-size="22" font-family="Segoe UI, Noto Sans KR, sans-serif" fill="#6b7a8c" font-weight="600">${sub}</text>
+                    <rect x="60" y="280" width="240" height="44" rx="22" fill="#2d89ef"/>
+                    <text x="92" y="310" font-size="18" font-family="Segoe UI, Noto Sans KR, sans-serif" fill="#ffffff" font-weight="800">이번달 추천</text>
+                </svg>
+            `.trim();
+            return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        };
+
+        const recommendations = [
+            { name: '마라톤 수박 대목', tag: '내병성/중약세', img: makeSvgDataUrl('마라톤 수박 대목', '세력 약·관리 용이 / 만할병 저항') },
+            { name: '스위트 방울토마토', tag: '당도/수량성', img: makeSvgDataUrl('스위트 방울토마토', '고당도·균일과 / 재배 안정') },
+            { name: '프레시 오이', tag: '여름작 추천', img: makeSvgDataUrl('프레시 오이', '초세 강·연속 착과 / 시장성') },
+            { name: '파워 고추', tag: '내병성', img: makeSvgDataUrl('파워 고추', '내병성 강화 / 수확 지속') },
+        ];
+
+        let recommendIdx = 0;
+        const recommendImgTag = document.getElementById('recommendImgTag');
+        const recommendCaption = document.getElementById('recommendCaption');
+        const recommendList = document.getElementById('recommendList');
+
+        const renderRecommendList = () => {
+            recommendList.innerHTML = '';
+            recommendations.forEach((r, idx) => {
+                const row = document.createElement('div');
+                row.className = 'recommend-item';
+                row.innerHTML = `
+                    <div class="recommend-name" title="${r.name}">${r.name}</div>
+                    <div class="recommend-tag">${r.tag}</div>
+                `;
+                row.addEventListener('click', () => {
+                    recommendIdx = idx;
+                    renderRecommendCarousel();
+                });
+                recommendList.appendChild(row);
+            });
+        };
+
+        const renderRecommendCarousel = () => {
+            const r = recommendations[recommendIdx];
+            recommendImgTag.src = r.img;
+            recommendCaption.textContent = r.name;
+        };
+
+        renderRecommendList();
+        renderRecommendCarousel();
+
+        setInterval(() => {
+            recommendIdx = (recommendIdx + 1) % recommendations.length;
+            renderRecommendCarousel();
+        }, 5000);
+
+        // ---- 모달 공통 ----
+        const openModal = (id) => document.getElementById(id).classList.add('open');
+        const closeModal = (id) => document.getElementById(id).classList.remove('open');
+
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
+        });
+
+        ['dayModal','detailModal','editModal'].forEach(id => {
+            const backdrop = document.getElementById(id);
+            backdrop.addEventListener('click', (e) => {
+                if (e.target === backdrop) closeModal(id);
+            });
+        });
+
+        // ---- 일정 필터링(히스토리만) ----
+        const passHistoryFilter = (ev) => {
+            if (ev.type !== 'history') return true; // 개인 일정은 항상 표시
+            if (filterState.sales !== 'ALL' && ev.historyCategory !== filterState.sales) return false;
+            if (filterState.client !== 'ALL' && ev.clientId !== filterState.client) return false;
+            if (isAdmin.checked && filterState.employee !== 'ALL' && ev.employeeId !== filterState.employee) return false;
+            return true;
+        };
+
+        const getEventsByDate = (dateStr) => {
+            return events
+                .filter(ev => ev.date === dateStr)
+                .filter(passHistoryFilter)
+                .sort((a,b) => (a.time || '').localeCompare(b.time || ''));
+        };
+
+        // ---- 달력 렌더 ----
+        const calendarGrid = document.getElementById('calendarGrid');
+        const monthTitle = document.getElementById('monthTitle');
+
+        const labelHistory = (cat) => ({
+            RFQ: '견적요청',
+            QUOTATION: '견적',
+            CONTRACT: '계약',
+            ORDER: '주문',
+            INVOICE: '청구'
+        }[cat] || '영업');
+
+        const buildDow = () => {
+            ['일','월','화','수','목','금','토'].forEach(l => {
+                const el = document.createElement('div');
+                el.className = 'dow';
+                el.textContent = l;
+                calendarGrid.appendChild(el);
+            });
+        };
+
+        const renderCalendar = () => {
+            calendarGrid.innerHTML = '';
+            monthTitle.textContent = ym(viewDate);
+            buildDow();
+
+            const first = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+            const last = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+
+            const startDay = first.getDay();
+            const daysInMonth = last.getDate();
+            const prevLast = new Date(viewDate.getFullYear(), viewDate.getMonth(), 0);
+            const prevDays = prevLast.getDate();
+
+            const totalCells = 42;
+            for (let i = 0; i < totalCells; i++) {
+                const cellIndex = i - startDay + 1;
+                let cellDate, muted = false;
+
+                if (cellIndex < 1) {
+                    const d = prevDays + cellIndex;
+                    cellDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, d);
+                    muted = true;
+                } else if (cellIndex > daysInMonth) {
+                    const d = cellIndex - daysInMonth;
+                    cellDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, d);
+                    muted = true;
+                } else {
+                    cellDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), cellIndex);
+                }
+
+                const dateStr = ymd(cellDate);
+                const evs = getEventsByDate(dateStr);
+
+                const cell = document.createElement('div');
+                cell.className = `day-cell${muted ? ' muted' : ''}`;
+                cell.setAttribute('data-date', dateStr);
+
+                const dayNum = document.createElement('div');
+                dayNum.className = 'day-num';
+                dayNum.textContent = String(cellDate.getDate());
+                cell.appendChild(dayNum);
+
+                const badgeRow = document.createElement('div');
+                badgeRow.className = 'badge-row';
+
+                evs.slice(0, 3).forEach(ev => {
+                    const b = document.createElement('div');
+                    b.className = `badge ${ev.type}`;
+                    b.title = ev.title;
+                    b.textContent = ev.type === 'history' ? `${labelHistory(ev.historyCategory)} · ${ev.title}` : ev.title;
+                    badgeRow.appendChild(b);
+                });
+
+                if (evs.length > 3) {
+                    const more = document.createElement('div');
+                    more.className = 'badge';
+                    more.textContent = `+${evs.length - 3}`;
+                    badgeRow.appendChild(more);
+                }
+
+                cell.appendChild(badgeRow);
+
+                cell.addEventListener('click', () => {
+                    selectedDate = dateStr;
+                    openDayModal();
+                });
+
+                calendarGrid.appendChild(cell);
+            }
+        };
+
+        // ---- 날짜 모달(리스트) ----
+        const dayModalTitle = document.getElementById('dayModalTitle');
+        const dayModalList = document.getElementById('dayModalList');
+
+        const openDayModal = () => {
+            if (!selectedDate) return;
+            const evs = getEventsByDate(selectedDate);
+            dayModalTitle.textContent = `일정 목록 · ${selectedDate}`;
+
+            dayModalList.innerHTML = '';
+            if (evs.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.padding = '12px';
+                empty.style.color = '#6b7a8c';
+                empty.textContent = '표시할 일정이 없습니다.';
+                dayModalList.appendChild(empty);
+            } else {
+                evs.forEach(ev => {
+                    const item = document.createElement('div');
+                    item.className = 'modal-item';
+                    item.innerHTML = `
+                        <div class="modal-item-top">
+                            <div class="modal-item-title" title="${ev.title}">${ev.time ? `${ev.time} · ` : ''}${ev.title}</div>
+                            <div class="pill ${ev.type}">${ev.type === 'history' ? labelHistory(ev.historyCategory) : '개인'}</div>
+                        </div>
+                        <div class="modal-item-desc">${escapeHtml(ev.desc || '')}</div>
+                    `;
+                    item.addEventListener('click', () => {
+                        closeModal('dayModal');
+                        openDetail(ev);
+                    });
+                    dayModalList.appendChild(item);
+                });
+            }
+
+            openModal('dayModal');
+        };
+
+        // ---- 상세 모달 ----
+        const detailBody = document.getElementById('detailBody');
+        const detailActions = document.getElementById('detailActions');
+
+        const openDetail = (ev) => {
+            document.getElementById('detailModalTitle').textContent = `일정 상세 · ${ev.date}`;
+            detailBody.innerHTML = '';
+
+            const rows = [];
+            rows.push(['제목', ev.title]);
+            if (ev.time) rows.push(['시간', ev.time]);
+            rows.push(['구분', ev.type === 'history' ? `영업 문서 일정 (${labelHistory(ev.historyCategory)})` : '개인 일정']);
+            if (ev.type === 'history') {
+                rows.push(['거래처', ev.clientName || '-']);
+                rows.push(['영업사원', ev.employeeName || '-']);
+                rows.push(['서류', `${ev.docType || '-'} / ${ev.docNo || '-'}`]);
+            }
+            rows.push(['설명', ev.desc || '-']);
+
+            rows.forEach(([k,v]) => {
+                const box = document.createElement('div');
+                box.style.display = 'grid';
+                box.style.gap = '6px';
+                box.style.padding = '12px';
+                box.style.border = '1px solid #eef2f6';
+                box.style.borderRadius = '12px';
+                box.style.background = '#fbfcfe';
+                box.innerHTML = `
+                    <div style="font-size:12px;font-weight:900;color:#6b7a8c;">${escapeHtml(k)}</div>
+                    <div style="font-size:13px;font-weight:800;color:#2c3e50;line-height:1.5;word-break:break-word;">${escapeHtml(v)}</div>
+                `;
+                detailBody.appendChild(box);
+            });
+
+            detailActions.innerHTML = '';
+            if (ev.type === 'personal') {
+                const editBtn = document.createElement('button');
+                editBtn.className = 'btn';
+                editBtn.textContent = '수정';
+                editBtn.addEventListener('click', () => openEditModal(ev));
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn';
+                delBtn.textContent = '삭제';
+                delBtn.addEventListener('click', () => {
+                    const idx = events.findIndex(x => x.id === ev.id);
+                    if (idx >= 0) events.splice(idx, 1);
+                    closeModal('detailModal');
+                    renderAll();
+                });
+
+                detailActions.appendChild(editBtn);
+                detailActions.appendChild(delBtn);
+            } else {
+                const info = document.createElement('div');
+                info.style.color = '#6b7a8c';
+                info.style.fontSize = '12px';
+                info.style.fontWeight = '700';
+                info.textContent = '※ 영업 문서 일정은 문서 히스토리에 의해 자동 생성됩니다.';
+                detailActions.appendChild(info);
+            }
+
+            openModal('detailModal');
+        };
+
+        // ---- 개인 일정 CRUD ----
+        const editDate = document.getElementById('editDate');
+        const editTime = document.getElementById('editTime');
+        const editTitle = document.getElementById('editTitle');
+        const editDesc = document.getElementById('editDesc');
+
+        let editingId = null;
+
+        const openEditModal = (ev = null) => {
+            editingId = ev?.id || null;
+            document.getElementById('editModalTitle').textContent = editingId ? '개인 일정 수정' : '개인 일정 추가';
+
+            const initDate = ev?.date || selectedDate || ymd(new Date());
+            editDate.value = initDate;
+            editTime.value = ev?.time || '09:00';
+            editTitle.value = (ev?.title || '').replace('개인 일정: ', '');
+            editDesc.value = ev?.desc || '';
+
+            openModal('editModal');
+        };
+
+        document.getElementById('addScheduleBtn').addEventListener('click', () => openEditModal(null));
+        document.getElementById('cancelEdit').addEventListener('click', () => closeModal('editModal'));
+
+        document.getElementById('saveEdit').addEventListener('click', () => {
+            const d = editDate.value;
+            const t = editTime.value;
+            const title = editTitle.value.trim();
+            const desc = editDesc.value.trim();
+
+            if (!d || !title) {
+                alert('날짜와 제목은 필수입니다.');
+                return;
+            }
+
+            if (editingId) {
+                const ev = events.find(x => x.id === editingId);
+                if (ev) {
+                    ev.date = d;
+                    ev.time = t;
+                    ev.title = `개인 일정: ${title}`;
+                    ev.desc = desc;
+                }
+            } else {
+                const newId = `P-${Math.floor(Math.random() * 9000) + 1000}`;
+                events.push({ id: newId, type: 'personal', date: d, time: t, title: `개인 일정: ${title}`, desc });
+            }
+
+            closeModal('editModal');
+            renderAll();
+        });
+
+        // ---- 월 이동 ----
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
+            renderAll();
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+            renderAll();
+        });
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        const renderAll = () => {
+            renderCalendar();
+        };
+
+        // 초기 선택 날짜(예시)
+        selectedDate = '2026-02-10';
+        renderAll();
+    </script>
+
+</body>
+</html>
