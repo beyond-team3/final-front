@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영업사원 대시보드 - 종자 영업 관리 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        /* ========== 영업사원 대시보드 전용 스타일 ========== */
+        
+        .dashboard-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .user-info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background-color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        .filter-btn.active {
+            background-color: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        /* 월별 매출 카드 섹션 */
+        .monthly-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card h4 {
+            font-size: 14px;
+            font-weight: normal;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .sub-value {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .stat-card.green {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .stat-card.orange {
+            background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%);
+        }
+        
+        .stat-card.blue {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        /* 차트 그리드 */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .chart-card {
+            background-color: #fafafa;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 350px;
+        }
+        
+        .chart-card h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .chart-placeholder {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(135deg, #e3e3e3 25%, transparent 25%),
+                        linear-gradient(225deg, #e3e3e3 25%, transparent 25%),
+                        linear-gradient(45deg, #e3e3e3 25%, transparent 25%),
+                        linear-gradient(315deg, #e3e3e3 25%, #f5f5f5 25%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 0, 10px -10px, 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+        
+        .chart-info {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .donut-chart {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            height: 250px;
+        }
+        
+        .donut-placeholder {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 40px solid #e0e0e0;
+            border-top-color: #4A90E2;
+            border-right-color: #4A90E2;
+            border-bottom-color: #4A90E2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .donut-info {
+            text-align: left;
+        }
+        
+        .donut-info-item {
+            margin-bottom: 15px;
+        }
+        
+        .donut-info-item .label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 3px;
+        }
+        
+        .donut-info-item .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* 반응형 */
+        @media (max-width: 1200px) {
+            .monthly-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+
+            .monthly-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">대시보드</div>
+            <div class="nav-item" data-screen="dashboard-admin">관리자 대시보드</div>
+            <div class="nav-item active" data-screen="dashboard-sales">영업사원 대시보드</div>
+            
+            <div class="nav-category">나의 영업</div>
+            <div class="nav-item" data-screen="my-clients">담당 거래처</div>
+            <div class="nav-item" data-screen="my-sales-docs">나의 영업 문서</div>
+            <div class="nav-item" data-screen="my-history">나의 영업 히스토리</div>
+            <div class="nav-item" data-screen="my-memo">나의 메모</div>
+            
+            <div class="nav-category">영업 지원</div>
+            <div class="nav-item" data-screen="pest-map">병해충 지도</div>
+            <div class="nav-item" data-screen="products">상품 검색</div>
+            <div class="nav-item" data-screen="schedule">일정 관리</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="profile">내 정보</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                
+                <!-- ========== 영업사원 대시보드 컨텐츠 시작 ========== -->
+                
+                <div class="dashboard-header">
+                    <h1>👤 내 성과 대시보드</h1>
+                    <div class="user-info">영업사원: 홍길동 | 소속: 서울지사</div>
+                    <div class="filters">
+                        <button class="filter-btn active" onclick="changeFilter(this, 'month')">📅 월별 조회</button>
+                        <button class="filter-btn" onclick="changeFilter(this, 'quarter')">📅 분기별 조회</button>
+                        <button class="filter-btn" onclick="changeFilter(this, 'year')">📅 연간 조회</button>
+                    </div>
+                </div>
+                
+                <!-- 개인 월별 매출 카드 -->
+                <div class="monthly-cards">
+                    <div class="stat-card" onclick="viewDetail('monthly-sales')">
+                        <h4>이번 달 매출</h4>
+                        <div class="value">120M</div>
+                        <div class="sub-value">▲ 15% 전월 대비</div>
+                    </div>
+                    
+                    <div class="stat-card green" onclick="viewDetail('achievement')">
+                        <h4>목표 달성률</h4>
+                        <div class="value">85%</div>
+                        <div class="sub-value">목표: 150M</div>
+                    </div>
+                    
+                    <div class="stat-card orange" onclick="viewDetail('new-clients')">
+                        <h4>신규 거래처</h4>
+                        <div class="value">8개</div>
+                        <div class="sub-value">이번 달 신규</div>
+                    </div>
+                    
+                    <div class="stat-card blue" onclick="viewDetail('activities')">
+                        <h4>영업 활동</h4>
+                        <div class="value">32건</div>
+                        <div class="sub-value">방문 + 상담</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-grid">
+                    <!-- 개인 매출목표 달성률 -->
+                    <div class="chart-card">
+                        <h3>개인 매출목표 달성률</h3>
+                        <div class="donut-chart">
+                            <div class="donut-placeholder">
+                                85%
+                            </div>
+                            <div class="donut-info">
+                                <div class="donut-info-item">
+                                    <div class="label">목표 매출</div>
+                                    <div class="value">150M</div>
+                                </div>
+                                <div class="donut-info-item">
+                                    <div class="label">현재 매출</div>
+                                    <div class="value" style="color: #4A90E2;">128M</div>
+                                </div>
+                                <div class="donut-info-item">
+                                    <div class="label">남은 목표</div>
+                                    <div class="value" style="color: #E94B3C;">22M</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-info">
+                            • 개인별 매출 목표 대비 달성률 <br>
+                            • 월간/분기/연간 단위 조회 가능
+                        </div>
+                    </div>
+                    
+                    <!-- 개인 매출 영업처 TOP 3 -->
+                    <div class="chart-card">
+                        <h3>개인 매출 영업처 TOP 3</h3>
+                        <div class="chart-placeholder">
+                            📊 가로 막대 차트 영역
+                        </div>
+                        <div class="chart-info">
+                            • 관리 거래처 중 매출 상위 3개<br>
+                            • 각 영업처별 매출 금액 및 비중
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========== 영업사원 대시보드 컨텐츠 끝 ========== -->
+                
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                navItems.forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+
+        // 필터 변경 함수
+        function changeFilter(btn, filterType) {
+            // 모든 필터 버튼에서 active 클래스 제거
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            // 클릭한 버튼에 active 클래스 추가
+            btn.classList.add('active');
+            
+            console.log(`필터 변경: ${filterType}`);
+            alert(`${filterType === 'month' ? '월별' : filterType === 'quarter' ? '분기별' : '연간'} 데이터로 조회합니다.`);
+        }
+
+        // 카드 상세 보기 함수
+        function viewDetail(type) {
+            const titles = {
+                'monthly-sales': '이번 달 매출 상세',
+                'achievement': '목표 달성률 상세',
+                'new-clients': '신규 거래처 목록',
+                'activities': '영업 활동 내역'
+            };
+            
+            console.log(`상세 보기: ${type}`);
+            alert(`${titles[type]} 화면으로 이동합니다.`);
+        }
+    </script>
+</body>
+</html>
