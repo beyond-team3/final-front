@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">상품 목록(관리자)</h2>
+                
+                <!-- 
+                    ========================================
+                    여기부터 각 화면별 컨텐츠를 작성하세요
+                    ========================================
+                -->
+                <style>
+    /* 상단 헤더 및 버튼 영역 */
+    .list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .btn-add {
+        background-color: #3498db;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .btn-add:hover { background-color: #2980b9; }
+
+    /* 검색 및 필터 영역 */
+    .filter-section {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border: 1px solid #eee;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .filter-select {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        min-width: 120px;
+    }
+
+    /* 그리드 레이아웃 */
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+
+    /* 상품 카드 스타일 */
+    .product-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        height: 220px;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 20px;
+    }
+
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    /* 텍스트 내용 (기본 상태) */
+    .card-content {
+        z-index: 2;
+        transition: opacity 0.3s;
+    }
+
+    .prod-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+
+    .prod-desc {
+        font-size: 14px;
+        color: #7f8c8d;
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* 호버 시 나타날 이미지 배경 */
+    .card-bg-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        opacity: 0; /* 기본적으로 숨김 */
+        transition: opacity 0.3s ease-in-out;
+        z-index: 1;
+    }
+
+    /* 호버 효과: 텍스트 숨기고 이미지 보이기 + 오버레이 */
+    .product-card:hover .card-bg-image {
+        opacity: 1;
+    }
+
+    .product-card:hover .card-content {
+        opacity: 0; /* 텍스트 숨김 (또는 색상 변경 가능) */
+    }
+
+    /* 이미지 위에 텍스트를 띄우고 싶다면 아래 주석 해제하여 사용 */
+    /*
+    .product-card:hover .card-content {
+        opacity: 1;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    }
+    .product-card:hover .prod-name { color: white; }
+    .product-card:hover .prod-desc { color: #ecf0f1; }
+    */
+
+    /* 더보기 버튼 영역 */
+    .load-more-container {
+        text-align: center;
+        margin-top: 20px;
+        padding-bottom: 20px;
+    }
+
+    .btn-load-more {
+        background-color: white;
+        border: 1px solid #bdc3c7;
+        color: #7f8c8d;
+        padding: 10px 40px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn-load-more:hover {
+        background-color: #f5f6fa;
+        color: #2c3e50;
+        border-color: #2c3e50;
+    }
+</style>
+
+<div class="list-header">
+    <h2 class="screen-title" style="margin-bottom: 0; border-bottom: none;">상품 목록 (관리자)</h2>
+    <button class="btn btn-add" onclick="goToAddPage()">
+        <span>+</span> 상품 추가
+    </button>
+</div>
+
+<div class="filter-section">
+    <select class="filter-select">
+        <option value="">전체 환경</option>
+        <option value="노지">노지</option>
+        <option value="시설">시설하우스</option>
+    </select>
+    <select class="filter-select">
+        <option value="">전체 상태</option>
+        <option value="판매중">판매중</option>
+        <option value="품절">품절</option>
+    </select>
+    <input type="text" class="search-input" placeholder="상품명 또는 태그를 검색하세요...">
+    <button class="btn btn-add" style="padding: 10px 15px; background-color: #95a5a6;">검색</button>
+</div>
+
+<div class="product-grid" id="productGrid">
+    </div>
+
+<div class="load-more-container">
+    <button class="btn btn-load-more" onclick="loadMoreItems()" id="loadMoreBtn">더 보기 (Load More)</button>
+</div>
+
+<script>
+    // 샘플 데이터 (이미지 URL은 예시용 플레이스홀더)
+    const sampleData = [
+        { id: 1, name: '베테랑 고추', desc: '탄저병에 강하고 매운맛이 일품인 대표 품종입니다. 노지 재배에 적합합니다.', img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?auto=format&fit=crop&w=400&q=80' },
+        { id: 2, name: '꿀수박 1호', desc: '당도가 13Brix 이상 나오는 고당도 수박입니다. 하우스 재배용.', img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80' },
+        { id: 3, name: '청정 오이', desc: '아삭한 식감이 특징이며 저장성이 매우 우수합니다.', img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?auto=format&fit=crop&w=400&q=80' },
+        { id: 4, name: '햇살 토마토', desc: '붉은 빛깔이 선명하고 과육이 단단하여 유통에 유리합니다.', img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80' },
+        { id: 5, name: '금싸라기 참외', desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.', img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?auto=format&fit=crop&w=400&q=80' },
+        { id: 6, name: '가을무 대장', desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.', img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?auto=format&fit=crop&w=400&q=80' },
+    ];
+
+    const grid = document.getElementById('productGrid');
+
+    // 카드 생성 함수
+    function createCard(item) {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.onclick = () => goToDetailPage(item.id);
+
+        card.innerHTML = `
+            <div class="card-bg-image" style="background-image: url('${item.img}');"></div>
+            <div class="card-content">
+                <div class="prod-name">${item.name}</div>
+                <div class="prod-desc">${item.desc}</div>
+            </div>
+        `;
+        return card;
+    }
+
+    // 초기 데이터 로드
+    function init() {
+        sampleData.forEach(item => {
+            grid.appendChild(createCard(item));
+        });
+    }
+
+    // 더보기 버튼 로직 (무한 스크롤 시뮬레이션)
+    function loadMoreItems() {
+        const btn = document.getElementById('loadMoreBtn');
+        btn.innerText = '로딩 중...';
+        
+        // 0.5초 딜레이 후 데이터 추가 (서버 통신 흉내)
+        setTimeout(() => {
+            sampleData.slice(0, 3).forEach(item => { // 예시로 3개만 더 추가
+                const newItem = {...item, id: item.id + 100, name: item.name + ' (추가됨)'};
+                grid.appendChild(createCard(newItem));
+            });
+            btn.innerText = '더 보기 (Load More)';
+        }, 500);
+    }
+
+    // 페이지 이동 함수 (와이어프레임 flow 반영)
+    function goToAddPage() {
+        console.log('상품 추가 화면으로 이동');
+        alert('상품 추가 화면으로 이동합니다.\n(실제 구현 시 URL 변경)');
+        location.href = 'product_form.html'; 
+    }
+
+    function goToDetailPage(id) {
+        console.log(`상품 ID ${id} 상세 페이지로 이동`);
+        alert(`[ID: ${id}] 상세 페이지로 이동합니다.\n(상세보기 -> 수정/삭제 가능)`);
+        location.href = `product_detail.html?id=${id}`;
+    }
+
+    // 실행
+    init();
+</script>
+                
+                <!-- 
+                    ========================================
+                    화면별 컨텐츠 작성 영역 끝
+                    ========================================
+                -->
+                
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>
