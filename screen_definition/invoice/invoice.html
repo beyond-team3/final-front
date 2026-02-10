@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>청구서 작성 - SALES-INV-001</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh; overflow: hidden; background: #f0f2f5;
+        }
+
+        /* ───── 공통 레이아웃 ───── */
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background: #1a2636; color: white;
+            display: flex; align-items: center; padding: 0 20px;
+            z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .menu-button {
+            background: none; border: none; color: white;
+            font-size: 22px; cursor: pointer; padding: 8px 12px;
+            margin-right: 16px; border-radius: 6px; transition: background 0.2s;
+        }
+        .menu-button:hover { background: rgba(255,255,255,0.1); }
+        .header-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+        .header-badge {
+            margin-left: 12px; background: #3b82f6; color: white;
+            font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600;
+        }
+
+        .sidebar {
+            position: fixed; top: 60px; left: 0;
+            width: 240px; height: calc(100vh - 60px);
+            background: #1e2d3d; color: white;
+            transition: transform 0.3s ease; z-index: 999; overflow-y: auto;
+        }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .sidebar-nav { padding: 16px 0; }
+        .nav-category {
+            padding: 16px 20px 8px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; color: #64748b; letter-spacing: 1px;
+        }
+        .nav-item {
+            padding: 10px 20px; cursor: pointer;
+            transition: all 0.2s; border-left: 3px solid transparent;
+            font-size: 14px; color: #94a3b8;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; border-left-color: #3b82f6; }
+        .nav-item.active { background: rgba(59,130,246,0.15); color: white; border-left-color: #3b82f6; font-weight: 600; }
+
+        .main-content {
+            position: fixed; top: 60px; left: 240px; right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease; overflow-y: auto; background: #f0f2f5;
+        }
+        .main-content.expanded { left: 0; }
+
+        /* ───── screen-content ───── */
+        .screen-content { margin: 24px; }
+
+        /* 페이지 헤더 */
+        .page-header { margin-bottom: 20px; }
+        .breadcrumb { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+        .breadcrumb span { color: #3b82f6; }
+        .page-title {
+            font-size: 22px; font-weight: 800; color: #0f172a;
+            letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px;
+        }
+        .screen-id-badge {
+            font-size: 11px; font-weight: 600; color: #64748b;
+            background: #e2e8f0; padding: 3px 8px; border-radius: 4px;
+        }
+        .page-subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+        /* 주문 요약 카드 */
+        .order-card {
+            background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+            padding: 16px 24px; margin-bottom: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            display: flex; align-items: center; gap: 0;
+        }
+        .order-card-icon {
+            width: 38px; height: 38px; background: #eff6ff;
+            border-radius: 8px; display: flex; align-items: center;
+            justify-content: center; font-size: 20px; margin-right: 16px; flex-shrink: 0;
+        }
+        .order-card-fields {
+            display: flex; gap: 40px; flex: 1;
+        }
+        .order-field label {
+            font-size: 11px; color: #94a3b8; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px;
+        }
+        .order-field .fv {
+            font-size: 14px; font-weight: 700; color: #1e293b;
+        }
+        .order-field .fv.blue { color: #2563eb; }
+        .order-status-badge {
+            margin-left: auto; background: #eff6ff; color: #2563eb;
+            font-size: 12px; font-weight: 700; padding: 5px 14px;
+            border-radius: 20px; border: 1px solid #bfdbfe; flex-shrink: 0;
+        }
+
+        /* ───── 공통 섹션 ───── */
+        .section {
+            background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+            margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden;
+        }
+        .section-header {
+            padding: 13px 20px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; gap: 8px; background: #fafbfc;
+        }
+        .section-icon { font-size: 16px; }
+        .section-title { font-size: 14px; font-weight: 700; color: #1e293b; }
+        .section-desc { font-size: 12px; color: #94a3b8; margin-left: auto; }
+        .section-body { padding: 20px; }
+
+        /* ───── 상태 필터 토글 ───── */
+        .filter-bar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 14px 20px; border-bottom: 1px solid #f1f5f9;
+            background: #fafbfc;
+        }
+        .filter-label { font-size: 12px; color: #64748b; font-weight: 600; margin-right: 4px; }
+        .filter-btn {
+            padding: 5px 14px; border-radius: 20px; font-size: 12px;
+            font-weight: 600; cursor: pointer; border: 1.5px solid #e2e8f0;
+            background: white; color: #64748b; transition: all 0.18s; font-family: inherit;
+        }
+        .filter-btn:hover { border-color: #93c5fd; color: #2563eb; background: #eff6ff; }
+        .filter-btn.active { background: #2563eb; color: white; border-color: #2563eb; box-shadow: 0 2px 6px rgba(37,99,235,0.25); }
+        .filter-count {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 18px; height: 18px; background: rgba(255,255,255,0.25);
+            border-radius: 10px; font-size: 11px; margin-left: 4px; padding: 0 4px;
+        }
+        .filter-btn:not(.active) .filter-count { background: #e2e8f0; color: #64748b; }
+
+        /* ───── 명세서 테이블 ───── */
+        .inv-table { width: 100%; border-collapse: collapse; }
+        .inv-table thead tr { background: #f8fafc; }
+        .inv-table th {
+            padding: 10px 14px; font-size: 11px; font-weight: 700; color: #64748b;
+            text-align: left; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .inv-table th.center, .inv-table td.center { text-align: center; }
+        .inv-table th.right, .inv-table td.right { text-align: right; }
+        .inv-table tbody tr { transition: background 0.15s; }
+        .inv-table tbody tr:not(.disabled-row):hover { background: #f8fafc; }
+        .inv-table td {
+            padding: 12px 14px; font-size: 13px; color: #334155;
+            border-bottom: 1px solid #f1f5f9; vertical-align: middle;
+        }
+
+        /* 비활성(청구 완료) 행 */
+        .inv-table tbody tr.disabled-row td { color: #cbd5e1; background: #fafafa; }
+        .inv-table tbody tr.disabled-row .inv-num { color: #cbd5e1; }
+
+        .inv-num { font-weight: 700; color: #1e293b; font-size: 13px; }
+        .inv-order-ref { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .supply-amt { font-weight: 600; color: #475569; }
+
+        /* 상태 뱃지 */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+        }
+        .status-badge::before { content: "●"; font-size: 8px; }
+        .status-badge.available { background: #dcfce7; color: #16a34a; }
+        .status-badge.completed { background: #f1f5f9; color: #94a3b8; }
+
+        /* 커스텀 체크박스 */
+        .custom-checkbox { display: flex; align-items: center; justify-content: center; }
+        .custom-checkbox input[type="checkbox"] { display: none; }
+        .custom-checkbox label {
+            width: 18px; height: 18px; border: 2px solid #cbd5e1;
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.15s; background: white;
+        }
+        .custom-checkbox input[type="checkbox"]:checked + label {
+            background: #2563eb; border-color: #2563eb; color: white;
+        }
+        .custom-checkbox input[type="checkbox"]:checked + label::after { content: "✓"; font-size: 12px; font-weight: 700; }
+        .custom-checkbox input[type="checkbox"]:disabled + label {
+            background: #f1f5f9; border-color: #e2e8f0; cursor: not-allowed;
+        }
+
+        /* 전체 선택 */
+        .th-check { width: 44px; }
+        .select-all-wrap { display: flex; align-items: center; justify-content: center; }
+
+        /* 빈 상태 */
+        .empty-state {
+            padding: 48px; text-align: center; color: #94a3b8;
+        }
+        .empty-state .empty-icon { font-size: 36px; margin-bottom: 10px; }
+        .empty-state .empty-text { font-size: 14px; font-weight: 600; }
+        .empty-state .empty-sub { font-size: 12px; margin-top: 4px; }
+
+        /* ───── 선택 명세서 요약 ───── */
+        .summary-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+        }
+        .summary-card {
+            border-radius: 10px; padding: 14px 16px;
+            border: 1px solid #e2e8f0; background: #fafbfc; transition: all 0.3s;
+        }
+        .summary-card .s-label {
+            font-size: 11px; font-weight: 700; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+        }
+        .summary-card .s-value {
+            font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;
+        }
+        .summary-card .s-value .currency { font-size: 13px; color: #94a3b8; margin-right: 2px; }
+        .summary-card.highlight { border-color: #bfdbfe; background: #eff6ff; }
+        .summary-card.highlight .s-label { color: #2563eb; }
+        .summary-card.highlight .s-value { color: #1d4ed8; }
+        .summary-card.count-card { border-color: #c7d2fe; background: #eef2ff; }
+        .summary-card.count-card .s-label { color: #6366f1; }
+        .summary-card.count-card .s-value { color: #4338ca; }
+
+        .summary-divider {
+            grid-column: 3 / 5;
+            border-top: 1px dashed #e2e8f0; padding-top: 14px; margin-top: -4px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+        }
+
+        /* 선택 없을 때 흐리게 */
+        .summary-card.empty .s-value { color: #cbd5e1; }
+        .summary-card.empty.highlight { border-color: #e2e8f0; background: #fafbfc; }
+        .summary-card.empty.highlight .s-value { color: #cbd5e1; }
+
+        /* ───── 비고 입력 ───── */
+        .remarks-area {
+            width: 100%; min-height: 88px; padding: 12px 14px;
+            border: 1.5px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; color: #1e293b; background: white; outline: none;
+            resize: vertical; font-family: inherit; line-height: 1.6;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .remarks-area:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .remarks-hint {
+            margin-top: 8px; display: flex; align-items: center; gap: 6px;
+            font-size: 12px; color: #94a3b8;
+        }
+        .remarks-hint .hint-icon { font-size: 14px; }
+        .char-count { margin-left: auto; font-size: 11px; color: #cbd5e1; }
+
+        /* ───── 액션 바 ───── */
+        .action-bar {
+            background: white; border-radius: 12px; border: 1px solid #e2e8f0;
+            padding: 14px 24px; margin-bottom: 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .action-bar-left { font-size: 13px; color: #94a3b8; }
+        .action-bar-left strong { color: #64748b; }
+        .action-bar-right { display: flex; align-items: center; gap: 10px; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 0 18px; height: 40px; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            border: none; transition: all 0.2s; font-family: inherit; white-space: nowrap;
+        }
+        .btn-cancel { background: white; border: 1.5px solid #e2e8f0; color: #64748b; }
+        .btn-cancel:hover { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
+        .btn-pdf { background: #f8fafc; border: 1.5px solid #e2e8f0; color: #475569; }
+        .btn-pdf:hover { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+        .btn-primary:disabled {
+            background: linear-gradient(135deg, #94a3b8, #94a3b8);
+            box-shadow: none; cursor: not-allowed; transform: none; opacity: 0.7;
+        }
+
+        /* ───── PDF 미리보기 모달 ───── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(15,23,42,0.65);
+            z-index: 2000; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white; border-radius: 16px;
+            width: 740px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modal-in 0.25s ease;
+        }
+        @keyframes modal-in {
+            from { opacity: 0; transform: translateY(20px) scale(0.97); }
+            to { opacity: 1; transform: none; }
+        }
+        .modal-header {
+            padding: 18px 24px 14px; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: white; z-index: 1;
+        }
+        .modal-title { font-size: 16px; font-weight: 800; color: #1e293b; }
+        .modal-close {
+            width: 32px; height: 32px; background: #f1f5f9;
+            border: none; border-radius: 8px; cursor: pointer;
+            font-size: 18px; color: #64748b;
+            display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+        }
+        .modal-close:hover { background: #fee2e2; color: #dc2626; }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            padding: 14px 24px; border-top: 1px solid #f1f5f9;
+            display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+            position: sticky; bottom: 0; background: white;
+        }
+
+        /* PDF 미리보기 콘텐츠 */
+        .pdf-preview { border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px; background: white; }
+        .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 2px solid #1e293b; }
+        .pdf-title-block .pdf-doc-title { font-size: 24px; font-weight: 900; color: #1e293b; letter-spacing: 4px; }
+        .pdf-title-block .pdf-doc-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+        .pdf-company { text-align: right; font-size: 12px; color: #475569; line-height: 1.8; }
+        .pdf-company .co-name { font-size: 14px; font-weight: 800; color: #1e293b; }
+
+        .pdf-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .pdf-meta-table td { padding: 6px 12px; font-size: 12px; border: 1px solid #e2e8f0; }
+        .pdf-meta-table td.label { background: #f8fafc; font-weight: 700; color: #64748b; width: 90px; }
+        .pdf-meta-table td.value { color: #1e293b; font-weight: 600; }
+
+        .pdf-section-title { font-size: 12px; font-weight: 800; color: #1e293b; margin: 18px 0 8px; padding-left: 10px; border-left: 3px solid #2563eb; }
+
+        .pdf-items-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        .pdf-items-table th { background: #f8fafc; padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-align: left; border: 1px solid #e2e8f0; }
+        .pdf-items-table td { padding: 8px 12px; font-size: 12px; border: 1px solid #e2e8f0; color: #334155; }
+        .pdf-items-table td.right, .pdf-items-table th.right { text-align: right; }
+        .pdf-items-table .total-row td { background: #eff6ff; font-weight: 800; color: #1d4ed8; }
+
+        .pdf-amount-box {
+            margin-top: 16px; border: 1px solid #bfdbfe; border-radius: 8px;
+            background: #eff6ff; padding: 14px 20px;
+            display: flex; justify-content: flex-end; align-items: center; gap: 32px;
+        }
+        .pdf-amount-row { text-align: right; }
+        .pdf-amount-row .al { font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px; }
+        .pdf-amount-row .av { font-size: 16px; font-weight: 800; color: #1d4ed8; }
+
+        .pdf-remarks-box { margin-top: 14px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; background: #fafbfc; }
+        .pdf-remarks-box .rl { font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
+        .pdf-remarks-box .rv { font-size: 12px; color: #475569; line-height: 1.7; }
+
+        .pdf-footer-signs { display: flex; justify-content: flex-end; gap: 40px; margin-top: 28px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+        .sign-block { text-align: center; font-size: 11px; color: #64748b; }
+        .sign-block .sign-line { width: 90px; height: 44px; border-bottom: 1px solid #94a3b8; margin: 0 auto 6px; }
+
+        /* ───── 청구 완료 오버레이 ───── */
+        .success-overlay {
+            position: fixed; inset: 0; background: rgba(15,23,42,0.7);
+            z-index: 3000; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(6px);
+        }
+        .success-overlay.active { display: flex; }
+        .success-modal {
+            background: white; border-radius: 20px; padding: 40px 48px;
+            text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+            animation: modal-in 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .success-icon { font-size: 52px; margin-bottom: 16px; }
+        .success-title { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+        .success-sub { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
+        .success-btn { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; font-size: 14px; font-weight: 700; padding: 10px 28px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; }
+
+        /* 토스트 */
+        .toast {
+            position: fixed; bottom: 28px; right: 28px;
+            background: #1e293b; color: white; padding: 12px 20px;
+            border-radius: 10px; font-size: 14px; font-weight: 600;
+            z-index: 4000; display: flex; align-items: center; gap: 8px;
+            opacity: 0; transform: translateY(20px);
+            transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2); pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        @media (max-width: 900px) {
+            .summary-grid { grid-template-columns: repeat(2,1fr); }
+            .order-card-fields { flex-wrap: wrap; gap: 12px; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; max-width: 280px; }
+            .main-content { left: 0; }
+            .sidebar:not(.hidden) ~ .main-content { filter: brightness(0.7); pointer-events: none; }
+            .action-bar { flex-direction: column; gap: 12px; }
+            .summary-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+    <span class="header-badge">B2B</span>
+</header>
+
+<!-- 사이드바 -->
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">영업</div>
+        <div class="nav-item">📋&nbsp; 영업 대시보드</div>
+        <div class="nav-item">📝&nbsp; 주문서 작성</div>
+        <div class="nav-item active">🧾&nbsp; 청구서 작성</div>
+        <div class="nav-item">📜&nbsp; 계약 관리</div>
+        <div class="nav-item">🏢&nbsp; 거래처 관리</div>
+        <div class="nav-category">이력</div>
+        <div class="nav-item">🕒&nbsp; 영업 히스토리</div>
+        <div class="nav-item">📦&nbsp; 주문 이력</div>
+        <div class="nav-category">설정</div>
+        <div class="nav-item">⚙️&nbsp; 설정</div>
+        <div class="nav-item">👤&nbsp; 프로필</div>
+    </nav>
+</aside>
+
+<!-- 메인 컨텐츠 -->
+<main class="main-content" id="mainContent">
+<div class="screen-content">
+
+    <!-- 페이지 헤더 -->
+    <div class="page-header">
+        <div class="breadcrumb">영업 &rsaquo; <span>청구서 작성</span></div>
+        <div class="page-title">
+            청구서 작성
+            <span class="screen-id-badge">SALES-INV-001</span>
+        </div>
+        <div class="page-subtitle">자동 생성된 명세서를 선택하여 청구서를 작성합니다.</div>
+    </div>
+
+    <!-- ① 주문 요약 카드 -->
+    <div class="order-card">
+        <div class="order-card-icon">📦</div>
+        <div class="order-card-fields">
+            <div class="order-field">
+                <label>주문 번호</label>
+                <div class="fv blue">ORD-20250410-2847</div>
+            </div>
+            <div class="order-field">
+                <label>거래처명</label>
+                <div class="fv">㈜한국농업 (서울)</div>
+            </div>
+            <div class="order-field">
+                <label>주문 일자</label>
+                <div class="fv">2025.04.10</div>
+            </div>
+            <div class="order-field">
+                <label>명세서 수</label>
+                <div class="fv" id="totalInvCount">—</div>
+            </div>
+        </div>
+        <div class="order-status-badge">📋 명세서 조회 완료</div>
+    </div>
+
+    <!-- ② 명세서 목록 (SALES-INV-001 ~ 003) -->
+    <div class="section">
+        <div class="section-header">
+            <span class="section-icon">📄</span>
+            <span class="section-title">명세서 목록</span>
+            <span class="section-desc">SALES-INV-001 · 자동 생성 데이터</span>
+        </div>
+
+        <!-- 상태 필터 (SALES-INV-003) -->
+        <div class="filter-bar">
+            <span class="filter-label">상태 필터</span>
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">
+                전체 <span class="filter-count" id="cnt-all">0</span>
+            </button>
+            <button class="filter-btn" data-filter="available" onclick="setFilter('available', this)">
+                청구 가능 <span class="filter-count" id="cnt-available">0</span>
+            </button>
+            <button class="filter-btn" data-filter="completed" onclick="setFilter('completed', this)">
+                청구 완료 <span class="filter-count" id="cnt-completed">0</span>
+            </button>
+        </div>
+
+        <div style="overflow-x:auto">
+            <table class="inv-table">
+                <thead>
+                    <tr>
+                        <th class="th-check">
+                            <div class="select-all-wrap">
+                                <div class="custom-checkbox">
+                                    <input type="checkbox" id="chkAll" onchange="toggleAll(this)">
+                                    <label for="chkAll"></label>
+                                </div>
+                            </div>
+                        </th>
+                        <th>명세서 번호</th>
+                        <th>주문 번호</th>
+                        <th class="right">공급가액</th>
+                        <th class="center">상태</th>
+                        <th>발행일</th>
+                    </tr>
+                </thead>
+                <tbody id="invTableBody">
+                    <!-- JS 렌더링 -->
+                </tbody>
+            </table>
+            <div id="emptyState" class="empty-state" style="display:none">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-text">조건에 맞는 명세서가 없습니다.</div>
+                <div class="empty-sub">필터를 변경하거나 전체 보기를 선택하세요.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ③ 선택 명세서 요약 (SALES-INV-004) -->
+    <div class="section">
+        <div class="section-header">
+            <span class="section-icon">💰</span>
+            <span class="section-title">선택 명세서 요약</span>
+            <span class="section-desc">SALES-INV-004 · 실시간 계산</span>
+        </div>
+        <div class="section-body">
+            <div class="summary-grid">
+                <div class="summary-card count-card" id="sc-count">
+                    <div class="s-label">선택된 명세서</div>
+                    <div class="s-value" id="sumCount">0 건</div>
+                </div>
+                <div class="summary-card" id="sc-supply">
+                    <div class="s-label">공급가액 합계</div>
+                    <div class="s-value"><span class="currency">₩</span><span id="sumSupply">0</span></div>
+                </div>
+                <div class="summary-card" id="sc-tax">
+                    <div class="s-label">부가세 (10%)</div>
+                    <div class="s-value"><span class="currency">₩</span><span id="sumTax">0</span></div>
+                </div>
+                <div class="summary-card highlight" id="sc-total">
+                    <div class="s-label">총 청구 금액</div>
+                    <div class="s-value"><span class="currency">₩</span><span id="sumTotal">0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ④ 비고 입력 (SALES-INV-006) -->
+    <div class="section">
+        <div class="section-header">
+            <span class="section-icon">✏️</span>
+            <span class="section-title">비고 (Remarks)</span>
+            <span class="section-desc">SALES-INV-006 · 영업 히스토리 자동 기록</span>
+        </div>
+        <div class="section-body">
+            <textarea class="remarks-area" id="remarksArea" placeholder="청구 관련 특이사항을 입력해 주세요. (예: 4월 정기 청구, 분기 결산 포함 등)" maxlength="500" oninput="updateCharCount(this)"></textarea>
+            <div class="remarks-hint">
+                <span class="hint-icon">💡</span>
+                <span>작성된 비고는 <strong>영업 히스토리에 자동 기록</strong>됩니다.</span>
+                <span class="char-count" id="charCount">0 / 500</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⑤ 액션 바 -->
+    <div class="action-bar">
+        <div class="action-bar-left">
+            선택된 명세서 <strong id="barSelectedCount">0건</strong> · 총 <strong id="barTotalAmt">₩0</strong>
+        </div>
+        <div class="action-bar-right">
+            <button class="btn btn-cancel" onclick="handleCancel()">✕&nbsp; 취소</button>
+            <button class="btn btn-pdf" onclick="openPdfModal()">📄&nbsp; PDF 미리보기</button>
+            <button class="btn btn-primary" id="createBtn" onclick="handleCreate()" disabled>✔&nbsp; 청구서 생성</button>
+        </div>
+    </div>
+
+</div><!-- /screen-content -->
+</main>
+
+<!-- PDF 미리보기 모달 (SALES-INV-005) -->
+<div class="modal-overlay" id="pdfModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">📄 청구서 PDF 미리보기</span>
+            <button class="modal-close" onclick="closePdfModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="pdf-preview">
+                <div class="pdf-header">
+                    <div class="pdf-title-block">
+                        <div class="pdf-doc-title">청 구 서</div>
+                        <div class="pdf-doc-sub" id="pdfInvNo"></div>
+                    </div>
+                    <div class="pdf-company">
+                        <div class="co-name">㈜종자 코리아</div>
+                        <div>서울특별시 서초구 반포대로 88</div>
+                        <div>사업자등록번호: 123-45-67890</div>
+                        <div>담당: 영업팀 김영업 &nbsp;|&nbsp; 02-1234-5678</div>
+                    </div>
+                </div>
+
+                <table class="pdf-meta-table">
+                    <tr>
+                        <td class="label">수신처</td><td class="value">㈜한국농업 (서울)</td>
+                        <td class="label">청구일</td><td class="value" id="pdfDate"></td>
+                    </tr>
+                    <tr>
+                        <td class="label">주문 번호</td><td class="value">ORD-20250410-2847</td>
+                        <td class="label">계약 번호</td><td class="value">CTR-2025-04-00183</td>
+                    </tr>
+                    <tr>
+                        <td class="label">담당 영업자</td><td class="value">김영업 과장</td>
+                        <td class="label">납부 기한</td><td class="value" id="pdfDueDate"></td>
+                    </tr>
+                </table>
+
+                <div class="pdf-section-title">▪ 청구 명세서 내역</div>
+                <table class="pdf-items-table">
+                    <thead>
+                        <tr>
+                            <th>명세서 번호</th>
+                            <th>발행일</th>
+                            <th class="right">공급가액</th>
+                            <th class="right">부가세</th>
+                            <th class="right">합계</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pdfItemsBody"></tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="2"><strong>합 계</strong></td>
+                            <td class="right" id="pdfSupplyTotal"></td>
+                            <td class="right" id="pdfTaxTotal"></td>
+                            <td class="right" id="pdfGrandTotal"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="pdf-amount-box">
+                    <div class="pdf-amount-row">
+                        <div class="al">공급가액</div>
+                        <div class="av" id="pdfAmtSupply">₩0</div>
+                    </div>
+                    <div class="pdf-amount-row">
+                        <div class="al">부가세</div>
+                        <div class="av" id="pdfAmtTax">₩0</div>
+                    </div>
+                    <div class="pdf-amount-row" style="border-left:2px solid #bfdbfe; padding-left:28px;">
+                        <div class="al" style="color:#2563eb; font-size:12px;">청구 합계</div>
+                        <div class="av" style="font-size:20px;" id="pdfAmtTotal">₩0</div>
+                    </div>
+                </div>
+
+                <div class="pdf-remarks-box" id="pdfRemarksBox">
+                    <div class="rl">비고</div>
+                    <div class="rv" id="pdfRemarksText">—</div>
+                </div>
+
+                <div class="pdf-footer-signs">
+                    <div class="sign-block"><div class="sign-line"></div>거래처 확인</div>
+                    <div class="sign-block"><div class="sign-line"></div>담당 영업자</div>
+                    <div class="sign-block"><div class="sign-line"></div>팀장 결재</div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" onclick="closePdfModal()">닫기</button>
+            <button class="btn btn-pdf" onclick="alertDownload()">⬇&nbsp; PDF 다운로드</button>
+        </div>
+    </div>
+</div>
+
+<!-- 청구 완료 오버레이 -->
+<div class="success-overlay" id="successOverlay">
+    <div class="success-modal">
+        <div class="success-icon">✅</div>
+        <div class="success-title">청구서가 생성되었습니다</div>
+        <div class="success-sub" id="successMsg"></div>
+        <button class="success-btn" onclick="closeSuccess()">확인</button>
+    </div>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── 더미 명세서 데이터 ───
+let invoices = [
+    { id: 'INV-2025-0410-001', orderRef: 'ORD-20250410-2847', supply: 8500000,  status: 'available', issueDate: '2025.04.10' },
+    { id: 'INV-2025-0410-002', orderRef: 'ORD-20250410-2847', supply: 6000000,  status: 'available', issueDate: '2025.04.10' },
+    { id: 'INV-2025-0408-003', orderRef: 'ORD-20250408-2801', supply: 4500000,  status: 'completed', issueDate: '2025.04.08' },
+    { id: 'INV-2025-0405-004', orderRef: 'ORD-20250405-2766', supply: 9500000,  status: 'available', issueDate: '2025.04.05' },
+    { id: 'INV-2025-0401-005', orderRef: 'ORD-20250401-2700', supply: 3200000,  status: 'completed', issueDate: '2025.04.01' },
+    { id: 'INV-2025-0328-006', orderRef: 'ORD-20250328-2650', supply: 11800000, status: 'available', issueDate: '2025.03.28' },
+];
+
+let currentFilter = 'all';
+let selectedIds = new Set();
+
+// ─── 필터 설정 ───
+function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedIds.clear();
+    renderTable();
+    updateSummary();
+}
+
+// ─── 필터된 목록 ───
+function filteredList() {
+    if (currentFilter === 'all') return invoices;
+    return invoices.filter(inv => inv.status === currentFilter);
+}
+
+// ─── 테이블 렌더링 ───
+function renderTable() {
+    const list = filteredList();
+    const tbody = document.getElementById('invTableBody');
+    const emptyState = document.getElementById('emptyState');
+
+    // 카운트 배지
+    document.getElementById('cnt-all').textContent = invoices.length;
+    document.getElementById('cnt-available').textContent = invoices.filter(i => i.status === 'available').length;
+    document.getElementById('cnt-completed').textContent = invoices.filter(i => i.status === 'completed').length;
+    document.getElementById('totalInvCount').textContent = invoices.length + '건';
+
+    if (list.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        updateSelectAll();
+        return;
+    }
+    emptyState.style.display = 'none';
+
+    tbody.innerHTML = list.map(inv => {
+        const isCompleted = inv.status === 'completed';
+        const isChecked = selectedIds.has(inv.id);
+        const rowClass = isCompleted ? 'disabled-row' : '';
+        const badge = isCompleted
+            ? '<span class="status-badge completed">청구 완료</span>'
+            : '<span class="status-badge available">청구 가능</span>';
+
+        return `
+        <tr class="${rowClass}" id="row_${inv.id}">
+            <td class="center">
+                <div class="custom-checkbox">
+                    <input type="checkbox" id="chk_${inv.id}" ${isCompleted ? 'disabled' : ''}
+                        ${isChecked ? 'checked' : ''}
+                        onchange="toggleRow('${inv.id}', this)">
+                    <label for="chk_${inv.id}"></label>
+                </div>
+            </td>
+            <td>
+                <div class="inv-num">${inv.id}</div>
+                <div class="inv-order-ref">주문 참조</div>
+            </td>
+            <td style="font-size:13px; color:${isCompleted ? '#cbd5e1' : '#475569'}">${inv.orderRef}</td>
+            <td class="right supply-amt" style="${isCompleted ? 'color:#cbd5e1' : ''}">
+                ₩${inv.supply.toLocaleString()}
+            </td>
+            <td class="center">${badge}</td>
+            <td style="font-size:12px; color:${isCompleted ? '#cbd5e1' : '#64748b'}">${inv.issueDate}</td>
+        </tr>`;
+    }).join('');
+
+    updateSelectAll();
+}
+
+// ─── 행 선택 토글 ───
+function toggleRow(id, chk) {
+    if (chk.checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+    updateSelectAll();
+    updateSummary();
+}
+
+// ─── 전체 선택 ───
+function toggleAll(chk) {
+    const available = filteredList().filter(inv => inv.status === 'available');
+    available.forEach(inv => {
+        if (chk.checked) selectedIds.add(inv.id);
+        else selectedIds.delete(inv.id);
+        const cb = document.getElementById(`chk_${inv.id}`);
+        if (cb) cb.checked = chk.checked;
+    });
+    updateSummary();
+}
+
+function updateSelectAll() {
+    const available = filteredList().filter(inv => inv.status === 'available');
+    const allChk = document.getElementById('chkAll');
+    if (available.length === 0) {
+        allChk.checked = false;
+        allChk.disabled = true;
+        return;
+    }
+    allChk.disabled = false;
+    const checkedAvailable = available.filter(inv => selectedIds.has(inv.id));
+    allChk.checked = checkedAvailable.length === available.length;
+    allChk.indeterminate = checkedAvailable.length > 0 && checkedAvailable.length < available.length;
+}
+
+// ─── 요약 계산 ───
+function updateSummary() {
+    const selected = invoices.filter(inv => selectedIds.has(inv.id));
+    const count = selected.length;
+    const supply = selected.reduce((s, inv) => s + inv.supply, 0);
+    const tax = Math.round(supply * 0.1);
+    const total = supply + tax;
+
+    document.getElementById('sumCount').textContent = count + ' 건';
+    document.getElementById('sumSupply').textContent = supply.toLocaleString();
+    document.getElementById('sumTax').textContent = tax.toLocaleString();
+    document.getElementById('sumTotal').textContent = total.toLocaleString();
+
+    // 액션 바
+    document.getElementById('barSelectedCount').textContent = count + '건';
+    document.getElementById('barTotalAmt').textContent = '₩' + total.toLocaleString();
+
+    // 생성 버튼 활성화
+    document.getElementById('createBtn').disabled = count === 0;
+
+    // 요약 카드 스타일
+    ['sc-count','sc-supply','sc-tax'].forEach(id => {
+        document.getElementById(id).classList.toggle('empty', count === 0);
+    });
+    document.getElementById('sc-total').classList.toggle('empty', count === 0);
+}
+
+// ─── PDF 미리보기 (SALES-INV-005) ───
+function openPdfModal() {
+    const selected = invoices.filter(inv => selectedIds.has(inv.id));
+    if (selected.length === 0) {
+        showToast('⚠️ 명세서를 1개 이상 선택해 주세요.', '#d97706');
+        return;
+    }
+
+    const supply = selected.reduce((s, i) => s + i.supply, 0);
+    const tax = Math.round(supply * 0.1);
+    const total = supply + tax;
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('ko-KR');
+    const dueDate = new Date(today); dueDate.setDate(dueDate.getDate() + 30);
+    const invNo = 'CINV-' + today.toISOString().slice(0,10).replace(/-/g,'') + '-' + String(Math.floor(Math.random()*900+100));
+
+    document.getElementById('pdfInvNo').textContent = '청구서 번호: ' + invNo;
+    document.getElementById('pdfDate').textContent = todayStr;
+    document.getElementById('pdfDueDate').textContent = dueDate.toLocaleDateString('ko-KR');
+
+    // 명세서 항목
+    document.getElementById('pdfItemsBody').innerHTML = selected.map(inv => {
+        const t = Math.round(inv.supply * 0.1);
+        return `<tr>
+            <td>${inv.id}</td>
+            <td>${inv.issueDate}</td>
+            <td class="right">₩${inv.supply.toLocaleString()}</td>
+            <td class="right">₩${t.toLocaleString()}</td>
+            <td class="right">₩${(inv.supply + t).toLocaleString()}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('pdfSupplyTotal').textContent = '₩' + supply.toLocaleString();
+    document.getElementById('pdfTaxTotal').textContent = '₩' + tax.toLocaleString();
+    document.getElementById('pdfGrandTotal').textContent = '₩' + total.toLocaleString();
+    document.getElementById('pdfAmtSupply').textContent = '₩' + supply.toLocaleString();
+    document.getElementById('pdfAmtTax').textContent = '₩' + tax.toLocaleString();
+    document.getElementById('pdfAmtTotal').textContent = '₩' + total.toLocaleString();
+
+    const remarks = document.getElementById('remarksArea').value.trim();
+    document.getElementById('pdfRemarksText').textContent = remarks || '—';
+
+    document.getElementById('pdfModal').classList.add('active');
+}
+
+function closePdfModal() { document.getElementById('pdfModal').classList.remove('active'); }
+function alertDownload() { showToast('⬇ PDF 다운로드는 실제 구현 시 jsPDF로 연동됩니다.', '#2563eb'); closePdfModal(); }
+
+// ─── 청구서 생성 ───
+function handleCreate() {
+    const selected = invoices.filter(inv => selectedIds.has(inv.id));
+    if (selected.length === 0) return;
+
+    const supply = selected.reduce((s, i) => s + i.supply, 0);
+    const total = supply + Math.round(supply * 0.1);
+
+    // 상태 변경 (청구 완료 처리)
+    selected.forEach(inv => { inv.status = 'completed'; });
+    selectedIds.clear();
+
+    renderTable();
+    updateSummary();
+
+    // 완료 오버레이
+    document.getElementById('successMsg').innerHTML =
+        `${selected.length}건의 명세서가 청구 처리되었습니다.<br>총 청구 금액: <strong>₩${total.toLocaleString()}</strong><br><span style="color:#94a3b8; font-size:13px;">비고가 영업 히스토리에 자동 기록되었습니다.</span>`;
+    document.getElementById('successOverlay').classList.add('active');
+}
+
+function closeSuccess() {
+    document.getElementById('successOverlay').classList.remove('active');
+}
+
+// ─── 취소 ───
+function handleCancel() {
+    if (selectedIds.size > 0 || document.getElementById('remarksArea').value.trim()) {
+        if (!confirm('선택을 초기화하고 취소하시겠습니까?')) return;
+    }
+    selectedIds.clear();
+    document.getElementById('remarksArea').value = '';
+    updateCharCount(document.getElementById('remarksArea'));
+    renderTable();
+    updateSummary();
+    showToast('작성이 취소되었습니다.', '#64748b');
+}
+
+// ─── 비고 글자 수 ───
+function updateCharCount(el) {
+    document.getElementById('charCount').textContent = el.value.length + ' / 500';
+}
+
+// ─── 토스트 ───
+function showToast(msg, bg = '#1e293b') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.background = bg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── 사이드바 토글 ───
+document.getElementById('menuToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('hidden');
+    document.getElementById('mainContent').classList.toggle('expanded');
+});
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('mainContent').classList.add('expanded');
+        }
+    });
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePdfModal(); }
+});
+document.getElementById('pdfModal').addEventListener('click', function(e) {
+    if (e.target === this) closePdfModal();
+});
+
+// ─── 초기화 ───
+renderTable();
+updateSummary();
+</script>
+</body>
+</html>
