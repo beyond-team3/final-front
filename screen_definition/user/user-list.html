@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">계정 목록</h2>
+                
+                <!-- 
+                    ========================================
+                    여기부터 각 화면별 컨텐츠를 작성하세요
+                    ========================================
+                -->
+
+                <style>
+                    .account-toolbar{
+                        display:flex;
+                        gap:12px;
+                        align-items:center;
+                        justify-content:flex-start;
+                        margin-bottom:18px;
+                        flex-wrap:wrap;
+                    }
+                    .account-filter{
+                        display:flex;
+                        gap:10px;
+                        align-items:center;
+                    }
+                    .account-filter label{
+                        font-size:14px;
+                        color:#34495e;
+                        font-weight:600;
+                    }
+                    .account-filter select{
+                        height:38px;
+                        padding:0 12px;
+                        border:1px solid #dfe6e9;
+                        border-radius:8px;
+                        background:#fff;
+                        color:#2c3e50;
+                        outline:none;
+                        cursor:pointer;
+                    }
+                    .account-search{
+                        margin-left:auto;
+                        display:flex;
+                        align-items:center;
+                        gap:8px;
+                    }
+                    .account-search label{
+                        font-size:14px;
+                        color:#34495e;
+                        font-weight:600;
+                    }
+                    .account-search input{
+                        height:38px;
+                        padding:0 12px;
+                        border:1px solid #dfe6e9;
+                        border-radius:8px;
+                        background:#fff;
+                        color:#2c3e50;
+                        outline:none;
+                        min-width:220px;
+                    }
+.account-table-wrap{
+                        width:100%;
+                        overflow:auto;
+                        border:1px solid #ecf0f1;
+                        border-radius:12px;
+                    }
+                    table.account-table{
+                        width:100%;
+                        border-collapse:separate;
+                        border-spacing:0;
+                        min-width:880px;
+                        background:#fff;
+                    }
+                    .account-table thead th{
+                        position:sticky;
+                        top:0;
+                        background:#f7f8f9;
+                        color:#2c3e50;
+                        font-size:13px;
+                        text-align:left;
+                        padding:12px 14px;
+                        border-bottom:1px solid #ecf0f1;
+                        z-index:1;
+                    }
+                    .account-table tbody td{
+                        padding:12px 14px;
+                        border-bottom:1px solid #f0f3f4;
+                        color:#2c3e50;
+                        font-size:14px;
+                        vertical-align:middle;
+                        white-space:nowrap;
+                    }
+                    .account-table tbody tr:hover{
+                        background:#fbfcfd;
+                    }
+                    .badge{
+                        display:inline-flex;
+                        align-items:center;
+                        padding:4px 10px;
+                        border-radius:999px;
+                        font-size:12px;
+                        font-weight:700;
+                        border:1px solid transparent;
+                    }
+                    .badge.emp{ background:rgba(52,152,219,0.12); color:#1f6fa3; border-color:rgba(52,152,219,0.28); }
+                    .badge.client{ background:rgba(46,204,113,0.12); color:#1f7a43; border-color:rgba(46,204,113,0.28); }
+                    .action-btn{
+                        height:32px;
+                        padding:0 10px;
+                        border-radius:8px;
+                        border:1px solid #dfe6e9;
+                        background:#fff;
+                        cursor:pointer;
+                        font-weight:600;
+                        color:#2c3e50;
+                    }
+                    .action-btn:hover{ background:#f7f8f9; }
+                    .floating-actions{
+                        position:sticky;
+                        bottom:0;
+                        display:flex;
+                        justify-content:flex-end;
+                        padding:18px 0 0;
+                    }
+                    .primary-btn{
+                        height:42px;
+                        padding:0 16px;
+                        border:none;
+                        border-radius:10px;
+                        background:#3498db;
+                        color:#fff;
+                        cursor:pointer;
+                        font-weight:700;
+                        box-shadow:0 6px 14px rgba(52,152,219,0.25);
+                    }
+                    .primary-btn:hover{ filter:brightness(0.98); }
+
+                    /* Modal */
+                    .modal-backdrop{
+                        position:fixed;
+                        top:0; left:0; right:0; bottom:0;
+                        background:rgba(0,0,0,0.45);
+                        display:none;
+                        align-items:center;
+                        justify-content:center;
+                        z-index:2000; /* header(1000)보다 위 */
+                        padding:20px;
+                    }
+                    .modal-backdrop.show{ display:flex; }
+                    .modal{
+                        width:min(520px, 100%);
+                        background:#fff;
+                        border-radius:14px;
+                        box-shadow:0 20px 60px rgba(0,0,0,0.25);
+                        overflow:hidden;
+                    }
+                    .modal-header{
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        padding:16px 18px;
+                        border-bottom:1px solid #ecf0f1;
+                    }
+                    .modal-title{
+                        font-size:16px;
+                        font-weight:800;
+                        color:#2c3e50;
+                    }
+                    .modal-close{
+                        border:none;
+                        background:transparent;
+                        font-size:22px;
+                        cursor:pointer;
+                        color:#7f8c8d;
+                        padding:4px 8px;
+                        border-radius:8px;
+                    }
+                    .modal-close:hover{ background:#f7f8f9; }
+                    .modal-body{
+                        padding:18px;
+                    }
+                    .form-row{
+                        display:flex;
+                        flex-direction:column;
+                        gap:8px;
+                        margin-bottom:14px;
+                    }
+                    .form-row label{
+                        font-size:13px;
+                        font-weight:700;
+                        color:#34495e;
+                    }
+                    .form-row input{
+                        height:40px;
+                        padding:0 12px;
+                        border:1px solid #dfe6e9;
+                        border-radius:10px;
+                        outline:none;
+                    }
+                    .help-text{
+                        font-size:12px;
+                        color:#7f8c8d;
+                        margin-top:6px;
+                        line-height:1.4;
+                    }
+                    .modal-footer{
+                        display:flex;
+                        gap:10px;
+                        justify-content:flex-end;
+                        padding:14px 18px 18px;
+                        border-top:1px solid #ecf0f1;
+                    }
+                    .ghost-btn{
+                        height:40px;
+                        padding:0 14px;
+                        border-radius:10px;
+                        border:1px solid #dfe6e9;
+                        background:#fff;
+                        cursor:pointer;
+                        font-weight:700;
+                        color:#2c3e50;
+                    }
+                    .danger-btn{
+                        height:40px;
+                        padding:0 14px;
+                        border-radius:10px;
+                        border:none;
+                        background:#2c3e50;
+                        cursor:pointer;
+                        font-weight:800;
+                        color:#fff;
+                    }
+                    .danger-btn:hover{ filter:brightness(0.98); }
+
+                    @media (max-width: 768px){
+                        table.account-table{ min-width:740px; }
+}
+                </style>
+
+                <div class="account-toolbar">
+                    <div class="account-filter">
+                        <label for="accountTypeSelect">계정 유형</label>
+                        <select id="accountTypeSelect">
+                            <option value="ALL" selected>전체</option>
+                            <option value="EMPLOYEE">사원</option>
+                            <option value="CLIENT">거래처</option>
+                        </select>
+                    </div>
+                    <div class="account-filter">
+                        <label for="accountStatusSelect">활성 상태</label>
+                        <select id="accountStatusSelect">
+                            <option value="ALL" selected>전체</option>
+                            <option value="ACTIVE">활성화</option>
+                            <option value="INACTIVE">비활성화</option>
+                        </select>
+                    </div>
+                    <div class="account-search">
+                        <label for="accountNameSearch">이름</label>
+                        <input id="accountNameSearch" type="search" placeholder="이름 검색" />
+                    </div>
+</div>
+
+                <div class="account-table-wrap" aria-label="계정 목록 테이블">
+                    <table class="account-table">
+                        <thead>
+                            <tr>
+                                <th style="width:110px;">유형</th>
+                                <th style="width:140px;">계정 ID</th>
+                                <th style="width:140px;">이름</th>
+                                <th style="width:180px;">이메일</th>
+                                <th style="width:140px;">상태</th>
+                                <th style="width:170px;">최근 로그인</th>
+</tr>
+                        </thead>
+                        <tbody id="accountTbody">
+                            <!-- JS로 렌더링 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="floating-actions">
+                    <button class="primary-btn" id="registerAccountBtn" type="button">계정 등록</button>
+                </div>
+
+                <!-- 비밀번호 변경 모달 -->
+                <div class="modal-backdrop" id="pwModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="pwModalTitle">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <div class="modal-title" id="pwModalTitle">비밀번호 변경</div>
+                            <button class="modal-close" id="pwModalClose" type="button" aria-label="닫기">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-row">
+                                <label>대상 계정</label>
+                                <input id="pwTargetInfo" type="text" readonly />
+                                <div class="help-text">※ 실제 연동 시, 이 화면에서 PW 변경 요청 API를 호출하도록 연결하세요.</div>
+                            </div>
+                            <div class="form-row">
+                                <label for="newPw">새 비밀번호</label>
+                                <input id="newPw" type="password" placeholder="새 비밀번호 입력" />
+                            </div>
+                            <div class="form-row">
+                                <label for="newPw2">새 비밀번호 확인</label>
+                                <input id="newPw2" type="password" placeholder="한 번 더 입력" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="ghost-btn" id="pwCancelBtn" type="button">취소</button>
+                            <button class="danger-btn" id="pwSaveBtn" type="button">변경</button>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    (function(){
+                        const data = [
+                            { type: "EMPLOYEE", id: "emp-2001", name: "이하경", email: "hakyung02@naver.com", status: "활성화", lastLogin: "2026-02-11 10:12" },
+                            { type: "EMPLOYEE", id: "emp-2002", name: "김영업", email: "sales01@seed.co.kr", status: "활성화", lastLogin: "2026-02-10 18:05" },
+                            { type: "EMPLOYEE", id: "emp-2003", name: "박관리", email: "admin@seed.co.kr", status: "비활성화", lastLogin: "2026-02-02 09:40" },
+                            { type: "EMPLOYEE", id: "emp-2004", name: "정지훈", email: "jh.jeong@seed.co.kr", status: "활성화", lastLogin: "2026-02-08 12:30" },
+                            { type: "EMPLOYEE", id: "emp-2005", name: "오지수", email: "jisoo.o@seed.co.kr", status: "비활성화", lastLogin: "-" },
+                            { type: "EMPLOYEE", id: "emp-2006", name: "서진우", email: "jinwoo.seo@seed.co.kr", status: "활성화", lastLogin: "2026-02-07 09:12" },
+                            { type: "CLIENT", id: "cli-5001", name: "대동농장", email: "contact@daedongfarm.com", status: "활성화", lastLogin: "2026-02-09 14:22" },
+                            { type: "CLIENT", id: "cli-5002", name: "한빛유통", email: "biz@hanbit.co.kr", status: "활성화", lastLogin: "2026-02-10 11:01" },
+                            { type: "CLIENT", id: "cli-5003", name: "푸른들영농조합", email: "hello@greenfield.kr", status: "비활성화", lastLogin: "-" },
+                            { type: "CLIENT", id: "cli-5004", name: "미래농산", email: "support@miraeagri.kr", status: "활성화", lastLogin: "2026-02-06 16:44" },
+                            { type: "CLIENT", id: "cli-5005", name: "한울종묘", email: "cs@hanulseed.com", status: "비활성화", lastLogin: "2026-01-29 10:03" },
+                            { type: "CLIENT", id: "cli-5006", name: "새봄유통", email: "hello@saebom.co.kr", status: "활성화", lastLogin: "2026-02-05 08:51" }
+                        ];
+
+                        const typeSelect = document.getElementById("accountTypeSelect");
+                        const statusSelect = document.getElementById("accountStatusSelect");
+                        const nameSearch = document.getElementById("accountNameSearch");
+                        const tbody = document.getElementById("accountTbody");
+                        const registerBtn = document.getElementById("registerAccountBtn");
+
+                        const backdrop = document.getElementById("pwModalBackdrop");
+                        const closeBtn = document.getElementById("pwModalClose");
+                        const cancelBtn = document.getElementById("pwCancelBtn");
+                        const saveBtn = document.getElementById("pwSaveBtn");
+                        const targetInfo = document.getElementById("pwTargetInfo");
+                        const newPw = document.getElementById("newPw");
+                        const newPw2 = document.getElementById("newPw2");
+
+                        let currentType = typeSelect.value;
+                        let currentStatus = statusSelect.value;
+                        let currentName = "";
+                        function badge(type){
+                            if(type === "EMPLOYEE") return '<span class="badge emp">사원</span>';
+                            return '<span class="badge client">거래처</span>';
+                        }
+
+                        function render(){
+                            const query = currentName.trim().toLowerCase();
+                            const filtered = data
+                                .filter(r => (currentType === "ALL" ? true : r.type === currentType))
+                                .filter(r => {
+                                    if(currentStatus === "ALL") return true;
+                                    return currentStatus === "ACTIVE" ? r.status === "활성화" : r.status === "비활성화";
+                                })
+                                .filter(r => !query || r.name.toLowerCase().includes(query));
+
+
+                            tbody.innerHTML = filtered.map(r => `
+                                <tr>
+                                    <td>${badge(r.type)}</td>
+                                    <td>${r.id}</td>
+                                    <td>${r.name}</td>
+                                    <td>${r.email}</td>
+                                    <td>${r.status}</td>
+                                    <td>${r.lastLogin}</td>
+                                </tr>
+                            `).join("");
+                        }
+
+                        function closePwModal(){
+                            backdrop.classList.remove("show");
+                        }
+
+                        typeSelect.addEventListener("change", () => {
+                            currentType = typeSelect.value;
+                            console.log("[조회] 계정 유형:", currentType);
+                            render();
+                        });
+
+                        statusSelect.addEventListener("change", () => {
+                            currentStatus = statusSelect.value;
+                            console.log("[조회] 활성 상태:", currentStatus);
+                            render();
+                        });
+                        nameSearch.addEventListener("input", () => {
+                            currentName = nameSearch.value;
+                            render();
+                        });
+
+                        registerBtn.addEventListener("click", () => {
+                            console.log("[등록 요청] 계정 등록 버튼 클릭");
+                        });
+
+                        // Modal events
+                        closeBtn.addEventListener("click", closePwModal);
+                        cancelBtn.addEventListener("click", closePwModal);
+                        backdrop.addEventListener("click", (e) => {
+                            if(e.target === backdrop) closePwModal();
+                        });
+                        document.addEventListener("keydown", (e) => {
+                            if(e.key === "Escape" && backdrop.classList.contains("show")) closePwModal();
+                        });
+
+                        saveBtn.addEventListener("click", () => {
+                            const p1 = newPw.value.trim();
+                            const p2 = newPw2.value.trim();
+
+                            if(!p1 || !p2){
+                                alert("새 비밀번호를 입력해주세요.");
+                                return;
+                            }
+                            if(p1 !== p2){
+                                alert("비밀번호 확인이 일치하지 않습니다.");
+                                return;
+                            }
+
+                            console.log("[PW 변경 요청]", targetInfo.value, "newPw(length)=", p1.length);
+                            alert("비밀번호 변경 요청을 보냈습니다. (프로토타입)");
+                            closePwModal();
+                        });
+
+                        // 초기 렌더
+                        render();
+                    })();
+                </script>
+
+                <!-- 
+                    ========================================
+                    화면별 컨텐츠 작성 영역 끝
+                    ========================================
+                -->
+                
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>
