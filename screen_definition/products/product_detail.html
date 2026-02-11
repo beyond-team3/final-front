@@ -12,12 +12,13 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
-            height: 100vh;
-            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #ecf0f1;
+            margin: 0;
+            padding: 20px;
         }
 
-        /* 헤더 */
+        /* 헤더 & 사이드바 */
         .header {
             position: fixed;
             top: 0;
@@ -54,7 +55,6 @@
             font-weight: 600;
         }
 
-        /* 사이드바 */
         .sidebar {
             position: fixed;
             top: 60px;
@@ -99,10 +99,9 @@
             font-weight: 600;
             text-transform: uppercase;
             color: #95a5a6;
-            letter-spacing: 0.5px;
         }
 
-        /* 메인 컨텐츠 영역 */
+        /* 메인 컨텐츠 */
         .main-content {
             position: fixed;
             top: 60px;
@@ -124,7 +123,6 @@
             margin: 0 auto;
         }
 
-        /* 화면별 컨텐츠 영역 */
         .screen-content {
             background-color: white;
             border-radius: 8px;
@@ -142,20 +140,205 @@
             border-bottom: 2px solid #ecf0f1;
         }
 
-        /* 반응형 */
+        /* 상세 페이지 스타일 */
+        .detail-header {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .detail-container {
+            display: flex;
+            gap: 40px;
+            min-height: 400px;
+        }
+
+        .detail-image-area {
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .detail-img-box {
+            width: 100%;
+            height: 400px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .detail-img-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .detail-info-area {
+            flex: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 정보 타이틀 */
+        .info-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        /* [핵심] 상세 스펙 테이블 스타일 */
+        .spec-table {
+            width: 100%;
+            margin-bottom: 20px;
+            border-collapse: collapse;
+        }
+
+        .spec-row {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            padding: 12px 0;
+            align-items: flex-start;
+        }
+
+        .spec-row:last-child {
+            border-bottom: none;
+        }
+
+        .spec-label {
+            width: 100px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #7f8c8d;
+            flex-shrink: 0;
+            padding-top: 4px;
+        }
+
+        .spec-value {
+            flex-grow: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        /* 뱃지 스타일 */
+        .tag-badge {
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .tag-cat {
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        .tag-env {
+            background-color: #eaf2f8;
+            color: #3498db;
+        }
+
+        .tag-res {
+            background-color: #fdebd0;
+            color: #e67e22;
+        }
+
+        .tag-growth {
+            background-color: #d5f5e3;
+            color: #27ae60;
+        }
+
+        .tag-quality {
+            background-color: #ebdef0;
+            color: #8e44ad;
+        }
+
+        .tag-conv {
+            background-color: #fadbd8;
+            color: #c0392b;
+        }
+
+        .info-label-main {
+            font-size: 15px;
+            font-weight: 700;
+            color: #34495e;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            display: block;
+            border-top: 2px dashed #eee;
+            padding-top: 20px;
+        }
+
+        .info-desc-box {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 8px;
+            line-height: 1.6;
+            color: #555;
+            white-space: pre-line;
+        }
+
+        /* 관리자 버튼 그룹 */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+
+        .btn-list {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .btn-list:hover {
+            background-color: #7f8c8d;
+        }
+
+        .btn-edit {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-delete {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background-color: #c0392b;
+        }
+
         @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                max-width: 280px;
+            .detail-container {
+                flex-direction: column;
             }
 
-            .main-content {
-                left: 0;
+            .detail-image-area {
+                max-width: 100%;
             }
 
-            .sidebar:not(.hidden) ~ .main-content {
-                filter: brightness(0.7);
-                pointer-events: none;
+            .detail-img-box {
+                height: 300px;
             }
         }
     </style>
@@ -172,7 +355,6 @@
         <div class="nav-item" onclick="location.href='product_list.html'">상품 목록</div>
         <div class="nav-item active">상품 상세</div>
         <div class="nav-item" onclick="location.href='product_form.html'">상품 등록</div>
-
         <div class="nav-category">설정</div>
         <div class="nav-item">설정</div>
         <div class="nav-item">프로필</div>
@@ -182,129 +364,7 @@
 <main class="main-content" id="mainContent">
     <div class="content-wrapper">
         <div class="screen-content">
-            <h2 class="screen-title">상품 상세 페이지(관리자)</h2>
-
-            <!--
-                ========================================
-                여기부터 각 화면별 컨텐츠를 작성하세요
-                ========================================
-            -->
-            <style>
-                /* 상세 페이지 전용 스타일 */
-                .detail-header {
-                    display: flex;
-                    justify-content: flex-end;
-                    align-items: center;
-                    padding-bottom: 15px;
-                    margin-bottom: 20px;
-                }
-
-                .detail-container {
-                    display: flex;
-                    gap: 40px;
-                    min-height: 400px;
-                }
-
-                .detail-image-area {
-                    flex: 1;
-                    max-width: 400px;
-                }
-
-                .detail-img-box {
-                    width: 100%;
-                    height: 400px;
-                    background-color: #f8f9fa;
-                    border-radius: 8px;
-                    border: 1px solid #ddd;
-                    overflow: hidden;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .detail-img-box img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                }
-
-                .detail-info-area {
-                    flex: 1.5;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-
-                .info-group {
-                    border-bottom: 1px solid #eee;
-                    padding-bottom: 20px;
-                }
-
-                .info-label {
-                    font-size: 14px;
-                    color: #7f8c8d;
-                    margin-bottom: 8px;
-                    font-weight: 600;
-                }
-
-                .info-value-large {
-                    font-size: 28px;
-                    font-weight: 700;
-                    color: #2c3e50;
-                }
-
-                .info-desc {
-                    font-size: 16px;
-                    line-height: 1.6;
-                    color: #34495e;
-                    white-space: pre-wrap;
-                }
-
-                .tag-display {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 8px;
-                }
-
-                .tag-badge {
-                    background-color: #eaf2f8;
-                    color: #3498db;
-                    padding: 6px 12px;
-                    border-radius: 20px;
-                    font-size: 13px;
-                    font-weight: 500;
-                }
-
-                .btn-group {
-                    display: flex;
-                    gap: 10px;
-                }
-
-                .btn {
-                    padding: 10px 20px;
-                    border-radius: 4px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    border: none;
-                    transition: background-color 0.2s;
-                }
-
-                .btn-edit { background-color: #3498db; color: white; }
-                .btn-edit:hover { background-color: #2980b9; }
-
-                .btn-delete { background-color: #e74c3c; color: white; }
-                .btn-delete:hover { background-color: #c0392b; }
-
-                .btn-list { background-color: #95a5a6; color: white; }
-                .btn-list:hover { background-color: #7f8c8d; }
-
-                @media (max-width: 768px) {
-                    .detail-container { flex-direction: column; }
-                    .detail-image-area { max-width: 100%; }
-                    .detail-img-box { height: 300px; }
-                }
-            </style>
+            <h2 class="screen-title">상품 상세 정보(관리자)</h2>
 
             <div class="detail-header">
                 <div class="btn-group">
@@ -322,164 +382,154 @@
                 </div>
 
                 <div class="detail-info-area">
-                    <div class="info-group">
-                        <div class="info-label">상품명</div>
-                        <div class="info-value-large" id="detailName">로딩중...</div>
+                    <div class="info-title" id="detailName">로딩중...</div>
+
+                    <div class="info-label-main">상세 설명</div>
+                    <div class="info-desc-box" id="detailDesc">
+                        내용을 불러오는 중입니다...
                     </div>
 
-                    <div class="info-group">
-                        <div class="info-label">주요 특징 (태그)</div>
-                        <div class="tag-display" id="detailTags">
+                    <div class="spec-table">
+                        <div class="spec-row">
+                            <div class="spec-label">품목</div>
+                            <div class="spec-value">
+                                <span id="detailCategory" class="tag-badge tag-cat">카테고리</span>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="info-group" style="border-bottom: none;">
-                        <div class="info-label">상세 설명</div>
-                        <div class="info-desc" id="detailDesc">
-                            내용을 불러오는 중입니다...
+                        <div class="spec-row" id="rowEnv">
+                            <div class="spec-label">재배환경</div>
+                            <div class="spec-value" id="detailEnv"></div>
+                        </div>
+                        <div class="spec-row" id="rowRes">
+                            <div class="spec-label">내병성</div>
+                            <div class="spec-value" id="detailRes"></div>
+                        </div>
+                        <div class="spec-row" id="rowGrowth">
+                            <div class="spec-label">생육/숙기</div>
+                            <div class="spec-value" id="detailGrowth"></div>
+                        </div>
+                        <div class="spec-row" id="rowQuality">
+                            <div class="spec-label">과실품질</div>
+                            <div class="spec-value" id="detailQuality"></div>
+                        </div>
+                        <div class="spec-row" id="rowConv">
+                            <div class="spec-label">재배편의성</div>
+                            <div class="spec-value" id="detailConv"></div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <script>
-                // 1. 데이터 베이스
-                const products = [
-                    {
-                        id: 1,
-                        name: '베테랑 고추',
-                        desc: '탄저병에 강하고 매운맛이 일품인 대표 품종입니다. 노지 재배에 적합합니다.',
-                        img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?auto=format&fit=crop&w=400&q=80',
-                        tags: ['노지', '탄저병', '매운맛', '조생종']
-                    },
-                    {
-                        id: 2,
-                        name: '꿀수박 1호',
-                        desc: '당도가 13Brix 이상 나오는 고당도 수박입니다. 하우스 재배용.',
-                        img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80',
-                        tags: ['시설하우스', '고당도', '대과종', '만생종']
-                    },
-                    {
-                        id: 3,
-                        name: '청정 오이',
-                        desc: '아삭한 식감이 특징이며 저장성이 매우 우수합니다.',
-                        img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?auto=format&fit=crop&w=400&q=80',
-                        tags: ['시설하우스', '아삭함', '저장성우수', '내병성']
-                    },
-                    {
-                        id: 4,
-                        name: '햇살 토마토',
-                        desc: '붉은 빛깔이 선명하고 과육이 단단하여 유통에 유리합니다.',
-                        img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80',
-                        tags: ['시설하우스', '경도우수', '착색우수', '다수확']
-                    },
-                    {
-                        id: 5,
-                        name: '금싸라기 참외',
-                        desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.',
-                        img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?auto=format&fit=crop&w=400&q=80',
-                        tags: ['노지', '고당도', '아삭함', '향기']
-                    },
-                    {
-                        id: 6,
-                        name: '가을무 대장',
-                        desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.',
-                        img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?auto=format&fit=crop&w=400&q=80',
-                        tags: ['노지', '김장용', '저장성우수', '내한성']
-                    },
-                ];
-
-                let currentId = null;
-
-                window.onload = function() {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const idParam = urlParams.get('id');
-                    // URL ID 파라미터 숫자로 변환 (없으면 1번)
-                    currentId = idParam ? parseInt(idParam) : 1;
-
-                    // 배열에서 해당 ID 상품 찾기
-                    const data = products.find(p => p.id === currentId);
-
-                    if (data) {
-                        // 데이터 바인딩
-                        document.getElementById('detailName').innerText = data.name;
-                        document.getElementById('detailDesc').innerText = data.desc;
-                        document.getElementById('detailImg').src = data.img;
-
-                        // 태그 생성
-                        const tagContainer = document.getElementById('detailTags');
-                        tagContainer.innerHTML = ''; // 초기화
-
-                        if (data.tags && data.tags.length > 0) {
-                            data.tags.forEach(tag => {
-                                const span = document.createElement('span');
-                                span.className = 'tag-badge';
-                                span.innerText = '#' + tag;
-                                tagContainer.appendChild(span);
-                            });
-                        } else {
-                            tagContainer.innerText = '등록된 태그가 없습니다.';
-                        }
-
-                    } else {
-                        alert('존재하지 않는 상품입니다.');
-                        location.href = 'product_list.html';
-                    }
-                };
-
-                // 이동 함수들
-                function goToList() {
-                    location.href = 'product_list.html';
-                }
-
-                function goToEdit() {
-                    // 수정 페이지로 현재 ID 전달
-                    location.href = 'product_form.html?id=' + currentId;
-                }
-
-                function handleDelete() {
-                    if(confirm('정말로 이 상품 정보를 삭제하시겠습니까?')) {
-                        alert('삭제되었습니다.');
-                        location.href = 'product_list.html';
-                    }
-                }
-            </script>
-
-            <!--
-                ========================================
-                화면별 컨텐츠 작성 영역 끝
-                ========================================
-            -->
-
         </div>
     </div>
 </main>
 
 <script>
-    // 공통: 사이드바 토글 기능
+    // 사이드바 토글
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('mainContent');
-
     menuToggle.addEventListener('click', () => {
         sidebar.classList.toggle('hidden');
         mainContent.classList.toggle('expanded');
     });
 
-    // 네비게이션 아이템 클릭 (간단한 활성화 처리)
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            navItems.forEach(nav => nav.classList.remove('active'));
-            item.classList.add('active');
+    // ----------------------------------------------------
+    // [데이터] Detailed Tags Structure
+    // ----------------------------------------------------
+    const products = [
+        {
+            id: 1, name: '베테랑', category: '고추', desc: '탄저병에 강하고 매운맛이 일품.\n노지 재배에 최적화된 품종입니다.',
+            img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?w=600',
+            env: ['노지'], res: ['탄저병'], growth: ['조생종'], quality: ['매운맛'], conv: []
+        },
+        {
+            id: 2, name: '꿀수박 1호', category: '수박', desc: '13Brix 이상 고당도 수박.\n하우스 재배 시 당도가 더욱 올라갑니다.',
+            img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600',
+            env: ['시설하우스'], res: [], growth: ['만생종'], quality: ['고당도', '대과종'], conv: []
+        },
+        {
+            id: 3, name: '청정 오이', category: '오이', desc: '아삭한 식감, 저장성 우수.\n병충해에 강해 재배가 쉽습니다.',
+            img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?w=600',
+            env: ['시설하우스'], res: ['내병성'], growth: [], quality: ['아삭함', '저장성우수'], conv: []
+        },
+        {
+            id: 4, name: '햇살 토마토', category: '토마토', desc: '단단한 과육, 붉은 빛깔.\n유통 과정에서 무르지 않아 상인들이 선호합니다.',
+            img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600',
+            env: ['시설하우스'], res: [], growth: [], quality: ['경도우수', '적색'], conv: ['다수확']
+        },
+        {
+            id: 5, name: '금싸라기', category: '참외', desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.',
+            img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?w=400',
+            env: ['노지'], res: [], growth: [], quality: ['고당도', '아삭함', '향기'], conv: []
+        },
+        {
+            id: 6, name: '가을무 대장', category: '무', desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.',
+            img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=400',
+            env: ['노지'], res: [], growth: [], quality: ['김장용', '저장성우수'], conv: ['내한성']
+        },
+    ];
 
-            // 모바일 처리
-            if (window.innerWidth <= 768) {
-                sidebar.classList.add('hidden');
-                mainContent.classList.add('expanded');
-            }
-        });
-    });
+    let currentId = null;
+
+    window.onload = function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const idParam = urlParams.get('id');
+        currentId = idParam ? parseInt(idParam) : 1;
+
+        // 데이터 찾기
+        const data = products.find(p => p.id === currentId);
+
+        if (data) {
+            // 기본 정보 바인딩
+            document.getElementById('detailName').innerText = data.name;
+            document.getElementById('detailDesc').innerText = data.desc;
+            document.getElementById('detailImg').src = data.img;
+            document.getElementById('detailCategory').innerText = data.category;
+
+            // 태그 항목별 렌더링
+            renderTags('detailEnv', data.env, 'tag-env', 'rowEnv');
+            renderTags('detailRes', data.res, 'tag-res', 'rowRes');
+            renderTags('detailGrowth', data.growth, 'tag-growth', 'rowGrowth');
+            renderTags('detailQuality', data.quality, 'tag-quality', 'rowQuality');
+            renderTags('detailConv', data.conv, 'tag-conv', 'rowConv');
+
+        } else {
+            alert('존재하지 않는 상품입니다.');
+            location.href = 'product_list.html';
+        }
+    };
+
+    // 태그 렌더링 헬퍼 함수
+    function renderTags(targetId, tags, cssClass, rowId) {
+        const container = document.getElementById(targetId);
+        const row = document.getElementById(rowId);
+        container.innerHTML = '';
+
+        if (tags && tags.length > 0) {
+            tags.forEach(tag => {
+                container.innerHTML += `<span class="tag-badge ${cssClass}">${tag}</span>`;
+            });
+            row.style.display = 'flex';
+        } else {
+            row.style.display = 'none'; // 태그 없으면 행 숨김
+        }
+    }
+
+    // 페이지 이동 로직
+    function goToList() {
+        location.href = 'product_list.html';
+    }
+
+    function goToEdit() {
+        location.href = 'product_form.html?id=' + currentId;
+    }
+
+    function handleDelete() {
+        if (confirm('정말로 이 상품 정보를 삭제하시겠습니까?')) {
+            alert('삭제되었습니다.');
+            location.href = 'product_list.html';
+        }
+    }
 </script>
 </body>
 </html>
