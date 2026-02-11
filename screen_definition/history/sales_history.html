@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영업 히스토리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .header p {
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .filter-section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .filter-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+            justify-content: space-between;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .btn-text {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-text:hover {
+            color: #111827;
+        }
+
+        .pipeline-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 16px;
+            transition: box-shadow 0.2s;
+        }
+
+        .pipeline-card:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .pipeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .pipeline-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .pipeline-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-blue {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-green {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-yellow {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            color: #6b7280;
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        .amount {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .pipeline-flow {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 80px;
+        }
+
+        .step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .step-icon.completed {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .step-icon.in-progress {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .step-icon.waiting {
+            background-color: #d1d5db;
+            color: #6b7280;
+        }
+
+        .step-name {
+            font-size: 12px;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        .step-connector {
+            width: 16px;
+            height: 2px;
+            background-color: #d1d5db;
+            margin-bottom: 16px;
+        }
+
+        .btn-primary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>영업 히스토리</h1>
+            <p>진행 중인 영업 파이프라인을 관리하세요</p>
+        </div>
+
+        <!-- 정렬 및 필터 영역 -->
+        <div class="filter-section">
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <div class="form-group">
+                        <label class="form-label">정렬</label>
+                        <select>
+                            <option value="latest">최신순</option>
+                            <option value="oldest">오래된순</option>
+                            <option value="amount-high">금액 높은순</option>
+                            <option value="amount-low">금액 낮은순</option>
+                            <option value="name">거래처명 가나다순</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">거래처 필터</label>
+                        <select>
+                            <option value="all">전체 거래처</option>
+                            <option value="OO육묘장">OO육묘장</option>
+                            <option value="△△대리점">△△대리점</option>
+                            <option value="□□농장">□□농장</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-text">필터 초기화</button>
+            </div>
+        </div>
+
+        <!-- 파이프라인 리스트 -->
+        <div class="pipeline-card">
+            <div class="pipeline-header">
+                <div>
+                    <h3 class="pipeline-title">거래처: OO육묘장</h3>
+                </div>
+                <span class="badge badge-blue">계약 진행중</span>
+            </div>
+
+            <div class="info-grid">
+                <div>
+                    <span class="info-label">시작일:</span>
+                    <span class="info-value">2026-01-15</span>
+                </div>
+                <div>
+                    <span class="info-label">최종 업데이트:</span>
+                    <span class="info-value">2026-01-29</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <span class="info-label">총 계약 금액:</span>
+                <span class="amount">15,000,000원</span>
+            </div>
+
+            <!-- 미니 파이프라인 진행도 -->
+            <div class="pipeline-flow">
+                <div class="pipeline-step">
+                    <div class="step-icon completed">✓</div>
+                    <span class="step-name">견적요청</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon completed">✓</div>
+                    <span class="step-name">견적서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon in-progress">🔄</div>
+                    <span class="step-name">계약서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">주문서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">명세서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">청구서</span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn-primary" onclick="window.parent.postMessage({type:'changePage', url:'sales_pipeline_detail.html'}, '*')">
+                    상세보기
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="pipeline-card">
+            <div class="pipeline-header">
+                <div>
+                    <h3 class="pipeline-title">거래처: △△대리점</h3>
+                </div>
+                <span class="badge badge-green">주문 완료</span>
+            </div>
+
+            <div class="info-grid">
+                <div>
+                    <span class="info-label">시작일:</span>
+                    <span class="info-value">2026-01-10</span>
+                </div>
+                <div>
+                    <span class="info-label">최종 업데이트:</span>
+                    <span class="info-value">2026-01-28</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <span class="info-label">총 계약 금액:</span>
+                <span class="amount">12,000,000원</span>
+            </div>
+
+            <div class="pipeline-flow">
+                <div class="pipeline-step">
+                    <div class="step-icon completed">✓</div>
+                    <span class="step-name">견적요청</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon completed">✓</div>
+                    <span class="step-name">견적서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon completed">✓</div>
+                    <span class="step-name">계약서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon completed">✓</div>
+                    <span class="step-name">주문서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon in-progress">🔄</div>
+                    <span class="step-name">명세서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">청구서</span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn-primary">
+                    상세보기
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="pipeline-card">
+            <div class="pipeline-header">
+                <div>
+                    <h3 class="pipeline-title">거래처: □□농장</h3>
+                </div>
+                <span class="badge badge-yellow">견적 대기중</span>
+            </div>
+
+            <div class="info-grid">
+                <div>
+                    <span class="info-label">시작일:</span>
+                    <span class="info-value">2026-01-25</span>
+                </div>
+                <div>
+                    <span class="info-label">최종 업데이트:</span>
+                    <span class="info-value">2026-01-30</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <span class="info-label">총 계약 금액:</span>
+                <span class="amount">8,000,000원</span>
+            </div>
+
+            <div class="pipeline-flow">
+                <div class="pipeline-step">
+                    <div class="step-icon completed">✓</div>
+                    <span class="step-name">견적요청</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon in-progress">🔄</div>
+                    <span class="step-name">견적서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">계약서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">주문서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">명세서</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="pipeline-step">
+                    <div class="step-icon waiting">⏳</div>
+                    <span class="step-name">청구서</span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn-primary">
+                    상세보기
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

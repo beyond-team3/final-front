@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영업 파이프라인 상세</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* 헤더 스타일 */
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .back-btn { padding: 8px; background: none; border: none; cursor: pointer; border-radius: 8px; font-size: 24px; }
+        .back-btn:hover { background-color: #e5e7eb; }
+        .header-content { flex: 1; }
+        .header h1 { font-size: 24px; font-weight: bold; color: #111827; }
+        .badge { display: inline-block; padding: 8px 16px; background-color: #dbeafe; color: #1e40af; border-radius: 8px; font-weight: 500; }
+
+        /* 정보 카드 */
+        .info-card { background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); padding: 24px; margin-bottom: 24px; }
+        .card-title { font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .info-item { display: flex; flex-direction: column; }
+        .info-label { font-size: 14px; color: #6b7280; margin-bottom: 4px; }
+        .info-value { font-weight: 500; color: #111827; }
+        .info-value.highlight { font-size: 18px; color: #2563eb; }
+
+        /* 파이프라인 공통 스타일 */
+        .pipeline-container { background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); padding: 32px; }
+        .pipeline-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 0px; }
+        .pipeline-step {
+            position: relative; color: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 24px; cursor: pointer; transition: all 0.3s;
+            clip-path: polygon(0 0, 90% 0, 100% 50%, 90% 100%, 0 100%); padding-right: 32px;
+        }
+        .pipeline-step:last-child { clip-path: none; padding-right: 24px; }
+        .pipeline-step:hover { transform: scale(1.02); filter: brightness(1.1); }
+
+        /* 상태별 색상 */
+        .pipeline-step.completed { background: linear-gradient(135deg, #10b981, #059669); }
+        .pipeline-step.in-progress { background: linear-gradient(135deg, #3b82f6, #2563eb); animation: pulse 2s infinite; }
+        .pipeline-step.waiting { background: linear-gradient(135deg, #9ca3af, #6b7280); }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+
+        .step-content { display: flex; flex-direction: column; align-items: center; text-align: center; pointer-events: none; }
+        .step-icon { font-size: 30px; margin-bottom: 8px; }
+        .step-name { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+        .step-status { font-size: 14px; opacity: 0.9; }
+
+        /* 더보기 버튼 스타일 */
+        .show-more-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 16px; margin: 24px 0;
+            background-color: #f9fafb; border: 2px dashed #d1d5db; border-radius: 8px;
+            color: #6b7280; cursor: pointer; font-weight: 600; transition: all 0.2s;
+        }
+        .show-more-btn:hover { background-color: #f3f4f6; border-color: #9ca3af; color: #374151; }
+
+        /* 추가 파이프라인 영역 (초기 숨김) */
+        #morePipeline { display: none; margin-top: 24px; }
+        .arrow-down { display: flex; justify-content: center; margin: 24px 0; }
+        .arrow-icon { font-size: 24px; color: #9ca3af; transform: rotate(90deg); }
+        .pipeline-grid-bottom { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+        .tip-box { background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin-top: 24px; }
+        .tip-text { font-size: 14px; color: #1e40af; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <button class="back-btn" onclick="window.parent.postMessage({type:'changePage', url:'client_detail.html'}, '*')">←</button>
+        <div class="header-content">
+            <h1>OO육묘장 - 영업 파이프라인</h1>
+            <p>영업 진행 상황을 확인하세요</p>
+        </div>
+        <span class="badge">계약 진행중</span>
+    </div>
+
+    <div class="info-card">
+        <h2 class="card-title">거래처 정보</h2>
+        <div class="info-grid">
+            <div class="info-item"><span class="info-label">거래처명</span><p class="info-value">OO육묘장</p></div>
+            <div class="info-item"><span class="info-label">담당자</span><p class="info-value">김철수 과장</p></div>
+            <div class="info-item"><span class="info-label">연락처</span><p class="info-value">010-1234-5678</p></div>
+            <div class="info-item"><span class="info-label">시작일</span><p class="info-value">2026-01-15</p></div>
+            <div class="info-item"><span class="info-label">총 계약 금액</span><p class="info-value highlight">15,000,000원</p></div>
+        </div>
+    </div>
+
+    <div class="pipeline-container">
+        <h2 class="card-title">파이프라인 진행 상황</h2>
+
+        <div class="pipeline-grid">
+            <div class="pipeline-step completed" onclick="goToDocs('견적요청')">
+                <div class="step-content"><div class="step-icon">✓</div><h3 class="step-name">견적요청</h3><p class="step-status">완료</p></div>
+            </div>
+            <div class="pipeline-step completed" onclick="goToDocs('견적서')">
+                <div class="step-content"><div class="step-icon">✓</div><h3 class="step-name">견적서</h3><p class="step-status">완료</p></div>
+            </div>
+            <div class="pipeline-step in-progress" onclick="goToDocs('계약서')">
+                <div class="step-content"><div class="step-icon">🔄</div><h3 class="step-name">계약서</h3><p class="step-status">진행중</p></div>
+            </div>
+        </div>
+
+        <button class="show-more-btn" id="toggleBtn" onclick="showMore()">
+            <span>주문서 단계부터 더보기</span>
+            <span>▼</span>
+        </button>
+
+        <div id="morePipeline">
+            <div class="arrow-down"><div class="arrow-icon">➜</div></div>
+            <div class="pipeline-grid-bottom">
+                <div class="pipeline-step waiting" onclick="goToDocs('주문서')"">
+                    <div class="step-content"><div class="step-icon">⏳</div><h3 class="step-name">주문서</h3><p class="step-status">대기중</p></div>
+                </div>
+                <div class="pipeline-step waiting" onclick="goToDocs('명세서')">
+                    <div class="step-content"><div class="step-icon">⏳</div><h3 class="step-name">명세서</h3><p class="step-status">대기중</p></div>
+                </div>
+                <div class="pipeline-step waiting" onclick="goToDocs('청구서')">
+                    <div class="step-content"><div class="step-icon">⏳</div><h3 class="step-name">청구서</h3><p class="step-status">대기중</p></div>
+                </div>
+                <div class="pipeline-step waiting" onclick="goToDocs('결제완료')">
+                    <div class="step-content"><div class="step-icon">⏳</div><h3 class="step-name">결제완료</h3><p class="step-status">대기중</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tip-box">
+        <p class="tip-text"><strong>💡 팁:</strong> 각 단계를 클릭하면 해당 단계의 상세 문서 목록을 확인할 수 있습니다.</p>
+    </div>
+</div>
+
+<script>
+    // 더보기 버튼 클릭 시 실행
+    function showMore() {
+        document.getElementById('morePipeline').style.display = 'block';
+        document.getElementById('toggleBtn').style.display = 'none';
+    }
+
+    // 문서 목록 페이지 이동
+    function goToDocs(title) {
+        window.parent.postMessage({
+            type: 'changePage',
+            url: `sales_document_list.html?title=${encodeURIComponent(title)}`
+        }, '*');
+    }
+</script>
+</body>
+</html>

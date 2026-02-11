@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>거래처 상세 정보</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .back-btn {
+            padding: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 24px; /* 크기 통일 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #111827;
+            transition: background-color 0.2s;
+        }
+
+        .back-btn:hover {
+            background-color: #e5e7eb; /* 호버 시 회색 배경 스타일 통일 */
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .header p {
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .tabs {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tab-btn {
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        .tab-content {
+            padding: 24px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+            align-items: stretch;
+        }
+
+        .info-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 24px;
+            background-color: white;
+        }
+
+        .info-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+        }
+
+        .info-item {
+            margin-bottom: 12px;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: #6b7280;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .info-value.highlight {
+            font-size: 20px;
+            color: #2563eb;
+        }
+
+        .crops-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .crop-badge {
+            padding: 4px 12px;
+            background-color: #d1fae5;
+            color: #065f46;
+            border-radius: 9999px;
+            font-size: 14px;
+        }
+
+        .memo-section {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .memo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .memo-content {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .memo-text {
+            font-size: 14px;
+            color: #374151;
+            white-space: pre-wrap;
+            font-family: inherit;
+        }
+
+        .pipeline-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        .pipeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-blue {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-green {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .pipeline-flow {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 70px;
+        }
+
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .step-icon.completed {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .step-icon.in-progress {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .step-icon.waiting {
+            background-color: #d1d5db;
+            color: #6b7280;
+        }
+
+        .step-name {
+            font-size: 12px;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        .step-connector {
+            width: 16px;
+            height: 2px;
+            background-color: #d1d5db;
+            margin-bottom: 16px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <div class="header">
+        <button class="back-btn" onclick="window.parent.postMessage({type:'changePage', url:'client_management.html'}, '*')">←</button>
+        <div class="header-content">
+            <h1>🏢 OO육묘장 (C-001)</h1>
+            <p>육묘장 | 사용중</p>
+        </div>
+        <button class="btn-primary">거래처 수정</button>
+    </div>
+
+    <div class="tabs">
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="showTab('info')">기본 정보</button>
+            <button class="tab-btn" onclick="showTab('history')">영업 히스토리</button>
+        </div>
+
+        <div class="tab-content" id="info-tab">
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>📋 기본 정보</h3>
+                    <div class="info-item">
+                        <span class="info-label">법인명</span>
+                        <p class="info-value">OO육묘장</p>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">사업자번호</span>
+                        <p class="info-value">123-45-67890</p>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">지역</span>
+                        <p class="info-value">경기</p>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>👤 담당자 정보</h3>
+                    <div class="info-item">
+                        <span class="info-label">이름</span>
+                        <p class="info-value">김철수 과장</p>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">연락처</span>
+                        <p class="info-value">010-1234-5678</p>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">이메일</span>
+                        <p class="info-value">kim@farm.com</p>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>💰 거래 현황</h3>
+                    <div class="info-item">
+                        <span class="info-label">총 거래 금액</span>
+                        <p class="info-value highlight">₩125,000,000</p>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="info-item">
+                            <span class="info-label">진행 중인 계약</span>
+                            <p class="info-value">3건</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">완료된 계약</span>
+                            <p class="info-value">15건</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>🌱 거래 정보</h3>
+                    <div class="info-item">
+                        <span class="info-label">여신 한도</span>
+                        <p class="info-value highlight">₩50,000,000</p>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">현재 미수금</span>
+                        <p class="info-value" style="color: #ea580c;">₩15,000,000</p>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">잔여 여신</span>
+                        <p class="info-value" style="color: #10b981;">₩35,000,000</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card" style="margin-bottom: 24px;">
+                <h3>🌾 취급 품종</h3>
+                <div class="crops-list">
+                    <span class="crop-badge">토마토</span>
+                    <span class="crop-badge">파프리카</span>
+                    <span class="crop-badge">오이</span>
+                    <span class="crop-badge">고추</span>
+                </div>
+            </div>
+
+            <div class="memo-section">
+                <div class="memo-header">
+                    <h3>📝 메모 (회사 특징)</h3>
+                    <button class="btn-primary">✏️ 메모 수정</button>
+                </div>
+                <div class="memo-content">
+                        <pre class="memo-text">• 주력 작물: 토마토, 파프리카
+• 시설 규모: 약 3,000평
+• 계약 선호 방식: 연간 정기 계약 선호
+• 특이사항: 유기농 인증 보유, 품질 중시
+• 결제: 후불 60일</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content hidden" id="history-tab">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3>OO육묘장의 영업 파이프라인 (2건)</h3>
+                <select>
+                    <option>최신순</option>
+                    <option>오래된순</option>
+                    <option>금액 높은순</option>
+                </select>
+            </div>
+
+            <div class="pipeline-card">
+                <div class="pipeline-header">
+                    <div>
+                        <h4 style="font-weight: 600; color: #111827;">파이프라인 #8</h4>
+                        <p style="font-size: 14px; color: #6b7280;">시작일: 2026-01-29 | 계약 금액: ₩15,000,000</p>
+                    </div>
+                    <span class="badge badge-blue">진행 상태: 주문 진행</span>
+                </div>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">견적요청</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">견적서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">계약서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon in-progress">🔄</div>
+                        <span class="step-name">주문서</span>
+                        <span style="font-size: 12px; color: #6b7280;">진행</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon waiting">⏳</div>
+                        <span class="step-name">명세서</span>
+                        <span style="font-size: 12px; color: #6b7280;">대기</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon waiting">⏳</div>
+                        <span class="step-name">청구서</span>
+                        <span style="font-size: 12px; color: #6b7280;">대기</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon waiting">⏳</div>
+                        <span class="step-name">결제완료</span>
+                        <span style="font-size: 12px; color: #6b7280;">대기</span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <button class="btn-primary" onclick="window.parent.postMessage({type:'changePage', url:'sales_pipeline_detail.html'}, '*')">상세보기 →</button>
+                </div>
+            </div>
+
+            <div class="pipeline-card">
+                <div class="pipeline-header">
+                    <div>
+                        <h4 style="font-weight: 600; color: #111827;">파이프라인 #7</h4>
+                        <p style="font-size: 14px; color: #6b7280;">시작일: 2026-01-15 | 계약 금액: ₩8,500,000</p>
+                    </div>
+                    <span class="badge badge-green">진행 상태: 결제 완료</span>
+                </div>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">견적요청</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">견적서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">계약서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">주문서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">명세서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">청구서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">결제완료</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <button class="btn-primary">상세보기 →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+
+        const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn =>
+            btn.getAttribute('onclick').includes(`'${tabName}'`)
+        );
+        if (activeBtn) activeBtn.classList.add('active');
+
+        document.getElementById(tabName + '-tab').classList.remove('hidden');
+    }
+
+    function toggleMemoEdit() {
+        const contentBox = document.querySelector('.memo-content');
+        const textElement = contentBox.querySelector('.memo-text');
+        const editBtn = document.querySelector('.memo-header .btn-primary');
+
+        if (editBtn.innerText.includes('수정')) {
+            const currentVal = textElement.innerText;
+            contentBox.innerHTML = `<textarea id="memoEditor" style="width:100%; min-height:120px; padding:12px; border:1px solid #ddd; border-radius:8px; font-family:inherit;">${currentVal}</textarea>`;
+            editBtn.innerText = '💾 저장하기';
+        } else {
+            const newVal = document.getElementById('memoEditor').value;
+            contentBox.innerHTML = `<pre class="memo-text">${newVal}</pre>`;
+            editBtn.innerText = '✏️ 메모 수정';
+            alert('메모가 저장되었습니다');
+        }
+    }
+    document.querySelector('.memo-header .btn-primary').onclick = toggleMemoEdit;
+
+    function setupCropManager() {
+        const cropList = document.querySelector('.crops-list');
+        const addBtn = document.createElement('span');
+        addBtn.className = 'crop-badge';
+        addBtn.style.cssText = 'background:#f3f4f6; color:#374151; cursor:pointer; font-weight:bold; border:1px dashed #d1d5db;';
+        addBtn.innerText = '+ 추가';
+
+        addBtn.onclick = () => {
+            const name = prompt('추가할 품종명을 입력해주세요.:');
+            if(name) {
+                const span = document.createElement('span');
+                span.className = 'crop-badge';
+                span.style.cursor = 'pointer';
+                span.innerText = name;
+                span.title = '클릭하면 삭제됩니다.';
+                span.onclick = function() { if(confirm('이 품종을 삭제할까요?')) this.remove(); };
+                cropList.insertBefore(span, addBtn);
+            }
+        };
+        cropList.appendChild(addBtn);
+
+        document.querySelectorAll('.crop-badge:not(:last-child)').forEach(badge => {
+            badge.style.cursor = 'pointer';
+            badge.onclick = function() { if(confirm('이 품종을 삭제할까요?')) this.remove(); };
+        });
+    }
+    setupCropManager();
+</script>
+</body>
+
+</html>

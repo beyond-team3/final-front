@@ -1,0 +1,177 @@
+<h2 class="screen-title">계약서 승인 관리</h2>
+
+<div class="button-group" style="display: flex; gap: 10px; margin-bottom: 20px;">
+    <button class="btn btn-primary" onclick="openModal('modal1')">1. 영업사원 (반려X)</button>
+    <button class="btn btn-primary" onclick="openModal('modal2')">2. 영업사원 (반려O)</button>
+    <button class="btn btn-primary" onclick="openModal('modal3')">3. 관리자 (반려O)</button>
+    <button class="btn btn-primary" onclick="openModal('modal4')">4. 관리자/거래처 (반려X)</button>
+</div>
+
+<style>
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-container {
+        background: white;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 1200px;
+        height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* 모달 헤더 */
+    .modal-header {
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    .header-right { display: flex; gap: 10px; }
+
+    /* 모달 바디 레이아웃 */
+    .modal-body {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        background: #e9ecef;
+    }
+
+    /* 좌측 PDF 영역 */
+    .pdf-viewer {
+        flex: 2;
+        background: #525659;
+        display: flex;
+        justify-content: center;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .pdf-placeholder {
+        width: 100%;
+        max-width: 800px;
+        background: white;
+        height: 1000px; /* 임시 높이 */
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #ccc;
+    }
+
+    /* 우측 정보 영역 */
+    .info-panel {
+        flex: 1;
+        background: white;
+        border-left: 1px solid #ddd;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        overflow-y: auto;
+    }
+
+    /* 중앙 영역 전용 (모달 4) */
+    .modal-body.center-only .pdf-viewer { flex: 1; }
+
+    .info-title { font-weight: bold; color: #2c3e50; margin-bottom: 8px; font-size: 15px; }
+    .info-content { 
+        background: #f1f3f5; 
+        padding: 15px; 
+        border-radius: 5px; 
+        color: #495057; 
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .rejection-box { border: 1px solid #ff8787; background: #fff5f5; color: #e03131; }
+
+    .btn { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-download { background: #27ae60; color: white; }
+    .btn-close { background: #dee2e6; color: #333; font-size: 20px; padding: 5px 10px; }
+</style>
+
+<div id="contractModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div class="header-left">
+                <h3 id="modalDocName" style="margin:0;">2026년도 상반기 종자 공급 계약서</h3>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-download">PDF 다운로드</button>
+                <button class="btn-close" onclick="closeModal()">&times;</button>
+            </div>
+        </div>
+
+        <div id="modalBody" class="modal-body">
+            <div class="pdf-viewer">
+                <div class="pdf-placeholder">
+                    [ PDF 미리보기 영역 ]
+                </div>
+            </div>
+
+            <div id="infoPanel" class="info-panel">
+                <div id="remarkSection">
+                    <div class="info-title">문서 작성 시 비고</div>
+                    <div class="info-content">이번 계약 건은 지난번 미팅 때 논의된 특이사항 반영해서 초안 작성</div>
+                </div>
+                <div id="rejectSection">
+                    <div class="info-title" style="color:#e03131;">반려 사유</div>
+                    <div class="info-content rejection-box">단가 조정 증빙 서류가 누락되었습니다. 보완 후 재승인 요청하세요.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById('contractModal');
+    const infoPanel = document.getElementById('infoPanel');
+    const modalBody = document.getElementById('modalBody');
+    const remarkSection = document.getElementById('remarkSection');
+    const rejectSection = document.getElementById('rejectSection');
+
+    function openModal(type) {
+        // 초기화
+        infoPanel.style.display = 'flex';
+        modalBody.classList.remove('center-only');
+        remarkSection.style.display = 'block';
+        rejectSection.style.display = 'block';
+
+        if (type === 'modal1') {
+            rejectSection.style.display = 'none';
+        } else if (type === 'modal2') {
+            // 비고, 반려사유 모두 노출
+        } else if (type === 'modal3') {
+            remarkSection.style.display = 'none';
+        } else if (type === 'modal4') {
+            infoPanel.style.display = 'none';
+            modalBody.classList.add('center-only');
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+    }
+
+    // 배경 클릭 시 닫기
+    window.onclick = function(event) {
+        if (event.target == modal) closeModal();
+    }
+</script>
