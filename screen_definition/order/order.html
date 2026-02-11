@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>주문서 작성 - SALES-ORD-001</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
@@ -17,731 +22,1244 @@
 
         /* ───── 공통 레이아웃 ───── */
         .header {
-            position: fixed; top: 0; left: 0; right: 0; height: 60px;
-            background: #1a2636; color: white;
-            display: flex; align-items: center; padding: 0 20px;
-            z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #1a2636;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
+
         .menu-button {
-            background: none; border: none; color: white;
-            font-size: 22px; cursor: pointer; padding: 8px 12px;
-            margin-right: 16px; border-radius: 6px; transition: background 0.2s;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 16px;
+            border-radius: 6px;
+            transition: background 0.2s;
         }
-        .menu-button:hover { background: rgba(255,255,255,0.1); }
-        .header-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+
+        .menu-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
         .header-badge {
-            margin-left: 12px; background: #3b82f6;
-            color: white; font-size: 11px; padding: 2px 8px;
-            border-radius: 20px; font-weight: 600;
+            margin-left: 12px;
+            background: #3b82f6;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
         }
 
         .sidebar {
-            position: fixed; top: 60px; left: 0;
-            width: 240px; height: calc(100vh - 60px);
-            background: #1e2d3d; color: white;
-            transition: transform 0.3s ease; z-index: 999; overflow-y: auto;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 240px;
+            height: calc(100vh - 60px);
+            background: #1e2d3d;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
         }
-        .sidebar.hidden { transform: translateX(-100%); }
-        .sidebar-nav { padding: 16px 0; }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 16px 0;
+        }
+
         .nav-category {
-            padding: 16px 20px 8px; font-size: 11px; font-weight: 700;
-            text-transform: uppercase; color: #64748b; letter-spacing: 1px;
+            padding: 16px 20px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 1px;
         }
+
         .nav-item {
-            padding: 10px 20px; cursor: pointer;
-            transition: all 0.2s; border-left: 3px solid transparent;
-            font-size: 14px; color: #94a3b8;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            color: #94a3b8;
         }
-        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; border-left-color: #3b82f6; }
-        .nav-item.active { background: rgba(59,130,246,0.15); color: white; border-left-color: #3b82f6; font-weight: 600; }
-        .nav-item .nav-icon { margin-right: 8px; }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border-left-color: #3b82f6;
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: white;
+            border-left-color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .nav-item .nav-icon {
+            margin-right: 8px;
+        }
 
         .main-content {
-            position: fixed; top: 60px; left: 240px; right: 0;
+            position: fixed;
+            top: 60px;
+            left: 240px;
+            right: 0;
             height: calc(100vh - 60px);
-            transition: left 0.3s ease; overflow-y: auto;
+            transition: left 0.3s ease;
+            overflow-y: auto;
             background: #f0f2f5;
         }
-        .main-content.expanded { left: 0; }
+
+        .main-content.expanded {
+            left: 0;
+        }
 
         /* ───── screen-content 시작 ───── */
         .screen-content {
-            margin: 24px; background: transparent;
+            margin: 24px;
+            background: transparent;
         }
 
         /* 페이지 헤더 */
         .page-header {
-            display: flex; align-items: flex-start;
-            justify-content: space-between; margin-bottom: 20px;
-        }
-        .page-header-left {}
-        .breadcrumb {
-            font-size: 12px; color: #64748b; margin-bottom: 6px;
-        }
-        .breadcrumb span { color: #3b82f6; }
-        .page-title {
-            font-size: 22px; font-weight: 800;
-            color: #0f172a; letter-spacing: -0.5px;
-            display: flex; align-items: center; gap: 10px;
-        }
-        .screen-id-badge {
-            font-size: 11px; font-weight: 600; color: #64748b;
-            background: #e2e8f0; padding: 3px 8px; border-radius: 4px;
-        }
-        .page-subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
-
-        /* ───── 계약서 요약 카드 ───── */
-        .contract-card {
-            background: white; border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            padding: 18px 24px; margin-bottom: 20px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-        }
-        .contract-card-header {
-            display: flex; align-items: center; gap: 10px;
-            margin-bottom: 14px;
-        }
-        .contract-card-icon {
-            width: 36px; height: 36px; background: #eff6ff;
-            border-radius: 8px; display: flex; align-items: center;
-            justify-content: center; font-size: 18px;
-        }
-        .contract-card-label {
-            font-size: 12px; color: #64748b; font-weight: 600;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .contract-card-body {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
-        }
-        .contract-field label {
-            font-size: 11px; color: #94a3b8; font-weight: 600;
-            text-transform: uppercase; letter-spacing: 0.5px;
-            display: block; margin-bottom: 4px;
-        }
-        .contract-field .field-value {
-            font-size: 14px; font-weight: 700; color: #1e293b;
-        }
-        .contract-field .field-value.highlight { color: #2563eb; }
-        .contract-status-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            background: #dcfce7; color: #16a34a;
-            font-size: 11px; font-weight: 700; padding: 3px 10px;
-            border-radius: 20px;
-        }
-        .contract-status-badge::before { content: "●"; font-size: 8px; }
-
-        /* ───── 섹션 공통 ───── */
-        .section {
-            background: white; border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-            overflow: hidden;
-        }
-        .section-header {
-            padding: 14px 20px;
-            border-bottom: 1px solid #f1f5f9;
-            display: flex; align-items: center; gap: 8px;
-            background: #fafbfc;
-        }
-        .section-icon { font-size: 16px; }
-        .section-title {
-            font-size: 14px; font-weight: 700; color: #1e293b;
-        }
-        .section-desc { font-size: 12px; color: #94a3b8; margin-left: auto; }
-        .section-body { padding: 20px; }
-
-        /* ───── 주문 상품 테이블 ───── */
-        .product-table { width: 100%; border-collapse: collapse; }
-        .product-table thead tr {
-            background: #f8fafc;
-        }
-        .product-table th {
-            padding: 10px 14px; font-size: 12px; font-weight: 700;
-            color: #64748b; text-align: left; text-transform: uppercase;
-            letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0;
-        }
-        .product-table th.right, .product-table td.right { text-align: right; }
-        .product-table th.center, .product-table td.center { text-align: center; }
-        .product-table tbody tr { transition: background 0.15s; }
-        .product-table tbody tr:hover { background: #f8fafc; }
-        .product-table td {
-            padding: 12px 14px; font-size: 13px; color: #334155;
-            border-bottom: 1px solid #f1f5f9; vertical-align: middle;
-        }
-        .product-name { font-weight: 600; color: #1e293b; }
-        .product-code { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-        .unit-price { font-weight: 600; color: #475569; }
-
-        .qty-input-wrap {
-            display: flex; align-items: center; gap: 6px;
-        }
-        .qty-btn {
-            width: 28px; height: 28px; border: 1px solid #e2e8f0;
-            background: white; border-radius: 6px; cursor: pointer;
-            font-size: 16px; color: #475569; display: flex;
-            align-items: center; justify-content: center;
-            transition: all 0.15s; font-weight: 700;
-        }
-        .qty-btn:hover { background: #eff6ff; border-color: #3b82f6; color: #2563eb; }
-        .qty-input {
-            width: 64px; height: 28px; border: 1px solid #e2e8f0;
-            border-radius: 6px; text-align: center; font-size: 14px;
-            font-weight: 600; color: #1e293b; outline: none;
-            transition: border-color 0.2s;
-        }
-        .qty-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-
-        .row-total {
-            font-size: 14px; font-weight: 700; color: #1e293b;
-        }
-        .row-total.zero { color: #cbd5e1; }
-
-        .table-footer {
-            display: flex; justify-content: flex-end; align-items: center;
-            padding: 14px 14px 0; border-top: 2px solid #e2e8f0; margin-top: 4px;
-            gap: 24px;
-        }
-        .total-label { font-size: 13px; color: #64748b; font-weight: 600; }
-        .total-amount {
-            font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;
-        }
-        .total-amount .currency { font-size: 14px; color: #64748b; margin-right: 2px; }
-
-        /* ───── 여신 시뮬레이션 ───── */
-        .credit-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
-        }
-        .credit-card {
-            border-radius: 10px; padding: 16px 18px;
-            border: 1px solid #e2e8f0; background: #fafbfc;
-            transition: all 0.3s;
-        }
-        .credit-card .credit-label {
-            font-size: 11px; font-weight: 700; color: #94a3b8;
-            text-transform: uppercase; letter-spacing: 0.5px;
-            margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
-        }
-        .credit-card .credit-value {
-            font-size: 22px; font-weight: 800; color: #1e293b;
-            letter-spacing: -0.5px;
-        }
-        .credit-card .credit-value .currency {
-            font-size: 14px; color: #94a3b8; margin-right: 2px;
-        }
-        .credit-card .credit-sub {
-            font-size: 11px; color: #94a3b8; margin-top: 4px;
-        }
-
-        .credit-card.current { border-color: #bfdbfe; background: #eff6ff; }
-        .credit-card.current .credit-label { color: #2563eb; }
-        .credit-card.current .credit-value { color: #1d4ed8; }
-
-        .credit-card.order-amount { border-color: #fde68a; background: #fffbeb; }
-        .credit-card.order-amount .credit-label { color: #d97706; }
-        .credit-card.order-amount .credit-value { color: #b45309; }
-
-        .credit-card.remaining { border-color: #bbf7d0; background: #f0fdf4; }
-        .credit-card.remaining .credit-label { color: #16a34a; }
-        .credit-card.remaining .credit-value { color: #15803d; }
-
-        .credit-card.remaining.over { border-color: #fecaca; background: #fef2f2; animation: pulse-warning 1.5s infinite; }
-        .credit-card.remaining.over .credit-label { color: #dc2626; }
-        .credit-card.remaining.over .credit-value { color: #b91c1c; }
-
-        @keyframes pulse-warning {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
-            50% { box-shadow: 0 0 0 6px rgba(220,38,38,0.12); }
-        }
-
-        .credit-bar-wrap { margin-top: 16px; }
-        .credit-bar-label {
-            display: flex; justify-content: space-between;
-            font-size: 12px; color: #64748b; margin-bottom: 6px;
-        }
-        .credit-bar-bg {
-            height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;
-        }
-        .credit-bar-fill {
-            height: 100%; border-radius: 4px;
-            background: linear-gradient(90deg, #3b82f6, #6366f1);
-            transition: width 0.4s ease, background 0.3s;
-        }
-        .credit-bar-fill.danger { background: linear-gradient(90deg, #ef4444, #f97316); }
-
-        .credit-warning {
-            display: none; margin-top: 12px;
-            background: #fef2f2; border: 1px solid #fecaca;
-            border-radius: 8px; padding: 12px 16px;
-            display: flex; align-items: flex-start; gap: 10px;
-        }
-        .credit-warning.hidden { display: none !important; }
-        .credit-warning .warn-icon { font-size: 18px; flex-shrink: 0; }
-        .credit-warning .warn-text { font-size: 13px; color: #b91c1c; font-weight: 600; }
-        .credit-warning .warn-sub { font-size: 12px; color: #ef4444; margin-top: 2px; }
-
-        /* ───── 배송 정보 ───── */
-        .delivery-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
-        }
-        .delivery-grid .full-width { grid-column: 1 / -1; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        .form-label {
-            font-size: 12px; font-weight: 700; color: #64748b;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .form-label .required { color: #ef4444; margin-left: 2px; }
-        .form-input, .form-textarea, .form-select {
-            height: 40px; padding: 0 12px;
-            border: 1.5px solid #e2e8f0; border-radius: 8px;
-            font-size: 14px; color: #1e293b; background: white; outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            font-family: inherit;
-        }
-        .form-input:focus, .form-textarea:focus, .form-select:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
-        }
-        .form-textarea {
-            height: 80px; padding: 10px 12px; resize: vertical;
-        }
-        .form-hint { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-
-        /* ───── 하단 액션 바 ───── */
-        .action-bar {
-            background: white; border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            padding: 16px 24px; margin-bottom: 16px;
-            display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-        }
-        .action-bar-left { display: flex; align-items: center; gap: 10px; }
-        .action-bar-right { display: flex; align-items: center; gap: 10px; }
-
-        .btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 0 18px; height: 40px; border-radius: 8px;
-            font-size: 14px; font-weight: 600; cursor: pointer;
-            border: none; transition: all 0.2s; font-family: inherit;
-            white-space: nowrap;
-        }
-        .btn-icon { font-size: 16px; }
-        .btn-cancel {
-            background: white; border: 1.5px solid #e2e8f0;
-            color: #64748b;
-        }
-        .btn-cancel:hover { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
-        .btn-pdf {
-            background: #f8fafc; border: 1.5px solid #e2e8f0;
-            color: #475569;
-        }
-        .btn-pdf:hover { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
-        .btn-save {
-            background: linear-gradient(135deg, #2563eb, #4f46e5);
-            color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.3);
-        }
-        .btn-save:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
-        .btn-save:disabled {
-            background: linear-gradient(135deg, #94a3b8, #94a3b8);
-            box-shadow: none; cursor: not-allowed; transform: none; opacity: 0.7;
-        }
-
-        /* ───── PDF 미리보기 모달 ───── */
-        .modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(15,23,42,0.6);
-            z-index: 2000; display: none;
-            align-items: center; justify-content: center;
-            backdrop-filter: blur(4px);
-        }
-        .modal-overlay.active { display: flex; }
-
-        .modal {
-            background: white; border-radius: 16px;
-            width: 720px; max-width: 95vw; max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: modal-in 0.25s ease;
-        }
-        @keyframes modal-in {
-            from { opacity: 0; transform: translateY(20px) scale(0.97); }
-            to { opacity: 1; transform: none; }
-        }
-        .modal-header {
-            padding: 20px 24px 16px;
-            border-bottom: 1px solid #f1f5f9;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .modal-title { font-size: 16px; font-weight: 800; color: #1e293b; }
-        .modal-close {
-            width: 32px; height: 32px; background: #f1f5f9;
-            border: none; border-radius: 8px; cursor: pointer;
-            font-size: 18px; color: #64748b;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.15s;
-        }
-        .modal-close:hover { background: #fee2e2; color: #dc2626; }
-        .modal-body { padding: 24px; }
-
-        /* PDF 미리보기 내부 */
-        .pdf-preview {
-            border: 1px solid #e2e8f0; border-radius: 8px;
-            padding: 32px; background: white; font-family: 'Noto Sans KR', sans-serif;
-        }
-        .pdf-title {
-            text-align: center; font-size: 22px; font-weight: 800;
-            color: #1e293b; letter-spacing: 2px; margin-bottom: 24px;
-            padding-bottom: 16px; border-bottom: 2px solid #1e293b;
-        }
-        .pdf-meta-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 0;
-            border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
             margin-bottom: 20px;
         }
-        .pdf-meta-row {
-            display: contents;
-        }
-        .pdf-meta-row .label {
-            background: #f8fafc; padding: 8px 14px;
-            font-size: 12px; font-weight: 700; color: #64748b;
-            border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0;
-        }
-        .pdf-meta-row .value {
-            padding: 8px 14px; font-size: 12px; color: #1e293b; font-weight: 600;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .pdf-section-title {
-            font-size: 13px; font-weight: 800; color: #1e293b;
-            margin: 18px 0 10px; padding-left: 10px;
-            border-left: 3px solid #2563eb;
-        }
-        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-        .pdf-table th {
-            background: #f8fafc; padding: 8px 12px;
-            font-size: 11px; font-weight: 700; color: #64748b;
-            text-align: left; border: 1px solid #e2e8f0;
-        }
-        .pdf-table td {
-            padding: 8px 12px; font-size: 12px; color: #334155;
-            border: 1px solid #e2e8f0;
-        }
-        .pdf-table td.right { text-align: right; }
-        .pdf-total-row td {
-            background: #eff6ff; font-weight: 800; color: #1d4ed8;
-            font-size: 13px;
-        }
-        .pdf-footer {
-            display: flex; justify-content: flex-end; gap: 40px;
-            margin-top: 30px; padding-top: 16px; border-top: 1px solid #e2e8f0;
-        }
-        .pdf-sign { text-align: center; font-size: 12px; color: #64748b; }
-        .pdf-sign .sign-line {
-            width: 100px; height: 40px; border-bottom: 1px solid #94a3b8;
+
+        .page-header-left {}
+
+        .breadcrumb {
+            font-size: 12px;
+            color: #64748b;
             margin-bottom: 6px;
         }
 
-        .modal-footer {
-            padding: 16px 24px; border-top: 1px solid #f1f5f9;
-            display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+        .breadcrumb span {
+            color: #3b82f6;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .screen-id-badge {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            background: #e2e8f0;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        /* ───── Split View Layout ───── */
+        .split-layout {
+            display: grid;
+            grid-template-columns: 1fr 500px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .left-panel {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .right-panel {
+            position: sticky;
+            top: 0;
+        }
+
+        /* ───── 계약서 요약 카드 ───── */
+        .contract-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 18px 24px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .contract-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .contract-card-icon {
+            width: 36px;
+            height: 36px;
+            background: #eff6ff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .contract-card-label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .contract-card-body {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .contract-field label {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .contract-field .field-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .contract-field .field-value.highlight {
+            color: #2563eb;
+        }
+
+        .contract-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #dcfce7;
+            color: #16a34a;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+
+        .contract-status-badge::before {
+            content: "●";
+            font-size: 8px;
+        }
+
+        /* ───── 섹션 공통 ───── */
+        .section {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fafbfc;
+        }
+
+        .section-icon {
+            font-size: 16px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .section-desc {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-left: auto;
+        }
+
+        .section-body {
+            padding: 20px;
+        }
+
+        /* ───── 주문 상품 테이블 ───── */
+        .product-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .product-table thead tr {
+            background: #f8fafc;
+        }
+
+        .product-table th {
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .product-table th.right,
+        .product-table td.right {
+            text-align: right;
+        }
+
+        .product-table th.center,
+        .product-table td.center {
+            text-align: center;
+        }
+
+        .product-table tbody tr {
+            transition: background 0.15s;
+        }
+
+        .product-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .product-table td {
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #334155;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .product-code {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .unit-price {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .qty-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            font-weight: 700;
+        }
+
+        .qty-btn:hover {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            color: #2563eb;
+        }
+
+        .qty-input {
+            width: 64px;
+            height: 28px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .qty-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .row-total {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .row-total.zero {
+            color: #cbd5e1;
+        }
+
+        .table-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 14px 14px 0;
+            border-top: 2px solid #e2e8f0;
+            margin-top: 4px;
+            gap: 24px;
+        }
+
+        .total-label {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .total-amount {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: -0.5px;
+        }
+
+        .total-amount .currency {
+            font-size: 14px;
+            color: #64748b;
+            margin-right: 2px;
+        }
+
+        /* ───── 여신 시뮬레이션 ───── */
+        .credit-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .credit-card {
+            border-radius: 10px;
+            padding: 16px 18px;
+            border: 1px solid #e2e8f0;
+            background: #fafbfc;
+            transition: all 0.3s;
+        }
+
+        .credit-card .credit-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .credit-card .credit-value {
+            font-size: 22px;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: -0.5px;
+        }
+
+        .credit-card .credit-value .currency {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-right: 2px;
+        }
+
+        .credit-card .credit-sub {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .credit-card.current {
+            border-color: #bfdbfe;
+            background: #eff6ff;
+        }
+
+        .credit-card.current .credit-label {
+            color: #2563eb;
+        }
+
+        .credit-card.current .credit-value {
+            color: #1d4ed8;
+        }
+
+        .credit-card.order-amount {
+            border-color: #fde68a;
+            background: #fffbeb;
+        }
+
+        .credit-card.order-amount .credit-label {
+            color: #d97706;
+        }
+
+        .credit-card.order-amount .credit-value {
+            color: #b45309;
+        }
+
+        .credit-card.remaining {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .credit-card.remaining .credit-label {
+            color: #16a34a;
+        }
+
+        .credit-card.remaining .credit-value {
+            color: #15803d;
+        }
+
+        .credit-card.remaining.over {
+            border-color: #fecaca;
+            background: #fef2f2;
+            animation: pulse-warning 1.5s infinite;
+        }
+
+        .credit-card.remaining.over .credit-label {
+            color: #dc2626;
+        }
+
+        .credit-card.remaining.over .credit-value {
+            color: #b91c1c;
+        }
+
+        @keyframes pulse-warning {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.12);
+            }
+        }
+
+        .credit-bar-wrap {
+            margin-top: 16px;
+        }
+
+        .credit-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .credit-bar-bg {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .credit-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #3b82f6, #6366f1);
+            transition: width 0.4s ease, background 0.3s;
+        }
+
+        .credit-bar-fill.danger {
+            background: linear-gradient(90deg, #ef4444, #f97316);
+        }
+
+        .credit-warning {
+            display: none;
+            margin-top: 12px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .credit-warning.hidden {
+            display: none !important;
+        }
+
+        .credit-warning .warn-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .credit-warning .warn-text {
+            font-size: 13px;
+            color: #b91c1c;
+            font-weight: 600;
+        }
+
+        .credit-warning .warn-sub {
+            font-size: 12px;
+            color: #ef4444;
+            margin-top: 2px;
+        }
+
+        /* ───── 배송 정보 ───── */
+        .delivery-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .delivery-grid .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-label .required {
+            color: #ef4444;
+            margin-left: 2px;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            height: 40px;
+            padding: 0 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #1e293b;
+            background: white;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            height: 80px;
+            padding: 10px 12px;
+            resize: vertical;
+        }
+
+        .form-hint {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        /* ───── 하단 액션 바 ───── */
+        .action-bar {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .action-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .action-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 18px;
+            height: 40px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .btn-icon {
+            font-size: 16px;
+        }
+
+        .btn-cancel {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .btn-cancel:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            color: white;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-save:disabled {
+            background: linear-gradient(135deg, #94a3b8, #94a3b8);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+
+        /* ───── PDF 미리보기 (Right Panel) ───── */
+        .pdf-preview {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 32px;
+            background: white;
+            font-family: 'Noto Sans KR', sans-serif;
+            min-height: 700px;
+            /* 고정 높이 또는 내용에 따라 */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            /* 약간의 그림자 추가 */
+            position: sticky;
+            top: 20px;
+        }
+
+        .pdf-title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #1e293b;
+        }
+
+        .pdf-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .pdf-meta-row {
+            display: contents;
+        }
+
+        .pdf-meta-row .label {
+            background: #f8fafc;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            border-bottom: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .pdf-meta-row .value {
+            padding: 8px 14px;
+            font-size: 12px;
+            color: #1e293b;
+            font-weight: 600;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .pdf-section-title {
+            font-size: 13px;
+            font-weight: 800;
+            color: #1e293b;
+            margin: 18px 0 10px;
+            padding-left: 10px;
+            border-left: 3px solid #2563eb;
+        }
+
+        .pdf-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+
+        .pdf-table th {
+            background: #f8fafc;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-align: left;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pdf-table td {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pdf-table td.right {
+            text-align: right;
+        }
+
+        .pdf-total-row td {
+            background: #eff6ff;
+            font-weight: 800;
+            color: #1d4ed8;
+            font-size: 13px;
+        }
+
+        .pdf-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 40px;
+            margin-top: 30px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .pdf-sign {
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .pdf-sign .sign-line {
+            width: 100px;
+            height: 40px;
+            border-bottom: 1px solid #94a3b8;
+            margin-bottom: 6px;
         }
 
         /* ───── 저장 성공 토스트 ───── */
         .toast {
-            position: fixed; bottom: 28px; right: 28px;
-            background: #1e293b; color: white; padding: 12px 20px;
-            border-radius: 10px; font-size: 14px; font-weight: 600;
-            z-index: 3000; display: flex; align-items: center; gap: 8px;
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             transform: translateY(80px) opacity 0;
-            opacity: 0; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         }
-        .toast.show { transform: translateY(0); opacity: 1; }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
 
         /* ───── 반응형 ───── */
+        @media (max-width: 1200px) {
+            .split-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .right-panel {
+                display: none;
+                /* 모바일이나 태블릿에서는 숨기거나 하단으로 이동 */
+            }
+        }
+
         @media (max-width: 768px) {
-            .sidebar { width: 100%; max-width: 280px; }
-            .main-content { left: 0; }
-            .sidebar:not(.hidden) ~ .main-content { filter: brightness(0.7); pointer-events: none; }
-            .credit-grid { grid-template-columns: 1fr; }
-            .delivery-grid { grid-template-columns: 1fr; }
-            .contract-card-body { grid-template-columns: 1fr; }
-            .action-bar { flex-direction: column; gap: 12px; }
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden)~.main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+
+            .credit-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .delivery-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .contract-card-body {
+                grid-template-columns: 1fr;
+            }
+
+            .action-bar {
+                flex-direction: column;
+                gap: 12px;
+            }
         }
     </style>
 </head>
+
 <body>
 
-<!-- ───── 헤더 ───── -->
-<header class="header">
-    <button class="menu-button" id="menuToggle">☰</button>
-    <h1 class="header-title">종자 영업 관리 시스템</h1>
-    <span class="header-badge">B2B</span>
-</header>
+    <!-- ───── 헤더 ───── -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+        <span class="header-badge">B2B</span>
+    </header>
 
-<!-- ───── 사이드바 ───── -->
-<aside class="sidebar" id="sidebar">
-    <nav class="sidebar-nav">
-        <div class="nav-category">영업</div>
-        <div class="nav-item"><span class="nav-icon">📋</span>영업 대시보드</div>
-        <div class="nav-item active"><span class="nav-icon">📝</span>주문서 작성</div>
-        <div class="nav-item"><span class="nav-icon">📜</span>계약 관리</div>
-        <div class="nav-item"><span class="nav-icon">🏢</span>거래처 관리</div>
-        <div class="nav-category">이력</div>
-        <div class="nav-item"><span class="nav-icon">🕒</span>영업 히스토리</div>
-        <div class="nav-item"><span class="nav-icon">📦</span>주문 이력</div>
-        <div class="nav-category">설정</div>
-        <div class="nav-item"><span class="nav-icon">⚙️</span>설정</div>
-        <div class="nav-item"><span class="nav-icon">👤</span>프로필</div>
-    </nav>
-</aside>
+    <!-- ───── 사이드바 ───── -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">영업</div>
+            <div class="nav-item"><span class="nav-icon">📋</span>영업 대시보드</div>
+            <div class="nav-item active"><span class="nav-icon">📝</span>주문서 작성</div>
+            <div class="nav-item"><span class="nav-icon">📜</span>계약 관리</div>
+            <div class="nav-item"><span class="nav-icon">🏢</span>거래처 관리</div>
+            <div class="nav-category">이력</div>
+            <div class="nav-item"><span class="nav-icon">🕒</span>영업 히스토리</div>
+            <div class="nav-item"><span class="nav-icon">📦</span>주문 이력</div>
+            <div class="nav-category">설정</div>
+            <div class="nav-item"><span class="nav-icon">⚙️</span>설정</div>
+            <div class="nav-item"><span class="nav-icon">👤</span>프로필</div>
+        </nav>
+    </aside>
 
-<!-- ───── 메인 컨텐츠 ───── -->
-<main class="main-content" id="mainContent">
-<div class="screen-content">
+    <!-- ───── 메인 컨텐츠 ───── -->
+    <main class="main-content" id="mainContent">
+        <div class="screen-content">
 
-    <!-- 페이지 헤더 -->
-    <div class="page-header">
-        <div class="page-header-left">
-            <div class="breadcrumb">영업 &rsaquo; <span>주문서 작성</span></div>
-            <div class="page-title">
-                주문서 작성
-                <span class="screen-id-badge">SALES-ORD-001</span>
+            <!-- 페이지 헤더 -->
+            <div class="page-header">
+                <div class="page-header-left">
+                    <div class="breadcrumb">영업 &rsaquo; <span>주문서 작성</span></div>
+                    <div class="page-title">
+                        주문서 작성
+                        <span class="screen-id-badge">SALES-ORD-001</span>
+                    </div>
+                    <div class="page-subtitle">계약서 기반으로 주문 정보를 입력하고 여신 잔액을 실시간으로 확인합니다.</div>
+                </div>
             </div>
-            <div class="page-subtitle">계약서 기반으로 주문 정보를 입력하고 여신 잔액을 실시간으로 확인합니다.</div>
-        </div>
-    </div>
 
-    <!-- ① 계약서 요약 카드 -->
-    <div class="contract-card">
-        <div class="contract-card-header">
-            <div class="contract-card-icon">📄</div>
-            <div>
-                <div class="contract-card-label">선택된 계약서</div>
-            </div>
-            <div style="margin-left:auto"><span class="contract-status-badge">승인 완료</span></div>
-        </div>
-        <div class="contract-card-body">
-            <div class="contract-field">
-                <label>계약 번호</label>
-                <div class="field-value highlight">CTR-2025-04-00183</div>
-            </div>
-            <div class="contract-field">
-                <label>거래처명</label>
-                <div class="field-value">㈜한국농업 (서울)</div>
-            </div>
-            <div class="contract-field">
-                <label>계약 유효 기간</label>
-                <div class="field-value">2025.04.01 ~ 2025.12.31</div>
-            </div>
-        </div>
-    </div>
+            <!-- ───── 분할 레이아웃 시작 ───── -->
+            <div class="split-layout">
 
-    <!-- ② 주문 상품 입력 -->
-    <div class="section">
-        <div class="section-header">
-            <span class="section-icon">🌱</span>
-            <span class="section-title">주문 상품 입력</span>
-            <span class="section-desc">수량 입력 시 금액이 실시간 반영됩니다</span>
-        </div>
-        <div class="section-body" style="padding: 0;">
-            <table class="product-table">
-                <thead>
-                    <tr>
-                        <th>상품명 / 코드</th>
-                        <th class="center">계약 단가</th>
-                        <th class="center">계약 최소 수량</th>
-                        <th class="center">주문 수량</th>
-                        <th class="right">주문 금액</th>
-                    </tr>
-                </thead>
-                <tbody id="productTableBody">
-                    <!-- JS로 렌더링 -->
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="5">
-                            <div class="table-footer">
-                                <span class="total-label">총 주문 금액</span>
-                                <span class="total-amount"><span class="currency">₩</span><span id="totalAmountDisplay">0</span></span>
+                <!-- 왼쪽 패널: 입력 폼 -->
+                <div class="left-panel">
+                    <!-- ① 계약서 요약 카드 -->
+                    <div class="contract-card">
+                        <div class="contract-card-header">
+                            <div class="contract-card-icon">📄</div>
+                            <div>
+                                <div class="contract-card-label">선택된 계약서</div>
                             </div>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    </div>
-
-    <!-- ③ 여신 시뮬레이션 대시보드 (SALES-ORD-002) -->
-    <div class="section">
-        <div class="section-header">
-            <span class="section-icon">💳</span>
-            <span class="section-title">여신(Credit) 시뮬레이션</span>
-            <span class="section-desc">SALES-ORD-002 · 실시간 계산</span>
-        </div>
-        <div class="section-body">
-            <div class="credit-grid">
-                <div class="credit-card current">
-                    <div class="credit-label">🏦 현재 여신 잔액</div>
-                    <div class="credit-value"><span class="currency">₩</span><span id="creditBalance">50,000,000</span></div>
-                    <div class="credit-sub">기준: 2025년 4월</div>
-                </div>
-                <div class="credit-card order-amount">
-                    <div class="credit-label">🛒 이번 주문 금액</div>
-                    <div class="credit-value"><span class="currency">₩</span><span id="creditOrder">0</span></div>
-                    <div class="credit-sub">실시간 계산 중</div>
-                </div>
-                <div class="credit-card remaining" id="creditRemainingCard">
-                    <div class="credit-label" id="creditRemainingLabel">✅ 예상 여신 잔액</div>
-                    <div class="credit-value"><span class="currency">₩</span><span id="creditRemaining">50,000,000</span></div>
-                    <div class="credit-sub" id="creditRemainingSub">주문 가능 상태</div>
-                </div>
-            </div>
-
-            <div class="credit-bar-wrap">
-                <div class="credit-bar-label">
-                    <span>여신 사용률</span>
-                    <span id="creditUsagePercent">0%</span>
-                </div>
-                <div class="credit-bar-bg">
-                    <div class="credit-bar-fill" id="creditBarFill" style="width:0%"></div>
-                </div>
-            </div>
-
-            <div class="credit-warning hidden" id="creditWarning">
-                <span class="warn-icon">⚠️</span>
-                <div>
-                    <div class="warn-text">여신 한도를 초과하였습니다. 주문서를 저장할 수 없습니다.</div>
-                    <div class="warn-sub" id="creditOverAmount">초과 금액: ₩0 | 수량을 줄이거나 담당 영업자에게 문의하세요.</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ④ 배송 정보 입력 (SALES-ORD-003) -->
-    <div class="section">
-        <div class="section-header">
-            <span class="section-icon">🚚</span>
-            <span class="section-title">배송 정보 입력</span>
-            <span class="section-desc">SALES-ORD-003 · 배송 처리는 시스템 영역</span>
-        </div>
-        <div class="section-body">
-            <div class="delivery-grid">
-                <div class="form-group full-width">
-                    <label class="form-label">배송지 주소 <span class="required">*</span></label>
-                    <input class="form-input" type="text" placeholder="예: 서울특별시 강남구 테헤란로 123 농업센터 3층" value="서울특별시 강남구 테헤란로 123 농업센터 3층">
-                    <span class="form-hint">계약서 기본 배송지가 자동 입력됩니다. 변경 가능합니다.</span>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">수령인 <span class="required">*</span></label>
-                    <input class="form-input" type="text" placeholder="예: 홍길동 부장" value="홍길동 부장">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">연락처</label>
-                    <input class="form-input" type="text" placeholder="예: 010-1234-5678" value="010-1234-5678">
-                </div>
-                <div class="form-group full-width">
-                    <label class="form-label">요청사항</label>
-                    <textarea class="form-textarea" placeholder="배송 시 특이사항이 있으면 입력해 주세요. (예: 냉장 보관 필요, 2층 직접 납품 등)"></textarea>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ⑤ 하단 액션 바 -->
-    <div class="action-bar">
-        <div class="action-bar-left">
-            <span style="font-size:13px; color:#94a3b8;">작성 중 · 마지막 자동저장 <strong style="color:#64748b;">방금 전</strong></span>
-        </div>
-        <div class="action-bar-right">
-            <button class="btn btn-cancel" onclick="handleCancel()">
-                <span class="btn-icon">✕</span>취소
-            </button>
-            <button class="btn btn-pdf" onclick="openPdfPreview()">
-                <span class="btn-icon">📄</span>PDF 미리보기
-            </button>
-            <button class="btn btn-save" id="saveBtn" onclick="handleSave()">
-                <span class="btn-icon">✔</span>주문서 저장
-            </button>
-        </div>
-    </div>
-
-</div><!-- /screen-content -->
-</main>
-
-<!-- ───── PDF 미리보기 모달 (SALES-ORD-005) ───── -->
-<div class="modal-overlay" id="pdfModal">
-    <div class="modal">
-        <div class="modal-header">
-            <span class="modal-title">📄 주문서 PDF 미리보기</span>
-            <button class="modal-close" onclick="closePdfModal()">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="pdf-preview" id="pdfPreviewContent">
-                <div class="pdf-title">주 문 서</div>
-                <div class="pdf-meta-grid" id="pdfMeta"></div>
-                <div class="pdf-section-title">▪ 주문 상품 내역</div>
-                <table class="pdf-table" id="pdfProductTable">
-                    <thead>
-                        <tr>
-                            <th>상품명</th><th>단가</th><th>수량</th><th style="text-align:right">금액</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pdfProductBody"></tbody>
-                    <tfoot>
-                        <tr class="pdf-total-row">
-                            <td colspan="3"><strong>합계</strong></td>
-                            <td class="right" id="pdfTotal"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-                <div class="pdf-section-title">▪ 배송 정보</div>
-                <div class="pdf-meta-grid" id="pdfDelivery"></div>
-                <div class="pdf-footer">
-                    <div class="pdf-sign">
-                        <div class="sign-line"></div>
-                        <div>거래처 확인</div>
+                            <div style="margin-left:auto"><span class="contract-status-badge">승인 완료</span></div>
+                        </div>
+                        <div class="contract-card-body">
+                            <div class="contract-field">
+                                <label>계약 번호</label>
+                                <div class="field-value highlight">CTR-2025-04-00183</div>
+                            </div>
+                            <div class="contract-field">
+                                <label>거래처명</label>
+                                <div class="field-value">㈜한국농업 (서울)</div>
+                            </div>
+                            <div class="contract-field">
+                                <label>계약 유효 기간</label>
+                                <div class="field-value">2025.04.01 ~ 2025.12.31</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="pdf-sign">
-                        <div class="sign-line"></div>
-                        <div>담당 영업자</div>
+
+                    <!-- ② 주문 상품 입력 -->
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-icon">🌱</span>
+                            <span class="section-title">주문 상품 입력</span>
+                            <span class="section-desc">수량 입력 시 금액이 실시간 반영됩니다</span>
+                        </div>
+                        <div class="section-body" style="padding: 0;">
+                            <table class="product-table">
+                                <thead>
+                                    <tr>
+                                        <th>상품명 / 코드</th>
+                                        <th class="center">계약 단가</th>
+                                        <th class="center">계약 최소 수량</th>
+                                        <th class="center">주문 수량</th>
+                                        <th class="right">주문 금액</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productTableBody">
+                                    <!-- JS로 렌더링 -->
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="5">
+                                            <div class="table-footer">
+                                                <span class="total-label">총 주문 금액</span>
+                                                <span class="total-amount"><span class="currency">₩</span><span
+                                                        id="totalAmountDisplay">0</span></span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
-                    <div class="pdf-sign">
-                        <div class="sign-line"></div>
-                        <div>팀장 결재</div>
+
+                    <!-- ③ 여신 시뮬레이션 대시보드 (SALES-ORD-002) -->
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-icon">💳</span>
+                            <span class="section-title">여신(Credit) 시뮬레이션</span>
+                            <span class="section-desc">SALES-ORD-002 · 실시간 계산</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="credit-grid">
+                                <div class="credit-card current">
+                                    <div class="credit-label">🏦 현재 여신 잔액</div>
+                                    <div class="credit-value"><span class="currency">₩</span><span
+                                            id="creditBalance">50,000,000</span></div>
+                                    <div class="credit-sub">기준: 2025년 4월</div>
+                                </div>
+                                <div class="credit-card order-amount">
+                                    <div class="credit-label">🛒 이번 주문 금액</div>
+                                    <div class="credit-value"><span class="currency">₩</span><span
+                                            id="creditOrder">0</span></div>
+                                    <div class="credit-sub">실시간 계산 중</div>
+                                </div>
+                                <div class="credit-card remaining" id="creditRemainingCard">
+                                    <div class="credit-label" id="creditRemainingLabel">✅ 예상 여신 잔액</div>
+                                    <div class="credit-value"><span class="currency">₩</span><span
+                                            id="creditRemaining">50,000,000</span></div>
+                                    <div class="credit-sub" id="creditRemainingSub">주문 가능 상태</div>
+                                </div>
+                            </div>
+
+                            <div class="credit-bar-wrap">
+                                <div class="credit-bar-label">
+                                    <span>여신 사용률</span>
+                                    <span id="creditUsagePercent">0%</span>
+                                </div>
+                                <div class="credit-bar-bg">
+                                    <div class="credit-bar-fill" id="creditBarFill" style="width:0%"></div>
+                                </div>
+                            </div>
+
+                            <div class="credit-warning hidden" id="creditWarning">
+                                <span class="warn-icon">⚠️</span>
+                                <div>
+                                    <div class="warn-text">여신 한도를 초과하였습니다. 주문서를 저장할 수 없습니다.</div>
+                                    <div class="warn-sub" id="creditOverAmount">초과 금액: ₩0 | 수량을 줄이거나 담당 영업자에게 문의하세요.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ④ 배송 정보 입력 (SALES-ORD-003) -->
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-icon">🚚</span>
+                            <span class="section-title">배송 정보 입력</span>
+                            <span class="section-desc">SALES-ORD-003 · 배송 처리는 시스템 영역</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="delivery-grid">
+                                <div class="form-group full-width">
+                                    <label class="form-label">배송지 주소 <span class="required">*</span></label>
+                                    <input class="form-input" type="text" placeholder="예: 서울특별시 강남구 테헤란로 123 농업센터 3층"
+                                        value="서울특별시 강남구 테헤란로 123 농업센터 3층">
+                                    <span class="form-hint">계약서 기본 배송지가 자동 입력됩니다. 변경 가능합니다.</span>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">수령인 <span class="required">*</span></label>
+                                    <input class="form-input" type="text" placeholder="예: 홍길동 부장" value="홍길동 부장">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">연락처</label>
+                                    <input class="form-input" type="text" placeholder="예: 010-1234-5678"
+                                        value="010-1234-5678">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label class="form-label">요청사항</label>
+                                    <textarea class="form-textarea"
+                                        placeholder="배송 시 특이사항이 있으면 입력해 주세요. (예: 냉장 보관 필요, 2층 직접 납품 등)"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ⑤ 하단 액션 바 -->
+                    <div class="action-bar">
+                        <div class="action-bar-left">
+                            <span style="font-size:13px; color:#94a3b8;">작성 중 · 마지막 자동저장 <strong
+                                    style="color:#64748b;">방금 전</strong></span>
+                        </div>
+                        <div class="action-bar-right">
+                            <button class="btn btn-cancel" onclick="handleCancel()">
+                                <span class="btn-icon">✕</span>취소
+                            </button>
+                            <!-- PDF 미리보기 버튼 삭제 -->
+                            <button class="btn btn-save" id="saveBtn" onclick="handleSave()">
+                                <span class="btn-icon">✔</span>주문서 저장
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-cancel" onclick="closePdfModal()">닫기</button>
-            <button class="btn btn-pdf" onclick="downloadPDF()">
-                <span class="btn-icon">⬇</span>PDF 다운로드
-            </button>
-        </div>
-    </div>
-</div>
 
-<!-- 토스트 -->
-<div class="toast" id="toast"></div>
+                <!-- 오른쪽 패널: PDF 미리보기 -->
+                <div class="right-panel">
+                    <div class="pdf-preview" id="pdfPreviewContent">
+                        <div class="pdf-title">주 문 서</div>
+                        <div class="pdf-meta-grid" id="pdfMeta"></div>
+                        <div class="pdf-section-title">▪ 주문 상품 내역</div>
+                        <table class="pdf-table" id="pdfProductTable">
+                            <thead>
+                                <tr>
+                                    <th>상품명</th>
+                                    <th>단가</th>
+                                    <th>수량</th>
+                                    <th style="text-align:right">금액</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pdfProductBody"></tbody>
+                            <tfoot>
+                                <tr class="pdf-total-row">
+                                    <td colspan="3"><strong>합계</strong></td>
+                                    <td class="right" id="pdfTotal"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        <div class="pdf-section-title">▪ 배송 정보</div>
+                        <div class="pdf-meta-grid" id="pdfDelivery"></div>
+                        <div class="pdf-footer">
+                            <div class="pdf-sign">
+                                <div class="sign-line"></div>
+                                <div>거래처 확인</div>
+                            </div>
+                            <div class="pdf-sign">
+                                <div class="sign-line"></div>
+                                <div>담당 영업자</div>
+                            </div>
+                            <div class="pdf-sign">
+                                <div class="sign-line"></div>
+                                <div>팀장 결재</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-<script>
-// ─── 더미 데이터 ───
-const CREDIT_BALANCE = 50000000;
+            </div><!-- /split-layout -->
 
-const products = [
-    { id: 'P001', name: '고추 씨앗 (대구한 1호)', code: 'SEED-CHP-001', unitPrice: 85000,  minQty: 10, unit: 'kg' },
-    { id: 'P002', name: '토마토 씨앗 (슈퍼황금)',  code: 'SEED-TOM-009', unitPrice: 120000, minQty: 5,  unit: 'kg' },
-    { id: 'P003', name: '상추 씨앗 (버터헤드)',    code: 'SEED-LET-003', unitPrice: 45000,  minQty: 20, unit: 'kg' },
-    { id: 'P004', name: '배추 씨앗 (한국봄나리)', code: 'SEED-CAB-007', unitPrice: 95000,  minQty: 8,  unit: 'kg' },
-];
+        </div><!-- /screen-content -->
+    </main>
 
-let quantities = {};
-products.forEach(p => { quantities[p.id] = 0; });
+    <!-- 토스트 -->
+    <div class="toast" id="toast"></div>
 
-// ─── 상품 테이블 렌더링 ───
-function renderProductTable() {
-    const tbody = document.getElementById('productTableBody');
-    tbody.innerHTML = products.map(p => `
+    <script>
+        // ─── 더미 데이터 ───
+        const CREDIT_BALANCE = 50000000;
+
+        const products = [
+            { id: 'P001', name: '고추 씨앗 (대구한 1호)', code: 'SEED-CHP-001', unitPrice: 85000, minQty: 10, unit: 'kg' },
+            { id: 'P002', name: '토마토 씨앗 (슈퍼황금)', code: 'SEED-TOM-009', unitPrice: 120000, minQty: 5, unit: 'kg' },
+            { id: 'P003', name: '상추 씨앗 (버터헤드)', code: 'SEED-LET-003', unitPrice: 45000, minQty: 20, unit: 'kg' },
+            { id: 'P004', name: '배추 씨앗 (한국봄나리)', code: 'SEED-CAB-007', unitPrice: 95000, minQty: 8, unit: 'kg' },
+        ];
+
+        let quantities = {};
+        products.forEach(p => { quantities[p.id] = 0; });
+
+        // ─── 상품 테이블 렌더링 ───
+        function renderProductTable() {
+            const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = products.map(p => `
         <tr>
             <td>
                 <div class="product-name">${p.name}</div>
@@ -765,181 +1283,198 @@ function renderProductTable() {
             </td>
         </tr>
     `).join('');
-}
-
-function changeQty(id, delta) {
-    quantities[id] = Math.max(0, (quantities[id] || 0) + delta);
-    updateAll();
-}
-function setQty(id, val) {
-    quantities[id] = Math.max(0, parseInt(val) || 0);
-    updateAll();
-}
-
-// ─── 금액 & 여신 계산 ───
-function calcOrderTotal() {
-    return products.reduce((sum, p) => sum + (quantities[p.id] * p.unitPrice), 0);
-}
-
-function updateAll() {
-    const total = calcOrderTotal();
-    const remaining = CREDIT_BALANCE - total;
-    const isOver = remaining < 0;
-    const usagePct = Math.min(100, Math.round((total / CREDIT_BALANCE) * 100));
-
-    // 행별 금액 갱신
-    products.forEach(p => {
-        const rowEl = document.getElementById(`rowTotal_${p.id}`);
-        const amt = quantities[p.id] * p.unitPrice;
-        if(rowEl) {
-            rowEl.textContent = `₩${amt.toLocaleString()}`;
-            rowEl.className = `row-total ${amt === 0 ? 'zero' : ''}`;
         }
-        const inp = document.getElementById(`qty_${p.id}`);
-        if(inp) inp.value = quantities[p.id];
-    });
 
-    // 합계
-    document.getElementById('totalAmountDisplay').textContent = total.toLocaleString();
+        function changeQty(id, delta) {
+            quantities[id] = Math.max(0, (quantities[id] || 0) + delta);
+            updateAll();
+        }
+        function setQty(id, val) {
+            quantities[id] = Math.max(0, parseInt(val) || 0);
+            updateAll();
+        }
 
-    // 여신 패널
-    document.getElementById('creditOrder').textContent = total.toLocaleString();
-    document.getElementById('creditRemaining').textContent = Math.abs(remaining).toLocaleString();
-    document.getElementById('creditUsagePercent').textContent = usagePct + '%';
+        // ─── 금액 & 여신 계산 ───
+        function calcOrderTotal() {
+            return products.reduce((sum, p) => sum + (quantities[p.id] * p.unitPrice), 0);
+        }
 
-    const barFill = document.getElementById('creditBarFill');
-    barFill.style.width = usagePct + '%';
-    barFill.className = `credit-bar-fill ${isOver ? 'danger' : ''}`;
+        function updateAll() {
+            const total = calcOrderTotal();
+            const remaining = CREDIT_BALANCE - total;
+            const isOver = remaining < 0;
+            const usagePct = Math.min(100, Math.round((total / CREDIT_BALANCE) * 100));
 
-    const card = document.getElementById('creditRemainingCard');
-    const label = document.getElementById('creditRemainingLabel');
-    const sub = document.getElementById('creditRemainingSub');
+            // 행별 금액 갱신
+            products.forEach(p => {
+                const rowEl = document.getElementById(`rowTotal_${p.id}`);
+                const amt = quantities[p.id] * p.unitPrice;
+                if (rowEl) {
+                    rowEl.textContent = `₩${amt.toLocaleString()}`;
+                    rowEl.className = `row-total ${amt === 0 ? 'zero' : ''}`;
+                }
+                const inp = document.getElementById(`qty_${p.id}`);
+                if (inp) inp.value = quantities[p.id];
+            });
 
-    if (isOver) {
-        card.className = 'credit-card remaining over';
-        label.textContent = '🚨 여신 초과';
-        sub.textContent = `${(-remaining).toLocaleString()}원 초과`;
-        document.getElementById('creditWarning').classList.remove('hidden');
-        document.getElementById('creditOverAmount').textContent = 
-            `초과 금액: ₩${(-remaining).toLocaleString()} | 수량을 줄이거나 담당 영업자에게 문의하세요.`;
-        document.getElementById('saveBtn').disabled = true;
-    } else {
-        card.className = 'credit-card remaining';
-        label.textContent = '✅ 예상 여신 잔액';
-        sub.textContent = remaining === CREDIT_BALANCE ? '주문 가능 상태' : `₩${remaining.toLocaleString()} 잔여`;
-        document.getElementById('creditWarning').classList.add('hidden');
-        document.getElementById('saveBtn').disabled = false;
-    }
-}
+            // 합계
+            document.getElementById('totalAmountDisplay').textContent = total.toLocaleString();
 
-// ─── PDF 미리보기 ───
-function openPdfPreview() {
-    const total = calcOrderTotal();
-    const orderNo = 'ORD-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + Math.floor(Math.random()*9000+1000);
-    const today = new Date().toLocaleDateString('ko-KR');
+            // 여신 패널
+            document.getElementById('creditOrder').textContent = total.toLocaleString();
+            document.getElementById('creditRemaining').textContent = Math.abs(remaining).toLocaleString();
+            document.getElementById('creditUsagePercent').textContent = usagePct + '%';
 
-    // 메타
-    document.getElementById('pdfMeta').innerHTML = `
+            const barFill = document.getElementById('creditBarFill');
+            barFill.style.width = usagePct + '%';
+            barFill.className = `credit-bar-fill ${isOver ? 'danger' : ''}`;
+
+            const card = document.getElementById('creditRemainingCard');
+            const label = document.getElementById('creditRemainingLabel');
+            const sub = document.getElementById('creditRemainingSub');
+
+            if (isOver) {
+                card.className = 'credit-card remaining over';
+                label.textContent = '🚨 여신 초과';
+                sub.textContent = `${(-remaining).toLocaleString()}원 초과`;
+                document.getElementById('creditWarning').classList.remove('hidden');
+                document.getElementById('creditOverAmount').textContent =
+                    `초과 금액: ₩${(-remaining).toLocaleString()} | 수량을 줄이거나 담당 영업자에게 문의하세요.`;
+                document.getElementById('saveBtn').disabled = true;
+            } else {
+                card.className = 'credit-card remaining';
+                label.textContent = '✅ 예상 여신 잔액';
+                sub.textContent = remaining === CREDIT_BALANCE ? '주문 가능 상태' : `₩${remaining.toLocaleString()} 잔여`;
+                document.getElementById('creditWarning').classList.add('hidden');
+                document.getElementById('saveBtn').disabled = false;
+            }
+
+            // PDF 실시간 업데이트
+            renderPdf();
+        }
+
+        // ─── PDF 실시간 렌더링 ───
+        function renderPdf() {
+            const total = calcOrderTotal();
+            const orderNo = 'ORD-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-XXXX'; // 임시 번호
+            const today = new Date().toLocaleDateString('ko-KR');
+
+            // 메타
+            document.getElementById('pdfMeta').innerHTML = `
         <div class="pdf-meta-row"><div class="label">주문 번호</div><div class="value">${orderNo}</div></div>
         <div class="pdf-meta-row"><div class="label">작성일</div><div class="value">${today}</div></div>
         <div class="pdf-meta-row"><div class="label">거래처명</div><div class="value">㈜한국농업 (서울)</div></div>
         <div class="pdf-meta-row"><div class="label">계약 번호</div><div class="value">CTR-2025-04-00183</div></div>
     `;
 
-    // 상품 행
-    const pdfBody = document.getElementById('pdfProductBody');
-    pdfBody.innerHTML = products.filter(p => quantities[p.id] > 0).map(p => `
-        <tr>
-            <td>${p.name}</td>
-            <td>₩${p.unitPrice.toLocaleString()}</td>
-            <td>${quantities[p.id]} ${p.unit}</td>
-            <td class="right">₩${(quantities[p.id]*p.unitPrice).toLocaleString()}</td>
-        </tr>
-    `).join('') || `<tr><td colspan="4" style="text-align:center;color:#94a3b8;">주문 상품 없음</td></tr>`;
+            // 상품 행 (수량이 0인 것도 보여줄지 결정해야 하는데, 보통 견적서/주문서는 선택된 것만 보여줌. 하지만 작성 중에는?
+            // User request: "견적서와 동일한 방식". 견적서는 "선택된 상품"만 보여줌.
+            // 기존 Logic: filter(p => quantities[p.id] > 0)
+            const activeProducts = products.filter(p => quantities[p.id] > 0);
+            const pdfBody = document.getElementById('pdfProductBody');
 
-    document.getElementById('pdfTotal').textContent = `₩${total.toLocaleString()}`;
+            if (activeProducts.length === 0) {
+                pdfBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:40px;">주문할 상품의 수량을 입력해주세요.</td></tr>`;
+            } else {
+                pdfBody.innerHTML = activeProducts.map(p => `
+            <tr>
+                <td>${p.name}</td>
+                <td>₩${p.unitPrice.toLocaleString()}</td>
+                <td>${quantities[p.id]} ${p.unit}</td>
+                <td class="right">₩${(quantities[p.id] * p.unitPrice).toLocaleString()}</td>
+            </tr>
+        `).join('');
+            }
 
-    // 배송
-    const addr = document.querySelector('.delivery-grid .form-input:nth-child(1)');
-    document.getElementById('pdfDelivery').innerHTML = `
-        <div class="pdf-meta-row"><div class="label">배송지</div><div class="value">서울특별시 강남구 테헤란로 123</div></div>
-        <div class="pdf-meta-row"><div class="label">수령인</div><div class="value">홍길동 부장</div></div>
-        <div class="pdf-meta-row"><div class="label">연락처</div><div class="value">010-1234-5678</div></div>
-        <div class="pdf-meta-row"><div class="label">요청사항</div><div class="value">없음</div></div>
+            document.getElementById('pdfTotal').textContent = `₩${total.toLocaleString()}`;
+
+            // 배송 정보 연동
+            // input 값들을 가져와서 반영
+            const addr = document.querySelector('.delivery-grid .form-input:nth-child(2)'); // input index might vary
+            // let's grab by index from form-input class
+            const inputs = document.querySelectorAll('.form-input');
+            const textareas = document.querySelectorAll('.form-textarea');
+
+            // Delivery inputs: Address, Receiver, Contact. Textarea: Request.
+            // In HTML above:
+            // 1. Address input
+            // 2. Receiver input
+            // 3. Contact input
+            // 4. Request textarea
+
+            const valAddr = inputs[0] ? inputs[0].value : '';
+            const valReceiver = inputs[1] ? inputs[1].value : '';
+            const valContact = inputs[2] ? inputs[2].value : '';
+            const valReq = textareas[0] ? textareas[0].value : '없음';
+
+            document.getElementById('pdfDelivery').innerHTML = `
+        <div class="pdf-meta-row"><div class="label">배송지</div><div class="value">${valAddr || '(입력 대기)'}</div></div>
+        <div class="pdf-meta-row"><div class="label">수령인</div><div class="value">${valReceiver || '(입력 대기)'}</div></div>
+        <div class="pdf-meta-row"><div class="label">연락처</div><div class="value">${valContact}</div></div>
+        <div class="pdf-meta-row"><div class="label">요청사항</div><div class="value">${valReq || '없음'}</div></div>
     `;
-
-    document.getElementById('pdfModal').classList.add('active');
-}
-
-function closePdfModal() {
-    document.getElementById('pdfModal').classList.remove('active');
-}
-
-function downloadPDF() {
-    showToast('⬇ PDF 다운로드 기능은 실제 구현 시 jsPDF로 연동됩니다.', '#2563eb');
-    closePdfModal();
-}
-
-// ─── 저장 / 취소 ───
-function handleSave() {
-    const total = calcOrderTotal();
-    if (total === 0) { showToast('⚠️ 주문 상품을 1개 이상 입력해 주세요.', '#d97706'); return; }
-    showToast('✅ 주문서가 저장되었습니다. 영업 히스토리에 자동 기록됩니다.', '#16a34a');
-}
-
-function handleCancel() {
-    if (calcOrderTotal() > 0) {
-        if (!confirm('작성 중인 주문서를 취소하시겠습니까? 입력한 내용이 초기화됩니다.')) return;
-    }
-    products.forEach(p => { quantities[p.id] = 0; });
-    updateAll();
-    renderProductTable();
-    showToast('주문서 작성이 취소되었습니다.', '#64748b');
-}
-
-// ─── 토스트 ───
-function showToast(msg, color = '#1e293b') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.style.background = color;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3500);
-}
-
-// ─── 사이드바 토글 ───
-document.getElementById('menuToggle').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('hidden');
-    document.getElementById('mainContent').classList.toggle('expanded');
-});
-document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => {
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        item.classList.add('active');
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.add('hidden');
-            document.getElementById('mainContent').classList.add('expanded');
         }
-    });
-});
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-        closePdfModal();
-        const sb = document.getElementById('sidebar');
-        if (!sb.classList.contains('hidden')) {
-            sb.classList.add('hidden');
-            document.getElementById('mainContent').classList.add('expanded');
+
+        // ─── 저장 / 취소 ───
+        function handleSave() {
+            const total = calcOrderTotal();
+            if (total === 0) { showToast('⚠️ 주문 상품을 1개 이상 입력해 주세요.', '#d97706'); return; }
+            showToast('✅ 주문서가 저장되었습니다. 영업 히스토리에 자동 기록됩니다.', '#16a34a');
         }
-    }
-});
 
-// 모달 외부 클릭
-document.getElementById('pdfModal').addEventListener('click', function(e) {
-    if (e.target === this) closePdfModal();
-});
+        function handleCancel() {
+            if (calcOrderTotal() > 0) {
+                if (!confirm('작성 중인 주문서를 취소하시겠습니까? 입력한 내용이 초기화됩니다.')) return;
+            }
+            products.forEach(p => { quantities[p.id] = 0; });
+            updateAll(); // renderPdf가 여기서 호출됨
+            renderProductTable();
+            showToast('주문서 작성이 취소되었습니다.', '#64748b');
+        }
 
-// ─── 초기 렌더 ───
-renderProductTable();
-updateAll();
-</script>
+        // ─── 토스트 ───
+        function showToast(msg, color = '#1e293b') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.background = color;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3500);
+        }
+
+        // ─── 사이드바 토글 ───
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('hidden');
+            document.getElementById('mainContent').classList.toggle('expanded');
+        });
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                item.classList.add('active');
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.add('hidden');
+                    document.getElementById('mainContent').classList.add('expanded');
+                }
+            });
+        });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                const sb = document.getElementById('sidebar');
+                if (!sb.classList.contains('hidden')) {
+                    sb.classList.add('hidden');
+                    document.getElementById('mainContent').classList.add('expanded');
+                }
+            }
+        });
+
+        // 배송지 정보 변경 시에도 PDF 업데이트
+        document.querySelectorAll('.delivery-grid input, .delivery-grid textarea').forEach(el => {
+            el.addEventListener('input', renderPdf);
+        });
+
+        // ─── 초기 렌더 ───
+        renderProductTable();
+        updateAll();
+    </script>
 </body>
+
 </html>
