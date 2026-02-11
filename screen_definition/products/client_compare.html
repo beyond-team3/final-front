@@ -30,7 +30,7 @@
             align-items: center;
             padding: 0 20px;
             z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .menu-button {
@@ -129,7 +129,7 @@
             background-color: white;
             border-radius: 8px;
             padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             min-height: 500px;
         }
 
@@ -161,288 +161,347 @@
     </style>
 </head>
 <body>
-    <!-- 헤더 -->
-    <header class="header">
-        <button class="menu-button" id="menuToggle">☰</button>
-        <h1 class="header-title">종자 영업 관리 시스템</h1>
-    </header>
+<!-- 헤더 -->
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
 
-    <!-- 사이드바 -->
-    <aside class="sidebar" id="sidebar">
-        <nav class="sidebar-nav">
-            <div class="nav-category">메뉴</div>
-            <div class="nav-item active" data-screen="dashboard">대시보드</div>
-            <div class="nav-item" data-screen="screen1">화면 1</div>
-            <div class="nav-item" data-screen="screen2">화면 2</div>
-            <div class="nav-item" data-screen="screen3">화면 3</div>
-            
-            <div class="nav-category">설정</div>
-            <div class="nav-item" data-screen="settings">설정</div>
-            <div class="nav-item" data-screen="profile">프로필</div>
-        </nav>
-    </aside>
+<!-- 사이드바 -->
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">메뉴</div>
+        <div class="nav-item active" data-screen="dashboard">대시보드</div>
+        <div class="nav-item" data-screen="screen1">화면 1</div>
+        <div class="nav-item" data-screen="screen2">화면 2</div>
+        <div class="nav-item" data-screen="screen3">화면 3</div>
 
-    <!-- 메인 컨텐츠 영역 -->
-    <main class="main-content" id="mainContent">
-        <div class="content-wrapper">
-            <div class="screen-content">
-                <h2 class="screen-title">비교함</h2>
-                
-                <!-- 
-                    ========================================
-                    여기부터 각 화면별 컨텐츠를 작성하세요
-                    ========================================
-                -->
-                <!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>상품 비교하기</title>
-    <style>
-        /* 메인 템플릿 기본 스타일 */
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #ecf0f1; margin: 0; padding: 20px; }
-        .screen-content { background-color: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 1200px; margin: 0 auto; }
-        
-        /* 비교하기 전용 스타일 */
-        .compare-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .screen-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 0;
-        }
+        <div class="nav-category">설정</div>
+        <div class="nav-item" data-screen="settings">설정</div>
+        <div class="nav-item" data-screen="profile">프로필</div>
+    </nav>
+</aside>
 
-        .btn-clear {
-            background-color: #95a5a6;
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-left: 5px;
-            transition: background 0.2s;
-        }
-        .btn-clear:hover { background-color: #7f8c8d; }
+<!-- 메인 컨텐츠 영역 -->
+<main class="main-content" id="mainContent">
+    <div class="content-wrapper">
+        <div class="screen-content">
+            <h2 class="screen-title">품종 비교</h2>
 
-        /* 비교 테이블 스타일 */
-        .compare-container {
-            display: flex;
-            gap: 0;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            background: white;
-        }
+            <!--
+                ========================================
+                여기부터 각 화면별 컨텐츠를 작성하세요
+                ========================================
+            -->
+            <style>
+                /* 비교하기 전용 스타일 */
+                .compare-header {
+                    display: flex;
+                    justify-content: flex-end;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
 
-        /* 첫번째 컬럼 (항목명 라벨) */
-        .col-labels {
-            flex: 0 0 150px; /* 너비 고정 */
-            background-color: #f8f9fa;
-            border-right: 1px solid #ddd;
-            display: flex;
-            flex-direction: column;
-        }
+                .btn-clear {
+                    background-color: #95a5a6;
+                    color: white;
+                    padding: 8px 15px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    margin-left: 5px;
+                    transition: background 0.2s;
+                }
 
-        /* 상품 데이터 컬럼들 */
-        .col-product {
-            flex: 1;
-            border-right: 1px solid #eee;
-            display: flex;
-            flex-direction: column;
-            min-width: 200px;
-        }
-        .col-product:last-child { border-right: none; }
+                .btn-clear:hover {
+                    background-color: #7f8c8d;
+                }
 
-        /* 셀 공통 스타일 */
-        .cell {
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: center;
-            justify-content: center; /* 가로 중앙 (기본) */
-            text-align: center;
-            height: 60px; /* 일반 셀 높이 */
-            font-size: 14px;
-            color: #2c3e50;
-        }
+                /* 비교 테이블 스타일 */
+                .compare-container {
+                    display: flex;
+                    gap: 0;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    background: white;
+                }
 
-        /* 라벨 컬럼 내부 셀 스타일 (좌측 정렬) */
-        .col-labels .cell {
-            justify-content: flex-start; /* 가로 좌측 정렬 */
-            font-weight: bold;
-            color: #7f8c8d;
-            padding-left: 20px;
-        }
+                /* 첫번째 컬럼 (항목명 라벨) */
+                .col-labels {
+                    flex: 0 0 150px; /* 너비 고정 */
+                    background-color: #f8f9fa;
+                    border-right: 1px solid #ddd;
+                    display: flex;
+                    flex-direction: column;
+                }
 
-        /* 이미지 셀 (높이가 다른 첫 번째 행) */
-        .cell.img-cell {
-            height: 180px;
-            flex-direction: column; /* 상품 이미지는 위아래 배치 */
-            gap: 10px;
-        }
+                /* 상품 데이터 컬럼들 */
+                .col-product {
+                    flex: 1;
+                    border-right: 1px solid #eee;
+                    display: flex;
+                    flex-direction: column;
+                    min-width: 200px;
+                }
 
-        /* [수정 핵심] 라벨 컬럼의 이미지 셀만 예외 처리 */
-        .col-labels .cell.img-cell {
-            flex-direction: row;       /* 텍스트만 있으므로 가로 배치 */
-            align-items: center;       /* 세로(수직) 중앙 정렬 */
-            justify-content: flex-start; /* 가로(수평) 좌측 정렬 */
-            /* padding-left는 .col-labels .cell에서 상속됨 */
-        }
+                .col-product:last-child {
+                    border-right: none;
+                }
 
-        .prod-img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 2px solid #eee;
-        }
+                /* 셀 공통 스타일 */
+                .cell {
+                    padding: 15px;
+                    border-bottom: 1px solid #eee;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center; /* 가로 중앙 (기본) */
+                    text-align: center;
+                    height: 60px; /* 일반 셀 높이 */
+                    font-size: 14px;
+                    color: #2c3e50;
+                }
 
-        .prod-title {
-            font-weight: bold;
-            font-size: 16px;
-            color: #2c3e50;
-        }
+                /* 라벨 컬럼 내부 셀 스타일 (좌측 정렬) */
+                .col-labels .cell {
+                    justify-content: flex-start; /* 가로 좌측 정렬 */
+                    font-weight: bold;
+                    color: #7f8c8d;
+                    padding-left: 20px;
+                }
 
-        .remove-btn {
-            font-size: 12px;
-            color: #e74c3c;
-            cursor: pointer;
-            text-decoration: underline;
-            margin-bottom: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div class="screen-content">
-        <div class="compare-header">
-            <h2 class="screen-title">상품 비교하기</h2>
-            <div>
-                <button class="btn-clear" onclick="location.href='client_list.html'">목록으로</button>
-                <button class="btn-clear" onclick="clearCompare()">비교함 비우기</button>
-            </div>
-        </div>
+                /* 이미지 셀 (높이가 다른 첫 번째 행) */
+                .cell.img-cell {
+                    height: 180px;
+                    flex-direction: column; /* 상품 이미지는 위아래 배치 */
+                    gap: 10px;
+                }
 
-        <div class="compare-container">
-            <div class="col-labels">
-                <div class="cell img-cell">상품정보</div> 
-                <div class="cell">재배환경</div>
-                <div class="cell">내병성</div>
-                <div class="cell">생육 및 숙기</div>
-                <div class="cell">과실 품질</div>
-                <div class="cell">재배 편의성</div>
-            </div>
+                /* [수정 핵심] 라벨 컬럼의 이미지 셀만 예외 처리 */
+                .col-labels .cell.img-cell {
+                    flex-direction: row; /* 텍스트만 있으므로 가로 배치 */
+                    align-items: center; /* 세로(수직) 중앙 정렬 */
+                    justify-content: flex-start; /* 가로(수평) 좌측 정렬 */
+                    /* padding-left는 .col-labels .cell에서 상속됨 */
+                }
 
-            <div class="col-product">
-                <div class="cell img-cell">
-                    <span class="remove-btn">삭제</span>
-                    <img src="https://images.unsplash.com/photo-1596502202029-281b37f44d82?w=200" class="prod-img">
-                    <div class="prod-title">베테랑 고추</div>
+                .prod-img {
+                    width: 100px;
+                    height: 100px;
+                    object-fit: cover;
+                    border-radius: 50%;
+                    border: 2px solid #eee;
+                }
+
+                .prod-title {
+                    font-weight: bold;
+                    font-size: 16px;
+                    color: #2c3e50;
+                }
+
+                .remove-btn {
+                    font-size: 12px;
+                    color: #e74c3c;
+                    cursor: pointer;
+                    text-decoration: underline;
+                    margin-bottom: 5px;
+                }
+            </style>
+
+            <div class="compare-header">
+                <div>
+                    <button class="btn-clear" onclick="location.href='client_list.html'">목록으로</button>
+                    <button class="btn-clear" onclick="clearCompare()">비교함 비우기</button>
                 </div>
-                <div class="cell">노지</div>
-                <div class="cell">탄저병, 역병</div>
-                <div class="cell">조생종</div>
-                <div class="cell">대과종, 고당도</div>
-                <div class="cell">초세강</div>
             </div>
 
-            <div class="col-product">
-                <div class="cell img-cell">
-                    <span class="remove-btn">삭제</span>
-                    <img src="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=200" class="prod-img">
-                    <div class="prod-title">햇살 토마토</div>
+            <div class="compare-container" id="compareContainer">
+                <div class="col-labels">
+                    <div class="cell img-cell">상품정보</div>
+                    <div class="cell">재배환경</div>
+                    <div class="cell">내병성</div>
+                    <div class="cell">생육 및 숙기</div>
+                    <div class="cell">과실 품질</div>
+                    <div class="cell">재배 편의성</div>
                 </div>
-                <div class="cell">시설하우스</div>
-                <div class="cell">바이러스</div>
-                <div class="cell">중생종</div>
-                <div class="cell">저장성 우수</div>
-                <div class="cell">착과 용이</div>
             </div>
-            
-            <div class="col-product" style="background-color: #fafafa;">
-                <div class="cell img-cell" style="justify-content: center; align-items: center;">
-                    <div style="color:#bdc3c7;">선택된 상품 없음</div>
+
+            <script>
+                // 1. 상세 데이터 (DB 역할)
+                // 실제로는 서버에서 가져오거나 client_list.html과 데이터 파일을 공유해야 합니다.
+                // 여기선 편의상 동일한 데이터를 정의합니다.
+                const productDB = [
+                    {
+                        id: 1,
+                        name: '베테랑 고추',
+                        desc: '탄저병에 강하고 매운맛이 일품인 대표 품종입니다. 노지 재배에 적합합니다.',
+                        img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 2,
+                        name: '꿀수박 1호',
+                        desc: '당도가 13Brix 이상 나오는 고당도 수박입니다. 하우스 재배용.',
+                        img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 3,
+                        name: '청정 오이',
+                        desc: '아삭한 식감이 특징이며 저장성이 매우 우수합니다.',
+                        img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 4,
+                        name: '햇살 토마토',
+                        desc: '붉은 빛깔이 선명하고 과육이 단단하여 유통에 유리합니다.',
+                        img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 5,
+                        name: '금싸라기 참외',
+                        desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.',
+                        img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?auto=format&fit=crop&w=400&q=80'
+                    },
+                    {
+                        id: 6,
+                        name: '가을무 대장',
+                        desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.',
+                        img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?auto=format&fit=crop&w=400&q=80'
+                    },
+                ];
+
+                // 2. 비교함 데이터 로드 및 렌더링
+                function renderCompareTable() {
+                    const compareList = JSON.parse(localStorage.getItem('myCompare') || '[]');
+                    const container = document.getElementById('compareContainer');
+
+                    // 기존에 그려진 상품 컬럼들 제거 (라벨 컬럼 제외)
+                    const oldCols = container.querySelectorAll('.col-product');
+                    oldCols.forEach(col => col.remove());
+
+                    // 선택된 상품 ID로 데이터 찾아서 컬럼 생성
+                    compareList.forEach(id => {
+                        const product = productDB.find(p => p.id === id);
+                        if (product) {
+                            const colHTML = `
+                    <div class="col-product">
+                        <div class="cell img-cell">
+                            <span class="remove-btn" onclick="removeFromCompare(${product.id})">삭제</span>
+                            <img src="${product.img}" class="prod-img">
+                            <div class="prod-title">${product.name}</div>
+                        </div>
+                        <div class="cell">${product.env}</div>
+                        <div class="cell">${product.res}</div>
+                        <div class="cell">${product.growth}</div>
+                        <div class="cell">${product.quality}</div>
+                        <div class="cell">${product.conv}</div>
+                    </div>
+                `;
+                            // HTML 문자열을 DOM 요소로 변환하여 추가
+                            container.insertAdjacentHTML('beforeend', colHTML);
+                        }
+                    });
+
+                    // 3. 빈 슬롯 채우기 (항상 3칸을 유지하고 싶다면)
+                    const emptySlots = 3 - compareList.length;
+                    for (let i = 0; i < emptySlots; i++) {
+                        const emptyHTML = `
+                <div class="col-product" style="background-color: #fafafa;">
+                    <div class="cell img-cell" style="justify-content: center; align-items: center;">
+                        <div style="color:#bdc3c7;">빈 슬롯</div>
+                    </div>
+                    <div class="cell"></div>
+                    <div class="cell"></div>
+                    <div class="cell"></div>
+                    <div class="cell"></div>
+                    <div class="cell"></div>
                 </div>
-                <div class="cell"></div>
-                <div class="cell"></div>
-                <div class="cell"></div>
-                <div class="cell"></div>
-                <div class="cell"></div>
-            </div>
+            `;
+                        container.insertAdjacentHTML('beforeend', emptyHTML);
+                    }
+                }
+
+                // 4. 개별 삭제 기능
+                function removeFromCompare(id) {
+                    let compareList = JSON.parse(localStorage.getItem('myCompare') || '[]');
+                    compareList = compareList.filter(itemId => itemId !== id);
+                    localStorage.setItem('myCompare', JSON.stringify(compareList));
+
+                    // 데이터가 다 지워지면 목록으로 이동할지, 빈 화면을 보여줄지 결정
+                    if (compareList.length === 0) {
+                        alert('비교함이 비었습니다. 목록으로 돌아갑니다.');
+                        location.href = 'client_list.html';
+                    } else {
+                        renderCompareTable(); // 화면 갱신
+                    }
+                }
+
+                // 5. 전체 비우기
+                function clearCompare() {
+                    if (confirm('비교함을 모두 비우시겠습니까?')) {
+                        localStorage.setItem('myCompare', '[]'); // 빈 배열 저장
+                        alert('비워졌습니다.');
+                        location.href = 'client_list.html';
+                    }
+                }
+
+                // 초기 실행
+                renderCompareTable();
+            </script>
+
+            <!--
+                ========================================
+                화면별 컨텐츠 작성 영역 끝
+                ========================================
+            -->
+
         </div>
     </div>
+</main>
 
-    <script>
-        function clearCompare() {
-            if(confirm('비교함을 모두 비우시겠습니까?')) {
-                alert('비워졌습니다.');
-                location.href = 'client_list.html';
-            }
-        }
-    </script>
-</body>
-</html>
-                
-                <!-- 
-                    ========================================
-                    화면별 컨텐츠 작성 영역 끝
-                    ========================================
-                -->
-                
-            </div>
-        </div>
-    </main>
+<script>
+    // 사이드바 토글 기능
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
 
-    <script>
-        // 사이드바 토글 기능
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('expanded');
+    });
 
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('hidden');
-            mainContent.classList.toggle('expanded');
-        });
+    // 네비게이션 아이템 클릭 이벤트
+    const navItems = document.querySelectorAll('.nav-item');
 
-        // 네비게이션 아이템 클릭 이벤트
-        const navItems = document.querySelectorAll('.nav-item');
-        
-        navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                // 모든 아이템에서 active 클래스 제거
-                navItems.forEach(nav => nav.classList.remove('active'));
-                
-                // 클릭된 아이템에 active 클래스 추가
-                item.classList.add('active');
-                
-                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
-                const screenName = item.getAttribute('data-screen');
-                console.log(`${screenName} 화면으로 이동`);
-                
-                // 실제 프로젝트에서는 다음과 같이 사용:
-                // window.location.href = `${screenName}.html`;
-                
-                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.add('hidden');
-                    mainContent.classList.add('expanded');
-                }
-            });
-        });
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // 모든 아이템에서 active 클래스 제거
+            navItems.forEach(nav => nav.classList.remove('active'));
 
-        // ESC 키로 사이드바 닫기
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+            // 클릭된 아이템에 active 클래스 추가
+            item.classList.add('active');
+
+            // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+            const screenName = item.getAttribute('data-screen');
+            console.log(`${screenName} 화면으로 이동`);
+
+            // 실제 프로젝트에서는 다음과 같이 사용:
+            // window.location.href = `${screenName}.html`;
+
+            // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+            if (window.innerWidth <= 768) {
                 sidebar.classList.add('hidden');
                 mainContent.classList.add('expanded');
             }
         });
-    </script>
+    });
+
+    // ESC 키로 사이드바 닫기
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+            sidebar.classList.add('hidden');
+            mainContent.classList.add('expanded');
+        }
+    });
+</script>
 </body>
 </html>
