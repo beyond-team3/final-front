@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
+<html lang="ko"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>상품 비교 및 유사도 분석 - 종자 영업 관리 시스템</title>
@@ -134,7 +132,7 @@
         }
 
         /* ========== 상품 비교 및 유사도 분석 전용 스타일 ========== */
-        
+
         /* 상단 컨트롤 영역 */
         .comparison-header {
             margin-bottom: 30px;
@@ -199,9 +197,9 @@
         }
 
         .selected-base-product {
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            padding: 12px 16px;
+            background-color: #f0f3f4;
+            border: 1px solid #dce1e3;
             border-radius: 8px;
             display: flex;
             justify-content: space-between;
@@ -213,30 +211,124 @@
         }
 
         .product-name {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            margin-bottom: 4px;
+            color: #2c3e50;
+            margin-bottom: 2px;
         }
 
         .product-code {
             font-size: 12px;
-            opacity: 0.9;
+            color: #7f8c8d;
         }
 
         .remove-btn {
-            background: rgba(255, 255, 255, 0.2);
+            background: #dce1e3;
             border: none;
-            color: white;
+            color: #556270;
             width: 28px;
             height: 28px;
             border-radius: 50%;
             cursor: pointer;
             font-size: 18px;
             transition: background-color 0.2s;
+            line-height: 1;
         }
 
         .remove-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: #bdc3c7;
+        }
+
+        /* 기준 상품 상세 정보 패널 (선택 후 헤더 하단에 표시) */
+        .base-product-info-panel {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #e8ecef;
+            border-radius: 8px;
+        }
+
+        .base-product-info-panel.visible {
+            display: block;
+        }
+
+        .base-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e8ecef;
+        }
+
+        .base-info-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .base-info-code {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 2px;
+        }
+
+        .base-info-detail-link {
+            font-size: 12px;
+            color: #7f8c8d;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid #dce1e3;
+            padding: 5px 12px;
+            border-radius: 4px;
+            background-color: white;
+            transition: all 0.15s;
+        }
+
+        .base-info-detail-link:hover {
+            border-color: #2c3e50;
+            color: #2c3e50;
+        }
+
+        .base-info-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+
+        .base-info-item {
+            background-color: white;
+            border: 1px solid #e8ecef;
+            border-radius: 6px;
+            padding: 12px 14px;
+        }
+
+        .base-info-label {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-bottom: 6px;
+        }
+
+        .base-info-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+            line-height: 1.4;
+        }
+
+        .base-info-bar {
+            margin-top: 6px;
+            height: 4px;
+            background-color: #e8ecef;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .base-info-bar-fill {
+            height: 100%;
+            background-color: #2c3e50;
+            border-radius: 2px;
         }
 
         /* 비교 상품 슬롯 */
@@ -275,10 +367,10 @@
         }
 
         .product-slot.filled {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
+            background: #f0f3f4;
+            color: #2c3e50;
             border-style: solid;
-            border-color: transparent;
+            border-color: #dce1e3;
             flex-direction: column;
             align-items: flex-start;
             position: relative;
@@ -287,12 +379,13 @@
         .product-slot.filled .product-name {
             font-size: 14px;
             font-weight: 600;
+            color: #2c3e50;
             margin-bottom: 4px;
         }
 
         .product-slot.filled .product-code {
             font-size: 11px;
-            opacity: 0.9;
+            color: #7f8c8d;
         }
 
         .product-slot.filled .remove-btn {
@@ -633,29 +726,22 @@
             min-width: 80px;
         }
 
-        /* 상품 상세 버튼 */
-        .product-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
-        }
-
-        .detail-btn {
-            flex: 1;
-            padding: 10px 16px;
-            background-color: white;
-            border: 2px solid #3498db;
-            color: #3498db;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .detail-btn:hover {
-            background-color: #3498db;
+        /* 상품 상세 버튼 - 테이블 헤더 인라인 */
+        .detail-btn-inline {
+            padding: 4px 10px;
+            background-color: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.4);
             color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.15s;
+        }
+
+        .detail-btn-inline:hover {
+            background-color: rgba(255,255,255,0.28);
         }
 
         /* 빈 상태 */
@@ -716,506 +802,600 @@
     </style>
 </head>
 <body>
-    <!-- 헤더 -->
-    <header class="header">
-        <button class="menu-button" id="menuToggle">☰</button>
-        <h1 class="header-title">종자 영업 관리 시스템</h1>
-    </header>
+<!-- 헤더 -->
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
 
-    <!-- 사이드바 -->
-    <aside class="sidebar" id="sidebar">
-        <nav class="sidebar-nav">
-            <div class="nav-category">대시보드</div>
-            <div class="nav-item" data-screen="dashboard-admin">관리자 대시보드</div>
-            <div class="nav-item" data-screen="dashboard-sales">영업사원 대시보드</div>
-            
-            <div class="nav-category">상품 관리</div>
-            <div class="nav-item" data-screen="products">상품 검색</div>
-            <div class="nav-item active" data-screen="product-comparison">상품 비교 분석</div>
-            <div class="nav-item" data-screen="inventory">재고 관리</div>
-            
-            <div class="nav-category">영업 관리</div>
-            <div class="nav-item" data-screen="clients">거래처 관리</div>
-            <div class="nav-item" data-screen="sales-docs">영업 문서</div>
-            <div class="nav-item" data-screen="sales-history">영업 히스토리</div>
-            
-            <div class="nav-category">설정</div>
-            <div class="nav-item" data-screen="settings">설정</div>
-        </nav>
-    </aside>
+<!-- 사이드바 -->
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">대시보드</div>
+        <div class="nav-item" data-screen="dashboard-admin">관리자 대시보드</div>
+        <div class="nav-item" data-screen="dashboard-sales">영업사원 대시보드</div>
 
-    <!-- 메인 컨텐츠 영역 -->
-    <main class="main-content" id="mainContent">
-        <div class="content-wrapper">
-            <div class="screen-content">
-                
-                <!-- ========== 상품 비교 및 유사도 분석 컨텐츠 시작 ========== -->
-                
-                <!-- 상단 컨트롤 영역 -->
-                <div class="comparison-header">
-                    <h1 class="comparison-title">상품 비교 및 유사도 분석</h1>
-                    
-                    <div class="control-section">
-                        <!-- 기준 상품 선택 -->
-                        <div class="base-product-selector">
-                            <label class="selector-label">기준 상품</label>
-                            <div class="search-box">
-                                <input type="text" 
-                                       class="search-input" 
-                                       id="baseProductSearch"
-                                       placeholder="상품명 또는 품종코드로 검색..."
-                                       onkeyup="searchProduct(this.value)">
-                                <span class="search-icon">🔍</span>
-                            </div>
-                            <div class="selected-base-product" id="baseProductCard" style="display: none;">
-                                <div class="product-info">
-                                    <div class="product-name" id="baseProductName">토마토 품종 A-123</div>
-                                    <div class="product-code" id="baseProductCode">품종코드: A-123</div>
-                                </div>
-                                <button class="remove-btn" onclick="removeBaseProduct()">×</button>
-                            </div>
+        <div class="nav-category">상품 관리</div>
+        <div class="nav-item" data-screen="products">상품 검색</div>
+        <div class="nav-item active" data-screen="product-comparison">상품 비교 분석</div>
+        <div class="nav-item" data-screen="inventory">재고 관리</div>
+
+        <div class="nav-category">영업 관리</div>
+        <div class="nav-item" data-screen="clients">거래처 관리</div>
+        <div class="nav-item" data-screen="sales-docs">영업 문서</div>
+        <div class="nav-item" data-screen="sales-history">영업 히스토리</div>
+
+        <div class="nav-category">설정</div>
+        <div class="nav-item" data-screen="settings">설정</div>
+    </nav>
+</aside>
+
+<!-- 메인 컨텐츠 영역 -->
+<main class="main-content" id="mainContent">
+    <div class="content-wrapper">
+        <div class="screen-content">
+
+            <!-- ========== 상품 비교 및 유사도 분석 컨텐츠 시작 ========== -->
+
+            <!-- 상단 컨트롤 영역 -->
+            <div class="comparison-header">
+                <h1 class="comparison-title">상품 비교 및 유사도 분석</h1>
+
+                <div class="control-section">
+                    <!-- 기준 상품 선택 -->
+                    <div class="base-product-selector">
+                        <label class="selector-label">기준 상품</label>
+                        <div class="search-box">
+                            <input type="text" class="search-input" id="baseProductSearch" placeholder="상품명 또는 품종코드로 검색..." onkeyup="searchProduct(this.value)">
+                            <span class="search-icon">🔍</span>
                         </div>
-
-                        <!-- 비교 상품 슬롯 -->
-                        <div class="comparison-slots">
-                            <label class="selector-label">비교 상품 (최대 3개)</label>
-                            <div class="slots-grid">
-                                <div class="product-slot empty" id="slot1" onclick="openProductSelector(1)">
-                                    + 상품 추가
-                                </div>
-                                <div class="product-slot empty" id="slot2" onclick="openProductSelector(2)">
-                                    + 상품 추가
-                                </div>
-                                <div class="product-slot empty" id="slot3" onclick="openProductSelector(3)">
-                                    + 상품 추가
-                                </div>
+                        <div class="selected-base-product" id="baseProductCard" style="display: none;">
+                            <div class="product-info">
+                                <div class="product-name" id="baseProductName">토마토 품종 A-123</div>
+                                <div class="product-code" id="baseProductCode">품종코드: A-123</div>
                             </div>
-                        </div>
-
-                        <!-- 액션 버튼 -->
-                        <div class="action-buttons">
-                            <button class="reset-btn" onclick="resetAll()">
-                                🔄 전체 초기화
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 유사도 분석 영역 -->
-                <div class="analysis-section">
-                    <!-- 좌측 패널: 분석 기준 -->
-                    <div class="analysis-panel">
-                        <h3 class="panel-title">유사도 분석 기준</h3>
-                        
-                        <!-- 유사도 기준 선택 -->
-                        <div class="criteria-group">
-                            <label class="criteria-label">분석 기준 선택</label>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="criteria1" checked onchange="updateGraph()">
-                                <label for="criteria1">품종 특징</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="criteria2" checked onchange="updateGraph()">
-                                <label for="criteria2">재배 적기</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="criteria3" onchange="updateGraph()">
-                                <label for="criteria3">병해충 내성</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="criteria4" onchange="updateGraph()">
-                                <label for="criteria4">수확량</label>
-                            </div>
-                        </div>
-
-                        <!-- 유사도 임계값 -->
-                        <div class="slider-group">
-                            <div class="slider-label">
-                                <span>유사도 임계값</span>
-                                <span class="slider-value" id="thresholdValue">70%</span>
-                            </div>
-                            <input type="range" 
-                                   class="slider" 
-                                   id="thresholdSlider"
-                                   min="0" 
-                                   max="100" 
-                                   value="70"
-                                   oninput="updateThreshold(this.value)">
-                        </div>
-
-                        <!-- 정보 -->
-                        <div style="margin-top: 24px; padding: 12px; background-color: #e8f4f8; border-radius: 6px; font-size: 12px; color: #0c5460; line-height: 1.5;">
-                            💡 <strong>TIP</strong><br>
-                            임계값을 조절하여 유사도가 낮은 상품을 필터링할 수 있습니다.
+                            <button class="remove-btn" onclick="removeBaseProduct()">×</button>
                         </div>
                     </div>
 
-                    <!-- 우측: 유사도 그래프 -->
-                    <div class="graph-container">
-                        <h3 class="graph-title">유사도 네트워크 그래프</h3>
-                        <div class="graph-canvas" id="graphCanvas">
-                            <!-- SVG 그래프가 여기에 렌더링됩니다 -->
-                            <svg class="graph-svg" id="graphSvg" viewBox="0 0 800 450">
-                                <!-- 링크 -->
-                                <g id="linksGroup">
-                                    <line class="graph-link high-similarity" x1="400" y1="225" x2="300" y2="150" />
-                                    <line class="graph-link high-similarity" x1="400" y1="225" x2="500" y2="150" />
-                                    <line class="graph-link" x1="400" y1="225" x2="250" y2="300" />
-                                    <line class="graph-link" x1="400" y1="225" x2="550" y2="300" />
-                                    <line class="graph-link" x1="400" y1="225" x2="350" y2="350" />
-                                </g>
-
-                                <!-- 노드 -->
-                                <g id="nodesGroup">
-                                    <!-- 기준 상품 (중앙) -->
-                                    <g class="graph-node base" transform="translate(400, 225)" onclick="nodeClick('base')">
-                                        <circle r="30" />
-                                        <text class="node-label" y="50">토마토 A-123</text>
-                                        <text class="similarity-label" y="64">(기준)</text>
-                                    </g>
-
-                                    <!-- 유사 상품들 -->
-                                    <g class="graph-node similar" transform="translate(300, 150)" onclick="nodeClick('similar1')">
-                                        <circle r="24" />
-                                        <text class="node-label" y="40">토마토 B-456</text>
-                                        <text class="similarity-label" y="52">유사도 92%</text>
-                                    </g>
-
-                                    <g class="graph-node similar" transform="translate(500, 150)" onclick="nodeClick('similar2')">
-                                        <circle r="24" />
-                                        <text class="node-label" y="40">토마토 C-789</text>
-                                        <text class="similarity-label" y="52">유사도 88%</text>
-                                    </g>
-
-                                    <g class="graph-node similar" transform="translate(250, 300)" onclick="nodeClick('similar3')">
-                                        <circle r="20" />
-                                        <text class="node-label" y="36">토마토 D-012</text>
-                                        <text class="similarity-label" y="48">유사도 75%</text>
-                                    </g>
-
-                                    <g class="graph-node similar" transform="translate(550, 300)" onclick="nodeClick('similar4')">
-                                        <circle r="20" />
-                                        <text class="node-label" y="36">토마토 E-345</text>
-                                        <text class="similarity-label" y="48">유사도 72%</text>
-                                    </g>
-
-                                    <g class="graph-node low-similarity" transform="translate(350, 350)" onclick="nodeClick('similar5')">
-                                        <circle r="16" />
-                                        <text class="node-label" y="32">고추 F-678</text>
-                                        <text class="similarity-label" y="44">유사도 45%</text>
-                                    </g>
-                                </g>
-                            </svg>
+                    <!-- 비교 상품 슬롯 -->
+                    <div class="comparison-slots">
+                        <label class="selector-label">비교 상품 (최대 3개)</label>
+                        <div class="slots-grid">
+                            <div class="product-slot empty" id="slot1" onclick="openProductSelector(1)">+ 상품 추가</div>
+                            <div class="product-slot empty" id="slot2" onclick="openProductSelector(2)">+ 상품 추가</div>
+                            <div class="product-slot empty" id="slot3" onclick="openProductSelector(3)">+ 상품 추가</div>
                         </div>
                     </div>
-                </div>
 
-                <!-- 비교 결과 테이블 -->
-                <div class="comparison-results">
-                    <div class="results-title">
-                        <span>상품 비교 결과</span>
-                        <button class="export-btn" onclick="exportComparison()">📥 비교 결과 내보내기</button>
-                    </div>
-
-                    <div class="comparison-table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>비교 항목</th>
-                                    <th id="baseCol">토마토 A-123 (기준)</th>
-                                    <th id="comp1Col">비교 상품 1</th>
-                                    <th id="comp2Col">비교 상품 2</th>
-                                    <th id="comp3Col">비교 상품 3</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="category-cell">품종명</td>
-                                    <td>토마토 품종 A-123</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                </tr>
-                                <tr>
-                                    <td class="category-cell">품종 특징</td>
-                                    <td>대과종, 당도 높음, 저장성 우수</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                </tr>
-                                <tr>
-                                    <td class="category-cell">재배 적기</td>
-                                    <td>
-                                        <div class="season-bar">
-                                            <span class="season-label">3월 ~ 6월</span>
-                                            <div class="season-timeline">
-                                                <div class="season-period" style="left: 25%; width: 33.33%;"></div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                </tr>
-                                <tr>
-                                    <td class="category-cell">병해충 내성</td>
-                                    <td>역병 강함, 바이러스 중간</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                </tr>
-                                <tr>
-                                    <td class="category-cell">평균 수확량</td>
-                                    <td>8,500kg/10a</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                </tr>
-                                <tr>
-                                    <td class="category-cell">가격 (1kg)</td>
-                                    <td>₩45,000</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="product-actions">
-                        <button class="detail-btn" onclick="viewProductDetail('base')">
-                            기준 상품 상세 보기
-                        </button>
-                        <button class="detail-btn" id="comp1DetailBtn" style="display: none;" onclick="viewProductDetail(1)">
-                            비교 상품 1 상세 보기
-                        </button>
-                        <button class="detail-btn" id="comp2DetailBtn" style="display: none;" onclick="viewProductDetail(2)">
-                            비교 상품 2 상세 보기
-                        </button>
-                        <button class="detail-btn" id="comp3DetailBtn" style="display: none;" onclick="viewProductDetail(3)">
-                            비교 상품 3 상세 보기
+                    <!-- 액션 버튼 -->
+                    <div class="action-buttons">
+                        <button class="reset-btn" onclick="resetAll()">
+                            🔄 전체 초기화
                         </button>
                     </div>
                 </div>
-
-                <!-- ========== 상품 비교 및 유사도 분석 컨텐츠 끝 ========== -->
-                
             </div>
+
+            <!-- 기준 상품 정보 (선택 시 노출) -->
+            <div class="base-product-info-panel" id="baseProductInfoPanel">
+                <div class="base-info-header">
+                    <div>
+                        <div class="base-info-title" id="baseInfoName">토마토 품종 A-123</div>
+                        <div class="base-info-code" id="baseInfoCode">품종코드: A-123</div>
+                    </div>
+                    <button class="base-info-detail-link" onclick="viewProductDetail('base')">상세 보기</button>
+                </div>
+                <div class="base-info-grid">
+                    <div class="base-info-item">
+                        <div class="base-info-label">재배환경</div>
+                        <div class="base-info-value">시설 · 노지 겸용</div>
+                        <div class="base-info-bar"><div class="base-info-bar-fill" style="width:80%"></div></div>
+                    </div>
+                    <div class="base-info-item">
+                        <div class="base-info-label">내병성</div>
+                        <div class="base-info-value">역병 강 · 바이러스 중</div>
+                        <div class="base-info-bar"><div class="base-info-bar-fill" style="width:70%"></div></div>
+                    </div>
+                    <div class="base-info-item">
+                        <div class="base-info-label">생육 및 숙기</div>
+                        <div class="base-info-value">중생종 · 3월~6월</div>
+                        <div class="base-info-bar"><div class="base-info-bar-fill" style="width:65%"></div></div>
+                    </div>
+                    <div class="base-info-item">
+                        <div class="base-info-label">과실 품질</div>
+                        <div class="base-info-value">대과종 · 당도 높음</div>
+                        <div class="base-info-bar"><div class="base-info-bar-fill" style="width:90%"></div></div>
+                    </div>
+                    <div class="base-info-item">
+                        <div class="base-info-label">재배 편의성</div>
+                        <div class="base-info-value">초보 적합 · 관리 용이</div>
+                        <div class="base-info-bar"><div class="base-info-bar-fill" style="width:75%"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="analysis-section" style="margin-top:20px;">
+                <!-- 좌측 패널: 분석 기준 -->
+                <div class="analysis-panel">
+                    <h3 class="panel-title">유사도 분석 기준</h3>
+
+                    <!-- 유사도 기준 선택 -->
+                    <div class="criteria-group">
+                        <label class="criteria-label">분석 기준 선택</label>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="criteria1" checked="" onchange="updateGraph()">
+                            <label for="criteria1">재배환경</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="criteria2" checked="" onchange="updateGraph()">
+                            <label for="criteria2">내병성</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="criteria3" checked="" onchange="updateGraph()">
+                            <label for="criteria3">생육 및 숙기</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="criteria4" checked="" onchange="updateGraph()">
+                            <label for="criteria4">과실 품질</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="criteria5" checked="" onchange="updateGraph()">
+                            <label for="criteria5">재배 편의성</label>
+                        </div>
+                    </div>
+
+                    <!-- 유사도 임계값 -->
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>유사도 임계값</span>
+                            <span class="slider-value" id="thresholdValue">70%</span>
+                        </div>
+                        <input type="range" class="slider" id="thresholdSlider" min="0" max="100" value="70" oninput="updateThreshold(this.value)">
+                    </div>
+
+                    <!-- 정보 -->
+                    <div style="margin-top: 24px; padding: 12px; background-color: #e8f4f8; border-radius: 6px; font-size: 12px; color: #0c5460; line-height: 1.5;">
+                        💡 <strong>TIP</strong><br>
+                        임계값을 조절하여 유사도가 낮은 상품을 필터링할 수 있습니다.
+                    </div>
+                </div>
+
+                <!-- 우측: 유사도 그래프 -->
+                <div class="graph-container">
+                    <h3 class="graph-title">유사도 네트워크 그래프</h3>
+                    <div class="graph-canvas" id="graphCanvas">
+                        <!-- SVG 그래프가 여기에 렌더링됩니다 -->
+                        <svg class="graph-svg" id="graphSvg" viewBox="0 0 800 450">
+                            <!-- 링크 -->
+                            <g id="linksGroup">
+                                <line class="graph-link high-similarity" x1="400" y1="225" x2="300" y2="150"></line>
+                                <line class="graph-link high-similarity" x1="400" y1="225" x2="500" y2="150"></line>
+                                <line class="graph-link" x1="400" y1="225" x2="250" y2="300"></line>
+                                <line class="graph-link" x1="400" y1="225" x2="550" y2="300"></line>
+                                <line class="graph-link" x1="400" y1="225" x2="350" y2="350"></line>
+                            </g>
+
+                            <!-- 노드 -->
+                            <g id="nodesGroup">
+                                <!-- 기준 상품 (중앙) -->
+                                <g class="graph-node base" transform="translate(400, 225)" onclick="nodeClick('base')">
+                                    <circle r="30"></circle>
+                                    <text class="node-label" y="50">토마토 A-123</text>
+                                    <text class="similarity-label" y="64">(기준)</text>
+                                </g>
+
+                                <!-- 유사 상품들 -->
+                                <g class="graph-node similar" transform="translate(300, 150)" onclick="nodeClick('similar1')">
+                                    <circle r="24"></circle>
+                                    <text class="node-label" y="40">토마토 B-456</text>
+                                    <text class="similarity-label" y="52">유사도 92%</text>
+                                </g>
+
+                                <g class="graph-node similar" transform="translate(500, 150)" onclick="nodeClick('similar2')">
+                                    <circle r="24"></circle>
+                                    <text class="node-label" y="40">토마토 C-789</text>
+                                    <text class="similarity-label" y="52">유사도 88%</text>
+                                </g>
+
+                                <g class="graph-node similar" transform="translate(250, 300)" onclick="nodeClick('similar3')">
+                                    <circle r="20"></circle>
+                                    <text class="node-label" y="36">토마토 D-012</text>
+                                    <text class="similarity-label" y="48">유사도 75%</text>
+                                </g>
+
+                                <g class="graph-node similar" transform="translate(550, 300)" onclick="nodeClick('similar4')">
+                                    <circle r="20"></circle>
+                                    <text class="node-label" y="36">토마토 E-345</text>
+                                    <text class="similarity-label" y="48">유사도 72%</text>
+                                </g>
+
+                                <g class="graph-node low-similarity" transform="translate(350, 350)" onclick="nodeClick('similar5')">
+                                    <circle r="16"></circle>
+                                    <text class="node-label" y="32">고추 F-678</text>
+                                    <text class="similarity-label" y="44">유사도 45%</text>
+                                </g>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 비교 결과 테이블 -->
+            <div class="comparison-results">
+                <div class="results-title">
+                    <span>상품 비교 결과</span>
+
+                </div>
+
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>비교 항목</th>
+                            <th id="baseCol">
+                                <div>토마토 A-123 (기준)</div>
+                            </th>
+                            <th id="comp1Col">
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                    <span id="comp1ColName">비교 상품 1</span>
+
+                                </div>
+                            </th>
+                            <th id="comp2Col">
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                    <span id="comp2ColName">비교 상품 2</span>
+
+                                </div>
+                            </th>
+                            <th id="comp3Col">
+                                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                    <span id="comp3ColName">비교 상품 3</span>
+
+                                </div>
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td class="category-cell">품종명</td>
+                            <td>토마토 품종 A-123</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td class="category-cell">품종 특징</td>
+                            <td>대과종, 당도 높음, 저장성 우수</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td class="category-cell">재배 적기</td>
+                            <td>
+                                <div class="season-bar">
+                                    <span class="season-label">3월 ~ 6월</span>
+                                    <div class="season-timeline">
+                                        <div class="season-period" style="left: 25%; width: 33.33%;"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td class="category-cell">병해충 내성</td>
+                            <td>역병 강함, 바이러스 중간</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========== 상품 비교 및 유사도 분석 컨텐츠 끝 ========== -->
+
         </div>
-    </main>
+    </div>
+</main>
 
-    <script>
-        // 사이드바 토글
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
+<script>
+    // 사이드바 토글
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
 
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('hidden');
-            mainContent.classList.toggle('expanded');
-        });
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('expanded');
+    });
 
-        // 네비게이션
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                navItems.forEach(nav => nav.classList.remove('active'));
-                item.classList.add('active');
-                
-                const screenName = item.getAttribute('data-screen');
-                console.log(`${screenName} 화면으로 이동`);
-                
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.add('hidden');
-                    mainContent.classList.add('expanded');
-                }
-            });
-        });
+    // 네비게이션
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            navItems.forEach(nav => nav.classList.remove('active'));
+            item.classList.add('active');
 
-        // ESC 키로 사이드바 닫기
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+            const screenName = item.getAttribute('data-screen');
+            console.log(`${screenName} 화면으로 이동`);
+
+            if (window.innerWidth <= 768) {
                 sidebar.classList.add('hidden');
                 mainContent.classList.add('expanded');
             }
         });
+    });
 
-        // ========== 상품 비교 및 유사도 분석 기능 ==========
+    // ESC 키로 사이드바 닫기
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+            sidebar.classList.add('hidden');
+            mainContent.classList.add('expanded');
+        }
+    });
 
-        let comparisonSlots = [null, null, null];
+    // ========== 상품 비교 및 유사도 분석 기능 ==========
 
-        // 상품 검색
-        function searchProduct(query) {
-            if (query.length < 2) return;
-            console.log('상품 검색:', query);
-            // 실제로는 API 호출
-            // 여기서는 데모를 위해 기준 상품 자동 선택
-            if (query.toLowerCase().includes('토마토')) {
-                selectBaseProduct({
-                    name: '토마토 품종 A-123',
-                    code: 'A-123'
-                });
-            }
+    let comparisonSlots = [null, null, null];
+
+    // 상품 검색
+    function searchProduct(query) {
+        if (query.length < 2) return;
+        console.log('상품 검색:', query);
+        // 실제로는 API 호출
+        // 여기서는 데모를 위해 기준 상품 자동 선택
+        if (query.toLowerCase().includes('토마토')) {
+            selectBaseProduct({
+                name: '토마토 품종 A-123',
+                code: 'A-123'
+            });
+        }
+    }
+
+    // 기준 상품 선택
+    function selectBaseProduct(product) {
+        document.getElementById('baseProductCard').style.display = 'flex';
+        document.getElementById('baseProductName').textContent = product.name;
+        document.getElementById('baseProductCode').textContent = `품종코드: ${product.code}`;
+        document.getElementById('baseProductSearch').value = '';
+
+        // 기준 상품 정보 패널 표시
+        document.getElementById('baseProductInfoPanel').classList.add('visible');
+        document.getElementById('baseInfoName').textContent = product.name;
+        document.getElementById('baseInfoCode').textContent = `품종코드: ${product.code}`;
+
+        updateGraph();
+        console.log('기준 상품 선택:', product);
+    }
+
+    // 기준 상품 제거
+    function removeBaseProduct() {
+        document.getElementById('baseProductCard').style.display = 'none';
+        document.getElementById('baseProductInfoPanel').classList.remove('visible');
+        console.log('기준 상품 제거');
+    }
+
+    // 비교 상품 선택기 열기
+    function openProductSelector(slotIndex) {
+        console.log(`슬롯 ${slotIndex} 선택`);
+        // 실제로는 모달/드롭다운 열림
+        // 데모: 더미 상품 추가
+        const dummyProducts = [
+            { name: '토마토 B-456', code: 'B-456' },
+            { name: '토마토 C-789', code: 'C-789' },
+            { name: '토마토 D-012', code: 'D-012' }
+        ];
+
+        if (comparisonSlots.filter(s => s !== null).length >= 3) {
+            alert('최대 3개의 상품만 비교할 수 있습니다.');
+            return;
         }
 
-        // 기준 상품 선택
-        function selectBaseProduct(product) {
-            document.getElementById('baseProductCard').style.display = 'flex';
-            document.getElementById('baseProductName').textContent = product.name;
-            document.getElementById('baseProductCode').textContent = `품종코드: ${product.code}`;
-            document.getElementById('baseProductSearch').value = '';
-            updateGraph();
-            console.log('기준 상품 선택:', product);
-        }
+        addComparisonProduct(slotIndex, dummyProducts[slotIndex - 1]);
+    }
 
-        // 기준 상품 제거
-        function removeBaseProduct() {
-            document.getElementById('baseProductCard').style.display = 'none';
-            console.log('기준 상품 제거');
-        }
-
-        // 비교 상품 선택기 열기
-        function openProductSelector(slotIndex) {
-            console.log(`슬롯 ${slotIndex} 선택`);
-            // 실제로는 모달/드롭다운 열림
-            // 데모: 더미 상품 추가
-            const dummyProducts = [
-                { name: '토마토 B-456', code: 'B-456' },
-                { name: '토마토 C-789', code: 'C-789' },
-                { name: '토마토 D-012', code: 'D-012' }
-            ];
-            
-            if (comparisonSlots.filter(s => s !== null).length >= 3) {
-                alert('최대 3개의 상품만 비교할 수 있습니다.');
-                return;
-            }
-            
-            addComparisonProduct(slotIndex, dummyProducts[slotIndex - 1]);
-        }
-
-        // 비교 상품 추가
-        function addComparisonProduct(slotIndex, product) {
-            const slot = document.getElementById(`slot${slotIndex}`);
-            slot.className = 'product-slot filled';
-            slot.innerHTML = `
+    // 비교 상품 추가
+    function addComparisonProduct(slotIndex, product) {
+        const slot = document.getElementById(`slot${slotIndex}`);
+        slot.className = 'product-slot filled';
+        slot.innerHTML = `
                 <div class="product-name">${product.name}</div>
                 <div class="product-code">${product.code}</div>
                 <button class="remove-btn" onclick="removeComparisonProduct(${slotIndex})">×</button>
             `;
-            slot.onclick = null;
-            
-            comparisonSlots[slotIndex - 1] = product;
-            updateComparisonTable();
-            document.getElementById(`comp${slotIndex}DetailBtn`).style.display = 'block';
-            
-            console.log('비교 상품 추가:', product);
+        slot.onclick = null;
+
+        comparisonSlots[slotIndex - 1] = product;
+        updateComparisonTable();
+
+        // 테이블 헤더 상세보기 버튼 표시
+        const btn = document.getElementById(`comp${slotIndex}DetailBtn`);
+        if (btn) btn.style.display = 'inline-block';
+
+        console.log('비교 상품 추가:', product);
+    }
+
+    // 비교 상품 제거
+    function removeComparisonProduct(slotIndex) {
+        const slot = document.getElementById(`slot${slotIndex}`);
+        slot.className = 'product-slot empty';
+        slot.innerHTML = '+ 상품 추가';
+        slot.onclick = () => openProductSelector(slotIndex);
+
+        comparisonSlots[slotIndex - 1] = null;
+        updateComparisonTable();
+
+        // 테이블 헤더 상세보기 버튼 숨김
+        const btn = document.getElementById(`comp${slotIndex}DetailBtn`);
+        if (btn) btn.style.display = 'none';
+
+        console.log(`슬롯 ${slotIndex} 제거`);
+    }
+
+    // 전체 초기화
+    function resetAll() {
+        if (!confirm('모든 선택을 초기화하시겠습니까?')) return;
+
+        removeBaseProduct();
+        for (let i = 1; i <= 3; i++) {
+            const slot = document.getElementById(`slot${i}`);
+            if (slot.classList.contains('filled')) {
+                removeComparisonProduct(i);
+            }
         }
 
-        // 비교 상품 제거
-        function removeComparisonProduct(slotIndex) {
-            const slot = document.getElementById(`slot${slotIndex}`);
-            slot.className = 'product-slot empty';
-            slot.innerHTML = '+ 상품 추가';
-            slot.onclick = () => openProductSelector(slotIndex);
-            
-            comparisonSlots[slotIndex - 1] = null;
-            updateComparisonTable();
-            document.getElementById(`comp${slotIndex}DetailBtn`).style.display = 'none';
-            
-            console.log(`슬롯 ${slotIndex} 제거`);
+        console.log('전체 초기화 완료');
+    }
+
+    // 임계값 업데이트
+    function updateThreshold(value) {
+        document.getElementById('thresholdValue').textContent = value + '%';
+        updateGraph();
+        console.log('임계값 변경:', value);
+    }
+
+    // 그래프 업데이트
+    function updateGraph() {
+        const criteria = [];
+        if (document.getElementById('criteria1').checked) criteria.push('재배환경');
+        if (document.getElementById('criteria2').checked) criteria.push('내병성');
+        if (document.getElementById('criteria3').checked) criteria.push('생육및숙기');
+        if (document.getElementById('criteria4').checked) criteria.push('과실품질');
+        if (document.getElementById('criteria5').checked) criteria.push('재배편의성');
+
+        console.log('그래프 업데이트 - 기준:', criteria);
+        console.log('그래프 업데이트 - 임계값:', document.getElementById('thresholdSlider').value);
+    }
+
+    // 노드 클릭
+    function nodeClick(nodeId) {
+        console.log('노드 클릭:', nodeId);
+
+        if (nodeId === 'base') {
+            alert('기준 상품입니다.');
+            return;
         }
 
-        // 전체 초기화
-        function resetAll() {
-            if (!confirm('모든 선택을 초기화하시겠습니까?')) return;
-            
-            removeBaseProduct();
-            for (let i = 1; i <= 3; i++) {
-                const slot = document.getElementById(`slot${i}`);
-                if (slot.classList.contains('filled')) {
-                    removeComparisonProduct(i);
+        // 빈 슬롯 찾기
+        const emptySlotIndex = comparisonSlots.findIndex(s => s === null);
+        if (emptySlotIndex === -1) {
+            alert('비교 상품은 최대 3개까지 추가할 수 있습니다.');
+            return;
+        }
+
+        const products = {
+            'similar1': { name: '토마토 B-456', code: 'B-456' },
+            'similar2': { name: '토마토 C-789', code: 'C-789' },
+            'similar3': { name: '토마토 D-012', code: 'D-012' },
+            'similar4': { name: '토마토 E-345', code: 'E-345' },
+            'similar5': { name: '고추 F-678', code: 'F-678' }
+        };
+
+        if (products[nodeId]) {
+            addComparisonProduct(emptySlotIndex + 1, products[nodeId]);
+        }
+    }
+
+    // 비교 테이블 업데이트
+    function updateComparisonTable() {
+        for (let i = 0; i < 3; i++) {
+            const nameSpan = document.getElementById(`comp${i + 1}ColName`);
+            if (nameSpan) {
+                nameSpan.textContent = comparisonSlots[i] ? comparisonSlots[i].name : `비교 상품 ${i + 1}`;
+            }
+        }
+    }
+
+    // 비교 결과 내보내기
+    function exportComparison() {
+        console.log('비교 결과 내보내기');
+        alert('비교 결과를 엑셀 파일로 다운로드합니다.');
+    }
+
+    // 상품 상세 보기
+    function viewProductDetail(productId) {
+        console.log('상품 상세 보기:', productId);
+        alert('상품 상세 페이지로 이동합니다.');
+    }
+</script>
+
+
+<script>
+    (function() {
+        var ws = new WebSocket('ws://' + window.location.host +
+            '/jb-server-page?reloadMode=RELOAD_ON_SAVE&'+
+            'referrer=' + encodeURIComponent(window.location.pathname));
+        ws.onmessage = function (msg) {
+            if (msg.data === 'reload') {
+                window.location.reload();
+            }
+            if (msg.data.startsWith('update-css ')) {
+                var messageId = msg.data.substring(11);
+                var links = document.getElementsByTagName('link');
+                for (var i = 0; i < links.length; i++) {
+                    var link = links[i];
+                    if (link.rel !== 'stylesheet') continue;
+                    var clonedLink = link.cloneNode(true);
+                    var newHref = link.href.replace(/(&|\?)jbUpdateLinksId=\d+/, "$1jbUpdateLinksId=" + messageId);
+                    if (newHref !== link.href) {
+                        clonedLink.href = newHref;
+                    }
+                    else {
+                        var indexOfQuest = newHref.indexOf('?');
+                        if (indexOfQuest >= 0) {
+                            // to support ?foo#hash
+                            clonedLink.href = newHref.substring(0, indexOfQuest + 1) + 'jbUpdateLinksId=' + messageId + '&' +
+                                newHref.substring(indexOfQuest + 1);
+                        }
+                        else {
+                            clonedLink.href += '?' + 'jbUpdateLinksId=' + messageId;
+                        }
+                    }
+                    link.replaceWith(clonedLink);
                 }
             }
-            
-            console.log('전체 초기화 완료');
-        }
-
-        // 임계값 업데이트
-        function updateThreshold(value) {
-            document.getElementById('thresholdValue').textContent = value + '%';
-            updateGraph();
-            console.log('임계값 변경:', value);
-        }
-
-        // 그래프 업데이트
-        function updateGraph() {
-            // 실제로는 체크박스 상태와 임계값을 기반으로 그래프 재렌더링
-            const criteria = [];
-            if (document.getElementById('criteria1').checked) criteria.push('품종특징');
-            if (document.getElementById('criteria2').checked) criteria.push('재배적기');
-            if (document.getElementById('criteria3').checked) criteria.push('병해충내성');
-            if (document.getElementById('criteria4').checked) criteria.push('수확량');
-            
-            console.log('그래프 업데이트 - 기준:', criteria);
-            console.log('그래프 업데이트 - 임계값:', document.getElementById('thresholdSlider').value);
-        }
-
-        // 노드 클릭
-        function nodeClick(nodeId) {
-            console.log('노드 클릭:', nodeId);
-            
-            if (nodeId === 'base') {
-                alert('기준 상품입니다.');
-                return;
+        };
+    })();
+</script><script>
+    (function() {
+        var ws = new WebSocket('ws://' + window.location.host +
+            '/jb-server-page?reloadMode=RELOAD_ON_SAVE&'+
+            'referrer=' + encodeURIComponent(window.location.pathname));
+        ws.onmessage = function (msg) {
+            if (msg.data === 'reload') {
+                window.location.reload();
             }
-            
-            // 빈 슬롯 찾기
-            const emptySlotIndex = comparisonSlots.findIndex(s => s === null);
-            if (emptySlotIndex === -1) {
-                alert('비교 상품은 최대 3개까지 추가할 수 있습니다.');
-                return;
-            }
-            
-            const products = {
-                'similar1': { name: '토마토 B-456', code: 'B-456' },
-                'similar2': { name: '토마토 C-789', code: 'C-789' },
-                'similar3': { name: '토마토 D-012', code: 'D-012' },
-                'similar4': { name: '토마토 E-345', code: 'E-345' },
-                'similar5': { name: '고추 F-678', code: 'F-678' }
-            };
-            
-            if (products[nodeId]) {
-                addComparisonProduct(emptySlotIndex + 1, products[nodeId]);
-            }
-        }
-
-        // 비교 테이블 업데이트
-        function updateComparisonTable() {
-            // 실제로는 선택된 상품들의 데이터를 테이블에 표시
-            console.log('비교 테이블 업데이트');
-            
-            // 데모: 헤더 업데이트
-            for (let i = 0; i < 3; i++) {
-                const col = document.getElementById(`comp${i + 1}Col`);
-                if (comparisonSlots[i]) {
-                    col.textContent = comparisonSlots[i].name;
-                } else {
-                    col.textContent = `비교 상품 ${i + 1}`;
+            if (msg.data.startsWith('update-css ')) {
+                var messageId = msg.data.substring(11);
+                var links = document.getElementsByTagName('link');
+                for (var i = 0; i < links.length; i++) {
+                    var link = links[i];
+                    if (link.rel !== 'stylesheet') continue;
+                    var clonedLink = link.cloneNode(true);
+                    var newHref = link.href.replace(/(&|\?)jbUpdateLinksId=\d+/, "$1jbUpdateLinksId=" + messageId);
+                    if (newHref !== link.href) {
+                        clonedLink.href = newHref;
+                    }
+                    else {
+                        var indexOfQuest = newHref.indexOf('?');
+                        if (indexOfQuest >= 0) {
+                            // to support ?foo#hash
+                            clonedLink.href = newHref.substring(0, indexOfQuest + 1) + 'jbUpdateLinksId=' + messageId + '&' +
+                                newHref.substring(indexOfQuest + 1);
+                        }
+                        else {
+                            clonedLink.href += '?' + 'jbUpdateLinksId=' + messageId;
+                        }
+                    }
+                    link.replaceWith(clonedLink);
                 }
             }
-        }
-
-        // 비교 결과 내보내기
-        function exportComparison() {
-            console.log('비교 결과 내보내기');
-            alert('비교 결과를 엑셀 파일로 다운로드합니다.');
-        }
-
-        // 상품 상세 보기
-        function viewProductDetail(productId) {
-            console.log('상품 상세 보기:', productId);
-            alert('상품 상세 페이지로 이동합니다.');
-        }
-    </script>
-</body>
-</html>
+        };
+    })();
+</script></body></html>
