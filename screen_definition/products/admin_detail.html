@@ -352,9 +352,9 @@
 <aside class="sidebar" id="sidebar">
     <nav class="sidebar-nav">
         <div class="nav-category">메뉴</div>
-        <div class="nav-item" onclick="location.href='product_list.html'">상품 목록</div>
+        <div class="nav-item" onclick="location.href='admin_list.html'">상품 목록</div>
         <div class="nav-item active">상품 상세</div>
-        <div class="nav-item" onclick="location.href='product_form.html'">상품 등록</div>
+        <div class="nav-item" onclick="location.href='admin_form.html'">상품 등록</div>
         <div class="nav-category">설정</div>
         <div class="nav-item">설정</div>
         <div class="nav-item">프로필</div>
@@ -495,7 +495,7 @@
 
         } else {
             alert('존재하지 않는 상품입니다.');
-            location.href = 'product_list.html';
+            location.href = 'admin_list.html';
         }
     };
 
@@ -517,17 +517,17 @@
 
     // 페이지 이동 로직
     function goToList() {
-        location.href = 'product_list.html';
+        location.href = 'admin_list.html';
     }
 
     function goToEdit() {
-        location.href = 'product_form.html?id=' + currentId;
+        location.href = 'admin_form.html?id=' + currentId;
     }
 
     function handleDelete() {
         if (confirm('정말로 이 상품 정보를 삭제하시겠습니까?')) {
             alert('삭제되었습니다.');
-            location.href = 'product_list.html';
+            location.href = 'admin_list.html';
         }
     }
 </script>
