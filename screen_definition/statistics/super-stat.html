@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>매출 통계(관리자)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ko.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* ========== 매출 통계 화면 스타일 ========== */
+
+        /* 필터 영역 */
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        /* 라디오 버튼 그룹 */
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            background-color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .radio-option label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+        }
+
+        /* 드롭다운 */
+        .select-wrapper {
+            position: relative;
+        }
+
+        select {
+            padding: 10px 35px 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: white;
+            font-size: 14px;
+            cursor: pointer;
+            appearance: none;
+            min-width: 150px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: #666;
+            pointer-events: none;
+        }
+
+        /* 날짜 입력 */
+        .date-range {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-input {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 140px;
+            cursor: pointer;
+        }
+
+        .date-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        /* 토글 버튼 */
+        .toggle-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background-color: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .toggle-button.active {
+            background-color: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+
+        .toggle-button:hover {
+            border-color: #3498db;
+        }
+
+        /* 멀티셀렉트 */
+        .multi-select {
+            position: relative;
+            min-width: 250px;
+        }
+
+        .multi-select-trigger {
+            padding: 10px 35px 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: white;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .multi-select-trigger::after {
+            content: '▼';
+            font-size: 10px;
+            color: #666;
+        }
+
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 4px;
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .multi-select-dropdown.show {
+            display: block;
+        }
+
+        .multi-select-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .multi-select-option:hover {
+            background-color: #f8f9fa;
+        }
+
+        .multi-select-option input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        /* 그래프 전환 버튼 */
+        .chart-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .chart-toggle-btn {
+            padding: 10px 20px;
+            background-color: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chart-toggle-btn.active {
+            background-color: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+
+        .chart-toggle-btn:hover:not(.active) {
+            border-color: #3498db;
+            background-color: #fff;
+        }
+
+        /* 그래프 영역 */
+        .chart-container {
+            position: relative;
+            height: 450px;
+            margin-bottom: 30px;
+        }
+
+        /* 범례 영역 */
+        .legend-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        .legend-item:hover {
+            background-color: #e9ecef;
+        }
+
+        .legend-item.disabled {
+            opacity: 0.4;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .legend-color.dashed {
+            background: repeating-linear-gradient(
+                90deg,
+                currentColor 0px,
+                currentColor 6px,
+                transparent 6px,
+                transparent 10px
+            );
+            height: 4px;
+            width: 24px;
+            border-radius: 0;
+            align-self: center;
+        }
+
+        .legend-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .legend-label.year-prev {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        /* 선택 안내 메시지 */
+        .chart-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #95a5a6;
+            font-size: 16px;
+        }
+
+        .chart-placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .legend-value {
+            font-size: 13px;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .radio-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .chart-toggle {
+                flex-direction: column;
+            }
+        }
+
+        /* 로딩 상태 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            display: none;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item" data-screen="dashboard">대시보드</div>
+            <div class="nav-item active" data-screen="sales-stats">매출 통계</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">매출 통계</h2>
+                
+                <!-- 필터 영역 -->
+                <div class="filter-section">
+                    <div class="filter-row">
+                        <!-- 조회 타입 -->
+                        <div class="filter-group">
+                            <label class="filter-label">조회 타입</label>
+                            <div class="radio-group">
+                                <div class="radio-option">
+                                    <input type="radio" id="typeTotal" name="viewType" value="total" checked>
+                                    <label for="typeTotal">전체</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="typeEmployee" name="viewType" value="employee">
+                                    <label for="typeEmployee">사원별</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="typeClient" name="viewType" value="client">
+                                    <label for="typeClient">거래처별</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 기간 설정 -->
+                        <div class="filter-group">
+                            <label class="filter-label">기간 설정</label>
+                            <div class="select-wrapper">
+                                <select id="periodType">
+                                    <option value="monthly">월별</option>
+                                    <option value="quarterly">분기별</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 멀티셀렉트 (사원별/거래처별 선택 시) -->
+                        <div class="filter-group" id="multiSelectGroup" style="display: none;">
+                            <label class="filter-label" id="multiSelectLabel">선택</label>
+                            <div class="multi-select" id="multiSelect">
+                                <div class="multi-select-trigger" id="multiSelectTrigger">
+                                    <span id="multiSelectText">선택하세요</span>
+                                </div>
+                                <div class="multi-select-dropdown" id="multiSelectDropdown">
+                                    <!-- 동적으로 옵션 생성 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-row">
+                        <!-- 날짜 범위 -->
+                        <div class="filter-group">
+                            <label class="filter-label">날짜 범위</label>
+                            <div class="date-range">
+                                <input type="text" id="startDate" class="date-input" placeholder="시작일">
+                                <span>~</span>
+                                <input type="text" id="endDate" class="date-input" placeholder="종료일">
+                            </div>
+                        </div>
+
+                        <!-- 전년도 대비 토글 -->
+                        <div class="filter-group">
+                            <label class="filter-label">비교</label>
+                            <button class="toggle-button" id="compareToggle">
+                                <span>📊</span>
+                                <span>전년도 대비</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 그래프 전환 버튼 -->
+                <div class="chart-toggle">
+                    <button class="chart-toggle-btn active" data-chart="line">
+                        <span>📈</span>
+                        <span>추이 보기</span>
+                    </button>
+                    <button class="chart-toggle-btn" data-chart="bar" id="barChartBtn">
+                        <span>📊</span>
+                        <span>순위 비교</span>
+                    </button>
+                </div>
+
+                <!-- 그래프 영역 -->
+                <div class="chart-container">
+                    <canvas id="salesChart"></canvas>
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <!-- 범례 영역 -->
+                <div class="legend-container" id="legendContainer">
+                    <!-- 동적으로 범례 생성 -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // ========== 사이드바 토글 기능 ==========
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                navItems.forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+
+        // ========== 매출 통계 기능 ==========
+
+        // 샘플 데이터 (월별 상세 데이터 포함)
+        const sampleData = {
+            employees: [
+                { id: 1, name: '김철수' },
+                { id: 2, name: '이영희' },
+                { id: 3, name: '박민수' },
+                { id: 4, name: '정수진' },
+                { id: 5, name: '최동욱' }
+            ],
+            clients: [
+                { id: 1, name: '(주)대한종묘' },
+                { id: 2, name: '농협종묘센터' },
+                { id: 3, name: '그린팜' },
+                { id: 4, name: '바이오시드' },
+                { id: 5, name: '한국농산' }
+            ],
+            // 월별 상세 매출 데이터 (날짜 범위 확인용)
+            monthlySales: {
+                // 2024년 데이터 (전년도)
+                2024: {
+                    total: [38000000, 41000000, 43000000, 46000000, 49000000, 52000000, 50000000, 54000000, 56000000, 59000000, 61000000, 63000000],
+                    employees: {
+                        1: [8500000, 9200000, 9800000, 10500000, 11200000, 11800000, 11500000, 12200000, 12800000, 13500000, 14000000, 14500000],
+                        2: [7200000, 7800000, 8200000, 8800000, 9400000, 9900000, 9600000, 10200000, 10700000, 11200000, 11600000, 12000000],
+                        3: [6800000, 7300000, 7700000, 8200000, 8700000, 9200000, 8900000, 9500000, 10000000, 10500000, 10900000, 11300000],
+                        4: [8000000, 8600000, 9100000, 9700000, 10300000, 10800000, 10500000, 11100000, 11700000, 12200000, 12700000, 13100000],
+                        5: [7500000, 8100000, 8500000, 9100000, 9600000, 10100000, 9800000, 10400000, 10900000, 11400000, 11900000, 12300000]
+                    },
+                    clients: {
+                        1: [9500000, 10200000, 10800000, 11500000, 12200000, 12900000, 12500000, 13300000, 14000000, 14700000, 15300000, 15800000],
+                        2: [8200000, 8800000, 9300000, 9900000, 10500000, 11100000, 10700000, 11400000, 12000000, 12600000, 13100000, 13500000],
+                        3: [6500000, 7000000, 7400000, 7900000, 8400000, 8800000, 8500000, 9100000, 9600000, 10000000, 10400000, 10800000],
+                        4: [7800000, 8400000, 8900000, 9500000, 10000000, 10600000, 10200000, 10900000, 11400000, 12000000, 12400000, 12900000],
+                        5: [6000000, 6500000, 6800000, 7300000, 7700000, 8200000, 7900000, 8400000, 8900000, 9300000, 9700000, 10000000]
+                    }
+                },
+                // 2025년 데이터 (당해년도)
+                2025: {
+                    total: [45000000, 52000000, 48000000, 55000000, 58000000, 62000000, 59000000, 64000000, 67000000, 70000000, 72000000, 75000000],
+                    employees: {
+                        1: [10500000, 12200000, 11200000, 12900000, 13600000, 14500000, 13800000, 15000000, 15700000, 16400000, 16900000, 17600000],
+                        2: [8600000, 10000000, 9200000, 10600000, 11200000, 11900000, 11300000, 12300000, 12900000, 13500000, 13900000, 14400000],
+                        3: [8100000, 9400000, 8700000, 10000000, 10500000, 11200000, 10700000, 11600000, 12100000, 12700000, 13100000, 13600000],
+                        4: [9500000, 11000000, 10200000, 11700000, 12300000, 13200000, 12500000, 13600000, 14200000, 14900000, 15300000, 15900000],
+                        5: [8300000, 9600000, 8900000, 10200000, 10800000, 11500000, 10900000, 11900000, 12400000, 13000000, 13400000, 13900000]
+                    },
+                    clients: {
+                        1: [11200000, 13000000, 12000000, 13800000, 14500000, 15500000, 14700000, 16000000, 16800000, 17500000, 18000000, 18700000],
+                        2: [9700000, 11200000, 10300000, 11900000, 12500000, 13400000, 12700000, 13800000, 14500000, 15100000, 15600000, 16200000],
+                        3: [7700000, 8900000, 8200000, 9500000, 10000000, 10700000, 10100000, 11000000, 11500000, 12100000, 12400000, 12900000],
+                        4: [9200000, 10700000, 9800000, 11300000, 11900000, 12700000, 12100000, 13100000, 13700000, 14400000, 14800000, 15400000],
+                        5: [7200000, 8300000, 7700000, 8900000, 9300000, 10000000, 9500000, 10300000, 10800000, 11300000, 11700000, 12100000]
+                    }
+                }
+            }
+        };
+
+        // 차트 색상
+        const chartColors = [
+            '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+            '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+        ];
+
+        // 상태 관리
+        let state = {
+            viewType: 'total',
+            periodType: 'monthly',
+            selectedItems: [],
+            startDate: new Date(2025, 0, 1),
+            endDate: new Date(2025, 11, 31),
+            compareYear: false,
+            chartType: 'line'
+        };
+
+        let chart = null;
+        let hiddenDatasets = new Set();
+
+        // 날짜 선택기 초기화
+        flatpickr("#startDate", {
+            locale: 'ko',
+            dateFormat: "Y-m-d",
+            defaultDate: state.startDate,
+            onChange: function(selectedDates) {
+                state.startDate = selectedDates[0];
+                updateChart();
+            }
+        });
+
+        flatpickr("#endDate", {
+            locale: 'ko',
+            dateFormat: "Y-m-d",
+            defaultDate: state.endDate,
+            onChange: function(selectedDates) {
+                state.endDate = selectedDates[0];
+                updateChart();
+            }
+        });
+
+        // 조회 타입 변경
+        document.querySelectorAll('input[name="viewType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                state.viewType = e.target.value;
+                state.selectedItems = [];
+                updateMultiSelect();
+                updateBarChartButton();
+                updateChart();
+            });
+        });
+
+        // 기간 설정 변경
+        document.getElementById('periodType').addEventListener('change', (e) => {
+            state.periodType = e.target.value;
+            updateChart();
+        });
+
+        // 전년도 대비 토글
+        document.getElementById('compareToggle').addEventListener('click', function() {
+            state.compareYear = !state.compareYear;
+            this.classList.toggle('active');
+            updateChart();
+        });
+
+        // 그래프 전환 버튼
+        document.querySelectorAll('.chart-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.chart-toggle-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                state.chartType = this.dataset.chart;
+                updateChart();
+            });
+        });
+
+        // 멀티셀렉트 업데이트
+        function updateMultiSelect() {
+            const multiSelectGroup = document.getElementById('multiSelectGroup');
+            const multiSelectLabel = document.getElementById('multiSelectLabel');
+            const multiSelectDropdown = document.getElementById('multiSelectDropdown');
+            
+            if (state.viewType === 'total') {
+                multiSelectGroup.style.display = 'none';
+                return;
+            }
+
+            multiSelectGroup.style.display = 'flex';
+            
+            const items = state.viewType === 'employee' ? sampleData.employees : sampleData.clients;
+            multiSelectLabel.textContent = state.viewType === 'employee' ? '사원 선택' : '거래처 선택';
+            
+            multiSelectDropdown.innerHTML = items.map(item => `
+                <div class="multi-select-option" data-id="${item.id}">
+                    <input type="checkbox" id="item-${item.id}" value="${item.id}">
+                    <label for="item-${item.id}">${item.name}</label>
+                </div>
+            `).join('');
+
+            // 체크박스 이벤트
+            multiSelectDropdown.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const itemId = parseInt(this.value);
+                    if (this.checked) {
+                        if (!state.selectedItems.includes(itemId)) {
+                            state.selectedItems.push(itemId);
+                        }
+                    } else {
+                        state.selectedItems = state.selectedItems.filter(id => id !== itemId);
+                    }
+                    updateMultiSelectText();
+                    updateChart();
+                });
+            });
+
+            updateMultiSelectText();
+        }
+
+        // 멀티셀렉트 텍스트 업데이트
+        function updateMultiSelectText() {
+            const text = document.getElementById('multiSelectText');
+            if (state.selectedItems.length === 0) {
+                text.textContent = '선택하세요';
+            } else {
+                const items = state.viewType === 'employee' ? sampleData.employees : sampleData.clients;
+                const selectedNames = state.selectedItems.map(id => {
+                    const item = items.find(i => i.id === id);
+                    return item ? item.name : '';
+                }).filter(n => n);
+                
+                if (selectedNames.length <= 2) {
+                    text.textContent = selectedNames.join(', ');
+                } else {
+                    text.textContent = `${selectedNames[0]} 외 ${selectedNames.length - 1}개`;
+                }
+            }
+        }
+
+        // 멀티셀렉트 드롭다운 토글
+        document.getElementById('multiSelectTrigger').addEventListener('click', () => {
+            document.getElementById('multiSelectDropdown').classList.toggle('show');
+        });
+
+        // 외부 클릭 시 드롭다운 닫기
+        document.addEventListener('click', (e) => {
+            const multiSelect = document.getElementById('multiSelect');
+            const dropdown = document.getElementById('multiSelectDropdown');
+            if (!multiSelect.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // 막대 그래프 버튼 활성화/비활성화
+        function updateBarChartButton() {
+            const barBtn = document.getElementById('barChartBtn');
+            if (state.viewType === 'total') {
+                barBtn.style.opacity = '0.5';
+                barBtn.style.cursor = 'not-allowed';
+                barBtn.disabled = true;
+                if (state.chartType === 'bar') {
+                    state.chartType = 'line';
+                    document.querySelector('.chart-toggle-btn[data-chart="line"]').classList.add('active');
+                    barBtn.classList.remove('active');
+                }
+            } else {
+                barBtn.style.opacity = '1';
+                barBtn.style.cursor = 'pointer';
+                barBtn.disabled = false;
+            }
+        }
+
+        // 날짜 범위에 따른 월 인덱스 계산
+        function getMonthRange() {
+            const startMonth = state.startDate.getMonth(); // 0-11
+            const endMonth = state.endDate.getMonth(); // 0-11
+            return { startMonth, endMonth };
+        }
+
+        // 월 데이터를 날짜 범위에 맞게 필터링
+        function filterDataByDateRange(monthlyData) {
+            const { startMonth, endMonth } = getMonthRange();
+            return monthlyData.slice(startMonth, endMonth + 1);
+        }
+
+        // 월 라벨을 날짜 범위에 맞게 필터링
+        function getFilteredLabels(isMonthly) {
+            const allMonthLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+            const { startMonth, endMonth } = getMonthRange();
+
+            if (isMonthly) {
+                return allMonthLabels.slice(startMonth, endMonth + 1);
+            } else {
+                // 분기별: 해당 날짜 범위의 분기만 표시
+                const startQ = Math.floor(startMonth / 3);
+                const endQ = Math.floor(endMonth / 3);
+                const allQuarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+                return allQuarters.slice(startQ, endQ + 1);
+            }
+        }
+
+        // 월 데이터를 분기 데이터로 변환
+        function convertToQuarterly(monthlyData) {
+            const quarterly = [];
+            for (let i = 0; i < 4; i++) {
+                const sum = monthlyData.slice(i * 3, i * 3 + 3).reduce((a, b) => a + b, 0);
+                quarterly.push(sum);
+            }
+            const { startMonth, endMonth } = getMonthRange();
+            const startQ = Math.floor(startMonth / 3);
+            const endQ = Math.floor(endMonth / 3);
+            return quarterly.slice(startQ, endQ + 1);
+        }
+
+        // 차트 데이터 생성
+        function generateChartData() {
+            const isMonthly = state.periodType === 'monthly';
+            const labels = getFilteredLabels(isMonthly);
+            const datasets = [];
+            const currentYear = 2025;
+            const previousYear = 2024;
+
+            if (state.viewType === 'total') {
+                // 전체 매출
+                const currentMonthlyData = sampleData.monthlySales[currentYear].total;
+                const currentData = isMonthly
+                    ? filterDataByDateRange(currentMonthlyData)
+                    : convertToQuarterly(currentMonthlyData);
+
+                datasets.push({
+                    label: `${currentYear}년`,
+                    data: currentData,
+                    borderColor: chartColors[0],
+                    backgroundColor: chartColors[0] + '20',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3
+                });
+
+                if (state.compareYear) {
+                    const previousMonthlyData = sampleData.monthlySales[previousYear].total;
+                    const previousData = isMonthly
+                        ? filterDataByDateRange(previousMonthlyData)
+                        : convertToQuarterly(previousMonthlyData);
+
+                    datasets.push({
+                        label: `${previousYear}년 (전년도)`,
+                        data: previousData,
+                        borderColor: '#95a5a6',
+                        backgroundColor: 'transparent',
+                        borderDash: [8, 4],
+                        tension: 0.4,
+                        fill: false,
+                        borderWidth: 2
+                    });
+                }
+            } else {
+                // 사원별/거래처별
+                const items = state.viewType === 'employee' ? sampleData.employees : sampleData.clients;
+                const dataKey = state.viewType === 'employee' ? 'employees' : 'clients';
+
+                // 선택된 항목만 표시 (선택 없으면 빈 배열)
+                const itemsToShow = state.selectedItems.length > 0
+                    ? items.filter(item => state.selectedItems.includes(item.id))
+                    : [];
+
+                if (itemsToShow.length === 0) {
+                    // 선택된 항목이 없으면 안내 메시지용 빈 데이터
+                    return {
+                        labels: labels,
+                        datasets: [{
+                            label: '항목을 선택하세요',
+                            data: labels.map(() => 0),
+                            borderColor: '#ddd',
+                            backgroundColor: '#f8f9fa',
+                            tension: 0.4
+                        }]
+                    };
+                }
+
+                if (state.chartType === 'bar') {
+                    // 막대 그래프: 누적 매출 순위 비교
+                    const currentTotals = itemsToShow.map(item => {
+                        const monthlyData = sampleData.monthlySales[currentYear][dataKey][item.id];
+                        const filteredData = filterDataByDateRange(monthlyData);
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            amount: filteredData.reduce((a, b) => a + b, 0)
+                        };
+                    }).sort((a, b) => b.amount - a.amount);
+
+                    if (state.compareYear) {
+                        // 전년도 대비 그룹 막대 그래프
+                        const previousTotals = itemsToShow.map(item => {
+                            const monthlyData = sampleData.monthlySales[previousYear][dataKey][item.id];
+                            const filteredData = filterDataByDateRange(monthlyData);
+                            return {
+                                id: item.id,
+                                name: item.name,
+                                amount: filteredData.reduce((a, b) => a + b, 0)
+                            };
+                        });
+
+                        // 당해년도 기준으로 정렬된 순서 유지
+                        const sortedLabels = currentTotals.map(t => t.name);
+                        const sortedCurrentData = currentTotals.map(t => t.amount);
+                        const sortedPreviousData = sortedLabels.map(name => {
+                            const prev = previousTotals.find(p => p.name === name);
+                            return prev ? prev.amount : 0;
+                        });
+
+                        datasets.push({
+                            label: `${currentYear}년`,
+                            data: sortedCurrentData,
+                            backgroundColor: chartColors[0],
+                            borderColor: chartColors[0],
+                            borderWidth: 2
+                        });
+
+                        datasets.push({
+                            label: `${previousYear}년 (전년도)`,
+                            data: sortedPreviousData,
+                            backgroundColor: '#bdc3c7',
+                            borderColor: '#95a5a6',
+                            borderWidth: 2,
+                            borderDash: [4, 4]
+                        });
+
+                        return {
+                            labels: sortedLabels,
+                            datasets: datasets
+                        };
+                    } else {
+                        // 단일 연도 막대 그래프
+                        datasets.push({
+                            label: `${currentYear}년 누적 매출`,
+                            data: currentTotals.map(t => t.amount),
+                            backgroundColor: currentTotals.map((_, i) => chartColors[i % chartColors.length]),
+                            borderColor: currentTotals.map((_, i) => chartColors[i % chartColors.length]),
+                            borderWidth: 2
+                        });
+
+                        return {
+                            labels: currentTotals.map(t => t.name),
+                            datasets: datasets
+                        };
+                    }
+                } else {
+                    // 꺾은선 그래프
+                    itemsToShow.forEach((item, index) => {
+                        const currentMonthlyData = sampleData.monthlySales[currentYear][dataKey][item.id];
+                        const currentData = isMonthly
+                            ? filterDataByDateRange(currentMonthlyData)
+                            : convertToQuarterly(currentMonthlyData);
+
+                        const color = chartColors[index % chartColors.length];
+
+                        datasets.push({
+                            label: `${item.name} (${currentYear})`,
+                            data: currentData,
+                            borderColor: color,
+                            backgroundColor: color + '20',
+                            tension: 0.4,
+                            fill: false,
+                            borderWidth: 3
+                        });
+
+                        // 전년도 대비 - 점선으로 표시
+                        if (state.compareYear) {
+                            const previousMonthlyData = sampleData.monthlySales[previousYear][dataKey][item.id];
+                            const previousData = isMonthly
+                                ? filterDataByDateRange(previousMonthlyData)
+                                : convertToQuarterly(previousMonthlyData);
+
+                            datasets.push({
+                                label: `${item.name} (${previousYear})`,
+                                data: previousData,
+                                borderColor: color,
+                                backgroundColor: 'transparent',
+                                borderDash: [8, 4],
+                                tension: 0.4,
+                                fill: false,
+                                borderWidth: 2,
+                                pointStyle: 'triangle',
+                                pointRadius: 4
+                            });
+                        }
+                    });
+                }
+            }
+
+            return {
+                labels: labels,
+                datasets: datasets
+            };
+        }
+
+        // 차트 업데이트
+        function updateChart() {
+            showLoading();
+            // 차트 타입이나 조회 타입이 바뀌면 숨김 상태 초기화
+            hiddenDatasets.clear();
+
+            setTimeout(() => {
+                const data = generateChartData();
+
+                if (chart) {
+                    chart.destroy();
+                }
+
+                const ctx = document.getElementById('salesChart').getContext('2d');
+                const isBarChart = state.chartType === 'bar' && state.viewType !== 'total';
+
+                // 사원/거래처별 선택 없을 때 안내
+                const isEmptySelection = state.viewType !== 'total' && state.selectedItems.length === 0;
+
+                chart = new Chart(ctx, {
+                    type: isBarChart ? 'bar' : 'line',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: !isEmptySelection,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += new Intl.NumberFormat('ko-KR', {
+                                            style: 'currency',
+                                            currency: 'KRW'
+                                        }).format(context.parsed.y || context.parsed.x);
+                                        return label;
+                                    }
+                                }
+                            },
+                            // 선택 안내 메시지
+                            title: {
+                                display: isEmptySelection,
+                                text: state.viewType === 'employee' ? '사원을 선택하세요' : '거래처를 선택하세요',
+                                font: { size: 16 },
+                                color: '#95a5a6',
+                                padding: { top: 150 }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: isBarChart ? false : true
+                                },
+                                display: !isEmptySelection
+                            },
+                            y: {
+                                beginAtZero: true,
+                                display: !isEmptySelection,
+                                ticks: {
+                                    callback: function(value) {
+                                        return (value / 10000000).toFixed(0) + '천만원';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // 숨겨진 데이터셋 복원
+                hiddenDatasets.forEach(index => {
+                    if (chart.data.datasets[index]) {
+                        chart.setDatasetVisibility(index, false);
+                    }
+                });
+                chart.update();
+
+                updateLegend(data);
+                hideLoading();
+            }, 300);
+        }
+
+        // 범례 업데이트
+        function updateLegend(data) {
+            const container = document.getElementById('legendContainer');
+            container.innerHTML = '';
+
+            data.datasets.forEach((dataset, index) => {
+                // 빈 안내 데이터셋은 범례에서 제외
+                if (dataset.label === '항목을 선택하세요') return;
+
+                const total = dataset.data.reduce((sum, val) => sum + val, 0);
+                const avgValue = total / dataset.data.length;
+                const isDashed = dataset.borderDash && dataset.borderDash.length > 0;
+                const color = dataset.borderColor || (Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[0] : dataset.backgroundColor);
+
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                if (hiddenDatasets.has(index)) {
+                    item.classList.add('disabled');
+                }
+
+                // 점선 여부에 따라 범례 색상 표시 방식 변경
+                const legendColorHtml = isDashed
+                    ? `<div class="legend-color dashed" style="color: ${color}"></div>`
+                    : `<div class="legend-color" style="background-color: ${color}"></div>`;
+
+                // 전년도 대비 표시
+                const isYearComparison = dataset.label.includes('전년도') || dataset.label.includes('2024');
+                const labelClass = isYearComparison ? 'legend-label' : 'legend-label';
+
+                item.innerHTML = `
+                    ${legendColorHtml}
+                    <span class="${labelClass}">${dataset.label}</span>
+                    <span class="legend-value">${new Intl.NumberFormat('ko-KR', {
+                        style: 'currency',
+                        currency: 'KRW',
+                        maximumFractionDigits: 0
+                    }).format(state.chartType === 'bar' ? total : avgValue)}</span>
+                `;
+
+                item.addEventListener('click', () => {
+                    const isHidden = chart.getDatasetMeta(index).hidden;
+                    chart.setDatasetVisibility(index, isHidden);
+                    chart.update();
+
+                    if (isHidden) {
+                        hiddenDatasets.delete(index);
+                        item.classList.remove('disabled');
+                    } else {
+                        hiddenDatasets.add(index);
+                        item.classList.add('disabled');
+                    }
+                });
+
+                container.appendChild(item);
+            });
+        }
+
+        // 로딩 표시
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        // 초기화
+        updateMultiSelect();
+        updateBarChartButton();
+        updateChart();
+    </script>
+</body>
+</html>

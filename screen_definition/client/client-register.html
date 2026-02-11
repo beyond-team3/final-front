@@ -314,12 +314,6 @@
                             </div>
 
                             <div class="form-field">
-                                <label class="form-label" for="customerScore">고객 점수</label>
-                                <input class="form-input" id="customerScore" name="customerScore" type="number" min="0" max="100" step="1" placeholder="0 ~ 100" />
-                                <div class="readonly-note">선택 입력 (내부 평가 점수)</div>
-                            </div>
-
-                            <div class="form-field">
                                 <label class="form-label" for="managerName">담당자 이름</label>
                                 <input class="form-input" id="managerName" name="managerName" type="text" placeholder="예: 김영업" required />
                             </div>
@@ -337,13 +331,8 @@
                             <div class="form-field">
                                 <label class="form-label">여신 / 여신한도</label>
                                 <div class="inline-row">
-                                    <label class="checkbox">
-                                        <input id="hasCredit" name="hasCredit" type="checkbox" />
-                                        여신 사용
-                                    </label>
-                                    <input class="form-input" id="creditLimit" name="creditLimit" type="number" min="0" step="1000" placeholder="여신한도(원)" disabled />
+                                    <input class="form-input" id="creditLimit" name="creditLimit" type="number" min="0" step="1000" placeholder="여신한도(원)" />
                                 </div>
-                                <div class="readonly-note">여신 사용 체크 시 한도를 입력할 수 있습니다.</div>
                             </div>
                         </div>
 
