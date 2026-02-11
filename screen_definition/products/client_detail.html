@@ -161,38 +161,29 @@
     </style>
 </head>
 <body>
-<!-- 헤더 -->
 <header class="header">
     <button class="menu-button" id="menuToggle">☰</button>
     <h1 class="header-title">종자 영업 관리 시스템</h1>
 </header>
 
-<!-- 사이드바 -->
 <aside class="sidebar" id="sidebar">
     <nav class="sidebar-nav">
         <div class="nav-category">메뉴</div>
-        <div class="nav-item active" data-screen="dashboard">대시보드</div>
-        <div class="nav-item" data-screen="screen1">화면 1</div>
-        <div class="nav-item" data-screen="screen2">화면 2</div>
-        <div class="nav-item" data-screen="screen3">화면 3</div>
+        <div class="nav-item" onclick="location.href='client_list.html'">상품 목록</div>
+        <div class="nav-item active">상품 상세</div>
+        <div class="nav-item">대시보드</div>
 
         <div class="nav-category">설정</div>
-        <div class="nav-item" data-screen="settings">설정</div>
-        <div class="nav-item" data-screen="profile">프로필</div>
+        <div class="nav-item">설정</div>
+        <div class="nav-item">프로필</div>
     </nav>
 </aside>
 
-<!-- 메인 컨텐츠 영역 -->
 <main class="main-content" id="mainContent">
     <div class="content-wrapper">
         <div class="screen-content">
             <h2 class="screen-title">상품 상세 페이지</h2>
 
-            <!--
-            ========================================
-            여기부터 각 화면별 컨텐츠를 작성하세요
-            ========================================
-            -->
             <style>
                 .detail-header {
                     display: flex;
@@ -209,11 +200,14 @@
 
                 .detail-img {
                     flex: 1;
-                    height: 350px;
+                    height: 400px; /* 이미지 영역 높이 조정 */
                     background: #f0f0f0;
                     border-radius: 8px;
                     overflow: hidden;
-                    border: 1px solid #eee; /* 외곽선 추가 */
+                    border: 1px solid #eee;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
 
                 .detail-img img {
@@ -226,19 +220,20 @@
                     flex: 1.2;
                     display: flex;
                     flex-direction: column;
-                    justify-content: space-between;
+                    gap: 20px;
                 }
 
                 .info-title {
                     font-size: 28px;
                     font-weight: bold;
                     color: #2c3e50;
-                    display: flex; /* 별표 배치를 위해 flex 추가 */
+                    display: flex;
                     align-items: center;
                     gap: 10px;
+                    margin-bottom: 10px;
                 }
 
-                /* 별표 스타일 추가 */
+                /* 별표 스타일 */
                 .star-btn {
                     font-size: 28px;
                     color: #ddd;
@@ -247,27 +242,65 @@
                     transition: color 0.2s, transform 0.2s;
                     line-height: 1;
                 }
+                .star-btn.active { color: #f1c40f; }
+                .star-btn:hover { transform: scale(1.1); }
 
-                .star-btn.active {
-                    color: #f1c40f;
+                /* --- [수정됨] 상세 스펙 테이블 스타일 --- */
+                .spec-table {
+                    width: 100%;
+                    margin-bottom: 20px;
+                    border-collapse: collapse;
                 }
 
-                .star-btn:hover {
-                    transform: scale(1.1);
-                }
-
-                .info-tags {
+                .spec-row {
                     display: flex;
-                    gap: 10px;
-                    margin: 15px 0;
+                    border-bottom: 1px solid #eee;
+                    padding: 12px 0;
+                    align-items: flex-start;
                 }
 
-                .tag {
-                    background: #eaf2f8;
-                    color: #3498db;
-                    padding: 5px 10px;
-                    border-radius: 15px;
+                .spec-row:last-child { border-bottom: none; }
+
+                .spec-label {
+                    width: 100px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #7f8c8d;
+                    flex-shrink: 0;
+                    padding-top: 4px;
+                }
+
+                .spec-value {
+                    flex-grow: 1;
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                }
+
+                /* 태그 뱃지 스타일 */
+                .tag-badge {
                     font-size: 13px;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    font-weight: 500;
+                }
+                /* 카테고리별 색상 (선택사항) */
+                .tag-cat { background-color: #2c3e50; color: white; }
+                .tag-env { background-color: #eaf2f8; color: #3498db; }
+                .tag-res { background-color: #fdebd0; color: #e67e22; }
+                .tag-growth { background-color: #d5f5e3; color: #27ae60; }
+                .tag-quality { background-color: #ebdef0; color: #8e44ad; }
+                .tag-conv { background-color: #fadbd8; color: #c0392b; }
+
+                .info-label-main {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #34495e;
+                    margin-top: 10px;
+                    margin-bottom: 10px;
+                    display: block;
+                    border-top: 2px dashed #eee;
+                    padding-top: 20px;
                 }
 
                 .info-desc-box {
@@ -276,9 +309,10 @@
                     border-radius: 8px;
                     line-height: 1.6;
                     color: #555;
-                    height: 100%;
+                    white-space: pre-line;
                 }
 
+                /* 버튼 스타일 */
                 .btn-action {
                     padding: 10px 20px;
                     border-radius: 4px;
@@ -287,30 +321,67 @@
                     cursor: pointer;
                     font-size: 14px;
                 }
+                .btn-list { background: #95a5a6; color: white; }
+                .btn-add-comp { background: #2ecc71; color: white; transition: background-color 0.2s; }
+                .btn-add-comp.active { background-color: #27ae60; color: white; }
 
-                .btn-list {
-                    background: #95a5a6;
-                    color: white;
+                /* --- [메모장 스타일] --- */
+                .memo-container {
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 2px dashed #eee;
                 }
-
-                .btn-add-comp {
-                    background: #2ecc71;
-                    color: white;
-                    transition: background-color 0.2s;
+                .memo-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
                 }
-
-                /* 비교함 활성화 스타일 */
-                .btn-add-comp.active {
-                    background-color: #27ae60;
-                    color: white;
+                .memo-title {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #7f8c8d;
+                    display: flex; align-items: center; gap: 5px;
+                }
+                .btn-memo {
+                    padding: 6px 12px;
+                    font-size: 12px;
+                    border-radius: 4px;
+                    border: 1px solid #ddd;
+                    background-color: white;
+                    color: #555;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    font-weight: 600;
+                }
+                .btn-memo:hover { background-color: #f0f0f0; }
+                .btn-memo.saving { background-color: #3498db; color: white; border-color: #3498db; }
+                .memo-input {
+                    width: 100%;
+                    height: 100px;
+                    padding: 12px;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    resize: none;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    font-family: inherit;
+                    background-color: #f9f9f9;
+                    color: #555;
+                }
+                .memo-input:not([readonly]) {
+                    background-color: white;
+                    border-color: #3498db;
+                    outline: none;
+                    color: #333;
+                    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
                 }
             </style>
 
             <div class="detail-header">
                 <div>
                     <button class="btn-action btn-list" onclick="location.href='client_list.html'">목록으로</button>
-                    <button class="btn-action btn-add-comp" id="compareBtn" onclick="toggleDetailCompare()">비교함 담기
-                    </button>
+                    <button class="btn-action btn-add-comp" id="compareBtn" onclick="toggleDetailCompare()">비교함 담기</button>
                 </div>
             </div>
 
@@ -319,66 +390,89 @@
                     <img id="dispImg" src="" alt="상품상세">
                 </div>
                 <div class="detail-info">
-                    <div>
-                        <div class="info-title">
-                            <span id="dispName">상품명 로딩중...</span>
-                            <span class="star-btn" id="starBtn" onclick="toggleDetailFav()">☆</span>
-                        </div>
 
-                        <div class="info-tags" id="dispTags">
-                        </div>
+                    <div class="info-title">
+                        <span id="dispName">상품명 로딩중...</span>
+                        <span class="star-btn" id="starBtn" onclick="toggleDetailFav()">☆</span>
+                    </div>
 
-                        <div class="info-desc-box" id="dispDesc">
-                            내용을 불러오는 중입니다...
+                    <div class="info-label-main">상세 설명</div>
+                    <div class="info-desc-box" id="dispDesc">
+                        내용을 불러오는 중입니다...
+                    </div>
+
+                    <div class="spec-table">
+                        <div class="spec-row">
+                            <div class="spec-label">품목</div>
+                            <div class="spec-value">
+                                <span id="dispCategory" class="tag-badge tag-cat">카테고리</span>
+                            </div>
+                        </div>
+                        <div class="spec-row" id="rowEnv">
+                            <div class="spec-label">재배환경</div>
+                            <div class="spec-value" id="dispEnv"></div>
+                        </div>
+                        <div class="spec-row" id="rowRes">
+                            <div class="spec-label">내병성</div>
+                            <div class="spec-value" id="dispRes"></div>
+                        </div>
+                        <div class="spec-row" id="rowGrowth">
+                            <div class="spec-label">생육/숙기</div>
+                            <div class="spec-value" id="dispGrowth"></div>
+                        </div>
+                        <div class="spec-row" id="rowQuality">
+                            <div class="spec-label">과실품질</div>
+                            <div class="spec-value" id="dispQuality"></div>
+                        </div>
+                        <div class="spec-row" id="rowConv">
+                            <div class="spec-label">재배편의성</div>
+                            <div class="spec-value" id="dispConv"></div>
                         </div>
                     </div>
+
+                    <div class="memo-container">
+                        <div class="memo-header">
+                            <span class="memo-title">📝 품종 메모</span>
+                            <button class="btn-memo" id="memoBtn" onclick="toggleMemo()">메모 수정</button>
+                        </div>
+                        <textarea class="memo-input" id="memoInput" readonly placeholder="이 상품에 대한 고객 반응이나 영업 포인트를 기록해 두세요."></textarea>
+                    </div>
+
                 </div>
             </div>
 
             <script>
-                // 1. 데이터
+                // 1. 데이터 (상세 속성 분리)
                 const products = [
                     {
-                        id: 1,
-                        name: '베테랑 고추',
-                        desc: '탄저병에 강하고 매운맛이 일품인 대표 품종입니다. 노지 재배에 적합합니다.',
-                        img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?auto=format&fit=crop&w=400&q=80',
-                        tags: ['노지', '탄저병', '매운맛', '조생종']
+                        id: 1, name: '베테랑', category: '고추', desc: '탄저병에 강하고 매운맛이 일품.\n노지 재배에 최적화된 품종입니다.',
+                        img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?w=600',
+                        env: ['노지'], res: ['탄저병'], growth: ['조생종'], quality: ['매운맛'], conv: []
                     },
                     {
-                        id: 2,
-                        name: '꿀수박 1호',
-                        desc: '당도가 13Brix 이상 나오는 고당도 수박입니다. 하우스 재배용.',
-                        img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80',
-                        tags: ['시설하우스', '고당도', '대과종', '만생종']
+                        id: 2, name: '꿀수박 1호', category: '수박', desc: '13Brix 이상 고당도 수박.\n하우스 재배 시 당도가 더욱 올라갑니다.',
+                        img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600',
+                        env: ['시설하우스'], res: [], growth: ['만생종'], quality: ['고당도', '대과종'], conv: []
                     },
                     {
-                        id: 3,
-                        name: '청정 오이',
-                        desc: '아삭한 식감이 특징이며 저장성이 매우 우수합니다.',
-                        img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?auto=format&fit=crop&w=400&q=80',
-                        tags: ['시설하우스', '아삭함', '저장성우수', '내병성']
+                        id: 3, name: '청정 오이', category: '오이', desc: '아삭한 식감, 저장성 우수.\n병충해에 강해 재배가 쉽습니다.',
+                        img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?w=600',
+                        env: ['시설하우스'], res: ['내병성'], growth: [], quality: ['아삭함', '저장성우수'], conv: []
                     },
                     {
-                        id: 4,
-                        name: '햇살 토마토',
-                        desc: '붉은 빛깔이 선명하고 과육이 단단하여 유통에 유리합니다.',
-                        img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80',
-                        tags: ['시설하우스', '경도우수', '착색우수', '다수확']
+                        id: 4, name: '햇살 토마토', category: '토마토', desc: '단단한 과육, 붉은 빛깔.\n유통 과정에서 무르지 않아 상인들이 선호합니다.',
+                        img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600',
+                        env: ['시설하우스'], res: [], growth: [], quality: ['경도우수', '적색'], conv: ['다수확']
                     },
                     {
-                        id: 5,
-                        name: '금싸라기 참외',
-                        desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.',
-                        img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?auto=format&fit=crop&w=400&q=80',
-                        tags: ['노지', '고당도', '아삭함', '향기']
+                        id: 5, name: '금싸라기', category: '참외', desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.',
+                        img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?w=400',
+                        env: ['노지'], res: [], growth: [], quality: ['고당도', '아삭함', '향기'], conv: []
                     },
                     {
-                        id: 6,
-                        name: '가을무 대장',
-                        desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.',
-                        img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?auto=format&fit=crop&w=400&q=80',
-                        tags: ['노지', '김장용', '저장성우수', '내한성']
+                        id: 6, name: '가을무 대장', category: '무', desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.',
+                        img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=400',
+                        env: ['노지'], res: [], growth: [], quality: ['김장용', '저장성우수'], conv: ['내한성']
                     },
                 ];
 
@@ -388,33 +482,48 @@
                 function initDetail() {
                     const urlParams = new URLSearchParams(window.location.search);
                     const idParam = urlParams.get('id');
-
-                    // URL ID 파싱 (기본값 1)
                     currentId = idParam ? parseInt(idParam) : 1;
 
                     const product = products.find(p => p.id === currentId);
 
                     if (product) {
+                        // 기본 정보 바인딩
                         document.getElementById('dispName').innerText = product.name;
                         document.getElementById('dispDesc').innerText = product.desc;
                         document.getElementById('dispImg').src = product.img;
+                        document.getElementById('dispCategory').innerText = product.category;
 
-                        const tagContainer = document.getElementById('dispTags');
-                        tagContainer.innerHTML = '';
-                        product.tags.forEach(tag => {
-                            tagContainer.innerHTML += `<span class="tag">${tag}</span>`;
-                        });
+                        // 태그 항목별 렌더링
+                        renderTags('dispEnv', product.env, 'tag-env', 'rowEnv');
+                        renderTags('dispRes', product.res, 'tag-res', 'rowRes');
+                        renderTags('dispGrowth', product.growth, 'tag-growth', 'rowGrowth');
+                        renderTags('dispQuality', product.quality, 'tag-quality', 'rowQuality');
+                        renderTags('dispConv', product.conv, 'tag-conv', 'rowConv');
 
                         checkStatus();
+                        loadMemo();
                     } else {
                         alert('상품 정보를 찾을 수 없습니다.');
                         location.href = 'client_list.html';
                     }
                 }
 
+                function renderTags(targetId, tags, cssClass, rowId) {
+                    const container = document.getElementById(targetId);
+                    const row = document.getElementById(rowId);
+                    container.innerHTML = '';
+                    if (tags && tags.length > 0) {
+                        tags.forEach(tag => {
+                            container.innerHTML += `<span class="tag-badge ${cssClass}">${tag}</span>`;
+                        });
+                        row.style.display = 'flex';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+
                 // 3. 버튼 상태 확인
                 function checkStatus() {
-                    // 즐겨찾기 확인
                     const favs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
                     const starBtn = document.getElementById('starBtn');
                     if (favs.includes(currentId)) {
@@ -425,10 +534,8 @@
                         starBtn.innerText = '☆';
                     }
 
-                    // 비교함 확인
                     const comps = JSON.parse(localStorage.getItem('myCompare') || '[]');
                     const compBtn = document.getElementById('compareBtn');
-
                     if (comps.includes(currentId)) {
                         compBtn.classList.add('active');
                         compBtn.innerText = '✔ 담기 완료';
@@ -441,16 +548,13 @@
                 // 4. 비교함 담기 기능
                 function toggleDetailCompare() {
                     let comps = JSON.parse(localStorage.getItem('myCompare') || '[]');
-                    const compBtn = document.getElementById('compareBtn'); // 이제 ID가 있어서 찾아짐
-
+                    const compBtn = document.getElementById('compareBtn');
                     if (comps.includes(currentId)) {
-                        // 제거
                         comps = comps.filter(id => id !== currentId);
                         compBtn.classList.remove('active');
                         compBtn.innerText = '+ 비교담기';
                         alert('비교함에서 제거했습니다.');
                     } else {
-                        // 추가
                         if (comps.length >= 3) {
                             alert('비교함에는 최대 3개까지만 담을 수 있습니다.');
                             return;
@@ -460,15 +564,13 @@
                         compBtn.innerText = '✔ 담기 완료';
                         alert('비교함에 담았습니다.');
                     }
-
                     localStorage.setItem('myCompare', JSON.stringify(comps));
                 }
 
-                // 5. [추가] 즐겨찾기 기능 (스크립트에 있으므로 추가)
+                // 5. 즐겨찾기 기능
                 function toggleDetailFav() {
                     let favs = JSON.parse(localStorage.getItem('myFavorites') || '[]');
                     const starBtn = document.getElementById('starBtn');
-
                     if (favs.includes(currentId)) {
                         favs = favs.filter(id => id !== currentId);
                         starBtn.classList.remove('active');
@@ -481,15 +583,30 @@
                     localStorage.setItem('myFavorites', JSON.stringify(favs));
                 }
 
-                // 실행
+                // 6. 메모 기능
+                function loadMemo() {
+                    const savedMemo = localStorage.getItem('memo_' + currentId);
+                    document.getElementById('memoInput').value = savedMemo || '';
+                }
+
+                function toggleMemo() {
+                    const btn = document.getElementById('memoBtn');
+                    const input = document.getElementById('memoInput');
+                    if (input.hasAttribute('readonly')) {
+                        input.removeAttribute('readonly');
+                        input.focus();
+                        btn.innerText = '메모 저장';
+                        btn.classList.add('saving');
+                    } else {
+                        localStorage.setItem('memo_' + currentId, input.value);
+                        input.setAttribute('readonly', true);
+                        btn.innerText = '메모 수정';
+                        btn.classList.remove('saving');
+                    }
+                }
+
                 initDetail();
             </script>
-
-            <!--
-                ========================================
-                화면별 컨텐츠 작성 영역 끝
-                ========================================
-            -->
 
         </div>
     </div>
@@ -508,23 +625,10 @@
 
     // 네비게이션 아이템 클릭 이벤트
     const navItems = document.querySelectorAll('.nav-item');
-
     navItems.forEach(item => {
         item.addEventListener('click', () => {
-            // 모든 아이템에서 active 클래스 제거
             navItems.forEach(nav => nav.classList.remove('active'));
-
-            // 클릭된 아이템에 active 클래스 추가
             item.classList.add('active');
-
-            // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
-            const screenName = item.getAttribute('data-screen');
-            console.log(`${screenName} 화면으로 이동`);
-
-            // 실제 프로젝트에서는 다음과 같이 사용:
-            // window.location.href = `${screenName}.html`;
-
-            // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
             if (window.innerWidth <= 768) {
                 sidebar.classList.add('hidden');
                 mainContent.classList.add('expanded');
@@ -532,7 +636,6 @@
         });
     });
 
-    // ESC 키로 사이드바 닫기
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
             sidebar.classList.add('hidden');

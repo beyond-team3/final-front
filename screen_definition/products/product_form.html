@@ -247,6 +247,7 @@
                     border: 1px solid #ddd;
                     border-radius: 4px;
                     font-size: 14px;
+                    background-color: white; /* select 박스 배경색 */
                 }
 
                 .input-text:focus {
@@ -349,9 +350,33 @@
             </div>
 
             <form id="productForm" class="form-section">
+
                 <div class="form-group">
                     <label>상품명 <span>*필수</span></label>
                     <input type="text" class="input-text" id="prodName" placeholder="상품명을 입력하세요">
+                </div>
+
+                <div class="form-group">
+                    <label>품목(카테고리) <span>*필수</span></label>
+                    <select id="prodCategory" class="input-text">
+                        <option value="">선택하세요</option>
+                        <option value="가지">가지</option>
+                        <option value="갓">갓</option>
+                        <option value="고추">고추</option>
+                        <option value="무">무</option>
+                        <option value="배추">배추</option>
+                        <option value="상추">상추</option>
+                        <option value="수박">수박</option>
+                        <option value="시금치">시금치</option>
+                        <option value="양파">양파</option>
+                        <option value="오이">오이</option>
+                        <option value="옥수수">옥수수</option>
+                        <option value="참외">참외</option>
+                        <option value="토마토">토마토</option>
+                        <option value="파">파</option>
+                        <option value="호박">호박</option>
+                        <option value="양배추">양배추</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -427,47 +452,41 @@
 
             <script>
                 // ----------------------------------------------------
-                // [데이터베이스] - 상세 페이지와 데이터 통일
+                // [데이터베이스] - category 필드 추가됨
                 // ----------------------------------------------------
                 const products = [
                     {
-                        id: 1,
-                        name: '베테랑 고추',
+                        id: 1, name: '베테랑 고추', category: '고추',
                         desc: '탄저병에 강하고 매운맛이 일품인 대표 품종입니다. 노지 재배에 적합합니다.',
                         img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?auto=format&fit=crop&w=400&q=80',
                         tags: ['노지', '탄저병', '매운맛', '조생종']
                     },
                     {
-                        id: 2,
-                        name: '꿀수박 1호',
+                        id: 2, name: '꿀수박 1호', category: '수박',
                         desc: '당도가 13Brix 이상 나오는 고당도 수박입니다. 하우스 재배용.',
                         img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80',
                         tags: ['시설하우스', '고당도', '대과종', '만생종']
                     },
                     {
-                        id: 3,
-                        name: '청정 오이',
+                        id: 3, name: '청정 오이', category: '오이',
                         desc: '아삭한 식감이 특징이며 저장성이 매우 우수합니다.',
                         img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?auto=format&fit=crop&w=400&q=80',
                         tags: ['시설하우스', '아삭함', '저장성우수', '내병성']
                     },
                     {
-                        id: 4,
-                        name: '햇살 토마토',
+                        id: 4, name: '햇살 토마토', category: '토마토',
                         desc: '붉은 빛깔이 선명하고 과육이 단단하여 유통에 유리합니다.',
                         img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80',
                         tags: ['시설하우스', '경도우수', '착색우수', '다수확']
                     },
                     {
-                        id: 5,
-                        name: '금싸라기 참외',
+                        id: 5, name: '금싸라기 참외', category: '참외',
                         desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.',
                         img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?auto=format&fit=crop&w=400&q=80',
                         tags: ['노지', '고당도', '아삭함', '향기']
                     },
                     {
-                        id: 6,
-                        name: '가을무 대장',
+                        id: 6, name: '가을무 대장', category: '무',
                         desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.',
                         img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?auto=format&fit=crop&w=400&q=80',
                         tags: ['노지', '김장용', '저장성우수', '내한성']
@@ -475,14 +494,13 @@
                 ];
 
                 // ----------------------------------------------------
-                // [초기화 로직] - DOM이 로드된 후 실행
+                // [초기화 로직]
                 // ----------------------------------------------------
                 document.addEventListener('DOMContentLoaded', function() {
                     const imageUrlInput = document.getElementById('imageUrl');
                     const previewImg = document.getElementById('previewImg');
                     const previewText = document.getElementById('previewText');
 
-                    // 이미지 미리보기 함수
                     window.loadImagePreview = function(url) {
                         if (url && url.trim() !== '') {
                             previewImg.src = url;
@@ -501,14 +519,12 @@
                         }
                     };
 
-                    // 입력 이벤트 연결
                     if(imageUrlInput) {
                         imageUrlInput.addEventListener('input', (e) => {
                             loadImagePreview(e.target.value.trim());
                         });
                     }
 
-                    // URL 파라미터 확인 및 데이터 채우기
                     const urlParams = new URLSearchParams(window.location.search);
                     const productId = urlParams.get('id');
 
@@ -523,30 +539,33 @@
                         const data = products.find(p => p.id === parseInt(productId));
 
                         if (data) {
+                            // [수정] 카테고리 값 바인딩
+                            document.getElementById('prodCategory').value = data.category;
+
                             document.getElementById('prodName').value = data.name;
                             document.getElementById('prodDesc').value = data.desc;
                             document.getElementById('imageUrl').value = data.img;
 
-                            // 이미지 로드
                             loadImagePreview(data.img);
 
-                            // 태그 체크
                             const allCheckboxes = document.querySelectorAll('.tag-item input[type="checkbox"]');
                             allCheckboxes.forEach(checkbox => {
                                 if (data.tags.includes(checkbox.value)) {
                                     checkbox.checked = true;
                                 }
                             });
-                        } else {
-                            console.error("해당 ID의 상품 데이터가 없습니다.");
                         }
                     }
-                    // 2. 신규 등록 모드 (임시저장 확인)
+                    // 2. 신규 등록 (임시저장)
                     else {
                         const savedDraft = localStorage.getItem('adminDraft');
                         if (savedDraft) {
                             if (confirm('작성 중이던 임시저장 데이터가 있습니다. 불러오시겠습니까?')) {
                                 const data = JSON.parse(savedDraft);
+
+                                // [수정] 카테고리 값 복구
+                                document.getElementById('prodCategory').value = data.category || '';
+
                                 document.getElementById('prodName').value = data.name || '';
                                 document.getElementById('prodDesc').value = data.desc || '';
                                 document.getElementById('imageUrl').value = data.imageUrl || '';
@@ -566,11 +585,11 @@
                 });
 
                 // ----------------------------------------------------
-                // [버튼 기능 함수들] - 전역 범위에서 호출 가능하도록 설정
+                // [버튼 핸들러]
                 // ----------------------------------------------------
-
                 function handleDraft() {
                     const draftData = {
+                        category: document.getElementById('prodCategory').value, // [수정] 카테고리 저장
                         name: document.getElementById('prodName').value,
                         desc: document.getElementById('prodDesc').value,
                         imageUrl: document.getElementById('imageUrl').value,
@@ -590,6 +609,14 @@
                 }
 
                 function validateForm() {
+                    // [수정] 카테고리 필수 체크
+                    const cat = document.getElementById('prodCategory').value;
+                    if (!cat) {
+                        alert('품목(카테고리)를 선택해주세요.');
+                        document.getElementById('prodCategory').focus();
+                        return false;
+                    }
+
                     const name = document.getElementById('prodName').value;
                     if (!name.trim()) {
                         alert('상품명은 필수 입력 사항입니다.');
