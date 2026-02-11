@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">계정 등록</h2>
+                
+                <!-- 
+                    ========================================
+                    여기부터 각 화면별 컨텐츠를 작성하세요
+                    ========================================
+                -->
+                <!-- 
+                    ========================================
+                    계정 등록 화면 컨텐츠
+                    (템플릿의 기존 스타일은 수정하지 않음)
+                    ========================================
+                -->
+
+                <div style="display:flex; justify-content:center; padding:20px 0;">
+                    <div style="
+                        width: 100%;
+                        max-width: 640px;
+                        border: 1px solid #dcdcdc;
+                        background: #f3f3f3;
+                        padding: 28px;
+                    ">
+                        <form id="accountRegisterForm">
+                            <div style="display:flex; flex-direction:column; gap:18px;">
+                                <div>
+                                    <label for="loginId" style="display:block; margin-bottom:8px; font-weight:600;">로그인 ID</label>
+                                    <input id="loginId" name="loginId" type="text" placeholder="로그인 ID 입력" required
+                                        style="width:100%; padding:10px; border:1px solid #cfcfcf; background:#fff;" />
+                                </div>
+
+                                <div>
+                                    <label for="loginPw" style="display:block; margin-bottom:8px; font-weight:600;">로그인 PW</label>
+                                    <input id="loginPw" name="loginPw" type="password" placeholder="비밀번호 입력" required
+                                        style="width:100%; padding:10px; border:1px solid #cfcfcf; background:#fff;" />
+                                </div>
+
+                                <div>
+                                    <label for="accountType" style="display:block; margin-bottom:8px; font-weight:600;">역할 (계정 타입)</label>
+                                    <select id="accountType" name="accountType" required
+                                        style="width:100%; padding:10px; border:1px solid #cfcfcf; background:#fff;">
+                                        <option value="" selected disabled>선택하세요</option>
+                                        <option value="CLIENT">거래처</option>
+                                        <option value="SALES">영업사원</option>
+                                        <option value="ADMIN">관리자</option>
+                                    </select>
+                                    <div style="margin-top:6px; font-size:12px; color:#666;">
+                                        계정 타입을 거래처/영업사원/관리자 중 하나로 선택할 수 있습니다.
+                                    </div>
+                                </div>
+
+                                <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+                                    <button type="submit"
+                                        style="padding:10px 16px; border:1px solid #bdbdbd; background:#e6e6e6; cursor:pointer;">
+                                        등록
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                    // 등록 버튼 클릭 시: 등록 요청을 보낸다 (프로토타입)
+                    (function () {
+                        const form = document.getElementById('accountRegisterForm');
+                        if (!form) return;
+
+                        form.addEventListener('submit', function (e) {
+                            e.preventDefault();
+
+                            const payload = {
+                                loginId: document.getElementById('loginId').value.trim(),
+                                loginPw: document.getElementById('loginPw').value,
+                                accountType: document.getElementById('accountType').value
+                            };
+
+                            if (!payload.loginId || !payload.loginPw || !payload.accountType) {
+                                alert('모든 항목을 입력/선택해주세요.');
+                                return;
+                            }
+
+                            // TODO: 실제 API로 교체
+                            // fetch('/api/v1/accounts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                            console.log('계정 등록 요청:', payload);
+                            alert('등록 요청을 보냈습니다. (프로토타입)');
+                            form.reset();
+                        });
+                    })();
+                </script>
+
+                <!-- 
+                    ========================================
+                    화면별 컨텐츠 작성 영역 끝
+                    ========================================
+                -->
+
+                
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>

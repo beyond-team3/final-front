@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">마이페이지(영업사원)</h2>
+
+                <div class="mypage-wrap">
+                    <!-- 중앙: 사원 정보 -->
+                    <div class="mypage-grid">
+                        <section class="info-card" aria-label="사원 정보">
+                            <div class="info-header">
+                                <h3 class="info-title">사원 정보</h3>
+                                <p class="info-desc">비밀번호는 표시되지 않습니다.</p>
+                            </div>
+
+                            <div class="info-table" role="table" aria-label="사원 정보 표">
+                                <div class="info-row" role="row">
+                                    <div class="info-th" role="cell">사원 ID</div>
+                                    <div class="info-td" role="cell" id="empId">EMP-2001</div>
+                                </div>
+                                <div class="info-row" role="row">
+                                    <div class="info-th" role="cell">사원명</div>
+                                    <div class="info-td" role="cell" id="empName">홍길동</div>
+                                </div>
+                                <div class="info-row" role="row">
+                                    <div class="info-th" role="cell">이메일</div>
+                                    <div class="info-td" role="cell" id="empEmail">hong@company.com</div>
+                                </div>
+                                <div class="info-row" role="row">
+                                    <div class="info-th" role="cell">전화번호</div>
+                                    <div class="info-td" role="cell" id="empPhone">010-1234-5678</div>
+                                </div>
+                                <div class="info-row" role="row">
+                                    <div class="info-th" role="cell">주소</div>
+                                    <div class="info-td" role="cell" id="empAddress">서울특별시 ○○구 ○○로 00</div>
+                                </div>
+                                <div class="info-row" role="row">
+                                    <div class="info-th" role="cell">권한</div>
+                                    <div class="info-td" role="cell"><span class="pill">영업사원</span></div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- 하단: 우측 비밀번호 수정 버튼 -->
+                    <div class="mypage-actions">
+                        <button type="button" class="btn-primary" id="openPwModalBtn">비밀번호 수정</button>
+                    </div>
+                </div>
+
+                <!-- 비밀번호 수정 모달 -->
+                <div class="modal-backdrop" id="pwModalBackdrop" aria-hidden="true"></div>
+
+                <div class="modal" id="pwModal" role="dialog" aria-modal="true" aria-labelledby="pwModalTitle" aria-hidden="true">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title" id="pwModalTitle">비밀번호 수정</h3>
+                            <button type="button" class="icon-btn" id="closePwModalBtn" aria-label="닫기">✕</button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label class="form-label" for="currentPw">기존 비밀번호</label>
+                                <input class="form-input" id="currentPw" type="password" placeholder="기존 비밀번호를 입력하세요" autocomplete="current-password" />
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="newPw">새 비밀번호</label>
+                                <input class="form-input" id="newPw" type="password" placeholder="새 비밀번호를 입력하세요" autocomplete="new-password" />
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="newPwConfirm">새 비밀번호 확인</label>
+                                <input class="form-input" id="newPwConfirm" type="password" placeholder="새 비밀번호를 다시 입력하세요" autocomplete="new-password" />
+                            </div>
+
+                            <p class="form-hint" id="pwHint" role="status" aria-live="polite"></p>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn-ghost" id="cancelPwModalBtn">취소</button>
+                            <button type="button" class="btn-primary" id="submitPwBtn">수정</button>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    /* 화면 전용(템플릿 기존 스타일은 건드리지 않음) */
+                    .mypage-wrap { display: flex; flex-direction: column; gap: 18px; }
+                    .mypage-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+
+                    .info-card {
+                        border: 1px solid #ecf0f1;
+                        border-radius: 10px;
+                        padding: 18px;
+                        background: #fff;
+                    }
+                    .info-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+                    .info-title { font-size: 18px; color: #2c3e50; }
+                    .info-desc { font-size: 13px; color: #7f8c8d; }
+
+                    .info-table {
+                        padding: 14px 16px;
+                        border: 1px solid #ecf0f1;
+                        border-radius: 10px;
+                        background: #fcfcfd;
+                    }
+                    .info-row {
+                        display: flex;
+                        align-items: baseline;
+                        gap: 10px;
+                        padding: 6px 0;
+                    }
+                    .info-th { font-weight: 600; color: #2c3e50; font-size: 14px; min-width: 120px; }
+                    .info-td { color: #34495e; font-size: 14px; line-height: 1.7; }
+
+                    .pill {
+                        display: inline-flex;
+                        align-items: center;
+                        padding: 4px 10px;
+                        border-radius: 999px;
+                        font-size: 12px;
+                        color: #2c3e50;
+                        background: rgba(52, 152, 219, 0.15);
+                        border: 1px solid rgba(52, 152, 219, 0.25);
+                    }
+
+                    .mypage-actions {
+                        display: flex;
+                        justify-content: flex-end; /* 하단 우측 */
+                        padding-top: 8px;
+                    }
+
+                    .btn-primary, .btn-ghost, .icon-btn {
+                        border: none;
+                        cursor: pointer;
+                        border-radius: 8px;
+                        transition: transform 0.05s ease, opacity 0.2s ease;
+                    }
+                    .btn-primary:active, .btn-ghost:active, .icon-btn:active { transform: translateY(1px); }
+
+                    .btn-primary {
+                        padding: 10px 14px;
+                        color: #fff;
+                        background: #3498db;
+                        font-weight: 600;
+                    }
+                    .btn-primary:hover { opacity: 0.92; }
+
+                    .btn-ghost {
+                        padding: 10px 14px;
+                        background: #ecf0f1;
+                        color: #2c3e50;
+                        font-weight: 600;
+                    }
+                    .btn-ghost:hover { opacity: 0.92; }
+
+                    /* 모달 */
+                    .modal-backdrop {
+                        position: fixed;
+                        inset: 0;
+                        background: rgba(0,0,0,0.35);
+                        z-index: 2000;
+                        display: none;
+                    }
+                    .modal {
+                        position: fixed;
+                        left: 50%;
+                        top: 50%;
+                        transform: translate(-50%, -50%);
+                        width: min(520px, calc(100vw - 32px));
+                        z-index: 2001;
+                        display: none;
+                    }
+                    .modal-content {
+                        background: #fff;
+                        border-radius: 12px;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+                        overflow: hidden;
+                    }
+                    .modal-header {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        padding: 14px 16px;
+                        border-bottom: 1px solid #ecf0f1;
+                    }
+                    .modal-title { font-size: 16px; color: #2c3e50; }
+                    .icon-btn {
+                        width: 34px; height: 34px;
+                        background: #ecf0f1;
+                        color: #2c3e50;
+                        font-size: 16px;
+                    }
+                    .modal-body { padding: 16px; display: grid; gap: 12px; }
+                    .form-group { display: grid; gap: 6px; }
+                    .form-label { font-size: 13px; font-weight: 600; color: #2c3e50; }
+                    .form-input {
+                        height: 40px;
+                        border: 1px solid #dfe6e9;
+                        border-radius: 8px;
+                        padding: 0 12px;
+                        outline: none;
+                        font-size: 14px;
+                    }
+                    .form-input:focus { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.15); }
+                    .form-hint { min-height: 18px; font-size: 12px; color: #7f8c8d; }
+
+                    .modal-footer {
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 10px;
+                        padding: 14px 16px;
+                        border-top: 1px solid #ecf0f1;
+                        background: #fff;
+                    }
+
+                    @media (max-width: 520px) {
+                        .info-row { grid-template-columns: 110px 1fr; }
+                    }
+                </style>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            const openBtn = document.getElementById('openPwModalBtn');
+            const modal = document.getElementById('pwModal');
+            const backdrop = document.getElementById('pwModalBackdrop');
+            const closeBtn = document.getElementById('closePwModalBtn');
+            const cancelBtn = document.getElementById('cancelPwModalBtn');
+            const submitBtn = document.getElementById('submitPwBtn');
+
+            const currentPw = document.getElementById('currentPw');
+            const newPw = document.getElementById('newPw');
+            const newPwConfirm = document.getElementById('newPwConfirm');
+            const hint = document.getElementById('pwHint');
+
+            function openModal() {
+                backdrop.style.display = 'block';
+                modal.style.display = 'block';
+                modal.setAttribute('aria-hidden', 'false');
+                backdrop.setAttribute('aria-hidden', 'false');
+                hint.textContent = '';
+                currentPw.value = '';
+                newPw.value = '';
+                newPwConfirm.value = '';
+                setTimeout(() => currentPw.focus(), 0);
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeModal() {
+                backdrop.style.display = 'none';
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+                backdrop.setAttribute('aria-hidden', 'true');
+                hint.textContent = '';
+                document.body.style.overflow = '';
+                openBtn.focus();
+            }
+
+            function validate() {
+                if (!currentPw.value || !newPw.value || !newPwConfirm.value) {
+                    hint.textContent = '모든 항목을 입력해주세요.';
+                    hint.style.color = '#7f8c8d';
+                    return false;
+                }
+                if (newPw.value !== newPwConfirm.value) {
+                    hint.textContent = '새 비밀번호와 확인 값이 일치하지 않습니다.';
+                    hint.style.color = '#e74c3c';
+                    return false;
+                }
+                if (newPw.value.length < 8) {
+                    hint.textContent = '새 비밀번호는 8자 이상을 권장합니다.';
+                    hint.style.color = '#e67e22';
+                    // 경고만 띄우고 진행 가능하게 하려면 true로 바꾸세요.
+                    return true;
+                }
+                hint.textContent = '';
+                return true;
+            }
+
+            openBtn.addEventListener('click', openModal);
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            backdrop.addEventListener('click', closeModal);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.style.display === 'block') closeModal();
+            });
+
+            submitBtn.addEventListener('click', () => {
+                if (!validate()) return;
+
+                // TODO: 실제 연동 시 여기에 API 호출 로직 추가
+                // 예) fetch('/api/v1/employee/password', { method:'PUT', body: ... })
+
+                hint.textContent = '비밀번호가 수정되었습니다.';
+                hint.style.color = '#27ae60';
+
+                // 데모용: 700ms 후 닫기
+                setTimeout(closeModal, 700);
+            });
+        })();
+    </script>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>

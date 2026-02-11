@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">계정 상세 조회</h2>
+
+                <!-- 계정 상세 -->
+                <div style="display:flex; flex-direction:column; gap:20px;">
+
+                  <!-- 상단: 계정 정보 카드 -->
+                  <section style="border:1px solid #ecf0f1; border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                      <div>
+                        <div style="font-size:18px; font-weight:700; color:#2c3e50;">계정 정보</div>
+                        <div style="margin-top:6px; color:#7f8c8d; font-size:13px;">
+                          계정 유형/ID/상태를 확인할 수 있습니다.
+                        </div>
+                      </div>
+
+                      <!-- 상태 배지 -->
+                      <div id="accountStatusBadge"
+                           style="display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; font-weight:700; font-size:13px; background:#e8f7ee; color:#1e8449;">
+                        <span id="accountStatusDot" style="width:8px; height:8px; border-radius:50%; background:#27ae60;"></span>
+                        <span id="accountStatusText">활성</span>
+                      </div>
+                    </div>
+
+                    <div style="margin-top:16px; display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px;">
+                      <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                        <div style="font-size:12px; color:#95a5a6; font-weight:700;">계정 유형</div>
+                        <div id="accountType" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">사원</div>
+                      </div>
+
+                      <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                        <div style="font-size:12px; color:#95a5a6; font-weight:700;">이름</div>
+                        <div id="accountName" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">김영업</div>
+                      </div>
+
+                      <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                        <div style="font-size:12px; color:#95a5a6; font-weight:700;">로그인 ID</div>
+                        <div id="loginId" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">emp_2001</div>
+                      </div>
+
+                      <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                        <div style="font-size:12px; color:#95a5a6; font-weight:700;">최근 업데이트</div>
+                        <div id="updatedAt" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">2026-02-11 10:00</div>
+                      </div>
+                    </div>
+
+                    <div style="margin-top:14px; padding:12px; border-radius:10px; border:1px dashed #dfe6e9; color:#636e72; font-size:13px; line-height:1.6;">
+                      * 사원/거래처 계정은 PW 수정이 가능하며, 상세 조회 화면에서는 기본 정보를 확인합니다.
+                    </div>
+                  </section>
+
+                  <!-- 하단: 우측 활성화 관리 버튼 -->
+                  <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+                    <button id="openActivationModalBtn"
+                            style="height:44px; padding:0 16px; border:none; border-radius:10px; background:#2c3e50; color:#fff; font-weight:800; cursor:pointer;">
+                      활성화 관리
+                    </button>
+                  </div>
+
+                </div>
+
+                <!-- 활성화/비활성화 모달 -->
+                <div id="activationModal"
+                     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center; padding:16px;">
+                  <div style="width:min(520px, 100%); background:#fff; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.2); overflow:hidden;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:#f6f8fa; border-bottom:1px solid #ecf0f1;">
+                      <div style="font-weight:800; color:#2c3e50;">활성화 상태 변경</div>
+                      <button id="closeActivationModalBtn"
+                              style="border:none; background:transparent; font-size:20px; cursor:pointer; color:#7f8c8d; padding:4px 8px;">
+                        ×
+                      </button>
+                    </div>
+
+                    <div style="padding:16px;">
+                      <div style="color:#7f8c8d; font-size:13px; line-height:1.6;">
+                        변경할 상태를 선택하세요. 선택 후 확인(OK) 시 상태가 변경됩니다.
+                      </div>
+
+                      <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
+                        <label style="display:flex; align-items:center; gap:10px; padding:12px; border:1px solid #dfe6e9; border-radius:10px; cursor:pointer;">
+                          <input type="radio" name="activationState" value="ACTIVE" checked>
+                          <div>
+                            <div style="font-weight:800; color:#2c3e50;">활성</div>
+                            <div style="font-size:12px; color:#95a5a6; margin-top:2px;">로그인 및 기능 사용 가능</div>
+                          </div>
+                        </label>
+
+                        <label style="display:flex; align-items:center; gap:10px; padding:12px; border:1px solid #dfe6e9; border-radius:10px; cursor:pointer;">
+                          <input type="radio" name="activationState" value="INACTIVE">
+                          <div>
+                            <div style="font-weight:800; color:#2c3e50;">비활성</div>
+                            <div style="font-size:12px; color:#95a5a6; margin-top:2px;">로그인 제한(관리 목적)</div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:10px; padding:14px 16px; border-top:1px solid #ecf0f1; background:#fff;">
+                      <button id="cancelActivationBtn"
+                              style="height:40px; padding:0 14px; border:1px solid #dfe6e9; border-radius:10px; background:#fff; cursor:pointer; font-weight:800; color:#2c3e50;">
+                        취소
+                      </button>
+                      <button id="applyActivationBtn"
+                              style="height:40px; padding:0 14px; border:none; border-radius:10px; background:#27ae60; color:#fff; cursor:pointer; font-weight:900;">
+                        적용
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <script>
+                  // ====== 상태 관리(프로토타입) ======
+                  let currentStatus = "ACTIVE"; // ACTIVE | INACTIVE
+
+                  function renderStatus() {
+                    const badge = document.getElementById("accountStatusBadge");
+                    const dot = document.getElementById("accountStatusDot");
+                    const text = document.getElementById("accountStatusText");
+
+                    if (currentStatus === "ACTIVE") {
+                      badge.style.background = "#e8f7ee";
+                      badge.style.color = "#1e8449";
+                      dot.style.background = "#27ae60";
+                      text.textContent = "활성";
+                    } else {
+                      badge.style.background = "#fdecea";
+                      badge.style.color = "#a93226";
+                      dot.style.background = "#e74c3c";
+                      text.textContent = "비활성";
+                    }
+                  }
+
+                  // ====== 활성화 관리 모달 ======
+                  const modal = document.getElementById("activationModal");
+
+                  function openModal() {
+                    // 현재 상태에 맞춰 라디오 반영
+                    const activeRadio = modal.querySelector('input[name="activationState"][value="ACTIVE"]');
+                    const inactiveRadio = modal.querySelector('input[name="activationState"][value="INACTIVE"]');
+                    if (currentStatus === "ACTIVE") activeRadio.checked = true;
+                    else inactiveRadio.checked = true;
+
+                    modal.style.display = "flex";
+                  }
+
+                  function closeModal() {
+                    modal.style.display = "none";
+                  }
+
+                  document.getElementById("openActivationModalBtn").addEventListener("click", openModal);
+                  document.getElementById("closeActivationModalBtn").addEventListener("click", closeModal);
+                  document.getElementById("cancelActivationBtn").addEventListener("click", closeModal);
+
+                  // 바깥 클릭 시 닫기
+                  modal.addEventListener("click", (e) => {
+                    if (e.target === modal) closeModal();
+                  });
+
+                  // 적용 버튼: confirm(팝업) 후 상태 변경
+                  document.getElementById("applyActivationBtn").addEventListener("click", () => {
+                    const selected = modal.querySelector('input[name="activationState"]:checked').value;
+                    const nextStatus = selected === "ACTIVE" ? "ACTIVE" : "INACTIVE";
+
+                    const ok = window.confirm("선택한 상태로 변경할까요?");
+                    if (!ok) return;
+
+                    currentStatus = nextStatus;
+                    renderStatus();
+                    closeModal();
+                  });
+
+                  // 초기 렌더
+                  renderStatus();
+                </script>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>
