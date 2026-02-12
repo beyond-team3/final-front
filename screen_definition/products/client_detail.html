@@ -442,38 +442,136 @@
             </div>
 
             <script>
-                // 1. 데이터 (상세 속성 분리)
+                // ----------------------------------------------------
+                // [데이터베이스 시뮬레이션] - 총 9개 품종 데이터
+                // ----------------------------------------------------
                 const products = [
                     {
-                        id: 1, name: '베테랑', category: '고추', desc: '탄저병에 강하고 매운맛이 일품.\n노지 재배에 최적화된 품종입니다.',
-                        img: 'https://images.unsplash.com/photo-1596502202029-281b37f44d82?w=600',
-                        env: ['노지'], res: ['탄저병'], growth: ['조생종'], quality: ['매운맛'], conv: []
+                        id: 1,
+                        name: "신녹광고추",
+                        category: "고추",
+                        desc: "녹광의 상품성과 맛이 더 좋아진 맛있는 고추입니다. 바이러스에 특히 강합니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1596502202029-281b37f44d82?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["노지", "시설하우스"],
+                            res: ["탄저병", "바이러스", "역병"],
+                            growth: ["조생종"],
+                            quality: ["고당도", "착색우수"],
+                            conv: ["초세강", "착과용이"]
+                        }
                     },
                     {
-                        id: 2, name: '꿀수박 1호', category: '수박', desc: '13Brix 이상 고당도 수박.\n하우스 재배 시 당도가 더욱 올라갑니다.',
-                        img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600',
-                        env: ['시설하우스'], res: [], growth: ['만생종'], quality: ['고당도', '대과종'], conv: []
+                        id: 2,
+                        name: "꿀모닝참외",
+                        category: "참외",
+                        desc: "아삭한 식감과 높은 당도를 자랑하는 대표 참외 품종입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1449300079323-02e209d9d3a6?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["시설하우스", "가정원예"],
+                            res: ["시들음병"],
+                            growth: ["중생종"],
+                            quality: ["고당도", "저장성우수", "대과종"],
+                            conv: ["밀식적응"]
+                        }
                     },
                     {
-                        id: 3, name: '청정 오이', category: '오이', desc: '아삭한 식감, 저장성 우수.\n병충해에 강해 재배가 쉽습니다.',
-                        img: 'https://images.unsplash.com/photo-1604543501314-7d522513476d?w=600',
-                        env: ['시설하우스'], res: ['내병성'], growth: [], quality: ['아삭함', '저장성우수'], conv: []
+                        id: 3,
+                        name: "티탄대파",
+                        category: "파",
+                        desc: "추위에 강하고 연백부가 길어 상품성이 우수한 겨울 대파입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1618426569766-4c478df852bb?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["노지", "고랭지"],
+                            res: ["무름병"],
+                            growth: ["만생종"],
+                            quality: ["저장성우수"],
+                            conv: ["초세강", "작업용이"]
+                        }
                     },
                     {
-                        id: 4, name: '햇살 토마토', category: '토마토', desc: '단단한 과육, 붉은 빛깔.\n유통 과정에서 무르지 않아 상인들이 선호합니다.',
-                        img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600',
-                        env: ['시설하우스'], res: [], growth: [], quality: ['경도우수', '적색'], conv: ['다수확']
+                        id: 4,
+                        name: "스피드꿀수박",
+                        category: "수박",
+                        desc: "저온기 비대력이 우수하고 당도가 13Brix 이상 나오는 고품질 수박입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["시설하우스"],
+                            res: ["탄저병", "역병"],
+                            growth: ["조생종", "극조생"],
+                            quality: ["고당도", "대과종"],
+                            conv: ["착과용이"]
+                        }
                     },
                     {
-                        id: 5, name: '금싸라기', category: '참외', desc: '껍질이 얇고 아삭하며 향이 진한 전통 참외 품종.',
-                        img: 'https://images.unsplash.com/photo-1598446219958-450f68202456?w=400',
-                        env: ['노지'], res: [], growth: [], quality: ['고당도', '아삭함', '향기'], conv: []
+                        id: 5,
+                        name: "불암3호배추",
+                        category: "배추",
+                        desc: "속이 노랗고 맛이 고소하며, 김장용으로 가장 인기가 많은 배추입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["노지"],
+                            res: ["무름병", "바이러스"],
+                            growth: ["중생종"],
+                            quality: ["저장성우수", "대과종"],
+                            conv: ["재배용이"]
+                        }
                     },
                     {
-                        id: 6, name: '가을무 대장', category: '무', desc: '김장용으로 적합하며 시원한 맛이 특징인 가을 무.',
-                        img: 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=400',
-                        env: ['노지'], res: [], growth: [], quality: ['김장용', '저장성우수'], conv: ['내한성']
+                        id: 6,
+                        name: "청정백다다기오이",
+                        category: "오이",
+                        desc: "쓴맛이 없고 과형이 바르며 수확량이 많은 다수확 오이 품종입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1449300079323-02e209d9d3a6?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["시설하우스", "가정원예"],
+                            res: ["바이러스"],
+                            growth: ["조생종"],
+                            quality: ["저장성우수", "착색우수"],
+                            conv: ["착과용이", "밀식적응"]
+                        }
                     },
+                    {
+                        id: 7,
+                        name: "청운무",
+                        category: "무",
+                        desc: "뿌리가 매끈하고 바람들이가 적어 저장성이 매우 뛰어난 가을 무입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1592187270271-9a4b84faa228?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["노지", "고랭지"],
+                            res: ["시들음병"],
+                            growth: ["만생종"],
+                            quality: ["저장성우수", "대과종"],
+                            conv: ["작업용이"]
+                        }
+                    },
+                    {
+                        id: 8,
+                        name: "썸머킹토마토",
+                        category: "토마토",
+                        desc: "여름철 고온기에도 착과가 잘 되고 단단하여 유통성이 좋은 완숙 토마토입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["시설하우스"],
+                            res: ["시들음병", "바이러스", "역병"],
+                            growth: ["중생종"],
+                            quality: ["고당도", "저장성우수"],
+                            conv: ["초세강"]
+                        }
+                    },
+                    {
+                        id: 9,
+                        name: "대학찰옥수수",
+                        category: "옥수수",
+                        desc: "껍질이 얇아 식감이 부드럽고 쫀득쫀득한 맛이 일품인 찰옥수수입니다.",
+                        imageUrl: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=400&q=80",
+                        tags: {
+                            env: ["노지", "가정원예"],
+                            res: [],
+                            growth: ["조생종"],
+                            quality: ["고당도"],
+                            conv: ["초세강", "밀식적응"]
+                        }
+                    }
                 ];
 
                 let currentId = null;
