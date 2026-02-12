@@ -175,7 +175,7 @@
             <div class="nav-item" data-screen="screen1">화면 1</div>
             <div class="nav-item" data-screen="screen2">화면 2</div>
             <div class="nav-item" data-screen="screen3">화면 3</div>
-            
+
             <div class="nav-category">설정</div>
             <div class="nav-item" data-screen="settings">설정</div>
             <div class="nav-item" data-screen="profile">프로필</div>
@@ -197,7 +197,6 @@
                       <div>
                         <div style="font-size:18px; font-weight:700; color:#2c3e50;">계정 정보</div>
                         <div style="margin-top:6px; color:#7f8c8d; font-size:13px;">
-                          계정 유형/ID/상태를 확인할 수 있습니다.
                         </div>
                       </div>
 
@@ -212,18 +211,33 @@
                     <div style="margin-top:16px; display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px;">
                       <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
                         <div style="font-size:12px; color:#95a5a6; font-weight:700;">계정 유형</div>
-                        <div id="accountType" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">사원</div>
+                        <div id="accountType" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">영업사원</div>
                       </div>
 
                       <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
                         <div style="font-size:12px; color:#95a5a6; font-weight:700;">이름</div>
-                        <div id="accountName" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">김영업</div>
+                        <div id="empName" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">김영업</div>
                       </div>
 
                       <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
                         <div style="font-size:12px; color:#95a5a6; font-weight:700;">로그인 ID</div>
-                        <div id="loginId" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">emp_2001</div>
+                        <div id="empId" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">emp_2001</div>
                       </div>
+
+                    <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                        <div style="font-size:12px; color:#95a5a6; font-weight:700;">이메일</div>
+                        <div id="empEmail" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">hong@company.com</div>
+                    </div>
+
+                    <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                        <div style="font-size:12px; color:#95a5a6; font-weight:700;">전화번호</div>
+                        <div id="empPhone" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">010-1234-5678</div>
+                    </div>
+
+                    <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                        <div style="font-size:12px; color:#95a5a6; font-weight:700;">주소</div>
+                        <div id="empAddress" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">서울특별시 ○○구 ○○로 00</div>
+                    </div>
 
                       <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
                         <div style="font-size:12px; color:#95a5a6; font-weight:700;">최근 업데이트</div>
@@ -231,9 +245,6 @@
                       </div>
                     </div>
 
-                    <div style="margin-top:14px; padding:12px; border-radius:10px; border:1px dashed #dfe6e9; color:#636e72; font-size:13px; line-height:1.6;">
-                      * 사원/거래처 계정은 PW 수정이 가능하며, 상세 조회 화면에서는 기본 정보를 확인합니다.
-                    </div>
                   </section>
 
                   <!-- 하단: 우측 활성화 관리 버튼 -->
@@ -260,7 +271,7 @@
 
                     <div style="padding:16px;">
                       <div style="color:#7f8c8d; font-size:13px; line-height:1.6;">
-                        변경할 상태를 선택하세요. 선택 후 확인(OK) 시 상태가 변경됩니다.
+                        변경할 상태를 선택하세요. 선택 후 적용 시 상태가 변경됩니다.
                       </div>
 
                       <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
@@ -376,22 +387,22 @@
 
         // 네비게이션 아이템 클릭 이벤트
         const navItems = document.querySelectorAll('.nav-item');
-        
+
         navItems.forEach(item => {
             item.addEventListener('click', () => {
                 // 모든 아이템에서 active 클래스 제거
                 navItems.forEach(nav => nav.classList.remove('active'));
-                
+
                 // 클릭된 아이템에 active 클래스 추가
                 item.classList.add('active');
-                
+
                 // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
                 const screenName = item.getAttribute('data-screen');
                 console.log(`${screenName} 화면으로 이동`);
-                
+
                 // 실제 프로젝트에서는 다음과 같이 사용:
                 // window.location.href = `${screenName}.html`;
-                
+
                 // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
                 if (window.innerWidth <= 768) {
                     sidebar.classList.add('hidden');
