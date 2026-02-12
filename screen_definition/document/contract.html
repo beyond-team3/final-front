@@ -28,13 +28,10 @@
         /* 보드 레이아웃 */
         .doc-board-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
         .doc-card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.3s; }
-        /* 견적서 카드 등 비활성화용 스타일 */
-        .doc-card.disabled { cursor: default; opacity: 0.8; }
-        .doc-card:not(.disabled):hover { transform: translateY(-5px); border-color: #3498db; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .doc-card:hover { transform: translateY(-5px); border-color: #3498db; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         .doc-card i { font-size: 40px; color: #3498db; margin-bottom: 15px; display: block; font-style: normal; }
-        .doc-card.disabled i { color: #bdc3c7; }
 
-        /* 문서 작성 공통 레이아웃 */
+        /* 입력 섹션 */
         #contractWriteTab { display: none; gap: 25px; align-items: flex-start; }
         .input-section { flex: 1.2; display: flex; flex-direction: column; gap: 20px; }
         .card { background: white; border: 1px solid #eee; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
@@ -47,12 +44,13 @@
         /* 폼 컨트롤 */
         .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #fdfdfd; margin-bottom: 10px; }
         .form-control[readonly] { background: #f1f3f5; color: #555; cursor: not-allowed; font-weight: 600; }
+        .edit-input { width: 100%; padding: 6px; border: 1px solid #3498db; border-radius: 4px; text-align: center; }
 
-        /* 버튼 */
         .btn { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; }
         .btn-primary { background: #3498db; color: white; }
         .btn-success { background: #2ecc71; color: white; }
         .btn-secondary { background: #95a5a6; color: white; }
+        .btn-danger { background: #e74c3c; color: white; padding: 4px 8px; font-size: 12px; }
 
         /* PDF 미리보기 */
         .preview-section { width: 500px; position: sticky; top: 0; }
@@ -70,231 +68,245 @@
     </style>
 </head>
 <body>
-    <header class="header">
-        <button class="menu-button" onclick="toggleSidebar()">☰</button>
-        <h1 class="header-title">종자 영업 관리 시스템</h1>
-    </header>
+<header class="header">
+    <button class="menu-button" onclick="toggleSidebar()">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
 
-    <aside class="sidebar" id="sidebar">
-        <nav class="sidebar-nav">
-            <div class="nav-category">영업 관리</div>
-            <div class="nav-item active">영업 문서 작성</div>
-        </nav>
-    </aside>
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">영업 관리</div>
+        <div class="nav-item active">영업 문서 작성</div>
+    </nav>
+</aside>
 
-    <main class="main-content" id="mainContent">
-        <div class="content-wrapper">
-            <div class="screen-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 class="screen-title" id="mainTitle" style="margin:0;">영업 문서 작성 (영업사원)</h2>
-                    <button id="backBtn" class="btn btn-secondary" style="display:none;" onclick="location.reload()">뒤로가기</button>
-                </div>
+<main class="main-content" id="mainContent">
+    <div class="content-wrapper">
+        <div class="screen-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 class="screen-title" id="mainTitle" style="margin:0;">영업 문서 작성 (영업사원)</h2>
+                <button id="backBtn" class="btn btn-secondary" style="display:none;" onclick="location.reload()">뒤로가기</button>
+            </div>
 
-                <div id="mainBoard">
-                    <div class="doc-board-container">
-                        <div class="doc-card" onclick="alert('준비 중')">
-                            <i>📄</i>
-                            <h3>견적서 작성</h3>
-                            <p>요청서 선택 또는 신규 견적</p>
-                        </div>
-                        <div class="doc-card" onclick="openModal('approvedQuotationModal')">
-                            <i>🤝</i>
-                            <h3>계약서 작성</h3>
-                            <p>계약서 작성</p>
-                        </div>
-                        <div class="doc-card" onclick="alert('준비 중')">
-                            <i>💵</i>
-                            <h3>청구서 작성</h3>
-                            <p>(준비중)</p>
-                        </div>
-
-                    </div>
-                </div>
-
-                <div id="contractWriteTab">
-                    <div class="input-section">
-                        <div class="card">
-                            <h3 style="font-size: 16px; margin-bottom:15px;">① 선택된 견적 정보</h3>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                                <input type="text" id="conInCorp" class="form-control" placeholder="법인명" readonly>
-                                <input type="text" id="conInName" class="form-control" placeholder="담당자" readonly>
-                                <input type="text" id="conInNo" class="form-control" placeholder="견적번호" readonly>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <h3 style="font-size: 16px; margin-bottom:15px;">② 계약 정보 설정</h3>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div>
-                                    <label style="font-size:12px; color:#666;">계약 시작일</label>
-                                    <input type="date" id="conStartDate" class="form-control" oninput="syncContractPDF()">
-                                </div>
-                                <div>
-                                    <label style="font-size:12px; color:#666;">계약 종료일</label>
-                                    <input type="date" id="conEndDate" class="form-control" oninput="syncContractPDF()">
-                                </div>
-                                <div style="grid-column: span 2;">
-                                    <label style="font-size:12px; color:#666;">청구 주기</label>
-                                    <select id="conBillingCycle" class="form-control" onchange="syncContractPDF()">
-                                        <option value="월">월 단위 청구</option>
-                                        <option value="분기">분기 단위 청구</option>
-                                        <option value="반기">반기 단위 청구</option>
-                                    </select>
-                                </div>
-                                <div style="grid-column: span 2;">
-                                    <label style="font-size:12px; color:#666;">특약 사항</label>
-                                    <textarea id="conSpecialTerms" class="form-control" rows="3" style="resize:none;" oninput="syncContractPDF()"></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <h3 style="font-size: 16px; margin-bottom:15px;">③ 계약 상품 (견적 기준 고정)</h3>
-                            <div class="product-list-wrapper">
-                                <table class="product-table">
-                                    <thead><tr><th>상품명</th><th>수량</th><th>단위</th><th>단가</th><th>금액</th></tr></thead>
-                                    <tbody id="conProductList"></tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <h3 style="font-size: 16px;">내부 비고 (미출력)</h3>
-                            <textarea id="conInternalMemo" class="form-control" rows="2" style="margin-top:10px; resize:none; border-left:4px solid #e74c3c;" placeholder="PDF에 반영되지 않는 내부 메모입니다."></textarea>
-                        </div>
-
-                        <div style="display:flex; gap:10px;">
-                            <button class="btn btn-secondary" style="flex:1; padding:15px;" onclick="alert('임시 저장되었습니다.')">임시 저장</button>
-                            <button class="btn btn-success" style="flex:2; padding:15px; font-size:16px;" onclick="submitContract()">계약서 생성 완료 (PDF 확정)</button>
-                        </div>
-                    </div>
-
-                    <div class="preview-section">
-                        <div class="pdf-viewer">
-                            <div class="pdf-page" id="contractPdfPage">
-                                <div class="pdf-header"><h1>물 품 공 급 계 약 서</h1></div>
-                                <div style="margin-bottom:20px; line-height:1.8;">
-                                    <p><strong>계약상대자 (갑):</strong> <span id="outConCorp" style="border-bottom:1px solid #000;">(빈값)</span></p>
-                                    <p><strong>계약상대자 (을):</strong> (주) 종자월드</p>
-                                    <p><strong>계약기간:</strong> <span id="outConPeriod" style="font-weight:bold;">____-__-__ ~ ____-__-__</span></p>
-                                    <p><strong>청구주기:</strong> <span id="outConCycle">월 단위 청구</span></p>
-                                </div>
-                                <table class="pdf-table">
-                                    <thead style="background:#f5f5f5;">
-                                        <tr>
-                                            <th>상품명</th>
-                                            <th>수량</th>
-                                            <th>단가</th> <th>단위</th>
-                                            <th>금액</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="outConTableBody"></tbody>
-                                    <tfoot>
-                                        <tr style="background:#eee; font-weight:bold;">
-                                            <td colspan="4">총 계약 합계 (VAT 별도)</td>
-                                            <td id="outConTotal" style="text-align:right;">0</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                                <div style="margin-top:20px;">
-                                    <p><strong>[특약사항]</strong></p>
-                                    <p id="outConSpecial" style="min-height:60px; font-style:italic; white-space:pre-wrap;"></p>
-                                </div>
-                                <div style="position:absolute; bottom:50px; left:0; right:0; text-align:center;">
-                                    <p>2026년 02월 10일</p>
-                                    <p style="margin-top:20px; font-weight:bold; font-size:14px;">위 계약의 내용을 증명하기 위해 기명 날인함</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div id="mainBoard">
+                <div class="doc-board-container">
+                    <div class="doc-card" onclick="alert('준비 중')"><i>📄</i><h3>견적서 작성</h3><p>요청서 선택 또는 신규 견적</p></div>
+                    <div class="doc-card" onclick="openModal('approvedQuotationModal')"><i>🤝</i><h3>계약서 작성</h3><p>계약서 작성</p></div>
+                    <div class="doc-card" onclick="alert('준비 중')"><i>💵</i><h3>청구서 작성</h3><p>(준비중)</p></div>
                 </div>
             </div>
-        </div>
-    </main>
 
-    <div id="approvedQuotationModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header"><h3>승인된 견적서 조회</h3><span style="cursor:pointer;" onclick="closeModal('approvedQuotationModal')">&times;</span></div>
-            <div class="modal-body">
-                <p style="font-size:13px; color:#666;">* 계약서는 승인 완료된 견적서로만 작성이 가능함돠.</p>
-                <table class="product-table">
-                    <thead><tr><th>견적번호</th><th>법인명</th><th>담당자</th><th>최종금액</th><th>선택</th></tr></thead>
-                    <tbody>
-                        <tr>
-                            <td>QT-2026-001</td>
-                            <td>(주) 강남종자</td>
-                            <td>김철수</td>
-                            <td>1,500,000</td>
-                            <td><button class="btn btn-primary" onclick="startContract('QT-2026-001', '(주) 강남종자', '김철수', 1500000)">선택</button></td>
-                        </tr>
-                        <tr>
-                            <td>QT-2026-005</td>
-                            <td>대박농산</td>
-                            <td>이영희</td>
-                            <td>800,000</td>
-                            <td><button class="btn btn-primary" onclick="startContract('QT-2026-005', '대박농산', '이영희', 800000)">선택</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div id="contractWriteTab">
+                <div class="input-section">
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h3 style="font-size: 16px;">① 선택된 정보 (거래처 및 견적)</h3>
+                            <button id="newCorpBtn" class="btn btn-primary" style="display:none; font-size:12px;" onclick="openModal('corpSelectModal')">거래처 선택</button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr; gap: 10px;">
+                            <div><label style="font-size:11px; color:#666;">거래처 코드</label><input type="text" id="conInCorpCode" class="form-control" placeholder="코드" readonly></div>
+                            <div><label style="font-size:11px; color:#666;">법인명</label><input type="text" id="conInCorp" class="form-control" placeholder="법인명" readonly oninput="syncContractPDF()"></div>
+                            <div><label style="font-size:11px; color:#666;">담당자</label><input type="text" id="conInName" class="form-control" placeholder="담당자" readonly oninput="syncContractPDF()"></div>
+                            <div><label style="font-size:11px; color:#666;">견적번호</label><input type="text" id="conInNo" class="form-control" placeholder="-" readonly></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="font-size: 16px; margin-bottom:15px;">② 계약 정보 설정</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div><label style="font-size:12px; color:#666;">계약 시작일</label><input type="date" id="conStartDate" class="form-control" oninput="syncContractPDF()"></div>
+                            <div><label style="font-size:12px; color:#666;">계약 종료일</label><input type="date" id="conEndDate" class="form-control" oninput="syncContractPDF()"></div>
+                            <div style="grid-column: span 2;"><label style="font-size:12px; color:#666;">청구 주기</label><select id="conBillingCycle" class="form-control" onchange="syncContractPDF()"><option value="월">월 단위 청구</option><option value="분기">분기 단위 청구</option><option value="반기">반기 단위 청구</option></select></div>
+                            <div style="grid-column: span 2;"><label style="font-size:12px; color:#666;">특약 사항</label><textarea id="conSpecialTerms" class="form-control" rows="3" style="resize:none;" oninput="syncContractPDF()"></textarea></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h3 style="font-size: 16px;">③ 계약 상품 명세</h3>
+                            <button id="searchProductBtn" class="btn btn-primary" style="display:none; font-size:12px;" onclick="openProductModal()">+ 상품 검색</button>
+                        </div>
+                        <div class="product-list-wrapper">
+                            <table class="product-table">
+                                <thead><tr><th>상품명</th><th>수량</th><th>단위</th><th>단가</th><th>삭제</th></tr></thead>
+                                <tbody id="conProductList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="font-size: 16px;">비고</h3>
+                        <textarea id="conInternalMemo" class="form-control" rows="3" style="margin-top:10px; resize:none; border-left:4px solid #e74c3c;" placeholder="pdf에는 표시가 안됩니다."></textarea>
+                    </div>
+
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-success" style="flex:2; padding:15px; font-size:16px;" onclick="submitContract()">계약서 생성 완료</button>
+                    </div>
+                </div>
+
+                <div class="preview-section">
+                    <div class="pdf-viewer">
+                        <div class="pdf-page" id="contractPdfPage">
+                            <div class="pdf-header"><h1>물 품 공 급 계 약 서</h1></div>
+                            <div style="margin-bottom:20px; line-height:1.8;">
+                                <p><strong>계약상대자 (갑):</strong> <span id="outConCorp" style="border-bottom:1px solid #000;">(빈값)</span></p>
+                                <p><strong>계약상대자 (을):</strong> (주) 종자월드</p>
+                                <p><strong>계약기간:</strong> <span id="outConPeriod">____-__-__ ~ ____-__-__</span></p>
+                                <p><strong>청구주기:</strong> <span id="outConCycle">월 단위 청구</span></p>
+                            </div>
+                            <table class="pdf-table">
+                                <thead style="background:#f5f5f5;"><tr><th>상품명</th><th>수량</th><th>단가</th><th>금액</th></tr></thead>
+                                <tbody id="outConTableBody"></tbody>
+                                <tfoot><tr style="background:#eee; font-weight:bold;"><td colspan="3">총 계약 합계 (VAT 별도)</td><td id="outConTotal" style="text-align:right;">0</td></tr></tfoot>
+                            </table>
+                            <div style="margin-top:20px;">
+                                <p><strong>[특약사항]</strong></p>
+                                <p id="outConSpecial" style="min-height:60px; font-style:italic; white-space:pre-wrap;"></p>
+                            </div>
+                            <div style="position:absolute; bottom:50px; left:0; right:0; text-align:center;">
+                                <p>2026년 02월 13일</p>
+                                <p style="margin-top:20px; font-weight:bold; font-size:14px;">위 계약의 내용을 증명하기 위해 기명 날인함</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+</main>
 
-    <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('hidden');
-            document.getElementById('mainContent').classList.toggle('expanded');
+<div id="approvedQuotationModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>작성 방식 선택</h3><span style="cursor:pointer;" onclick="closeModal('approvedQuotationModal')">&times;</span></div><div class="modal-body"><table class="product-table"><thead><tr><th>견적번호</th><th>법인명</th><th>담당자</th><th>최종금액</th><th>선택</th></tr></thead><tbody><tr><td>QT-2026-001</td><td>(주) 강남종자</td><td>김철수</td><td>1,500,000</td><td><button class="btn btn-primary" onclick="startContract('QT-2026-001', 'C-001', '(주) 강남종자', '김철수')">선택</button></td></tr></tbody></table><button class="btn btn-success" style="width:100%; margin-top:15px; padding:12px;" onclick="startNewContract()">+ 계약서 신규 생성</button></div></div></div>
+
+<div id="corpSelectModal" class="modal"><div class="modal-content" style="width:500px;"><div class="modal-header"><h3>거래처 조회</h3><span style="cursor:pointer;" onclick="closeModal('corpSelectModal')">&times;</span></div><div class="modal-body"><table class="product-table"><thead><tr><th>코드</th><th>법인명</th><th>담당자</th><th>선택</th></tr></thead><tbody><tr><td>AG-001</td><td>경기대리점</td><td>박사장</td><td><button class="btn btn-primary" onclick="setCorp('AG-001','경기대리점', '박사장')">선택</button></td></tr></tbody></table></div></div></div>
+
+<div id="productSearchModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>상품 검색</h3><span style="cursor:pointer;" onclick="closeModal('productSearchModal')">&times;</span></div><div class="modal-body"><input type="text" id="modalSearchInput" class="form-control" placeholder="상품명 입력" oninput="handleProductSearch()"><div class="product-list-wrapper"><table class="product-table"><thead><tr><th>품종</th><th>상품명</th><th>단위</th><th>단가</th><th>선택</th></tr></thead><tbody id="modalProductTableBody"></tbody></table></div></div></div></div>
+
+<script>
+    const PRODUCT_MASTER = [
+        { id: 101, variety: '고추', product: '불지옥', unit: 'kg', price: 150000 },
+        { id: 102, variety: '고추', product: '청양골', unit: 'kg', price: 120000 },
+        { id: 103, variety: '토마토', product: '레드킹', unit: 'kg', price: 280000 }
+    ];
+    let isNewMode = false;
+    let selectedItems = [];
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('hidden'); document.getElementById('mainContent').classList.toggle('expanded'); }
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function startNewContract() {
+        isNewMode = true;
+        closeModal('approvedQuotationModal');
+        document.getElementById('mainBoard').style.display = 'none';
+        document.getElementById('contractWriteTab').style.display = 'flex';
+        document.getElementById('backBtn').style.display = 'block';
+        document.getElementById('mainTitle').innerText = "영업 문서 작성 > 계약서 (신규 생성)";
+
+        document.getElementById('newCorpBtn').style.display = 'block';
+        document.getElementById('searchProductBtn').style.display = 'block';
+
+        document.getElementById('conInCorpCode').value = "";
+        document.getElementById('conInCorp').value = "";
+        document.getElementById('conInName').value = "";
+        document.getElementById('conInNo').value = "";
+        selectedItems = [];
+        renderProductList();
+    }
+
+    function startContract(no, code, corp, name) {
+        isNewMode = false;
+        closeModal('approvedQuotationModal');
+        document.getElementById('mainBoard').style.display = 'none';
+        document.getElementById('contractWriteTab').style.display = 'flex';
+        document.getElementById('backBtn').style.display = 'block';
+        document.getElementById('newCorpBtn').style.display = 'none';
+        document.getElementById('searchProductBtn').style.display = 'none';
+
+        document.getElementById('conInCorpCode').value = code;
+        document.getElementById('conInCorp').value = corp;
+        document.getElementById('conInName').value = name;
+        document.getElementById('conInNo').value = no;
+
+        selectedItems = [{ uid: Date.now(), name: "불지옥 고추 종자", qty: 10, unit: "팩", price: 150000 }];
+        renderProductList();
+    }
+
+    function setCorp(code, corp, name) {
+        document.getElementById('conInCorpCode').value = code;
+        document.getElementById('conInCorp').value = corp;
+        document.getElementById('conInName').value = name;
+        syncContractPDF();
+        closeModal('corpSelectModal');
+    }
+
+    function openProductModal() { openModal('productSearchModal'); handleProductSearch(); }
+
+    function handleProductSearch() {
+        const keyword = document.getElementById('modalSearchInput').value.toLowerCase();
+        const filtered = PRODUCT_MASTER.filter(p => p.product.toLowerCase().includes(keyword));
+        document.getElementById('modalProductTableBody').innerHTML = filtered.map(p => `
+                <tr><td>${p.variety}</td><td>${p.product}</td><td>${p.unit}</td><td>${p.price.toLocaleString()}</td>
+                <td><button class="btn btn-primary" onclick="addProduct('${p.product}', '${p.unit}', ${p.price})">선택</button></td></tr>`).join('');
+    }
+
+    function addProduct(name, unit, price) {
+        const existingItem = selectedItems.find(item => item.name === name);
+
+        if (existingItem) {
+            // 2. 있으면 수량만 +1 !
+            existingItem.qty += 1;
+        } else {
+            // 3. 없으면 새로 한 줄 추가!
+            selectedItems.push({ uid: Date.now(), name, qty: 1, unit, price });
         }
 
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        renderProductList();
+        closeModal('productSearchModal');
+    }
 
-        function startContract(no, corp, name, total) {
-            closeModal('approvedQuotationModal');
-            document.getElementById('mainBoard').style.display = 'none';
-            document.getElementById('contractWriteTab').style.display = 'flex';
-            document.getElementById('backBtn').style.display = 'block';
-            document.getElementById('mainTitle').innerText = "영업 문서 작성 > 계약서";
+    function updateQty(uid, val) {
+        const item = selectedItems.find(i => i.uid === uid);
+        if(item) item.qty = parseInt(val) || 0;
+        renderProductList();
+    }
 
-            document.getElementById('conInCorp').value = corp;
-            document.getElementById('conInName').value = name;
-            document.getElementById('conInNo').value = no;
+    function removeItem(uid) {
+        selectedItems = selectedItems.filter(i => i.uid !== uid);
+        renderProductList();
+    }
 
-            const mockItems = [
-                {name: "불지옥 고추 종자", qty: 10, unit: "팩", price: 150000}
-            ];
-            
-            let html = "";
-            let outHtml = "";
-            mockItems.forEach(item => {
-                const sum = item.qty * item.price;
-                html += `<tr><td>${item.name}</td><td>${item.qty}</td><td>${item.unit}</td><td>${item.price.toLocaleString()}</td><td>${sum.toLocaleString()}</td></tr>`;
-                outHtml += `<tr><td>${item.name}</td><td>${item.qty}</td><td style="text-align:right;">${item.price.toLocaleString()}</td><td>${item.unit}</td><td style="text-align:right;">${sum.toLocaleString()}</td></tr>`;
-            });
-            
-            document.getElementById('conProductList').innerHTML = html;
-            document.getElementById('outConTableBody').innerHTML = outHtml;
-            document.getElementById('outConTotal').innerText = total.toLocaleString();
+    function renderProductList() {
+        document.getElementById('conProductList').innerHTML = selectedItems.map(p => `
+                <tr><td>${p.name}</td><td>${isNewMode ? `<input type="number" class="edit-input" value="${p.qty}" oninput="updateQty(${p.uid}, this.value)">` : p.qty}</td>
+                <td>${p.unit}</td><td>${p.price.toLocaleString()}</td><td>${isNewMode ? `<button class="btn btn-danger" onclick="removeItem(${p.uid})">X</button>` : '-'}</td></tr>`).join('');
+        syncContractPDF();
+    }
 
-            syncContractPDF();
-        }
+    function syncContractPDF() {
+        document.getElementById('outConCorp').innerText = document.getElementById('conInCorp').value || "(빈값)";
+        const start = document.getElementById('conStartDate').value || "____-__-__";
+        const end = document.getElementById('conEndDate').value || "____-__-__";
+        document.getElementById('outConPeriod').innerText = `${start} ~ ${end}`;
+        document.getElementById('outConCycle').innerText = document.getElementById('conBillingCycle').value + " 단위 청구";
+        document.getElementById('outConSpecial').innerText = document.getElementById('conSpecialTerms').value;
 
-        function syncContractPDF() {
-            document.getElementById('outConCorp').innerText = document.getElementById('conInCorp').value;
-            const start = document.getElementById('conStartDate').value || "____-__-__";
-            const end = document.getElementById('conEndDate').value || "____-__-__";
-            document.getElementById('outConPeriod').innerText = `${start} ~ ${end}`;
-            document.getElementById('outConCycle').innerText = document.getElementById('conBillingCycle').value + " 단위 청구";
-            document.getElementById('outConSpecial').innerText = document.getElementById('conSpecialTerms').value;
-        }
+        let outHtml = "";
+        let total = 0;
+        selectedItems.forEach(p => {
+            const sum = p.qty * p.price;
+            total += sum;
+            outHtml += `<tr><td>${p.name}</td><td>${p.qty}</td><td style="text-align:right;">${p.price.toLocaleString()}</td><td style="text-align:right;">${sum.toLocaleString()}</td></tr>`;
+        });
+        document.getElementById('outConTableBody').innerHTML = outHtml;
+        document.getElementById('outConTotal').innerText = total.toLocaleString();
+    }
 
-        function submitContract() {
-            if(!document.getElementById('conStartDate').value || !document.getElementById('conEndDate').value) {
-                return alert("계약 기간을 정확히 입력해주십쇼, 행님!");
-            }
-            alert("계약서 작성이 완료되었슴돠!");
-            location.reload();
-        }
-    </script>
+    function submitContract() {
+        if(!document.getElementById('conInCorp').value) return alert("거래처 정보를 완성해주세요.");
+        if(selectedItems.length === 0) return alert("계약할 상품을 하나라도 골라주세요.");
+        alert("계약서 작성이 완료되었습니다.");
+        location.reload();
+    }
+</script>
 </body>
 </html>

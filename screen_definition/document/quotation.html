@@ -119,6 +119,7 @@
                                 <button id="newCorpBtn" class="btn btn-primary" style="display:none;" onclick="openModal('corpSelectModal')">거래처 선택</button>
                             </div>
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <input type="text" id="inCorpCode" class="form-control" placeholder="거래처 코드" readonly>
                                 <input type="text" id="inCorp" class="form-control" placeholder="법인명" readonly>
                                 <input type="text" id="inName" class="form-control" placeholder="담당자" readonly>
                             </div>
@@ -205,10 +206,10 @@
             <div class="modal-header"><h3>거래처 조회</h3><span style="cursor:pointer;" onclick="closeModal('corpSelectModal')">&times;</span></div>
             <div class="modal-body">
                 <table class="product-table">
-                    <thead><tr><th>법인명</th><th>담당자</th><th>선택</th></tr></thead>
+                    <thead><tr><th>거래처 코드</th><th>법인명</th><th>담당자</th><th>선택</th></tr></thead>
                     <tbody>
-                        <tr><td>경기대리점</td><td>박사장</td><td><button class="btn btn-primary" onclick="setCorp('경기대리점', '박사장')">선택</button></td></tr>
-                        <tr><td>중앙육묘장</td><td>최대표</td><td><button class="btn btn-primary" onclick="setCorp('중앙육묘장', '최대표')">선택</button></td></tr>
+                        <tr><td>AG-001</td><td>경기대리점</td><td>박사장</td><td><button class="btn btn-primary" onclick="setCorp('AG-001','경기대리점', '박사장')">선택</button></td></tr>
+                        <tr><td>Nur-001</td><td>중앙육묘장</td><td>최대표</td><td><button class="btn btn-primary" onclick="setCorp('Nur-001','중앙육묘장', '최대표')">선택</button></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -241,14 +242,14 @@
 
     <script>
         const PRODUCT_MASTER = [
-            { id: 101, variety: '고추', product: '불지옥', unit: '팩', price: 15000 },
-            { id: 102, variety: '고추', product: '청양골', unit: '팩', price: 12000 },
+            { id: 101, variety: '고추', product: '불지옥', unit: 'kg', price: 15000 },
+            { id: 102, variety: '고추', product: '청양골', unit: 'kg', price: 12000 },
             { id: 103, variety: '토마토', product: '레드킹', unit: 'kg', price: 28000 },
-            { id: 104, variety: '배추', product: '항암배추', unit: '포기', price: 35000 }
+            { id: 104, variety: '배추', product: '항암배추', unit: '립', price: 35000 }
         ];
 
         const REQUEST_MASTER = [
-            { id: 'R01', corp: '(주)그린상사', manager: '이대리', date: '2026-02-09', status: '대기중', 
+            { id: 'R01', corp: '(주)그린상사', manager: '이대리', date: '2026-02-09', status: '대기중',
               items: [{ variety: '고추', name: '불지옥', count: 10, unit: '팩', price: 15000 }] }
         ];
 
@@ -259,8 +260,8 @@
             document.getElementById('mainContent').classList.toggle('expanded');
         }
 
-        function openModal(id) { 
-            document.getElementById(id).style.display = 'flex'; 
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
             if(id === 'entryModal') renderRequestList();
         }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -283,23 +284,24 @@
             document.getElementById('mainBoard').style.display = 'none';
             document.getElementById('quotationWriteTab').style.display = 'flex';
             document.getElementById('backBtn').style.display = 'block';
-            
+
             document.getElementById('searchProductBtn').style.display = isNew ? 'block' : 'none';
             document.getElementById('newCorpBtn').style.display = isNew ? 'block' : 'none';
-            
+
             document.getElementById('inCorp').value = corp;
             document.getElementById('inName').value = name;
-            
+
             const today = new Date();
             today.setDate(today.getDate() + 30);
             document.getElementById('outValidity').innerText = today.toISOString().split('T')[0] + " 까지";
 
-            if(isNew) selectedItems = []; 
+            if(isNew) selectedItems = [];
             render();
             syncPDF();
         }
 
-        function setCorp(corp, name) {
+        function setCorp(corpCode, corp, name) {
+            document.getElementById('inCorpCode').value = corpCode;
             document.getElementById('inCorp').value = corp;
             document.getElementById('inName').value = name;
             syncPDF();
@@ -328,7 +330,7 @@
             const filterVal = document.getElementById('varietyFilter').value;
             const keyword = document.getElementById('modalSearchInput').value.toLowerCase();
             const filtered = PRODUCT_MASTER.filter(p => (filterVal === '전체' || p.variety === filterVal) && p.product.toLowerCase().includes(keyword));
-            
+
             const tbody = document.getElementById('modalProductTableBody');
             if (filtered.length === 0) {
                 tbody.innerHTML = ''; document.getElementById('noResultMessage').style.display = 'block';
@@ -342,7 +344,9 @@
 
         function addItem(id) {
             const m = PRODUCT_MASTER.find(item => item.id === id);
-            selectedItems.push({ uid: Date.now(), variety: m.variety, name: m.product, count: 1, unit: m.unit, price: m.price });
+            // 단위가 'kg'가 아니면 '립'으로 기본 설정
+            const unit = m.unit === 'kg' ? 'kg' : '립';
+            selectedItems.push({ uid: Date.now(), variety: m.variety, name: m.product, count: 1, unit: unit, price: m.price });
             render();
             closeModal('productSearchModal');
         }
@@ -369,7 +373,12 @@
             list.innerHTML = selectedItems.map(p => `
                 <tr><td>${p.variety}</td><td>${p.name}</td>
                     <td><input type="number" class="edit-input" value="${p.count}" oninput="updateItem(${p.uid}, 'count', this.value)"></td>
-                    <td><input type="text" class="edit-input" value="${p.unit}" oninput="updateItem(${p.uid}, 'unit', this.value)"></td>
+                    <td>
+                        <select class="edit-input" onchange="updateItem(${p.uid}, 'unit', this.value)">
+                            <option value="립" ${p.unit === '립' ? 'selected' : ''}>립</option>
+                            <option value="kg" ${p.unit === 'kg' ? 'selected' : ''}>kg</option>
+                        </select>
+                    </td>
                     <td><input type="number" class="edit-input" value="${p.price}" oninput="updateItem(${p.uid}, 'price', this.value)"></td>
                     <td><button class="btn btn-danger" onclick="removeItem(${p.uid})">삭제</button></td></tr>`).join('');
 
