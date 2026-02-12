@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>프로토타입 메인 틀</title>
     <style>
+
         * {
             margin: 0;
             padding: 0;
@@ -159,7 +160,9 @@
             }
         }
     
-        /* ====== 새 거래처 등록 폼 ====== */
+
+/* Page Specific Styles */
+/* ====== 새 거래처 등록 폼 ====== */
         .form-section {
             margin-top: 18px;
         }
@@ -239,6 +242,7 @@
         @media (max-width: 900px) {
             .form-grid { grid-template-columns: 1fr; }
         }
+
 
 </style>
 </head>
@@ -346,6 +350,7 @@
     </main>
 
     <script>
+
         // 사이드바 토글 기능
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
@@ -373,6 +378,26 @@
                 
                 // 실제 프로젝트에서는 다음과 같이 사용:
                 // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    
+
+// Page Specific Scripts
+// window.location.href = `${screenName}.html`;
                 
                 // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
                 if (window.innerWidth <= 768) {
@@ -432,6 +457,7 @@
                 alert('등록 요청을 전송했습니다.');
             });
         }
+
 
 </script>
 </body>
