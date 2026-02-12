@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상품 피드백 커뮤니티</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f0f2f5;
+            /* 채팅 배경색 */
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #95a5a6;
+        }
+
+        /* 메인 컨텐츠 (채팅방) */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            background-color: #f0f2f5;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        /* 채팅 영역 */
+        .chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .chat-header-bar {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .prod-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .prod-thumb {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid #eee;
+        }
+
+        .prod-text h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: #2c3e50;
+        }
+
+        .prod-text p {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        /* 말풍선 스타일 */
+        .message-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            max-width: 80%;
+        }
+
+        .message-row.mine {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sender-name {
+            font-size: 12px;
+            color: #555;
+            margin-left: 4px;
+        }
+
+        .message-row.mine .sender-name {
+            text-align: right;
+            margin-right: 4px;
+        }
+
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-row.other .bubble {
+            background-color: white;
+            color: #333;
+            border-top-left-radius: 0;
+        }
+
+        .message-row.mine .bubble {
+            background-color: #3498db;
+            color: white;
+            border-top-right-radius: 0;
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        .message-row.mine .timestamp {
+            text-align: right;
+        }
+
+        /* 하단 입력창 (읽기 전용 느낌 or 추가 작성 가능) */
+        .input-area {
+            background: white;
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            height: 40px;
+            padding: 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        .btn-send {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">메뉴</div>
+        <div class="nav-item" onclick="location.href='client_list.html'">상품 목록</div>
+        <div class="nav-item">대시보드</div>
+    </nav>
+</aside>
+
+<main class="main-content" id="mainContent">
+    <!-- 상단 info bar -->
+    <div class="chat-header-bar">
+        <div class="prod-info">
+            <img id="prodImg" src="" class="prod-thumb" alt="thumb">
+            <div class="prod-text">
+                <h3 id="prodName">상품명</h3>
+                <p>영업사원 피드백 커뮤니티</p>
+            </div>
+        </div>
+        <button onclick="history.back()"
+                style="padding: 6px 12px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">
+            돌아가기
+        </button>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <!-- Messages will be injected here -->
+    </div>
+
+    <div class="input-area">
+        <input type="text" class="chat-input" id="chatInput" placeholder="피드백을 입력하세요...">
+        <button class="btn-send" onclick="sendMessage()">➤</button>
+    </div>
+</main>
+
+<script>
+    // Layout Toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('expanded');
+    });
+
+    // ----------------------------------------------------
+    // [데이터베이스 시뮬레이션] - 총 9개 품종 데이터
+    // ----------------------------------------------------
+    const products = [
+        {
+            id: 1,
+            name: "신녹광고추",
+            category: "고추",
+            desc: "녹광의 상품성과 맛이 더 좋아진 맛있는 고추입니다. 바이러스에 특히 강합니다.",
+            imageUrl: "https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcTXarHBtY4ycc6_OO6P7ADhGiOTy3Gw8fFRtiVaBXWEkp4oPq_FSdIbwy7PevaHmAnTkux5yNePTZpOKrd-zqoADFy5yHmotVHe0k4FAlS8jmyw3QJCnI-j9Vn1J8UWMfdiEQKesyQ-sw&usqp=CAc",
+            tags: {
+                env: ["노지", "시설하우스"],
+                res: ["탄저병", "바이러스", "역병"],
+                growth: ["조생종"],
+                quality: ["고당도", "착색우수"],
+                conv: ["초세강", "착과용이"]
+            }
+        },
+        {
+            id: 2,
+            name: "꿀모닝참외",
+            category: "참외",
+            desc: "아삭한 식감과 높은 당도를 자랑하는 대표 참외 품종입니다.",
+            imageUrl: "https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcRGvd3_RLVbBKJLcPAJGu3ymEAksIvzBkYjWCGFOIR_TOHjvSdiuWh-5ZhqM_2PWj7SrDqDsdVYN2tSL3dpXiDtgJlU1uIp-zf2wwnHld0&usqp=CAc",
+            tags: {
+                env: ["시설하우스", "가정원예"],
+                res: ["시들음병"],
+                growth: ["중생종"],
+                quality: ["고당도", "저장성우수", "대과종"],
+                conv: ["밀식적응"]
+            }
+        },
+        {
+            id: 3,
+            name: "티탄대파",
+            category: "파",
+            desc: "추위에 강하고 연백부가 길어 상품성이 우수한 겨울 대파입니다.",
+            imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSlLNlCjAjSVZLBVNv_mOfjkB2KrHcx71T2TA&s",
+            tags: {
+                env: ["노지", "고랭지"],
+                res: ["무름병"],
+                growth: ["만생종"],
+                quality: ["저장성우수"],
+                conv: ["초세강", "작업용이"]
+            }
+        },
+        {
+            id: 4,
+            name: "스피드꿀수박",
+            category: "수박",
+            desc: "저온기 비대력이 우수하고 당도가 13Brix 이상 나오는 고품질 수박입니다.",
+            imageUrl: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80",
+            tags: {
+                env: ["시설하우스"],
+                res: ["탄저병", "역병"],
+                growth: ["조생종", "극조생"],
+                quality: ["고당도", "대과종"],
+                conv: ["착과용이"]
+            }
+        },
+        {
+            id: 5,
+            name: "불암3호배추",
+            category: "배추",
+            desc: "속이 노랗고 맛이 고소하며, 김장용으로 가장 인기가 많은 배추입니다.",
+            imageUrl: "https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?auto=format&fit=crop&w=400&q=80",
+            tags: {
+                env: ["노지"],
+                res: ["무름병", "바이러스"],
+                growth: ["중생종"],
+                quality: ["저장성우수", "대과종"],
+                conv: ["재배용이"]
+            }
+        },
+        {
+            id: 6,
+            name: "청정백다다기오이",
+            category: "오이",
+            desc: "쓴맛이 없고 과형이 바르며 수확량이 많은 다수확 오이 품종입니다.",
+            imageUrl: "https://images.unsplash.com/photo-1449300079323-02e209d9d3a6?auto=format&fit=crop&w=400&q=80",
+            tags: {
+                env: ["시설하우스", "가정원예"],
+                res: ["바이러스"],
+                growth: ["조생종"],
+                quality: ["저장성우수", "착색우수"],
+                conv: ["착과용이", "밀식적응"]
+            }
+        },
+        {
+            id: 7,
+            name: "청운무",
+            category: "무",
+            desc: "뿌리가 매끈하고 바람들이가 적어 저장성이 매우 뛰어난 가을 무입니다.",
+            imageUrl: "https://images.unsplash.com/photo-1592187270271-9a4b84faa228?auto=format&fit=crop&w=400&q=80",
+            tags: {
+                env: ["노지", "고랭지"],
+                res: ["시들음병"],
+                growth: ["만생종"],
+                quality: ["저장성우수", "대과종"],
+                conv: ["작업용이"]
+            }
+        },
+        {
+            id: 8,
+            name: "썸머킹토마토",
+            category: "토마토",
+            desc: "여름철 고온기에도 착과가 잘 되고 단단하여 유통성이 좋은 완숙 토마토입니다.",
+            imageUrl: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=400&q=80",
+            tags: {
+                env: ["시설하우스"],
+                res: ["시들음병", "바이러스", "역병"],
+                growth: ["중생종"],
+                quality: ["고당도", "저장성우수"],
+                conv: ["초세강"]
+            }
+        },
+        {
+            id: 9,
+            name: "대학찰옥수수",
+            category: "옥수수",
+            desc: "껍질이 얇아 식감이 부드럽고 쫀득쫀득한 맛이 일품인 찰옥수수입니다.",
+            imageUrl: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=400&q=80",
+            tags: {
+                env: ["노지", "가정원예"],
+                res: [],
+                growth: ["조생종"],
+                quality: ["고당도"],
+                conv: ["초세강", "밀식적응"]
+            }
+        }
+    ];
+
+    // Mock Messages from other sales
+    const mockMessages = [
+        {sender: '김철수 대리', content: '이 품종은 작년 대비 수확량이 20% 늘었네요. 농가 만족도가 높습니다.', time: '오전 10:30', isMine: false},
+        {sender: '이영희 과장', content: '탄저병 저항성이 확실히 좋네요. 추천할만 합니다.', time: '오후 1:15', isMine: false},
+        {sender: '박민수 사원', content: '가격 경쟁력이 조금 아쉽다는 의견이 있습니다.', time: '오후 2:40', isMine: false}
+    ];
+
+    let currentId = 1;
+
+    function initChat() {
+        const urlParams = new URLSearchParams(window.location.search);
+        currentId = parseInt(urlParams.get('id')) || 1;
+        const role = urlParams.get('role'); // unused but present
+
+        const product = products.find(p => p.id === currentId);
+        if (product) {
+            document.getElementById('prodName').innerText = product.name;
+            document.getElementById('prodImg').src = product.img;
+        }
+
+        const container = document.getElementById('chatContainer');
+        container.innerHTML = '';
+
+        // 1. Load mock messages
+        mockMessages.forEach(msg => {
+            appendMessage(msg.sender, msg.content, msg.time, msg.isMine);
+        });
+
+        // 2. Load my saved feedback from Detail Page
+        const myFeedback = localStorage.getItem('memo_' + currentId);
+        if (myFeedback) {
+            appendMessage('나', myFeedback, '방금 전', true);
+        }
+
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function appendMessage(sender, text, time, isMine) {
+        const container = document.getElementById('chatContainer');
+        const row = document.createElement('div');
+        row.className = `message-row ${isMine ? 'mine' : 'other'}`;
+
+        const profileHtml = isMine ? '' : `<div class="profile-pic">👤</div>`;
+
+        row.innerHTML = `
+                ${profileHtml}
+                <div class="message-content">
+                    <span class="sender-name">${sender}</span>
+                    <div class="bubble">${text}</div>
+                    <span class="timestamp">${time}</span>
+                </div>
+            `;
+        container.appendChild(row);
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        // 추가 메시지 전송 (로컬 스토리지 업데이트는 선택사항, 여기선 그냥 채팅창에만 추가)
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        appendMessage('나', text, time, true);
+
+        // 기존 메모에 덧붙이기? (원하면 구현)
+        // let existing = localStorage.getItem('memo_' + currentId) || '';
+        // localStorage.setItem('memo_' + currentId, existing ? existing + '\n' + text : text);
+
+        input.value = '';
+        const container = document.getElementById('chatContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Enter key to send
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    window.onload = initChat;
+</script>
+</body>
+
+</html>
