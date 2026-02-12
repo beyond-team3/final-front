@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>즐겨찾기 목록</title>
+    <title>상품 피드백 커뮤니티</title>
     <style>
-
         * {
             margin: 0;
             padding: 0;
@@ -16,167 +15,10 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
             height: 100vh;
             overflow: hidden;
+            background-color: #f0f2f5;
         }
 
-        /* 헤더 */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background-color: #2c3e50;
-            color: white;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .menu-button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px 12px;
-            margin-right: 20px;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-
-        .menu-button:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .header-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        /* 사이드바 */
-        .sidebar {
-            position: fixed;
-            top: 60px;
-            left: 0;
-            width: 250px;
-            height: calc(100vh - 60px);
-            background-color: #34495e;
-            color: white;
-            transition: transform 0.3s ease;
-            z-index: 999;
-            overflow-y: auto;
-        }
-
-        .sidebar.hidden {
-            transform: translateX(-100%);
-        }
-
-        .sidebar-nav {
-            padding: 20px 0;
-        }
-
-        .nav-item {
-            padding: 12px 20px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            border-left: 3px solid transparent;
-        }
-
-        .nav-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-left-color: #3498db;
-        }
-
-        .nav-item.active {
-            background-color: rgba(52, 152, 219, 0.3);
-            border-left-color: #3498db;
-        }
-
-        .nav-category {
-            padding: 20px 20px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: #95a5a6;
-            letter-spacing: 0.5px;
-        }
-
-        /* 메인 컨텐츠 영역 */
-        .main-content {
-            position: fixed;
-            top: 60px;
-            left: 250px;
-            right: 0;
-            height: calc(100vh - 60px);
-            transition: left 0.3s ease;
-            overflow-y: auto;
-            background-color: #ecf0f1;
-        }
-
-        .main-content.expanded {
-            left: 0;
-        }
-
-        .content-wrapper {
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
-        .screen-content {
-            background-color: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            min-height: 500px;
-        }
-
-        .screen-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #ecf0f1;
-        }
-
-        /* 반응형 */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                max-width: 280px;
-            }
-
-            .main-content {
-                left: 0;
-            }
-
-            .sidebar:not(.hidden) ~ .main-content {
-                filter: brightness(0.7);
-                pointer-events: none;
-            }
-        }
-    
-
-/* Page Specific Styles */
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
-            height: 100vh;
-            overflow: hidden;
-            background-color: #f5f6fa;
-        }
-
-        /* 헤더 */
+        /* 헤더 & 사이드바 (공통 스타일) */
         .header {
             position: fixed;
             top: 0;
@@ -200,7 +42,6 @@
             cursor: pointer;
             padding: 8px 12px;
             margin-right: 20px;
-            border-radius: 4px;
         }
 
         .header-title {
@@ -208,7 +49,6 @@
             font-weight: 600;
         }
 
-        /* 사이드바 */
         .sidebar {
             position: fixed;
             top: 60px;
@@ -226,8 +66,12 @@
             transform: translateX(-100%);
         }
 
-        .sidebar-nav {
-            padding: 20px 0;
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #95a5a6;
+            text-transform: uppercase;
         }
 
         .nav-item {
@@ -247,15 +91,7 @@
             border-left-color: #3498db;
         }
 
-        .nav-category {
-            padding: 20px 20px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #95a5a6;
-            text-transform: uppercase;
-        }
-
-        /* 메인 컨텐츠 */
+        /* 채팅 레이아웃 */
         .main-content {
             position: fixed;
             top: 60px;
@@ -263,157 +99,158 @@
             right: 0;
             height: calc(100vh - 60px);
             transition: left 0.3s ease;
-            overflow-y: auto;
-            background-color: #ecf0f1;
+            display: flex;
+            flex-direction: column;
+            background-color: #f0f2f5;
         }
 
         .main-content.expanded {
             left: 0;
         }
 
-        .content-wrapper {
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .screen-content {
-            background-color: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            min-height: 500px;
-        }
-
-        .screen-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 15px;
-        }
-
-        /* 즐겨찾기 페이지 스타일 */
-        .client-header {
+        .chat-header-bar {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
             display: flex;
-            justify-content: flex-end;
-            margin-bottom: 20px;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .btn-back {
-            padding: 8px 16px;
-            background: #95a5a6;
+        .prod-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .prod-thumb {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid #eee;
+        }
+
+        .prod-text h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: #2c3e50;
+        }
+
+        .prod-text p {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            max-width: 80%;
+        }
+
+        .message-row.mine {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sender-name {
+            font-size: 12px;
+            color: #555;
+            margin-left: 4px;
+        }
+
+        .message-row.mine .sender-name {
+            text-align: right;
+            margin-right: 4px;
+        }
+
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-row.other .bubble {
+            background-color: white;
+            color: #333;
+            border-top-left-radius: 0;
+        }
+
+        .message-row.mine .bubble {
+            background-color: #3498db;
+            color: white;
+            border-top-right-radius: 0;
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        .message-row.mine .timestamp {
+            text-align: right;
+        }
+
+        .input-area {
+            background: white;
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            height: 40px;
+            padding: 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        .btn-send {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3498db;
             color: white;
             border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        .btn-back:hover {
-            background: #7f8c8d;
-        }
-
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 24px;
-        }
-
-        /* [수정됨] 상품 카드 (목록 화면과 통일) */
-        .product-card {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
             display: flex;
-            flex-direction: column;
-            position: relative;
-            height: 380px;
-        }
-
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
-        }
-
-        /* 상단 이미지 영역 */
-        .card-image-wrapper {
-            width: 100%;
-            height: 200px;
-            background-color: #fafafa;
-            position: relative;
-        }
-
-        .card-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* 별표 삭제 버튼 */
-        .star-fixed {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            font-size: 24px;
-            color: #f1c40f;
-            z-index: 10;
-            cursor: pointer;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-            transition: transform 0.2s;
-        }
-
-        .star-fixed:hover {
-            transform: scale(1.1);
-        }
-
-        /* 하단 텍스트 영역 */
-        .card-content {
-            padding: 20px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            border-top: 1px solid #f0f0f0;
-        }
-
-        .prod-cat {
-            font-size: 13px;
-            color: #3498db;
-            font-weight: 700;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-        }
-
-        .prod-name {
-            font-size: 18px;
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 12px;
-        }
-
-        .prod-desc {
-            font-size: 14px;
-            color: #7f8c8d;
-            line-height: 1.6;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-        }
-
-        .empty-msg {
-            width: 100%;
-            text-align: center;
-            padding: 80px 0;
-            color: #95a5a6;
-            font-size: 16px;
-            grid-column: 1 / -1;
+            align-items: center;
+            justify-content: center;
         }
 
         @media (max-width: 768px) {
@@ -425,51 +262,51 @@
             .main-content {
                 left: 0;
             }
-
-            .sidebar:not(.hidden) ~ .main-content {
-                filter: brightness(0.7);
-                pointer-events: none;
-            }
         }
-    
-</style>
+    </style>
 </head>
 <body>
 
 <header class="header">
-        <button class="menu-button" id="menuToggle">☰</button>
-        <h1 class="header-title">종자 영업 관리 시스템</h1>
-    </header>
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
 
 <aside class="sidebar" id="sidebar">
     <nav class="sidebar-nav">
         <div class="nav-category">상품 관리</div>
-        <div class="nav-item" onclick="location.href='admin_list.html'">상품 목록</div>
-        <div class="nav-item active" onclick="location.href='admin_favorites.html'">즐겨찾기 목록</div>
+        <div class="nav-item" onclick="location.href='client_list.html'">상품 목록</div>
+        <div class="nav-item">주문 관리</div>
         <div class="nav-category">시스템</div>
         <div class="nav-item">설정</div>
     </nav>
 </aside>
 
 <main class="main-content" id="mainContent">
-    <div class="content-wrapper">
-        <div class="screen-content">
-            <h2 class="screen-title">즐겨찾기</h2>
-
-            <div class="client-header">
-                <button class="btn-back" onclick="location.href='admin_list.html'">전체 목록으로</button>
-            </div>
-
-            <div class="product-grid" id="favGrid">
+    <div class="chat-header-bar">
+        <div class="prod-info">
+            <img id="prodImg" src="" class="prod-thumb" alt="thumb">
+            <div class="prod-text">
+                <h3 id="prodName">상품명</h3>
+                <p>영업사원 피드백 커뮤니티</p>
             </div>
         </div>
+        <button onclick="history.back()"
+                style="padding: 6px 12px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">
+            돌아가기
+        </button>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+    </div>
+
+    <div class="input-area">
+        <input type="text" class="chat-input" id="chatInput" placeholder="추가 의견을 입력하세요...">
+        <button class="btn-send" onclick="sendMessage()">➤</button>
     </div>
 </main>
 
 <script>
-    // ----------------------------------------------------
-    // [데이터베이스 시뮬레이션] - 최신 데이터 반영
-    // ----------------------------------------------------
     const products = [
         {
             id: 1,
@@ -505,7 +342,13 @@
             category: "파",
             desc: "추위에 강하고 연백부가 길어 상품성이 우수한 겨울 대파입니다.",
             imageUrl: "data:image/jpeg;base64,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",
-            tags: {env: ["노지", "고랭지"], res: ["무름병"], growth: ["만생종"], quality: ["저장성우수"], conv: ["초세강", "작업용이"]}
+            tags: {
+                env: ["노지", "고랭지"],
+                res: ["무름병"],
+                growth: ["만생종"],
+                quality: ["저장성우수"],
+                conv: ["초세강", "작업용이"]
+            }
         },
         {
             id: 4,
@@ -513,7 +356,13 @@
             category: "수박",
             desc: "저온기 비대력이 우수하고 당도가 13Brix 이상 나오는 고품질 수박입니다.",
             imageUrl: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=400&q=80",
-            tags: {env: ["시설하우스"], res: ["탄저병", "역병"], growth: ["조생종", "극조생"], quality: ["고당도", "대과종"], conv: ["착과용이"]}
+            tags: {
+                env: ["시설하우스"],
+                res: ["탄저병", "역병"],
+                growth: ["조생종", "극조생"],
+                quality: ["고당도", "대과종"],
+                conv: ["착과용이"]
+            }
         },
         {
             id: 5,
@@ -521,7 +370,13 @@
             category: "배추",
             desc: "속이 노랗고 맛이 고소하며, 김장용으로 가장 인기가 많은 배추입니다.",
             imageUrl: "https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?auto=format&fit=crop&w=400&q=80",
-            tags: {env: ["노지"], res: ["무름병", "바이러스"], growth: ["중생종"], quality: ["저장성우수", "대과종"], conv: ["재배용이"]}
+            tags: {
+                env: ["노지"],
+                res: ["무름병", "바이러스"],
+                growth: ["중생종"],
+                quality: ["저장성우수", "대과종"],
+                conv: ["재배용이"]
+            }
         },
         {
             id: 6,
@@ -543,7 +398,13 @@
             category: "무",
             desc: "뿌리가 매끈하고 바람들이가 적어 저장성이 매우 뛰어난 가을 무입니다.",
             imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRh_mExC5qjy-jc7fYbXBYDnDQUt_d0icFs9g&s",
-            tags: {env: ["노지", "고랭지"], res: ["시들음병"], growth: ["만생종"], quality: ["저장성우수", "대과종"], conv: ["작업용이"]}
+            tags: {
+                env: ["노지", "고랭지"],
+                res: ["시들음병"],
+                growth: ["만생종"],
+                quality: ["저장성우수", "대과종"],
+                conv: ["작업용이"]
+            }
         },
         {
             id: 8,
@@ -565,71 +426,91 @@
             category: "옥수수",
             desc: "껍질이 얇아 식감이 부드럽고 쫀득쫀득한 맛이 일품인 찰옥수수입니다.",
             imageUrl: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=400&q=80",
-            tags: {env: ["노지", "가정원예"], res: [], growth: ["조생종"], quality: ["고당도"], conv: ["초세강", "밀식적응"]}
+            tags: {
+                env: ["노지", "가정원예"],
+                res: [],
+                growth: ["조생종"],
+                quality: ["고당도"],
+                conv: ["초세강", "밀식적응"]
+            }
         }
     ];
 
-    // 즐겨찾기 목록 불러오기
-    function getFavorites() {
-        return JSON.parse(localStorage.getItem('myFavorites') || '[]');
-    }
+    // 가상의 타 영업사원 피드백
+    const mockMessages = [
+        {sender: '김철수 대리', content: '이 품종은 작년 대비 수확량이 20% 늘었네요. 농가 만족도가 높습니다.', time: '오전 10:30', isMine: false},
+        {sender: '이영희 과장', content: '탄저병 저항성이 확실히 좋네요. 추천할만 합니다.', time: '오후 1:15', isMine: false},
+        {sender: '박민수 사원', content: '가격 경쟁력이 조금 아쉽다는 의견이 있습니다.', time: '오후 2:40', isMine: false}
+    ];
 
-    function saveFavorites(favArray) {
-        localStorage.setItem('myFavorites', JSON.stringify(favArray));
-    }
+    let currentId = 1;
 
-    // 화면 렌더링 함수
-    function renderFavs() {
-        const grid = document.getElementById('favGrid');
-        grid.innerHTML = '';
+    function initChat() {
+        const urlParams = new URLSearchParams(window.location.search);
+        currentId = parseInt(urlParams.get('id')) || 1;
 
-        const favIds = getFavorites();
-        const myFavProducts = products.filter(p => favIds.includes(p.id));
-
-        if (myFavProducts.length === 0) {
-            grid.innerHTML = '<div class="empty-msg">즐겨찾기한 상품이 없습니다.</div>';
-            return;
+        const product = products.find(p => p.id === currentId);
+        if (product) {
+            document.getElementById('prodName').innerText = product.name;
+            document.getElementById('prodImg').src = product.imageUrl || '';
         }
 
-        myFavProducts.forEach(p => {
-            const card = document.createElement('div');
-            card.className = 'product-card';
+        const container = document.getElementById('chatContainer');
+        container.innerHTML = '';
 
-            // 상세 페이지 이동 (별표 클릭 시에는 이동 안 함)
-            card.onclick = (e) => {
-                if (!e.target.classList.contains('star-fixed')) {
-                    location.href = 'admin_detail.html?id=' + p.id;
-                }
-            };
-
-            // [수정됨] 상단 이미지 + 하단 텍스트 구조로 변경 (목록과 통일)
-            card.innerHTML = `
-                <div class="card-image-wrapper">
-                    <img src="${p.imageUrl}" alt="${p.name}" class="card-image" onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
-                    <div class="star-fixed" onclick="removeFav(${p.id})">★</div>
-                </div>
-
-                <div class="card-content">
-                    <div class="prod-cat">${p.category}</div>
-                    <div class="prod-name">${p.name}</div>
-                    <div class="prod-desc">${p.desc}</div>
-                </div>
-            `;
-            grid.appendChild(card);
+        // 1. 다른 영업사원들의 피드백 표시
+        mockMessages.forEach(msg => {
+            appendMessage(msg.sender, msg.content, msg.time, msg.isMine);
         });
-    }
 
-    // 즐겨찾기 해제 함수
-    function removeFav(id) {
-        if (confirm('즐겨찾기에서 삭제하시겠습니까?')) {
-            let favs = getFavorites();
-            favs = favs.filter(favId => favId !== id);
-            saveFavorites(favs);
-            renderFavs(); // 화면 갱신
+        // 2. 내가 상세 페이지에서 저장한 피드백 표시
+        const myFeedback = localStorage.getItem('feedback_' + currentId);
+        if (myFeedback) {
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            appendMessage('나', myFeedback, '방금 전', true);
         }
+
+        container.scrollTop = container.scrollHeight;
     }
 
-    // 사이드바 토글
+    function appendMessage(sender, text, time, isMine) {
+        const container = document.getElementById('chatContainer');
+        const row = document.createElement('div');
+        row.className = `message-row ${isMine ? 'mine' : 'other'}`;
+
+        const profileHtml = isMine ? '' : `<div class="profile-pic">👤</div>`;
+
+        row.innerHTML = `
+            ${profileHtml}
+            <div class="message-content">
+                <span class="sender-name">${sender}</span>
+                <div class="bubble">${text}</div>
+                <span class="timestamp">${time}</span>
+            </div>
+        `;
+        container.appendChild(row);
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        appendMessage('나', text, time, true);
+
+        // 채팅창에서 입력한 내용도 로컬 스토리지에 업데이트 (선택 사항)
+        // localStorage.setItem('feedback_' + currentId, text);
+
+        input.value = '';
+        const container = document.getElementById('chatContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('mainContent');
@@ -638,9 +519,7 @@
         mainContent.classList.toggle('expanded');
     });
 
-    // 초기 실행
-    renderFavs();
+    initChat();
 </script>
-
 </body>
 </html>
