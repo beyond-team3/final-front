@@ -40,7 +40,6 @@
             color: white;
             font-size: 24px;
             cursor: pointer;
-            padding: 8px;
             margin-right: 20px;
         }
 
@@ -49,7 +48,6 @@
             font-weight: 600;
         }
 
-        /* 사이드바 */
         .sidebar {
             position: fixed;
             top: 60px;
@@ -92,7 +90,6 @@
             border-left-color: #3498db;
         }
 
-        /* 메인 컨텐츠 */
         .main-content {
             position: fixed;
             top: 60px;
@@ -188,6 +185,16 @@
             font-size: 14px;
             border: none;
             transition: 0.2s;
+        }
+
+        /* [추가됨] 상품 등록 버튼 스타일 */
+        .btn-add {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-add:hover {
+            background-color: #2980b9;
         }
 
         .btn-compare {
@@ -389,7 +396,7 @@
     <nav class="sidebar-nav">
         <div class="nav-category">상품 관리</div>
         <div class="nav-item active" onclick="location.href='admin_list.html'">상품 목록</div>
-        <div class="nav-item" onclick="location.href='admin_form.html'">상품 등록</div>
+        <div class="nav-item" onclick="location.href='admin_favorites.html'">즐겨찾기 목록</div>
         <div class="nav-category">시스템</div>
         <div class="nav-item">설정</div>
     </nav>
@@ -401,11 +408,13 @@
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                 <h2 class="screen-title" style="margin-bottom: 0; border: none; padding: 0;">전체 상품 목록(관리자)</h2>
+
                 <div style="display: flex; gap: 10px;">
                     <button class="btn btn-fav" onclick="location.href='admin_favorites.html'">★ 즐겨찾기</button>
                     <button class="btn btn-compare" onclick="goToCompare()">
                         비교함 (<span id="compareCount">0</span>/3)
                     </button>
+                    <button class="btn btn-add" onclick="location.href='admin_form.html'">+ 상품 등록</button>
                 </div>
             </div>
 

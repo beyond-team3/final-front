@@ -5,68 +5,342 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>상품 등록/수정 - SeedFlowPlus</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; height: 100vh; overflow: hidden; background-color: #f5f6fa; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f5f6fa;
+        }
 
         /* 헤더 */
-        .header { position: fixed; top: 0; left: 0; right: 0; height: 60px; background-color: #2c3e50; color: white; display: flex; align-items: center; padding: 0 20px; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .menu-button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 8px; margin-right: 20px; }
-        .header-title { font-size: 20px; font-weight: 600; }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            margin-right: 20px;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
 
         /* 사이드바 */
-        .sidebar { position: fixed; top: 60px; left: 0; width: 250px; height: calc(100vh - 60px); background-color: #34495e; color: white; transition: transform 0.3s ease; z-index: 999; overflow-y: auto; }
-        .sidebar.hidden { transform: translateX(-100%); }
-        .nav-category { padding: 20px 20px 10px; font-size: 12px; font-weight: 600; color: #95a5a6; text-transform: uppercase; }
-        .nav-item { padding: 12px 20px; cursor: pointer; border-left: 3px solid transparent; transition: 0.2s; }
-        .nav-item:hover { background-color: rgba(255,255,255,0.1); border-left-color: #3498db; }
-        .nav-item.active { background-color: rgba(52,152,219,0.3); border-left-color: #3498db; }
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #95a5a6;
+            text-transform: uppercase;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: 0.2s;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
 
         /* 메인 컨텐츠 */
-        .main-content { position: fixed; top: 60px; left: 250px; right: 0; height: calc(100vh - 60px); transition: left 0.3s ease; overflow-y: auto; background-color: #ecf0f1; }
-        .main-content.expanded { left: 0; }
-        .content-wrapper { padding: 30px; max-width: 1200px; margin: 0 auto; }
-        .screen-content { background-color: white; border-radius: 8px; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .screen-title { font-size: 24px; font-weight: 700; color: #2c3e50; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #eee; }
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
 
         /* 폼 스타일 */
-        .form-header { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 30px; }
-        .btn { padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
-        .btn-cancel { background-color: #e74c3c; color: white; }
-        .btn-cancel:hover { background-color: #c0392b; }
-        .btn-save { background-color: #95a5a6; color: white; }
-        .btn-save:hover { background-color: #7f8c8d; }
-        .btn-add { background-color: #3498db; color: white; }
-        .btn-add:hover { background-color: #2980b9; }
+        .form-header {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
 
-        .form-section { display: grid; gap: 24px; }
-        .form-group { display: flex; flex-direction: column; gap: 8px; }
-        .form-group label { font-weight: 600; color: #2c3e50; font-size: 15px; }
-        .form-group label span { color: #e74c3c; font-size: 12px; margin-left: 4px; }
+        .btn {
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+        }
 
-        .input-text { padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; transition: border-color 0.2s; }
-        .input-text:focus { outline: none; border-color: #3498db; }
-        textarea.input-text { resize: vertical; min-height: 100px; }
+        .btn-cancel {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-save {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background-color: #7f8c8d;
+        }
+
+        .btn-add {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-add:hover {
+            background-color: #2980b9;
+        }
+
+        .form-section {
+            display: grid;
+            gap: 24px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 15px;
+        }
+
+        .form-group label span {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-left: 4px;
+        }
+
+        .input-text {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .input-text:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        textarea.input-text {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* 가격 입력 그룹 스타일 */
+        .price-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .price-input {
+            flex: 1;
+        }
+
+        .unit-select {
+            width: 100px;
+        }
+
+        .unit-text {
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
 
         /* 태그(체크박스) 스타일 */
-        .tag-container { display: flex; flex-wrap: wrap; gap: 10px; padding: 15px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #eee; }
-        .tag-item { display: flex; align-items: center; gap: 6px; background: white; padding: 6px 14px; border-radius: 20px; border: 1px solid #ddd; font-size: 13px; cursor: pointer; transition: 0.2s; user-select: none; }
-        .tag-item:hover { background-color: #f0f0f0; border-color: #bbb; }
-        .tag-item input { display: none; }
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        .tag-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+            user-select: none;
+        }
+
+        .tag-item:hover {
+            background-color: #f0f0f0;
+            border-color: #bbb;
+        }
+
+        .tag-item input {
+            display: none;
+        }
+
         /* 체크되었을 때 스타일 */
-        .tag-item:has(input:checked) { background-color: #3498db; color: white; border-color: #3498db; font-weight: 500; }
+        .tag-item:has(input:checked) {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+            font-weight: 500;
+        }
 
         /* 이미지 업로드 */
-        .image-upload-wrapper { width: 100%; max-width: 400px; }
-        .preview-box { width: 100%; height: 250px; border: 2px dashed #ddd; border-radius: 8px; margin-top: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #fafafa; position: relative; }
-        .preview-box img { width: 100%; height: 100%; object-fit: cover; display: none; }
-        .preview-placeholder { color: #aaa; font-size: 13px; text-align: center; line-height: 1.5; }
+        .image-upload-wrapper {
+            width: 100%;
+            max-width: 400px;
+        }
 
-        .footer-btns { margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 12px; }
+        .preview-box {
+            width: 100%;
+            height: 250px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: #fafafa;
+            position: relative;
+        }
+
+        .preview-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .preview-placeholder {
+            color: #aaa;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .footer-btns {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
 
         @media (max-width: 768px) {
-            .sidebar { width: 100%; max-width: 280px; }
-            .main-content { left: 0; }
-            .sidebar:not(.hidden) ~ .main-content { filter: brightness(0.7); pointer-events: none; }
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+
+            .price-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
     </style>
 </head>
@@ -120,6 +394,21 @@
                         <option value="배추">배추</option>
                         <option value="무">무</option>
                     </select>
+                </div>
+
+                <div class="form-group">
+                    <label>판매 규격 및 단가 (원)</label>
+                    <div class="price-group">
+                        <input type="number" id="prodAmount" class="input-text price-input" placeholder="수량/중량 (예: 1000)">
+                        <select id="prodUnit" class="input-text unit-select">
+                            <option value="립">립(seed)</option>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                        </select>
+                        <span class="unit-text">당</span>
+                        <input type="number" id="prodPrice" class="input-text price-input" placeholder="가격 (예: 50000)">
+                        <span class="unit-text">원</span>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -331,7 +620,7 @@
         }
     ];
 
-    // 태그 카테고리 정의 (HTML name 속성과 일치)
+    // 태그 카테고리 정의
     const tagCategories = ['env', 'res', 'growth', 'quality', 'conv'];
 
     // ----------------------------------------------------
@@ -361,23 +650,19 @@
             }
         }
 
-        // URL 입력 시 실시간 미리보기
         imageUrlInput.addEventListener('input', (e) => updateImagePreview(e.target.value));
 
-        // URL 파라미터 확인 (수정 모드 vs 신규 모드)
         const urlParams = new URLSearchParams(window.location.search);
         const productId = urlParams.get('id');
 
         if (productId) {
-            // [수정 모드]
             console.log('수정 모드 진입: ID = ' + productId);
             initEditMode(parseInt(productId));
         } else {
-            // [신규 모드] - 임시저장 확인
             checkDraft();
         }
 
-        // 수정 모드 초기화 함수
+        // 수정 모드 초기화
         function initEditMode(id) {
             document.getElementById('pageTitle').innerText = '품종 정보 수정';
             document.getElementById('submitBtnTop').innerText = '수정 완료';
@@ -385,19 +670,25 @@
 
             const product = products.find(p => p.id === id);
             if (product) {
-                // 기본 정보 바인딩
+                // 기본 정보
                 document.getElementById('prodName').value = product.name;
                 document.getElementById('prodCategory').value = product.category;
                 document.getElementById('prodDesc').value = product.desc;
-                document.getElementById('imageUrl').value = product.image;
-                updateImagePreview(product.image);
+                document.getElementById('imageUrl').value = product.imageUrl;
+                updateImagePreview(product.imageUrl);
 
-                // 태그 체크박스 바인딩 (객체 구조 대응)
+                // [추가] 가격 정보 로딩
+                if(product.priceData) {
+                    document.getElementById('prodAmount').value = product.priceData.amount;
+                    document.getElementById('prodUnit').value = product.priceData.unit;
+                    document.getElementById('prodPrice').value = product.priceData.price;
+                }
+
+                // 태그
                 if (product.tags) {
                     tagCategories.forEach(cat => {
-                        const savedTags = product.tags[cat] || []; // 해당 카테고리의 태그 배열
+                        const savedTags = product.tags[cat] || [];
                         const inputs = document.querySelectorAll(`input[name="${cat}"]`);
-
                         inputs.forEach(input => {
                             if (savedTags.includes(input.value)) {
                                 input.checked = true;
@@ -408,21 +699,26 @@
             }
         }
 
-        // 임시저장 데이터 확인 함수
+        // 임시저장 불러오기
         function checkDraft() {
             const savedDraft = localStorage.getItem('adminDraft');
             if (savedDraft) {
                 if (confirm('작성 중이던 임시저장 데이터가 있습니다. 불러오시겠습니까?')) {
                     const data = JSON.parse(savedDraft);
 
-                    // 기본 정보 복구
                     document.getElementById('prodName').value = data.name || '';
                     document.getElementById('prodCategory').value = data.category || '';
                     document.getElementById('prodDesc').value = data.desc || '';
                     document.getElementById('imageUrl').value = data.imageUrl || '';
                     updateImagePreview(data.imageUrl);
 
-                    // 태그 복구
+                    // [추가] 가격 정보 복구
+                    if(data.priceData) {
+                        document.getElementById('prodAmount').value = data.priceData.amount || '';
+                        document.getElementById('prodUnit').value = data.priceData.unit || '립';
+                        document.getElementById('prodPrice').value = data.priceData.price || '';
+                    }
+
                     if (data.tags) {
                         tagCategories.forEach(cat => {
                             const savedTags = data.tags[cat] || [];
@@ -443,11 +739,9 @@
     // [기능 함수]
     // ----------------------------------------------------
 
-    // 현재 폼 데이터 수집 (구조화된 객체 반환)
+    // 폼 데이터 수집
     function getFormData() {
         const tagsObj = {};
-
-        // 카테고리별 태그 수집
         tagCategories.forEach(cat => {
             const checked = document.querySelectorAll(`input[name="${cat}"]:checked`);
             tagsObj[cat] = Array.from(checked).map(cb => cb.value);
@@ -458,18 +752,22 @@
             category: document.getElementById('prodCategory').value,
             desc: document.getElementById('prodDesc').value,
             imageUrl: document.getElementById('imageUrl').value,
+            // [추가] 가격 정보 수집
+            priceData: {
+                amount: document.getElementById('prodAmount').value,
+                unit: document.getElementById('prodUnit').value,
+                price: document.getElementById('prodPrice').value
+            },
             tags: tagsObj
         };
     }
 
-    // 임시저장 핸들러
     function handleDraft() {
         const data = getFormData();
         localStorage.setItem('adminDraft', JSON.stringify(data));
         alert('임시저장이 완료되었습니다.');
     }
 
-    // 취소 핸들러
     function handleCancel() {
         if (confirm('작성을 취소하고 목록으로 돌아가시겠습니까?\n(임시저장된 데이터도 함께 삭제됩니다)')) {
             localStorage.removeItem('adminDraft');
@@ -477,11 +775,9 @@
         }
     }
 
-    // 유효성 검사 및 제출 핸들러
     function handleSubmit() {
         const data = getFormData();
 
-        // 1. 필수값 체크
         if (!data.name.trim()) {
             alert('품종명은 필수 입력입니다.');
             document.getElementById('prodName').focus();
@@ -493,17 +789,20 @@
             return;
         }
 
-        // 2. 모드 확인 (수정 vs 등록)
+        // [선택] 가격 입력 확인
+        if (!data.priceData.price) {
+            if(!confirm('단가가 입력되지 않았습니다. 계속 진행하시겠습니까?')) return;
+        }
+
         const isEditMode = document.getElementById('submitBtnTop').innerText === '수정 완료';
 
         if (isEditMode) {
             alert('품종 정보가 성공적으로 수정되었습니다.');
         } else {
             alert('새로운 품종이 등록되었습니다.');
-            localStorage.removeItem('adminDraft'); // 등록 성공 시 임시저장 삭제
+            localStorage.removeItem('adminDraft');
         }
 
-        // 목록 페이지로 이동
         location.href = 'admin_list.html';
     }
 
