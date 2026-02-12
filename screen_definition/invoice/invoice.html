@@ -4,166 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>청구서 작성 - SALES-INV-001</title>
+    <title>청구서</title>
     <style>
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* 헤더 */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background-color: #2c3e50;
-            color: white;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .menu-button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px 12px;
-            margin-right: 20px;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-
-        .menu-button:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .header-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        /* 사이드바 */
-        .sidebar {
-            position: fixed;
-            top: 60px;
-            left: 0;
-            width: 250px;
-            height: calc(100vh - 60px);
-            background-color: #34495e;
-            color: white;
-            transition: transform 0.3s ease;
-            z-index: 999;
-            overflow-y: auto;
-        }
-
-        .sidebar.hidden {
-            transform: translateX(-100%);
-        }
-
-        .sidebar-nav {
-            padding: 20px 0;
-        }
-
-        .nav-item {
-            padding: 12px 20px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            border-left: 3px solid transparent;
-        }
-
-        .nav-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-left-color: #3498db;
-        }
-
-        .nav-item.active {
-            background-color: rgba(52, 152, 219, 0.3);
-            border-left-color: #3498db;
-        }
-
-        .nav-category {
-            padding: 20px 20px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: #95a5a6;
-            letter-spacing: 0.5px;
-        }
-
-        /* 메인 컨텐츠 영역 */
-        .main-content {
-            position: fixed;
-            top: 60px;
-            left: 250px;
-            right: 0;
-            height: calc(100vh - 60px);
-            transition: left 0.3s ease;
-            overflow-y: auto;
-            background-color: #ecf0f1;
-        }
-
-        .main-content.expanded {
-            left: 0;
-        }
-
-        .content-wrapper {
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
-        .screen-content {
-            background-color: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            min-height: 500px;
-        }
-
-        .screen-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #ecf0f1;
-        }
-
-        /* 반응형 */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                max-width: 280px;
-            }
-
-            .main-content {
-                left: 0;
-            }
-
-            .sidebar:not(.hidden) ~ .main-content {
-                filter: brightness(0.7);
-                pointer-events: none;
-            }
-        }
-    
-
-/* Page Specific Styles */
-
         * {
             margin: 0;
             padding: 0;
@@ -651,7 +493,7 @@
         }
 
         .custom-checkbox input[type="checkbox"]:checked+label::after {
-            content: "";
+            content: "✓";
             font-size: 12px;
             font-weight: 700;
         }
@@ -1212,8 +1054,92 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
-    
-</style>
+
+        /* ═══════════════════════════════════════════════════════
+           모드별 스타일
+        ═══════════════════════════════════════════════════════ */
+
+        /* ── 모드 배너 (페이지 상단 상태 표시) ── */
+        .mode-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .mode-banner.mode-pending {
+            background: #fef9c3;
+            border: 1px solid #fde047;
+            color: #854d0e;
+        }
+
+        .mode-banner.mode-issued {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #15803d;
+        }
+
+        .mode-banner.mode-new {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            color: #1d4ed8;
+        }
+
+        /* ── 발행 완료 모드: 읽기 전용 스타일 ── */
+        .mode-issued-active .remarks-area {
+            background: #f8fafc;
+            color: #64748b;
+            cursor: not-allowed;
+            resize: none;
+            border-color: #e2e8f0;
+        }
+
+        /* ── 발행일 표시 행 (발행 완료 모드) ── */
+        .issue-date-row {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #15803d;
+        }
+
+        /* ── 자동 선택 뱃지 (발행 대기 모드) ── */
+        .auto-checked-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #2563eb;
+            background: #dbeafe;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        /* ── 읽기 전용 뱃지 ── */
+        .readonly-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 
 <body>
@@ -1222,23 +1148,24 @@
     <header class="header">
         <button class="menu-button" id="menuToggle">☰</button>
         <h1 class="header-title">종자 영업 관리 시스템</h1>
+        <span class="header-badge">B2B</span>
     </header>
 
     <!-- 사이드바 -->
     <aside class="sidebar" id="sidebar">
         <nav class="sidebar-nav">
             <div class="nav-category">영업</div>
-            <div class="nav-item">&nbsp; 영업 대시보드</div>
-            <div class="nav-item">&nbsp; 주문서 작성</div>
-            <div class="nav-item active">&nbsp; 청구서 작성</div>
-            <div class="nav-item">&nbsp; 계약 관리</div>
-            <div class="nav-item">&nbsp; 거래처 관리</div>
+            <div class="nav-item">📋&nbsp; 영업 대시보드</div>
+            <div class="nav-item">📝&nbsp; 주문서 작성</div>
+            <div class="nav-item active">🧾&nbsp; 청구서 작성</div>
+            <div class="nav-item">📜&nbsp; 계약 관리</div>
+            <div class="nav-item">🏢&nbsp; 거래처 관리</div>
             <div class="nav-category">이력</div>
-            <div class="nav-item">&nbsp; 영업 히스토리</div>
-            <div class="nav-item">&nbsp; 주문 이력</div>
+            <div class="nav-item">🕒&nbsp; 영업 히스토리</div>
+            <div class="nav-item">📦&nbsp; 주문 이력</div>
             <div class="nav-category">설정</div>
-            <div class="nav-item">️&nbsp; 설정</div>
-            <div class="nav-item">&nbsp; 프로필</div>
+            <div class="nav-item">⚙️&nbsp; 설정</div>
+            <div class="nav-item">👤&nbsp; 프로필</div>
         </nav>
     </aside>
 
@@ -1248,12 +1175,20 @@
 
             <!-- 페이지 헤더 -->
             <div class="page-header">
-                <div class="breadcrumb">영업 &rsaquo; <span>청구서 작성</span></div>
+                <!-- 모드 배너: JS로 동적 표시 -->
+                <div class="mode-banner" id="modeBanner" style="display:none;"></div>
+
+                <div class="breadcrumb">영업 &rsaquo; <a href="invoice_list_page.html" style="color:#3b82f6; text-decoration:none;">청구서 관리</a> &rsaquo; <span id="breadcrumbLabel">청구서</span></div>
                 <div class="page-title">
-                    청구서 작성
-                    <span class="screen-id-badge">SALES-INV-001</span>
+                    <span id="pageTitleText">청구서</span>
+                    <span class="screen-id-badge" id="pageInvoiceId">—</span>
                 </div>
-                <div class="page-subtitle">자동 생성된 명세서를 선택하여 청구서를 작성합니다.</div>
+                <div class="page-subtitle" id="pageSubtitle">청구서를 불러오는 중입니다.</div>
+
+                <!-- 발행 완료 모드: 발행일 표시 -->
+                <div class="issue-date-row" id="issueDateRow">
+                    ✅ 발행일: <strong id="issueDateValue">—</strong>
+                </div>
             </div>
 
             <!-- ───── 분할 레이아웃 시작 ───── -->
@@ -1263,7 +1198,7 @@
                 <div class="left-panel">
                     <!-- ① 주문 요약 카드 -->
                     <div class="order-card">
-                        <div class="order-card-icon"></div>
+                        <div class="order-card-icon">📦</div>
                         <div class="order-card-fields">
                             <div class="order-field">
                                 <label>주문 번호</label>
@@ -1282,15 +1217,17 @@
                                 <div class="fv" id="totalInvCount">—</div>
                             </div>
                         </div>
-                        <div class="order-status-badge"> 명세서 조회 완료</div>
+                        <div class="order-status-badge">📋 명세서 조회 완료</div>
                     </div>
 
                     <!-- ② 명세서 목록 (SALES-INV-001 ~ 003) -->
                     <div class="section">
                         <div class="section-header">
-                            <span class="section-icon"></span>
+                            <span class="section-icon">📄</span>
                             <span class="section-title">명세서 목록</span>
-                            <span class="section-desc">SALES-INV-001 · 자동 생성 데이터</span>
+                            <span class="section-desc" id="invListSectionDesc">명세서 목록</span>
+                            <!-- 발행 완료 모드에서 읽기 전용 표시 -->
+                            <span class="readonly-badge" id="readonlyBadge" style="display:none;">🔒 읽기 전용</span>
                         </div>
 
                         <!-- 상태 필터 (SALES-INV-003) -->
@@ -1331,7 +1268,7 @@
                                 </tbody>
                             </table>
                             <div id="emptyState" class="empty-state" style="display:none">
-                                <div class="empty-icon"></div>
+                                <div class="empty-icon">🔍</div>
                                 <div class="empty-text">조건에 맞는 명세서가 없습니다.</div>
                                 <div class="empty-sub">필터를 변경하거나 전체 보기를 선택하세요.</div>
                             </div>
@@ -1341,7 +1278,7 @@
                     <!-- ③ 선택 명세서 요약 (SALES-INV-004) -->
                     <div class="section">
                         <div class="section-header">
-                            <span class="section-icon"></span>
+                            <span class="section-icon">💰</span>
                             <span class="section-title">선택 명세서 요약</span>
                             <span class="section-desc">SALES-INV-004 · 실시간 계산</span>
                         </div>
@@ -1372,7 +1309,7 @@
                     <!-- ④ 비고 입력 (SALES-INV-006) -->
                     <div class="section">
                         <div class="section-header">
-                            <span class="section-icon">️</span>
+                            <span class="section-icon">✏️</span>
                             <span class="section-title">비고 (Remarks)</span>
                             <span class="section-desc">SALES-INV-006 · 영업 히스토리 자동 기록</span>
                         </div>
@@ -1381,7 +1318,7 @@
                                 placeholder="청구 관련 특이사항을 입력해 주세요. (예: 4월 정기 청구, 분기 결산 포함 등)" maxlength="500"
                                 oninput="updateCharCount(this)"></textarea>
                             <div class="remarks-hint">
-                                <span class="hint-icon"></span>
+                                <span class="hint-icon">💡</span>
                                 <span>작성된 비고는 <strong>영업 히스토리에 자동 기록</strong>됩니다.</span>
                                 <span class="char-count" id="charCount">0 / 500</span>
                             </div>
@@ -1389,15 +1326,28 @@
                     </div>
 
                     <!-- ⑤ 액션 바 -->
-                    <div class="action-bar">
+                    <div class="action-bar" id="actionBar">
                         <div class="action-bar-left">
                             선택된 명세서 <strong id="barSelectedCount">0건</strong> · 총 <strong id="barTotalAmt">₩0</strong>
                         </div>
                         <div class="action-bar-right">
-                            <button class="btn btn-cancel" onclick="handleCancel()">&nbsp; 취소</button>
-                            <!-- PDF 미리보기 버튼 제거 -->
-                            <button class="btn btn-primary" id="createBtn" onclick="handleCreate()" disabled>&nbsp; 청구서
-                                생성</button>
+                            <!-- 취소 버튼: 신규 청구서 모드 / 발행 대기 모드에만 표시 -->
+                            <button class="btn btn-cancel" id="cancelBtn" onclick="handleCancel()" style="display:none;">✕&nbsp; 취소</button>
+
+                            <!-- [발행 대기 모드] 청구서 발행 확정 버튼 -->
+                            <button class="btn btn-primary" id="confirmBtn" onclick="handleCreate()" style="display:none;" disabled>
+                                ✔&nbsp; 청구서 발행 확정
+                            </button>
+
+                            <!-- [신규 청구서 모드] 청구서 생성 버튼 -->
+                            <button class="btn btn-primary" id="createBtn" onclick="handleCreate()" style="display:none;" disabled>
+                                ✔&nbsp; 청구서 생성
+                            </button>
+
+                            <!-- [발행 완료 모드] 버튼 없음, 안내 문구만 -->
+                            <span id="issuedInfo" style="display:none; font-size:13px; color:#94a3b8;">
+                                🔒 발행 완료된 청구서입니다.
+                            </span>
                         </div>
                     </div>
 
@@ -1479,10 +1429,7 @@
                             </div>
                         </div>
 
-                        <div class="pdf-remarks-box" id="pdfRemarksBox">
-                            <div class="rl">비고</div>
-                            <div class="rv" id="pdfRemarksText">—</div>
-                        </div>
+                        <!-- 비고 박스는 Invoice Preview 섹션에서 제거됨 (Write 섹션 비고 입력에만 존재) -->
 
                         <div class="pdf-footer-signs">
                             <div class="sign-block">
@@ -1506,7 +1453,7 @@
     <!-- 청구 완료 오버레이 -->
     <div class="success-overlay" id="successOverlay">
         <div class="success-modal">
-            <div class="success-icon"></div>
+            <div class="success-icon">✅</div>
             <div class="success-title">청구서가 생성되었습니다</div>
             <div class="success-sub" id="successMsg"></div>
             <button class="success-btn" onclick="closeSuccess()">확인</button>
@@ -1517,53 +1464,17 @@
     <div class="toast" id="toast"></div>
 
     <script>
-
-        // 사이드바 토글 기능
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
-
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('hidden');
-            mainContent.classList.toggle('expanded');
-        });
-
-        // 네비게이션 아이템 클릭 이벤트
-        const navItems = document.querySelectorAll('.nav-item');
-        
-        navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                // 모든 아이템에서 active 클래스 제거
-                navItems.forEach(nav => nav.classList.remove('active'));
-                
-                // 클릭된 아이템에 active 클래스 추가
-                item.classList.add('active');
-                
-                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
-                const screenName = item.getAttribute('data-screen');
-                console.log(`${screenName} 화면으로 이동`);
-                
-                // 실제 프로젝트에서는 다음과 같이 사용:
-                // window.location.href = `${screenName}.html`;
-                
-                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.add('hidden');
-                    mainContent.classList.add('expanded');
-                }
-            });
-        });
-
-        // ESC 키로 사이드바 닫기
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
-                sidebar.classList.add('hidden');
-                mainContent.classList.add('expanded');
-            }
-        });
-    
-
-// Page Specific Scripts
+        // ══════════════════════════════════════════════════════
+        //  URL 쿼리 파라미터로 모드 결정
+        //  예) invoice.html?mode=pending
+        //      invoice.html?mode=issued
+        //      invoice.html?mode=new&contractId=CTR-xxx
+        // ══════════════════════════════════════════════════════
+        const urlParams = new URLSearchParams(window.location.search);
+        const PAGE_MODE = urlParams.get('mode') || 'new'; // 기본값: 신규 청구서 모드
+        const INVOICE_ID = urlParams.get('id') || null;
+        const CONTRACT_ID = urlParams.get('contractId') || null;
+        const CLIENT_ID = urlParams.get('clientId') || null;
 
         // ─── 더미 명세서 데이터 ───
         let invoices = [
@@ -1578,12 +1489,107 @@
         let currentFilter = 'all';
         let selectedIds = new Set();
 
+        // ══════════════════════════════════════════════════════
+        //  모드 초기화: 페이지 로드 시 모드에 따라 UI 구성
+        // ══════════════════════════════════════════════════════
+        function initMode() {
+            const banner  = document.getElementById('modeBanner');
+            const titleEl = document.getElementById('pageTitleText');
+            const subtitleEl = document.getElementById('pageSubtitle');
+            const breadcrumbLabel = document.getElementById('breadcrumbLabel');
+            const invoiceIdBadge = document.getElementById('pageInvoiceId');
+
+            if (PAGE_MODE === 'pending') {
+                // ── 발행 대기 모드 ──────────────────────────────
+                document.title = '청구서 발행 대기 - ' + (INVOICE_ID || '');
+                banner.className = 'mode-banner mode-pending';
+                banner.innerHTML = '🕐 <strong>발행 대기</strong> — 명세서를 확인하고 청구서를 발행 확정하세요.';
+                banner.style.display = 'flex';
+                titleEl.textContent = '청구서 발행 확정';
+                breadcrumbLabel.textContent = '발행 대기';
+                subtitleEl.textContent = '시스템이 자동 선택한 명세서를 확인하고 발행을 확정합니다.';
+                invoiceIdBadge.textContent = INVOICE_ID || '발행 대기';
+
+                // 자동 선택: available 상태의 명세서 모두 선택
+                invoices.filter(inv => inv.status === 'available').forEach(inv => {
+                    selectedIds.add(inv.id);
+                });
+
+                // 발행 대기 모드 섹션 desc
+                document.getElementById('invListSectionDesc').textContent = '시스템 자동 선택 · 발행 대기';
+
+                // 자동 선택 뱃지 추가
+                const sectionDesc = document.getElementById('invListSectionDesc');
+                sectionDesc.innerHTML = '시스템 자동 선택 · 발행 대기 <span class="auto-checked-badge">✓ 자동 선택됨</span>';
+
+                // 버튼 표시: 청구서 발행 확정 + 취소
+                document.getElementById('cancelBtn').style.display = 'inline-flex';
+                document.getElementById('confirmBtn').style.display = 'inline-flex';
+
+            } else if (PAGE_MODE === 'issued') {
+                // ── 발행 완료 모드 ──────────────────────────────
+                document.title = '청구서 발행 완료 - ' + (INVOICE_ID || '');
+                banner.className = 'mode-banner mode-issued';
+                banner.innerHTML = '✅ <strong>발행 완료</strong> — 이 청구서는 발행 완료 상태입니다. 수정할 수 없습니다.';
+                banner.style.display = 'flex';
+                titleEl.textContent = '청구서 상세 보기';
+                breadcrumbLabel.textContent = '발행 완료';
+                subtitleEl.textContent = '발행 완료된 청구서입니다. 모든 항목은 읽기 전용입니다.';
+                invoiceIdBadge.textContent = INVOICE_ID || '발행 완료';
+
+                // 발행일 표시 (더미: 오늘 날짜)
+                const issuedDateStr = new Date().toLocaleDateString('ko-KR');
+                document.getElementById('issueDateRow').style.display = 'flex';
+                document.getElementById('issueDateValue').textContent = issuedDateStr;
+
+                // 읽기 전용: 모든 체크박스 비활성화
+                invoices.forEach(inv => { inv.status = 'completed'; });
+
+                // 섹션 desc + 읽기 전용 뱃지
+                document.getElementById('invListSectionDesc').textContent = '발행 완료 · 읽기 전용';
+                document.getElementById('readonlyBadge').style.display = 'inline-flex';
+
+                // 비고 입력 비활성화
+                const remarksArea = document.getElementById('remarksArea');
+                remarksArea.disabled = true;
+                remarksArea.placeholder = '발행 완료된 청구서입니다.';
+                document.body.classList.add('mode-issued-active');
+
+                // 버튼 없음, 안내 문구만
+                document.getElementById('issuedInfo').style.display = 'inline-flex';
+                // 액션 바 좌측 텍스트 변경
+                document.querySelector('.action-bar-left').innerHTML =
+                    '발행 완료된 청구서입니다. 수정 및 재발행이 불가합니다.';
+
+            } else {
+                // ── 신규 청구서 모드 (기본) ──────────────────────
+                document.title = '신규 청구서 발행';
+                banner.className = 'mode-banner mode-new';
+                banner.innerHTML = '✨ <strong>신규 청구서 발행</strong> — 발행할 명세서를 선택하고 청구서를 생성하세요.';
+                banner.style.display = 'flex';
+                titleEl.textContent = '신규 청구서 발행';
+                breadcrumbLabel.textContent = '신규 발행';
+                subtitleEl.textContent = '발행 가능한 명세서를 선택하여 청구서를 생성합니다.';
+                invoiceIdBadge.textContent = CONTRACT_ID || '신규';
+
+                // 섹션 desc
+                document.getElementById('invListSectionDesc').textContent = '발행 가능 명세서 · 체크박스로 선택';
+
+                // 버튼 표시: 청구서 생성 + 취소
+                document.getElementById('cancelBtn').style.display = 'inline-flex';
+                document.getElementById('createBtn').style.display = 'inline-flex';
+            }
+        }
+
         // ─── 필터 설정 ───
         function setFilter(filter, btn) {
             currentFilter = filter;
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            selectedIds.clear();
+            // 발행 완료 모드에서는 선택 초기화 안 함
+            if (PAGE_MODE !== 'issued') {
+                selectedIds.clear();
+            }
             renderTable();
             updateSummary();
         }
@@ -1599,6 +1605,7 @@
             const list = filteredList();
             const tbody = document.getElementById('invTableBody');
             const emptyState = document.getElementById('emptyState');
+            const isIssuedMode = PAGE_MODE === 'issued';
 
             // 카운트 배지
             document.getElementById('cnt-all').textContent = invoices.length;
@@ -1622,11 +1629,14 @@
                     ? '<span class="status-badge completed">청구 완료</span>'
                     : '<span class="status-badge available">청구 가능</span>';
 
+                // 발행 완료 모드: 모든 체크박스 disabled
+                const chkDisabled = isIssuedMode ? 'disabled' : (isCompleted ? 'disabled' : '');
+
                 return `
         <tr class="${rowClass}" id="row_${inv.id}">
             <td class="center">
                 <div class="custom-checkbox">
-                    <input type="checkbox" id="chk_${inv.id}" ${isCompleted ? 'disabled' : ''}
+                    <input type="checkbox" id="chk_${inv.id}" ${chkDisabled}
                         ${isChecked ? 'checked' : ''}
                         onchange="toggleRow('${inv.id}', this)">
                     <label for="chk_${inv.id}"></label>
@@ -1650,6 +1660,7 @@
 
         // ─── 행 선택 토글 ───
         function toggleRow(id, chk) {
+            if (PAGE_MODE === 'issued') return; // 발행 완료 모드: 선택 불가
             if (chk.checked) selectedIds.add(id);
             else selectedIds.delete(id);
             updateSelectAll();
@@ -1658,6 +1669,7 @@
 
         // ─── 전체 선택 ───
         function toggleAll(chk) {
+            if (PAGE_MODE === 'issued') return;
             const available = filteredList().filter(inv => inv.status === 'available');
             available.forEach(inv => {
                 if (chk.checked) selectedIds.add(inv.id);
@@ -1671,7 +1683,7 @@
         function updateSelectAll() {
             const available = filteredList().filter(inv => inv.status === 'available');
             const allChk = document.getElementById('chkAll');
-            if (available.length === 0) {
+            if (PAGE_MODE === 'issued' || available.length === 0) {
                 allChk.checked = false;
                 allChk.disabled = true;
                 return;
@@ -1699,8 +1711,13 @@
             document.getElementById('barSelectedCount').textContent = count + '건';
             document.getElementById('barTotalAmt').textContent = '₩' + total.toLocaleString();
 
-            // 생성 버튼 활성화
-            document.getElementById('createBtn').disabled = count === 0;
+            // 발행 대기 모드: confirmBtn 활성화
+            // 신규 청구서 모드: createBtn 활성화
+            if (PAGE_MODE === 'pending') {
+                document.getElementById('confirmBtn').disabled = count === 0;
+            } else if (PAGE_MODE === 'new') {
+                document.getElementById('createBtn').disabled = count === 0;
+            }
 
             // 요약 카드 스타일
             ['sc-count', 'sc-supply', 'sc-tax'].forEach(id => {
@@ -1716,7 +1733,6 @@
         function renderPdf() {
             const selected = invoices.filter(inv => selectedIds.has(inv.id));
 
-            // 만약 선택된게 없으면? 빈 상태 보여주기
             const pdfItemsBody = document.getElementById('pdfItemsBody');
 
             const today = new Date();
@@ -1758,11 +1774,10 @@
             document.getElementById('pdfAmtTax').textContent = '₩' + tax.toLocaleString();
             document.getElementById('pdfAmtTotal').textContent = '₩' + total.toLocaleString();
 
-            const remarks = document.getElementById('remarksArea').value.trim();
-            document.getElementById('pdfRemarksText').textContent = remarks || '—';
+            // 비고 (왼쪽 Write 섹션만 존재, 우측 PDF 패널의 비고 박스는 제거됨)
         }
 
-        // ─── 청구서 생성 ───
+        // ─── 청구서 생성 / 발행 확정 공통 처리 ───
         function handleCreate() {
             const selected = invoices.filter(inv => selectedIds.has(inv.id));
             if (selected.length === 0) return;
@@ -1777,9 +1792,11 @@
             renderTable();
             updateSummary();
 
+            const modeLabel = PAGE_MODE === 'pending' ? '발행 확정' : '청구서 생성';
+
             // 완료 오버레이
             document.getElementById('successMsg').innerHTML =
-                `${selected.length}건의 명세서가 청구 처리되었습니다.<br>총 청구 금액: <strong>₩${total.toLocaleString()}</strong><br><span style="color:#94a3b8; font-size:13px;">비고가 영업 히스토리에 자동 기록되었습니다.</span>`;
+                `${selected.length}건의 명세서가 ${modeLabel} 처리되었습니다.<br>총 청구 금액: <strong>₩${total.toLocaleString()}</strong><br><span style="color:#94a3b8; font-size:13px;">비고가 영업 히스토리에 자동 기록되었습니다.</span>`;
             document.getElementById('successOverlay').classList.add('active');
         }
 
@@ -1831,10 +1848,12 @@
         });
 
         // ─── 초기화 ───
+        initMode();   // 모드 UI 초기화 (URL 파라미터 기반)
         renderTable();
         updateSummary();
-    
-</script>
+    </script>
+
+    </script>
 </body>
 
 </html>
