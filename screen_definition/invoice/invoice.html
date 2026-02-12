@@ -6,6 +6,164 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>청구서 작성 - SALES-INV-001</title>
     <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    
+
+/* Page Specific Styles */
+
         * {
             margin: 0;
             padding: 0;
@@ -493,7 +651,7 @@
         }
 
         .custom-checkbox input[type="checkbox"]:checked+label::after {
-            content: "✓";
+            content: "";
             font-size: 12px;
             font-weight: 700;
         }
@@ -1054,7 +1212,8 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
-    </style>
+    
+</style>
 </head>
 
 <body>
@@ -1063,24 +1222,23 @@
     <header class="header">
         <button class="menu-button" id="menuToggle">☰</button>
         <h1 class="header-title">종자 영업 관리 시스템</h1>
-        <span class="header-badge">B2B</span>
     </header>
 
     <!-- 사이드바 -->
     <aside class="sidebar" id="sidebar">
         <nav class="sidebar-nav">
             <div class="nav-category">영업</div>
-            <div class="nav-item">📋&nbsp; 영업 대시보드</div>
-            <div class="nav-item">📝&nbsp; 주문서 작성</div>
-            <div class="nav-item active">🧾&nbsp; 청구서 작성</div>
-            <div class="nav-item">📜&nbsp; 계약 관리</div>
-            <div class="nav-item">🏢&nbsp; 거래처 관리</div>
+            <div class="nav-item">&nbsp; 영업 대시보드</div>
+            <div class="nav-item">&nbsp; 주문서 작성</div>
+            <div class="nav-item active">&nbsp; 청구서 작성</div>
+            <div class="nav-item">&nbsp; 계약 관리</div>
+            <div class="nav-item">&nbsp; 거래처 관리</div>
             <div class="nav-category">이력</div>
-            <div class="nav-item">🕒&nbsp; 영업 히스토리</div>
-            <div class="nav-item">📦&nbsp; 주문 이력</div>
+            <div class="nav-item">&nbsp; 영업 히스토리</div>
+            <div class="nav-item">&nbsp; 주문 이력</div>
             <div class="nav-category">설정</div>
-            <div class="nav-item">⚙️&nbsp; 설정</div>
-            <div class="nav-item">👤&nbsp; 프로필</div>
+            <div class="nav-item">️&nbsp; 설정</div>
+            <div class="nav-item">&nbsp; 프로필</div>
         </nav>
     </aside>
 
@@ -1105,7 +1263,7 @@
                 <div class="left-panel">
                     <!-- ① 주문 요약 카드 -->
                     <div class="order-card">
-                        <div class="order-card-icon">📦</div>
+                        <div class="order-card-icon"></div>
                         <div class="order-card-fields">
                             <div class="order-field">
                                 <label>주문 번호</label>
@@ -1124,13 +1282,13 @@
                                 <div class="fv" id="totalInvCount">—</div>
                             </div>
                         </div>
-                        <div class="order-status-badge">📋 명세서 조회 완료</div>
+                        <div class="order-status-badge"> 명세서 조회 완료</div>
                     </div>
 
                     <!-- ② 명세서 목록 (SALES-INV-001 ~ 003) -->
                     <div class="section">
                         <div class="section-header">
-                            <span class="section-icon">📄</span>
+                            <span class="section-icon"></span>
                             <span class="section-title">명세서 목록</span>
                             <span class="section-desc">SALES-INV-001 · 자동 생성 데이터</span>
                         </div>
@@ -1173,7 +1331,7 @@
                                 </tbody>
                             </table>
                             <div id="emptyState" class="empty-state" style="display:none">
-                                <div class="empty-icon">🔍</div>
+                                <div class="empty-icon"></div>
                                 <div class="empty-text">조건에 맞는 명세서가 없습니다.</div>
                                 <div class="empty-sub">필터를 변경하거나 전체 보기를 선택하세요.</div>
                             </div>
@@ -1183,7 +1341,7 @@
                     <!-- ③ 선택 명세서 요약 (SALES-INV-004) -->
                     <div class="section">
                         <div class="section-header">
-                            <span class="section-icon">💰</span>
+                            <span class="section-icon"></span>
                             <span class="section-title">선택 명세서 요약</span>
                             <span class="section-desc">SALES-INV-004 · 실시간 계산</span>
                         </div>
@@ -1214,7 +1372,7 @@
                     <!-- ④ 비고 입력 (SALES-INV-006) -->
                     <div class="section">
                         <div class="section-header">
-                            <span class="section-icon">✏️</span>
+                            <span class="section-icon">️</span>
                             <span class="section-title">비고 (Remarks)</span>
                             <span class="section-desc">SALES-INV-006 · 영업 히스토리 자동 기록</span>
                         </div>
@@ -1223,7 +1381,7 @@
                                 placeholder="청구 관련 특이사항을 입력해 주세요. (예: 4월 정기 청구, 분기 결산 포함 등)" maxlength="500"
                                 oninput="updateCharCount(this)"></textarea>
                             <div class="remarks-hint">
-                                <span class="hint-icon">💡</span>
+                                <span class="hint-icon"></span>
                                 <span>작성된 비고는 <strong>영업 히스토리에 자동 기록</strong>됩니다.</span>
                                 <span class="char-count" id="charCount">0 / 500</span>
                             </div>
@@ -1236,9 +1394,9 @@
                             선택된 명세서 <strong id="barSelectedCount">0건</strong> · 총 <strong id="barTotalAmt">₩0</strong>
                         </div>
                         <div class="action-bar-right">
-                            <button class="btn btn-cancel" onclick="handleCancel()">✕&nbsp; 취소</button>
+                            <button class="btn btn-cancel" onclick="handleCancel()">&nbsp; 취소</button>
                             <!-- PDF 미리보기 버튼 제거 -->
-                            <button class="btn btn-primary" id="createBtn" onclick="handleCreate()" disabled>✔&nbsp; 청구서
+                            <button class="btn btn-primary" id="createBtn" onclick="handleCreate()" disabled>&nbsp; 청구서
                                 생성</button>
                         </div>
                     </div>
@@ -1348,7 +1506,7 @@
     <!-- 청구 완료 오버레이 -->
     <div class="success-overlay" id="successOverlay">
         <div class="success-modal">
-            <div class="success-icon">✅</div>
+            <div class="success-icon"></div>
             <div class="success-title">청구서가 생성되었습니다</div>
             <div class="success-sub" id="successMsg"></div>
             <button class="success-btn" onclick="closeSuccess()">확인</button>
@@ -1359,6 +1517,54 @@
     <div class="toast" id="toast"></div>
 
     <script>
+
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    
+
+// Page Specific Scripts
+
         // ─── 더미 명세서 데이터 ───
         let invoices = [
             { id: 'INV-2025-0410-001', orderRef: 'ORD-20250410-2847', supply: 8500000, status: 'available', issueDate: '2025.04.10' },
@@ -1627,7 +1833,8 @@
         // ─── 초기화 ───
         renderTable();
         updateSummary();
-    </script>
+    
+</script>
 </body>
 
 </html>

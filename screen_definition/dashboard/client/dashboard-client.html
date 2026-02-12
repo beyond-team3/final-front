@@ -1,4 +1,6 @@
-<html lang="ko"><head>
+<html lang="ko">
+
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>거래처 대시보드 - 종자 영업 관리 시스템</title>
@@ -28,7 +30,7 @@
             align-items: center;
             padding: 0 20px;
             z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .menu-button {
@@ -122,13 +124,39 @@
             margin: 0 auto;
         }
 
-        /* 화면별 컨텐츠 영역 */
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
         .screen-content {
             background-color: white;
             border-radius: 8px;
             padding: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden)~.main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
         }
 
         /* ========== 거래처 대시보드 전용 스타일 ========== */
@@ -759,408 +787,421 @@
                 left: 0;
             }
 
-            .sidebar:not(.hidden) ~ .main-content {
+            .sidebar:not(.hidden)~.main-content {
                 filter: brightness(0.7);
                 pointer-events: none;
             }
         }
     </style>
 </head>
+
 <body>
-<!-- 헤더 -->
-<header class="header">
-    <button class="menu-button" id="menuToggle">☰</button>
-    <h1 class="header-title">종자 영업 관리 시스템</h1>
-</header>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
 
-<!-- 사이드바 -->
-<aside class="sidebar" id="sidebar">
-    <nav class="sidebar-nav">
-        <div class="nav-category">대시보드</div>
-        <div class="nav-item active" data-screen="dashboard-client">내 거래 현황</div>
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">대시보드</div>
+            <div class="nav-item active" data-screen="dashboard-client">내 거래 현황</div>
 
-        <div class="nav-category">주문 관리</div>
-        <div class="nav-item" data-screen="quote-request">견적 요청하기</div>
-        <div class="nav-item" data-screen="my-orders">나의 주문 내역</div>
-        <div class="nav-item" data-screen="order-create">주문서 작성</div>
+            <div class="nav-category">주문 관리</div>
+            <div class="nav-item" data-screen="quote-request">견적 요청하기</div>
+            <div class="nav-item" data-screen="my-orders">나의 주문 내역</div>
+            <div class="nav-item" data-screen="order-create">주문서 작성</div>
 
-        <div class="nav-category">결제 관리</div>
-        <div class="nav-item" data-screen="invoices">청구서 관리</div>
-        <div class="nav-item" data-screen="payment-history">결제 내역</div>
+            <div class="nav-category">결제 관리</div>
+            <div class="nav-item" data-screen="invoices">청구서 관리</div>
+            <div class="nav-item" data-screen="payment-history">결제 내역</div>
 
-        <div class="nav-category">정보 조회</div>
-        <div class="nav-item" data-screen="products">상품 검색</div>
-        <div class="nav-item" data-screen="documents">문서 보관함</div>
-        <div class="nav-item" data-screen="schedule">일정 확인</div>
+            <div class="nav-category">정보 조회</div>
+            <div class="nav-item" data-screen="products">상품 검색</div>
+            <div class="nav-item" data-screen="documents">문서 보관함</div>
+            <div class="nav-item" data-screen="schedule">일정 확인</div>
 
-        <div class="nav-category">설정</div>
-        <div class="nav-item" data-screen="company-info">거래처 정보</div>
-        <div class="nav-item" data-screen="account">계정 설정</div>
-    </nav>
-</aside>
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="company-info">거래처 정보</div>
+            <div class="nav-item" data-screen="account">계정 설정</div>
+        </nav>
+    </aside>
 
-<!-- 메인 컨텐츠 영역 -->
-<main class="main-content" id="mainContent">
-    <div class="content-wrapper">
-        <div class="screen-content">
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
 
-            <!-- ========== 거래처 대시보드 컨텐츠 시작 ========== -->
+                <!-- ========== 거래처 대시보드 컨텐츠 시작 ========== -->
 
-            <!-- 대시보드 헤더 -->
-            <div class="dashboard-header">
-                <div>
-                    <div class="dashboard-title">내 거래 현황</div>
-                    <div class="dashboard-subtitle">대농농협 · 2026년 2월 11일</div>
-                </div>
-            </div>
-
-            <!-- 상단 2열: 최근 주문 내역 / 최근 결제 요청 + 여신 -->
-            <div class="dashboard-grid">
-
-                <!-- 최근 주문 내역 -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <span class="panel-title">최근 주문 내역</span>
-                        <a class="panel-link">전체 보기</a>
-                    </div>
-                    <div class="order-list">
-                        <div class="order-card">
-                            <div class="order-card-header">
-                                <div>
-                                    <div class="order-no">OD-2026-0210-001</div>
-                                    <div class="order-date">2026년 2월 10일</div>
-                                </div>
-                                <span class="order-status processing">처리 중</span>
-                            </div>
-                            <div class="order-items-summary">
-                                고추 품종 A-123 × 500kg · 토마토 품종 B-456 × 300kg 외 1건
-                            </div>
-                            <div class="order-card-footer">
-                                <div class="order-amount">₩12,500,000</div>
-                                <span class="order-action">상세 보기</span>
-                            </div>
-                        </div>
-
-                        <div class="order-card">
-                            <div class="order-card-header">
-                                <div>
-                                    <div class="order-no">OD-2026-0209-002</div>
-                                    <div class="order-date">2026년 2월 9일</div>
-                                </div>
-                                <span class="order-status pending">승인 대기</span>
-                            </div>
-                            <div class="order-items-summary">
-                                배추 품종 C-789 × 400kg · 상추 품종 D-012 × 200kg
-                            </div>
-                            <div class="order-card-footer">
-                                <div class="order-amount">₩8,300,000</div>
-                                <span class="order-action">주문 취소</span>
-                            </div>
-                        </div>
-
-                        <div class="order-card">
-                            <div class="order-card-header">
-                                <div>
-                                    <div class="order-no">OD-2026-0207-003</div>
-                                    <div class="order-date">2026년 2월 7일</div>
-                                </div>
-                                <span class="order-status completed">완료</span>
-                            </div>
-                            <div class="order-items-summary">
-                                오이 품종 E-345 × 150kg · 가지 품종 F-678 × 100kg
-                            </div>
-                            <div class="order-card-footer">
-                                <div class="order-amount">₩5,600,000</div>
-                                <span class="order-action">재주문</span>
-                            </div>
-                        </div>
+                <!-- 대시보드 헤더 -->
+                <div class="dashboard-header">
+                    <div>
+                        <div class="dashboard-title">내 거래 현황</div>
+                        <div class="dashboard-subtitle">대농농협 · 2026년 2월 11일</div>
                     </div>
                 </div>
 
-                <!-- 최근 결제 요청 + 여신 현황 -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <span class="panel-title">결제 요청 / 여신 현황</span>
-                        <a class="panel-link">청구서 전체 보기</a>
+                <!-- 상단 2열: 최근 주문 내역 / 최근 결제 요청 + 여신 -->
+                <div class="dashboard-grid">
+
+                    <!-- 최근 주문 내역 -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">최근 주문 내역</span>
+                            <a class="panel-link">전체 보기</a>
+                        </div>
+                        <div class="order-list">
+                            <div class="order-card">
+                                <div class="order-card-header">
+                                    <div>
+                                        <div class="order-no">OD-2026-0210-001</div>
+                                        <div class="order-date">2026년 2월 10일</div>
+                                    </div>
+                                    <span class="order-status processing">처리 중</span>
+                                </div>
+                                <div class="order-items-summary">
+                                    고추 품종 A-123 × 500kg · 토마토 품종 B-456 × 300kg 외 1건
+                                </div>
+                                <div class="order-card-footer">
+                                    <div class="order-amount">₩12,500,000</div>
+                                    <span class="order-action">상세 보기</span>
+                                </div>
+                            </div>
+
+                            <div class="order-card">
+                                <div class="order-card-header">
+                                    <div>
+                                        <div class="order-no">OD-2026-0209-002</div>
+                                        <div class="order-date">2026년 2월 9일</div>
+                                    </div>
+                                    <span class="order-status pending">승인 대기</span>
+                                </div>
+                                <div class="order-items-summary">
+                                    배추 품종 C-789 × 400kg · 상추 품종 D-012 × 200kg
+                                </div>
+                                <div class="order-card-footer">
+                                    <div class="order-amount">₩8,300,000</div>
+                                    <span class="order-action">주문 취소</span>
+                                </div>
+                            </div>
+
+                            <div class="order-card">
+                                <div class="order-card-header">
+                                    <div>
+                                        <div class="order-no">OD-2026-0207-003</div>
+                                        <div class="order-date">2026년 2월 7일</div>
+                                    </div>
+                                    <span class="order-status completed">완료</span>
+                                </div>
+                                <div class="order-items-summary">
+                                    오이 품종 E-345 × 150kg · 가지 품종 F-678 × 100kg
+                                </div>
+                                <div class="order-card-footer">
+                                    <div class="order-amount">₩5,600,000</div>
+                                    <span class="order-action">재주문</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="billing-credit-wrap">
 
-                        <!-- 여신 현황 -->
-                        <div class="credit-box">
-                            <div class="credit-item">
-                                <div class="credit-label">여신 한도</div>
-                                <div class="credit-value">₩50,000,000</div>
+                    <!-- 최근 결제 요청 + 여신 현황 -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">결제 요청 / 여신 현황</span>
+                            <a class="panel-link">청구서 전체 보기</a>
+                        </div>
+                        <div class="billing-credit-wrap">
+
+                            <!-- 여신 현황 -->
+                            <div class="credit-box">
+                                <div class="credit-item">
+                                    <div class="credit-label">여신 한도</div>
+                                    <div class="credit-value">₩50,000,000</div>
+                                </div>
+                                <div class="credit-item">
+                                    <div class="credit-label">사용 금액</div>
+                                    <div class="credit-value">₩38,600,000</div>
+                                </div>
+                                <div class="credit-item">
+                                    <div class="credit-label">잔여 한도</div>
+                                    <div class="credit-value">₩11,400,000</div>
+                                </div>
                             </div>
-                            <div class="credit-item">
-                                <div class="credit-label">사용 금액</div>
-                                <div class="credit-value">₩38,600,000</div>
+                            <div class="credit-bar-wrap">
+                                <div class="credit-bar-row">
+                                    <span>여신 사용률</span>
+                                    <span>77%</span>
+                                </div>
+                                <div class="credit-bar-bg">
+                                    <div class="credit-bar-fill warning" style="width: 77%"></div>
+                                </div>
                             </div>
-                            <div class="credit-item">
-                                <div class="credit-label">잔여 한도</div>
-                                <div class="credit-value">₩11,400,000</div>
+
+                            <!-- 청구 사이클 -->
+                            <div class="billing-cycle-row">
+                                <div>
+                                    <div class="billing-cycle-label">청구 사이클</div>
+                                    <div class="billing-cycle-value">월별 (매월 15일)</div>
+                                </div>
+                                <div class="billing-cycle-next">다음 청구일 2월 15일</div>
+                            </div>
+
+                            <!-- 청구 목록 -->
+                            <div class="billing-list">
+                                <div class="billing-item due-soon">
+                                    <div class="billing-left">
+                                        <div class="billing-doc-no">IN-2026-0210-001</div>
+                                        <div class="billing-due due-soon">기한 2026.02.17 (D-6)</div>
+                                    </div>
+                                    <div class="billing-right">
+                                        <div class="billing-amount">₩12,500,000</div>
+                                        <div class="billing-status-tag">결제 대기</div>
+                                    </div>
+                                </div>
+                                <div class="billing-item due-soon">
+                                    <div class="billing-left">
+                                        <div class="billing-doc-no">IN-2026-0208-002</div>
+                                        <div class="billing-due">기한 2026.02.22 (D-11)</div>
+                                    </div>
+                                    <div class="billing-right">
+                                        <div class="billing-amount">₩8,300,000</div>
+                                        <div class="billing-status-tag">결제 대기</div>
+                                    </div>
+                                </div>
+                                <div class="billing-item paid">
+                                    <div class="billing-left">
+                                        <div class="billing-doc-no">IN-2026-0205-003</div>
+                                        <div class="billing-due">2026.02.05 완료</div>
+                                    </div>
+                                    <div class="billing-right">
+                                        <div class="billing-amount">₩11,200,000</div>
+                                        <div class="billing-status-tag">결제 완료</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="credit-bar-wrap">
-                            <div class="credit-bar-row">
-                                <span>여신 사용률</span>
-                                <span>77%</span>
-                            </div>
-                            <div class="credit-bar-bg">
-                                <div class="credit-bar-fill warning" style="width: 77%"></div>
-                            </div>
+                    </div>
+                </div>
+
+                <!-- 하단 2열: 이번주 일정 / 최근 알림 -->
+                <div class="dashboard-grid">
+
+                    <!-- 이번주 일정 -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">이번주 일정</span>
+                            <span class="panel-badge">2월 9일 – 15일</span>
                         </div>
 
-                        <!-- 청구 사이클 -->
-                        <div class="billing-cycle-row">
+                        <!-- 주간 캘린더 헤더 -->
+                        <div class="week-header">
+                            <div></div>
+                            <div class="week-header-cell">일<br><span class="week-day-num other-month">9</span></div>
+                            <div class="week-header-cell">월<br><span class="week-day-num other-month">10</span></div>
+                            <div class="week-header-cell">화<br><span class="week-day-num today">11</span></div>
+                            <div class="week-header-cell">수<br><span class="week-day-num">12</span></div>
+                            <div class="week-header-cell">목<br><span class="week-day-num">13</span></div>
+                            <div class="week-header-cell">금<br><span class="week-day-num">14</span></div>
+                            <div class="week-header-cell">토<br><span class="week-day-num">15</span></div>
+                        </div>
+
+                        <!-- 이벤트 행 -->
+                        <div
+                            style="display: grid; grid-template-columns: 44px repeat(7, 1fr); margin-top: 6px; gap: 2px;">
+                            <div style="font-size:10px; color:#bdc3c7; padding-top:3px;">일정</div>
+                            <!-- 일 9 -->
+                            <div></div>
+                            <!-- 월 10 -->
+                            <div></div>
+                            <!-- 화 11 (오늘) -->
                             <div>
-                                <div class="billing-cycle-label">청구 사이클</div>
-                                <div class="billing-cycle-value">월별 (매월 15일)</div>
+                                <div class="cal-event contract">계약 검토</div>
                             </div>
-                            <div class="billing-cycle-next">다음 청구일 2월 15일</div>
+                            <!-- 수 12 -->
+                            <div></div>
+                            <!-- 목 13 -->
+                            <div>
+                                <div class="cal-event">견적 미팅</div>
+                            </div>
+                            <!-- 금 14 -->
+                            <div></div>
+                            <!-- 토 15 (청구일) -->
+                            <div>
+                                <div class="cal-event billing">청구일</div>
+                            </div>
                         </div>
 
-                        <!-- 청구 목록 -->
-                        <div class="billing-list">
-                            <div class="billing-item due-soon">
-                                <div class="billing-left">
-                                    <div class="billing-doc-no">IN-2026-0210-001</div>
-                                    <div class="billing-due due-soon">기한 2026.02.17 (D-6)</div>
+                        <!-- 이번주 일정 리스트 -->
+                        <div style="margin-top: 16px;">
+                            <div class="week-event-list">
+                                <div class="week-event-item contract">
+                                    <div class="week-event-date">
+                                        11
+                                        <span class="day-label">화</span>
+                                    </div>
+                                    <div class="week-event-info">
+                                        <div class="week-event-title">계약서 검토</div>
+                                        <div class="week-event-detail">CT-2026-0210-002 · 오전 10:00</div>
+                                    </div>
+                                    <span class="week-event-tag contract">계약</span>
                                 </div>
-                                <div class="billing-right">
-                                    <div class="billing-amount">₩12,500,000</div>
-                                    <div class="billing-status-tag">결제 대기</div>
+                                <div class="week-event-item">
+                                    <div class="week-event-date">
+                                        13
+                                        <span class="day-label">목</span>
+                                    </div>
+                                    <div class="week-event-info">
+                                        <div class="week-event-title">견적 미팅 - 고추 종자</div>
+                                        <div class="week-event-detail">QT-2026-0213-001 · 오후 2:00</div>
+                                    </div>
+                                    <span class="week-event-tag">견적</span>
+                                </div>
+                                <div class="week-event-item billing">
+                                    <div class="week-event-date">
+                                        15
+                                        <span class="day-label">토</span>
+                                    </div>
+                                    <div class="week-event-info">
+                                        <div class="week-event-title">청구 사이클 도래</div>
+                                        <div class="week-event-detail">월 2회 정기 청구일 · 미결 주문 포함 예정</div>
+                                    </div>
+                                    <span class="week-event-tag billing">청구</span>
                                 </div>
                             </div>
-                            <div class="billing-item due-soon">
-                                <div class="billing-left">
-                                    <div class="billing-doc-no">IN-2026-0208-002</div>
-                                    <div class="billing-due">기한 2026.02.22 (D-11)</div>
-                                </div>
-                                <div class="billing-right">
-                                    <div class="billing-amount">₩8,300,000</div>
-                                    <div class="billing-status-tag">결제 대기</div>
+                        </div>
+                    </div>
+
+                    <!-- 최근 알림 -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span class="panel-title">최근 알림</span>
+                            <span class="panel-badge">5건</span>
+                        </div>
+                        <div class="notif-list">
+                            <div class="notif-item new">
+                                <div class="notif-time">5분 전</div>
+                                <div class="notif-content">
+                                    <div class="notif-title">견적서 승인 완료</div>
+                                    <div class="notif-detail">QT-2026-0210-002가 승인되었습니다.</div>
                                 </div>
                             </div>
-                            <div class="billing-item paid">
-                                <div class="billing-left">
-                                    <div class="billing-doc-no">IN-2026-0205-003</div>
-                                    <div class="billing-due">2026.02.05 완료</div>
+                            <div class="notif-item new">
+                                <div class="notif-time">1시간 전</div>
+                                <div class="notif-content">
+                                    <div class="notif-title">청구서 발급</div>
+                                    <div class="notif-detail">IN-2026-0210-001이 발급되었습니다. · ₩12,500,000</div>
                                 </div>
-                                <div class="billing-right">
-                                    <div class="billing-amount">₩11,200,000</div>
-                                    <div class="billing-status-tag">결제 완료</div>
+                            </div>
+                            <div class="notif-item new">
+                                <div class="notif-time">3시간 전</div>
+                                <div class="notif-content">
+                                    <div class="notif-title">주문서 처리 시작</div>
+                                    <div class="notif-detail">OD-2026-0210-001 처리가 시작되었습니다.</div>
+                                </div>
+                            </div>
+                            <div class="notif-item">
+                                <div class="notif-time">어제</div>
+                                <div class="notif-content">
+                                    <div class="notif-title">명세서 발급</div>
+                                    <div class="notif-detail">ST-2026-0209-001이 발급되었습니다.</div>
+                                </div>
+                            </div>
+                            <div class="notif-item">
+                                <div class="notif-time">2일 전</div>
+                                <div class="notif-content">
+                                    <div class="notif-title">계약서 승인 완료</div>
+                                    <div class="notif-detail">CT-2026-0208-001이 승인되었습니다.</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- ========== 거래처 대시보드 컨텐츠 끝 ========== -->
+
             </div>
-
-            <!-- 하단 2열: 이번주 일정 / 최근 알림 -->
-            <div class="dashboard-grid">
-
-                <!-- 이번주 일정 -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <span class="panel-title">이번주 일정</span>
-                        <span class="panel-badge">2월 9일 – 15일</span>
-                    </div>
-
-                    <!-- 주간 캘린더 헤더 -->
-                    <div class="week-header">
-                        <div></div>
-                        <div class="week-header-cell">일<br><span class="week-day-num other-month">9</span></div>
-                        <div class="week-header-cell">월<br><span class="week-day-num other-month">10</span></div>
-                        <div class="week-header-cell">화<br><span class="week-day-num today">11</span></div>
-                        <div class="week-header-cell">수<br><span class="week-day-num">12</span></div>
-                        <div class="week-header-cell">목<br><span class="week-day-num">13</span></div>
-                        <div class="week-header-cell">금<br><span class="week-day-num">14</span></div>
-                        <div class="week-header-cell">토<br><span class="week-day-num">15</span></div>
-                    </div>
-
-                    <!-- 이벤트 행 -->
-                    <div style="display: grid; grid-template-columns: 44px repeat(7, 1fr); margin-top: 6px; gap: 2px;">
-                        <div style="font-size:10px; color:#bdc3c7; padding-top:3px;">일정</div>
-                        <!-- 일 9 -->
-                        <div></div>
-                        <!-- 월 10 -->
-                        <div></div>
-                        <!-- 화 11 (오늘) -->
-                        <div>
-                            <div class="cal-event contract">계약 검토</div>
-                        </div>
-                        <!-- 수 12 -->
-                        <div></div>
-                        <!-- 목 13 -->
-                        <div>
-                            <div class="cal-event">견적 미팅</div>
-                        </div>
-                        <!-- 금 14 -->
-                        <div></div>
-                        <!-- 토 15 (청구일) -->
-                        <div>
-                            <div class="cal-event billing">청구일</div>
-                        </div>
-                    </div>
-
-                    <!-- 이번주 일정 리스트 -->
-                    <div style="margin-top: 16px;">
-                        <div class="week-event-list">
-                            <div class="week-event-item contract">
-                                <div class="week-event-date">
-                                    11
-                                    <span class="day-label">화</span>
-                                </div>
-                                <div class="week-event-info">
-                                    <div class="week-event-title">계약서 검토</div>
-                                    <div class="week-event-detail">CT-2026-0210-002 · 오전 10:00</div>
-                                </div>
-                                <span class="week-event-tag contract">계약</span>
-                            </div>
-                            <div class="week-event-item">
-                                <div class="week-event-date">
-                                    13
-                                    <span class="day-label">목</span>
-                                </div>
-                                <div class="week-event-info">
-                                    <div class="week-event-title">견적 미팅 - 고추 종자</div>
-                                    <div class="week-event-detail">QT-2026-0213-001 · 오후 2:00</div>
-                                </div>
-                                <span class="week-event-tag">견적</span>
-                            </div>
-                            <div class="week-event-item billing">
-                                <div class="week-event-date">
-                                    15
-                                    <span class="day-label">토</span>
-                                </div>
-                                <div class="week-event-info">
-                                    <div class="week-event-title">청구 사이클 도래</div>
-                                    <div class="week-event-detail">월 2회 정기 청구일 · 미결 주문 포함 예정</div>
-                                </div>
-                                <span class="week-event-tag billing">청구</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 최근 알림 -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <span class="panel-title">최근 알림</span>
-                        <span class="panel-badge">5건</span>
-                    </div>
-                    <div class="notif-list">
-                        <div class="notif-item new">
-                            <div class="notif-time">5분 전</div>
-                            <div class="notif-content">
-                                <div class="notif-title">견적서 승인 완료</div>
-                                <div class="notif-detail">QT-2026-0210-002가 승인되었습니다.</div>
-                            </div>
-                        </div>
-                        <div class="notif-item new">
-                            <div class="notif-time">1시간 전</div>
-                            <div class="notif-content">
-                                <div class="notif-title">청구서 발급</div>
-                                <div class="notif-detail">IN-2026-0210-001이 발급되었습니다. · ₩12,500,000</div>
-                            </div>
-                        </div>
-                        <div class="notif-item new">
-                            <div class="notif-time">3시간 전</div>
-                            <div class="notif-content">
-                                <div class="notif-title">주문서 처리 시작</div>
-                                <div class="notif-detail">OD-2026-0210-001 처리가 시작되었습니다.</div>
-                            </div>
-                        </div>
-                        <div class="notif-item">
-                            <div class="notif-time">어제</div>
-                            <div class="notif-content">
-                                <div class="notif-title">명세서 발급</div>
-                                <div class="notif-detail">ST-2026-0209-001이 발급되었습니다.</div>
-                            </div>
-                        </div>
-                        <div class="notif-item">
-                            <div class="notif-time">2일 전</div>
-                            <div class="notif-content">
-                                <div class="notif-title">계약서 승인 완료</div>
-                                <div class="notif-detail">CT-2026-0208-001이 승인되었습니다.</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ========== 거래처 대시보드 컨텐츠 끝 ========== -->
-
         </div>
-    </div>
-</main>
+    </main>
 
-<script>
-    // 사이드바 토글
-    const menuToggle = document.getElementById('menuToggle');
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
 
-    menuToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('hidden');
-        mainContent.classList.toggle('expanded');
-    });
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
 
-    // 네비게이션 클릭
-    const navItems = document.querySelectorAll('.nav-item');
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            navItems.forEach(nav => nav.classList.remove('active'));
-            item.classList.add('active');
-            const screenName = item.getAttribute('data-screen');
-            console.log(`${screenName} 화면으로 이동`);
-            if (window.innerWidth <= 768) {
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
                 sidebar.classList.add('hidden');
                 mainContent.classList.add('expanded');
             }
         });
-    });
 
-    // ESC 키로 사이드바 닫기
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
-            sidebar.classList.add('hidden');
-            mainContent.classList.add('expanded');
-        }
-    });
-
-    // 주문 카드 클릭
-    document.querySelectorAll('.order-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const no = card.querySelector('.order-no').textContent;
-            console.log(`${no} 주문 상세로 이동`);
+        // 주문 카드 클릭
+        document.querySelectorAll('.order-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const no = card.querySelector('.order-no').textContent;
+                console.log(`${no} 주문 상세로 이동`);
+            });
         });
-    });
 
-    // 청구 아이템 클릭
-    document.querySelectorAll('.billing-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const no = item.querySelector('.billing-doc-no').textContent;
-            console.log(`${no} 청구서 상세로 이동`);
+        // 청구 아이템 클릭
+        document.querySelectorAll('.billing-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const no = item.querySelector('.billing-doc-no').textContent;
+                console.log(`${no} 청구서 상세로 이동`);
+            });
         });
-    });
 
-    // 알림 클릭
-    document.querySelectorAll('.notif-content').forEach(item => {
-        item.addEventListener('click', () => {
-            const title = item.querySelector('.notif-title').textContent;
-            console.log(`알림 상세: ${title}`);
+        // 알림 클릭
+        document.querySelectorAll('.notif-content').forEach(item => {
+            item.addEventListener('click', () => {
+                const title = item.querySelector('.notif-title').textContent;
+                console.log(`알림 상세: ${title}`);
+            });
         });
-    });
 
-    // 일정 아이템 클릭
-    document.querySelectorAll('.week-event-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const title = item.querySelector('.week-event-title').textContent;
-            console.log(`일정 상세: ${title}`);
+        // 일정 아이템 클릭
+        document.querySelectorAll('.week-event-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const title = item.querySelector('.week-event-title').textContent;
+                console.log(`일정 상세: ${title}`);
+            });
         });
-    });
-</script>
+    </script>
+</body>
 
-
-</body></html>
+</html>

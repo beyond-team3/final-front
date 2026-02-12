@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+              <h2 class="screen-title">거래처 정보</h2>
+
+              <!-- 화면 전용 스타일(템플릿 CSS는 수정하지 않음) -->
+              <style>
+                .client-wrap { display: flex; flex-direction: column; gap: 18px; }
+                .section-title { font-size: 16px; font-weight: 700; color: #2c3e50; margin-bottom: 10px; }
+                .card { border: 1px solid #ecf0f1; border-radius: 10px; padding: 16px; background: #fff; }
+                .info-grid {
+                  display: grid;
+                  grid-template-columns: 180px 1fr 180px 1fr;
+                  gap: 10px 14px;
+                  align-items: center;
+                }
+                .info-label { font-size: 12px; color: #7f8c8d; font-weight: 700; }
+                .info-value { font-size: 14px; color: #2c3e50; }
+                .divider { height: 1px; background: #ecf0f1; margin: 12px 0; }
+
+                .notes-toolbar {
+                  display: grid;
+                  grid-template-columns: 1fr 1.5fr 1fr auto;
+                  gap: 10px;
+                  align-items: end;
+                }
+                .field { display: flex; flex-direction: column; gap: 6px; }
+                .field label { font-size: 12px; color: #7f8c8d; font-weight: 700; }
+                .field input, .field select {
+                  height: 38px;
+                  border: 1px solid #dfe6e9;
+                  border-radius: 8px;
+                  padding: 0 10px;
+                  font-size: 14px;
+                  outline: none;
+                }
+                .date-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+                .primary-btn{
+                  height:36px; padding:0 14px; border:none; border-radius:8px; cursor:pointer;
+                  background:#3498db; color:white; font-weight:700;
+                  box-shadow: 0 2px 6px rgba(52,152,219,0.25);
+                }
+                .primary-btn:hover{ filter:brightness(0.95); }
+                .btn{
+                  height:36px; padding:0 12px; border-radius:8px; border:1px solid #dfe6e9; cursor:pointer; font-weight:700;
+                  background:white; color:#2c3e50;
+                }
+                .btn:active { transform: translateY(1px); }
+                .btn-primary{ background:#3498db; border-color:#3498db; color:white; }
+                .btn-ghost{ background:white; color:#2c3e50; }
+                .btn-ai{ background:#8e44ad; border-color:#8e44ad; color:white; }
+
+                .notes-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+                .note-item {
+                  border: 1px solid #ecf0f1;
+                  border-radius: 10px;
+                  padding: 14px;
+                  cursor: pointer;
+                  background: #fff;
+                }
+                .note-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+                .note-title { font-weight: 800; color: #2c3e50; }
+                .note-meta { font-size: 12px; color: #7f8c8d; display: flex; gap: 10px; flex-wrap: wrap; }
+                .pill {
+                  font-size: 12px;
+                  padding: 3px 8px;
+                  border-radius: 999px;
+                  background: #ecf0f1;
+                  color: #2c3e50;
+                  font-weight: 700;
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 6px;
+                }
+                .note-body { margin-top: 8px; color: #34495e; line-height: 1.5; font-size: 14px; }
+
+                .pagination {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  margin-top: 12px;
+                  gap: 10px;
+                }
+                .page-btns { display: flex; gap: 8px; align-items: center; }
+                .page-indicator { font-size: 13px; color: #7f8c8d; font-weight: 700; }
+
+                /* 모달 */
+                .modal-backdrop {
+                  position:fixed; inset:0; background:rgba(0,0,0,0.45);
+                  display:none; align-items:center; justify-content:center;
+                  z-index: 5000;
+                  padding:18px;
+                }
+                .modal {
+                  width:min(820px, 100%); background:white; border-radius:12px; overflow:hidden;
+                  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+                }
+                .modal.modal-wide{ width:min(980px, 100%); }
+                .modal-header{
+                  display:flex; align-items:center; justify-content:space-between;
+                  padding:14px 16px; background:#2c3e50; color:white;
+                }
+                .modal-title{ font-size:16px; font-weight:800; }
+                .modal-close{
+                  background:transparent; border:none; color:white; font-size:22px; cursor:pointer; padding:6px 10px; border-radius:8px;
+                }
+                .modal-close:hover{ background:rgba(255,255,255,0.12); }
+                .modal-body{ padding:16px; max-height:70vh; overflow:auto; }
+                .modal-footer{
+                  padding:14px 16px; border-top:1px solid #ecf0f1; display:flex; justify-content:flex-end; gap:8px;
+                }
+
+                .form-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 1fr;
+                  gap: 10px;
+                }
+                .form-grid .field textarea {
+                  height: 120px;
+                  padding: 10px;
+                  resize: vertical;
+                  border: 1px solid #dfe6e9;
+                  border-radius: 10px;
+                  font-size: 14px;
+                  outline: none;
+                }
+                .form-grid .wide { grid-column: 1 / -1; }
+
+                @media (max-width: 900px) {
+                  .info-grid { grid-template-columns: 140px 1fr; }
+                  .notes-toolbar { grid-template-columns: 1fr; }
+                  .form-grid { grid-template-columns: 1fr; }
+                }
+              </style>
+
+              <div class="client-wrap">
+                <!-- 거래처 정보 -->
+                <div class="card">
+                  <div class="section-title">고객 정보</div>
+
+                  <div class="info-grid" id="clientInfoGrid">
+                    <!-- JS로 채움(샘플) -->
+                  </div>
+                </div>
+
+                <!-- 노트 영역 -->
+                <div class="card">
+                  <div class="section-title">거래처 노트</div>
+
+                  <!-- [하단] 필터/검색/기간/추가 -->
+                  <div class="notes-toolbar">
+                    <div class="field">
+                      <label>노트 필터(품종)</label>
+                      <select id="filterVariety">
+                        <option value="">전체</option>
+                      </select>
+                    </div>
+
+                    <div class="field">
+                      <label>노트 필터(계약)</label>
+                      <select id="filterContract">
+                        <option value="">전체</option>
+                      </select>
+                    </div>
+
+                    <button class="primary-btn" id="btnAddNote">+ 노트 추가</button>
+
+                    <div class="field" style="grid-column: 1 / span 2;">
+                      <label>검색</label>
+                      <input id="searchInput" type="text" placeholder="제목/내용/키워드로 검색" />
+                    </div>
+
+                    <div class="field" style="grid-column: 3 / span 2;">
+                      <label>날짜 범위</label>
+                      <div class="date-range">
+                        <input id="dateFrom" type="date" />
+                        <input id="dateTo" type="date" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="divider"></div>
+
+                  <!-- 노트 리스트 -->
+                  <div class="notes-list" id="notesList"></div>
+
+                  <!-- 페이지네이션(5개씩) -->
+                  <div class="pagination">
+                    <div class="page-indicator" id="pageIndicator">-</div>
+                    <div class="page-btns">
+                      <button class="btn btn-ghost" id="btnPrev">이전</button>
+                      <button class="btn btn-ghost" id="btnNext">다음</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 노트 상세 모달 -->
+              <div class="modal-backdrop" id="detailBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-label="노트 상세">
+                  <div class="modal-header">
+                    <div class="modal-title">노트 상세 조회</div>
+                    <button class="modal-close" id="detailClose">✕</button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="note-meta" id="detailMeta"></div>
+                    <div style="margin-top: 10px; font-size: 18px; font-weight: 900; color:#2c3e50;" id="detailTitle"></div>
+                    <div style="margin-top: 10px; color:#34495e; line-height:1.6;" id="detailContent"></div>
+                  </div>
+                  <div class="modal-footer">
+                    <button class="btn btn-ghost" id="detailOk">닫기</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 노트 추가 모달 -->
+              <div class="modal-backdrop" id="addBackdrop" aria-hidden="true">
+                <div class="modal modal-wide" role="dialog" aria-modal="true" aria-label="노트 추가">
+                  <div class="modal-header">
+                    <div class="modal-title">노트 추가</div>
+                    <button class="modal-close" id="addClose">✕</button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="form-grid">
+                      <div class="field">
+                        <label>거래처 카테고리</label>
+                        <select id="addClient">
+                          <option value="">선택</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label>품종 카테고리</label>
+                        <select id="addVariety">
+                          <option value="">선택</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label>계약 카테고리</label>
+                        <select id="addContract">
+                          <option value="">선택</option>
+                        </select>
+                      </div>
+
+                      <div class="field wide">
+                        <label>제목</label>
+                        <input id="addTitle" type="text" placeholder="노트 제목" />
+                      </div>
+
+                      <div class="field wide">
+                        <label>내용</label>
+                        <textarea id="addContent" placeholder="노트 내용을 입력하세요."></textarea>
+                      </div>
+
+                      <div class="field">
+                        <label>작성일</label>
+                        <input id="addDate" type="date" />
+                      </div>
+
+                      <div class="field" style="justify-content:flex-end;">
+                        <label style="visibility:hidden;">AI</label>
+                        <button class="btn btn-ai" id="btnAI">AI로 카테고리 자동 선택</button>
+                        <div style="margin-top:6px; font-size:12px; color:#7f8c8d;">
+                          * 샘플 동작: 제목/내용 키워드로 자동 선택
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer" style="justify-content: space-between;">
+                    <button class="btn btn-ghost" id="addCancel">취소</button>
+                    <div style="display:flex; gap:10px;">
+                      <button class="btn btn-ghost" id="addPreview">등록 전 확인</button>
+                      <button class="btn btn-primary" id="addSubmit">등록</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 확인(알림) 모달: AI 할당 후 등록 전 확인 -->
+              <div class="modal-backdrop" id="confirmBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-label="노트 등록 확인">
+                  <div class="modal-header">
+                    <div class="modal-title">노트 등록 확인</div>
+                    <button class="modal-close" id="confirmClose">✕</button>
+                  </div>
+                  <div class="modal-body">
+                    <div style="font-weight:800; color:#2c3e50; margin-bottom:8px;">선택된 카테고리</div>
+                    <div class="note-meta" id="confirmMeta" style="margin-bottom:12px;"></div>
+                    <div style="font-size:13px; color:#7f8c8d;">
+                      확인을 누르면 노트가 리스트에 추가됩니다.
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button class="btn btn-ghost" id="confirmCancel">취소</button>
+                    <button class="btn btn-primary" id="confirmOk">확인</button>
+                  </div>
+                </div>
+              </div>
+
+              <script>
+                // =========================
+                // 1) 샘플 데이터(거래처/노트)
+                // =========================
+                const client = {
+                  name: "한빛농협",
+                  bizNo: "123-45-67890",
+                  ceo: "김대표",
+                  tel: "02-1234-5678",
+                  address: "서울특별시 ○○구 ○○로 12",
+                  type: "농협",
+                  score: 92,
+                  managerName: "박담당",
+                  managerEmail: "manager@hanbit.co.kr",
+                  managerPhone: "010-2222-3333",
+                  credit: 35000000,
+                  creditLimit: 50000000,
+                  담당영업사원: "이하경"
+                };
+
+                const clients = ["한빛농협", "푸른육묘장", "미래농협", "늘봄육묘장"];
+                const varieties = ["대박토마토", "청춘배추", "마라톤수박", "햇살고추"];
+                const contracts = ["계약-2026-001", "계약-2026-002", "계약-2026-003"];
+
+                let notes = [
+                  {
+                    id: 1,
+                    title: "봄 시즌 발주 협의",
+                    content: "3월 둘째 주에 토마토/배추 물량 집중. 재고 확인 후 단가 재협상 필요.",
+                    client: "한빛농협",
+                    variety: "대박토마토",
+                    contract: "계약-2026-001",
+                    date: "2026-02-03"
+                  },
+                  {
+                    id: 2,
+                    title: "클레임 이슈 메모",
+                    content: "지난 출고 LOT 발아율 문의. 내부 품질 리포트 요청해 전달 예정.",
+                    client: "한빛농협",
+                    variety: "청춘배추",
+                    contract: "계약-2026-002",
+                    date: "2026-02-05"
+                  },
+                  {
+                    id: 3,
+                    title: "가격 범위 공유",
+                    content: "경쟁사 대비 3~5% 높은 수준. 물량 조건으로 할인 제안 가능.",
+                    client: "푸른육묘장",
+                    variety: "마라톤수박",
+                    contract: "계약-2026-003",
+                    date: "2026-02-07"
+                  },
+                  {
+                    id: 4,
+                    title: "방문 일정 후보",
+                    content: "다음 주 화/목 오전 가능. 담당자에게 2안 제시.",
+                    client: "한빛농협",
+                    variety: "햇살고추",
+                    contract: "계약-2026-001",
+                    date: "2026-02-09"
+                  },
+                  {
+                    id: 5,
+                    title: "수요 전망 공유",
+                    content: "올해 냉해 영향으로 배추 수요 변동 가능성. 대체 품종 안내 준비.",
+                    client: "미래농협",
+                    variety: "청춘배추",
+                    contract: "계약-2026-002",
+                    date: "2026-02-10"
+                  },
+                  {
+                    id: 6,
+                    title: "추가 공급 가능 여부",
+                    content: "갑작스러운 추가 요청 대비. LOT 분리 출고 시 리드타임 확인.",
+                    client: "한빛농협",
+                    variety: "대박토마토",
+                    contract: "계약-2026-003",
+                    date: "2026-02-11"
+                  }
+                ];
+
+                // =========================
+                // 2) 거래처 정보 렌더
+                // =========================
+                const infoRows = [
+                  ["거래처명", client.name],
+                  ["사업자번호", client.bizNo],
+                  ["대표이사이름", client.ceo],
+                  ["회사유선전화번호", client.tel],
+                  ["주소", client.address],
+                  ["거래처유형", client.type],
+                  ["거래처점수", client.score + "점"],
+                  ["거래처담당자이름", client.managerName],
+                  ["거래처담당자이메일", client.managerEmail],
+                  ["거래처담당자번호", client.managerPhone],
+                  ["여신", client.credit.toLocaleString() + "원"],
+                  ["여신한도", client.creditLimit.toLocaleString() + "원"],
+                  ["거래처담당영업사원이름", client.담당영업사원]
+                ];
+
+                const clientInfoGrid = document.getElementById("clientInfoGrid");
+                clientInfoGrid.innerHTML = infoRows.map(([k,v]) => `
+                  <div class="info-label">${k}</div><div class="info-value">${v}</div>
+                `).join("");
+
+                // =========================
+                // 3) 셀렉트 옵션 세팅
+                // =========================
+                const $ = (id) => document.getElementById(id);
+
+                function setOptions(selectEl, list) {
+                  list.forEach(v => {
+                    const opt = document.createElement("option");
+                    opt.value = v;
+                    opt.textContent = v;
+                    selectEl.appendChild(opt);
+                  });
+                }
+
+                setOptions($("filterVariety"), varieties);
+                setOptions($("filterContract"), contracts);
+
+                setOptions($("addClient"), clients);
+                setOptions($("addVariety"), varieties);
+                setOptions($("addContract"), contracts);
+
+                // =========================
+                // 4) 노트 리스트 + 필터 + 페이지네이션(5개)
+                // =========================
+                const PAGE_SIZE = 5;
+                let page = 1;
+                let filtered = [];
+
+                function inDateRange(noteDate, from, to) {
+                  if (!from && !to) return true;
+                  const d = new Date(noteDate);
+                  if (from) {
+                    const f = new Date(from);
+                    if (d < f) return false;
+                  }
+                  if (to) {
+                    const t = new Date(to);
+                    t.setHours(23,59,59,999);
+                    if (d > t) return false;
+                  }
+                  return true;
+                }
+
+                function applyFilters() {
+                  const fv = $("filterVariety").value;
+                  const fcon = $("filterContract").value;
+                  const q = $("searchInput").value.trim().toLowerCase();
+                  const from = $("dateFrom").value;
+                  const to = $("dateTo").value;
+
+                  filtered = notes
+                    .filter(n => n.client === client.name)
+                    .filter(n => !fv || n.variety === fv)
+                    .filter(n => !fcon || n.contract === fcon)
+                    .filter(n => inDateRange(n.date, from, to))
+                    .filter(n => !q || (n.title + " " + n.content + " " + n.client + " " + n.variety + " " + n.contract).toLowerCase().includes(q))
+                    .sort((a,b) => (a.date < b.date ? 1 : -1));
+
+                  page = 1;
+                  renderNotes();
+                }
+
+                function renderNotes() {
+                  const listEl = $("notesList");
+                  const start = (page - 1) * PAGE_SIZE;
+                  const end = start + PAGE_SIZE;
+                  const slice = filtered.slice(start, end);
+
+                  listEl.innerHTML = slice.length ? slice.map(n => `
+                    <div class="note-item" data-id="${n.id}">
+                      <div class="note-head">
+                        <div class="note-title">${n.title}</div>
+                        <div class="pill">📅 ${n.date}</div>
+                      </div>
+                      <div class="note-meta" style="margin-top:6px;">
+                        <span class="pill">거래처: ${n.client}</span>
+                        <span class="pill">품종: ${n.variety}</span>
+                        <span class="pill">계약: ${n.contract}</span>
+                      </div>
+                      <div class="note-body">${escapeHtml(n.content).slice(0, 120)}${n.content.length > 120 ? "..." : ""}</div>
+                    </div>
+                  `).join("") : `<div style="color:#7f8c8d; font-weight:700;">조건에 맞는 노트가 없습니다.</div>`;
+
+                  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+                  $("pageIndicator").textContent = `총 ${filtered.length}개 · ${page} / ${totalPages} 페이지 (페이지당 ${PAGE_SIZE}개)`;
+
+                  $("btnPrev").disabled = page <= 1;
+                  $("btnNext").disabled = page >= totalPages;
+
+                  // 클릭 -> 상세 모달
+                  document.querySelectorAll(".note-item").forEach(item => {
+                    item.addEventListener("click", () => openDetail(Number(item.dataset.id)));
+                  });
+                }
+
+                function escapeHtml(str) {
+                  return String(str)
+                    .replaceAll("&", "&amp;")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+                    .replaceAll('"', "&quot;")
+                    .replaceAll("'", "&#039;");
+                }
+
+                // 초기
+                filtered = [...notes];
+                applyFilters();
+
+                ["filterVariety","filterContract","dateFrom","dateTo"].forEach(id => {
+                  $(id).addEventListener("change", applyFilters);
+                });
+                $("searchInput").addEventListener("input", applyFilters);
+
+                $("btnPrev").addEventListener("click", () => { page--; renderNotes(); });
+                $("btnNext").addEventListener("click", () => { page++; renderNotes(); });
+
+                // =========================
+                // 5) 상세 모달
+                // =========================
+                function showModal(backdropEl) {
+                  backdropEl.style.display = "flex";
+                  backdropEl.setAttribute("aria-hidden", "false");
+                }
+                function hideModal(backdropEl) {
+                  backdropEl.style.display = "none";
+                  backdropEl.setAttribute("aria-hidden", "true");
+                }
+
+                const detailBackdrop = $("detailBackdrop");
+                const addBackdrop = $("addBackdrop");
+                const confirmBackdrop = $("confirmBackdrop");
+
+                function openDetail(noteId) {
+                  const n = notes.find(x => x.id === noteId);
+                  if (!n) return;
+
+                  $("detailTitle").textContent = n.title;
+                  $("detailContent").innerHTML = escapeHtml(n.content).replaceAll("\n", "<br/>");
+                  $("detailMeta").innerHTML = `
+                    <span class="pill">📅 ${n.date}</span>
+                    <span class="pill">거래처: ${n.client}</span>
+                    <span class="pill">품종: ${n.variety}</span>
+                    <span class="pill">계약: ${n.contract}</span>
+                  `;
+                  showModal(detailBackdrop);
+                }
+
+                $("detailClose").addEventListener("click", () => hideModal(detailBackdrop));
+                $("detailOk").addEventListener("click", () => hideModal(detailBackdrop));
+                detailBackdrop.addEventListener("click", (e) => { if (e.target === detailBackdrop) hideModal(detailBackdrop); });
+
+                // =========================
+                // 6) 추가 모달 + AI 카테고리 자동 선택 + 등록 전 확인(알림)
+                // =========================
+                let pendingNewNote = null;
+                let aiAssigned = false;
+
+                function openAddModal() {
+                  pendingNewNote = null;
+                  aiAssigned = false;
+
+                  $("addClient").value = "";
+                  $("addVariety").value = "";
+                  $("addContract").value = "";
+                  $("addTitle").value = "";
+                  $("addContent").value = "";
+                  $("addDate").value = new Date().toISOString().slice(0,10);
+
+                  showModal(addBackdrop);
+                }
+
+                $("btnAddNote").addEventListener("click", openAddModal);
+                $("addClose").addEventListener("click", () => hideModal(addBackdrop));
+                $("addCancel").addEventListener("click", () => hideModal(addBackdrop));
+                addBackdrop.addEventListener("click", (e) => { if (e.target === addBackdrop) hideModal(addBackdrop); });
+
+                // AI 버튼: 제목/내용 키워드로 샘플 자동 선택
+                $("btnAI").addEventListener("click", () => {
+                  const text = ( $("addTitle").value + " " + $("addContent").value ).toLowerCase();
+
+                  // 간단 규칙 기반(샘플)
+                  const autoClient = text.includes("농협") ? "한빛농협" : (clients[0] || "");
+                  const autoVariety = text.includes("토마토") ? "대박토마토" : (text.includes("배추") ? "청춘배추" : (varieties[0] || ""));
+                  const autoContract = text.includes("002") ? "계약-2026-002" : (contracts[0] || "");
+
+                  $("addClient").value = autoClient;
+                  $("addVariety").value = autoVariety;
+                  $("addContract").value = autoContract;
+
+                  aiAssigned = true;
+
+                  // AI로 할당하면 "등록 전 확인 알림"이 뜬다는 요구 -> 즉시 확인 모달로 유도
+                  openConfirmModal(buildPendingNote());
+                });
+
+                function buildPendingNote() {
+                  const title = $("addTitle").value.trim();
+                  const content = $("addContent").value.trim();
+                  const date = $("addDate").value;
+
+                  const clientSel = $("addClient").value;
+                  const varietySel = $("addVariety").value;
+                  const contractSel = $("addContract").value;
+
+                  if (!title || !content || !date || !clientSel || !varietySel || !contractSel) {
+                    return null;
+                  }
+
+                  return {
+                    id: Date.now(),
+                    title,
+                    content,
+                    date,
+                    client: clientSel,
+                    variety: varietySel,
+                    contract: contractSel
+                  };
+                }
+
+                function openConfirmModal(noteObj) {
+                  if (!noteObj) {
+                    alert("필수 입력값(카테고리/제목/내용/작성일)을 모두 입력해주세요.");
+                    return;
+                  }
+                  pendingNewNote = noteObj;
+
+                  $("confirmMeta").innerHTML = `
+                    <span class="pill">거래처: ${pendingNewNote.client}</span>
+                    <span class="pill">품종: ${pendingNewNote.variety}</span>
+                    <span class="pill">계약: ${pendingNewNote.contract}</span>
+                    <span class="pill">📅 ${pendingNewNote.date}</span>
+                  `;
+                  showModal(confirmBackdrop);
+                }
+
+                // "등록 전 확인" 버튼(수동 선택이어도 확인 가능)
+                $("addPreview").addEventListener("click", () => {
+                  openConfirmModal(buildPendingNote());
+                });
+
+                $("addSubmit").addEventListener("click", () => {
+                  // AI 할당을 썼으면 반드시 확인을 거치게(요구사항 취지 반영)
+                  const obj = buildPendingNote();
+                  if (!obj) {
+                    alert("필수 입력값(카테고리/제목/내용/작성일)을 모두 입력해주세요.");
+                    return;
+                  }
+                  if (aiAssigned) {
+                    openConfirmModal(obj);
+                  } else {
+                    // 수동 선택은 즉시 등록 허용
+                    notes = [obj, ...notes];
+                    hideModal(addBackdrop);
+                    applyFilters();
+                  }
+                });
+
+                $("confirmClose").addEventListener("click", () => hideModal(confirmBackdrop));
+                $("confirmCancel").addEventListener("click", () => hideModal(confirmBackdrop));
+                confirmBackdrop.addEventListener("click", (e) => { if (e.target === confirmBackdrop) hideModal(confirmBackdrop); });
+
+                $("confirmOk").addEventListener("click", () => {
+                  if (!pendingNewNote) return;
+                  notes = [pendingNewNote, ...notes];
+                  pendingNewNote = null;
+                  hideModal(confirmBackdrop);
+                  hideModal(addBackdrop);
+                  applyFilters();
+                });
+
+                // ESC로 모달 닫기(템플릿 ESC 사이드바와 충돌 방지: 모달 우선)
+                document.addEventListener("keydown", (e) => {
+                  if (e.key !== "Escape") return;
+                  if (confirmBackdrop.style.display === "flex") return hideModal(confirmBackdrop);
+                  if (addBackdrop.style.display === "flex") return hideModal(addBackdrop);
+                  if (detailBackdrop.style.display === "flex") return hideModal(detailBackdrop);
+                });
+              </script>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>
