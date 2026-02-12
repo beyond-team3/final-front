@@ -1,0 +1,195 @@
+/* ── 이번주 일정 (캘린더) ── */
+.week-calendar {
+display: flex;
+flex-direction: column;
+gap: 0;
+}
+
+.week-header {
+display: grid;
+grid-template-columns: 44px repeat(7, 1fr);
+border-bottom: 1px solid #e8ecef;
+margin-bottom: 2px;
+}
+
+.week-header-cell {
+font-size: 11px;
+color: #95a5a6;
+text-align: center;
+padding: 0 0 8px 0;
+font-weight: 600;
+}
+
+.week-header-cell.today {
+color: #2c3e50;
+}
+
+.week-day-num {
+font-size: 13px;
+font-weight: 700;
+text-align: center;
+padding: 6px 0 4px;
+}
+
+.week-day-num.today {
+background-color: #2c3e50;
+color: white;
+border-radius: 50%;
+width: 26px;
+height: 26px;
+display: flex;
+align-items: center;
+justify-content: center;
+margin: 0 auto;
+}
+
+.week-day-num.other-month {
+color: #bdc3c7;
+}
+
+.week-body {
+display: grid;
+grid-template-columns: 44px repeat(7, 1fr);
+gap: 0;
+min-height: 120px;
+}
+
+.week-time-col {
+display: flex;
+flex-direction: column;
+gap: 0;
+}
+
+.week-time-label {
+font-size: 10px;
+color: #bdc3c7;
+height: 38px;
+display: flex;
+align-items: flex-start;
+padding-top: 2px;
+}
+
+.week-day-col {
+border-left: 1px solid #f0f3f4;
+position: relative;
+min-height: 120px;
+}
+
+.week-day-col.today-col {
+background-color: #fafbfc;
+}
+
+/* 캘린더 이벤트 */
+.cal-event {
+margin: 2px 2px;
+padding: 3px 6px;
+border-radius: 3px;
+font-size: 11px;
+background-color: #e8ecef;
+color: #2c3e50;
+cursor: pointer;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+transition: background-color 0.15s;
+border-left: 2px solid #7f8c8d;
+}
+
+.cal-event:hover {
+background-color: #dde2e5;
+}
+
+.cal-event.billing {
+background-color: #fef3e8;
+border-left-color: #e67e22;
+color: #784b0a;
+}
+
+.cal-event.contract {
+background-color: #f0f3f4;
+border-left-color: #2c3e50;
+color: #2c3e50;
+}
+
+/* 이번주 일정 리스트 폴백 */
+.week-event-list {
+display: flex;
+flex-direction: column;
+gap: 7px;
+}
+
+.week-event-item {
+display: flex;
+align-items: flex-start;
+gap: 12px;
+padding: 10px 12px;
+background-color: #f8f9fa;
+border-radius: 6px;
+border-left: 3px solid #bdc3c7;
+cursor: pointer;
+transition: background-color 0.15s;
+}
+
+.week-event-item:hover {
+background-color: #edf0f1;
+}
+
+.week-event-item.billing {
+border-left-color: #e67e22;
+}
+
+.week-event-item.contract {
+border-left-color: #2c3e50;
+}
+
+.week-event-date {
+font-size: 13px;
+font-weight: 700;
+color: #2c3e50;
+min-width: 28px;
+text-align: center;
+padding-top: 1px;
+}
+
+.week-event-date .day-label {
+font-size: 10px;
+font-weight: 400;
+color: #95a5a6;
+display: block;
+}
+
+.week-event-info {
+flex: 1;
+}
+
+.week-event-title {
+font-size: 13px;
+font-weight: 600;
+color: #2c3e50;
+margin-bottom: 2px;
+}
+
+.week-event-detail {
+font-size: 11px;
+color: #95a5a6;
+}
+
+.week-event-tag {
+font-size: 10px;
+padding: 2px 7px;
+border-radius: 3px;
+background-color: #e8ecef;
+color: #556270;
+white-space: nowrap;
+align-self: center;
+}
+
+.week-event-tag.billing {
+background-color: #fef3e8;
+color: #784b0a;
+}
+
+.week-event-tag.contract {
+background-color: #f0f3f4;
+color: #2c3e50;
+}

@@ -155,17 +155,8 @@
             margin-top: 4px;
         }
 
-        .period-select {
-            padding: 8px 14px;
-            border: 1px solid #dce1e3;
-            border-radius: 5px;
-            font-size: 13px;
-            color: #2c3e50;
-            cursor: pointer;
-            background-color: white;
-        }
 
-        /* 레이아웃: 상단 2열, 하단 2열 */
+        /* 레이아웃: 상단 2열 */
         .dashboard-grid-top {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -173,9 +164,10 @@
             margin-bottom: 20px;
         }
 
+        /* 하단 그리드: 3열 고정 */
         .dashboard-grid-bottom {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr; /* 3개를 1:1:1로 나눔 */
             gap: 20px;
         }
 
@@ -548,6 +540,171 @@
             color: #95a5a6;
         }
 
+        /* ── 이번주 일정 (캘린더) ── */
+        .week-calendar {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .week-header {
+            display: grid;
+            grid-template-columns: 44px repeat(7, 1fr);
+            border-bottom: 1px solid #e8ecef;
+            margin-bottom: 2px;
+        }
+
+        .week-header-cell {
+            font-size: 11px;
+            color: #95a5a6;
+            text-align: center;
+            padding: 0 0 8px 0;
+            font-weight: 600;
+        }
+
+        .week-header-cell.today {
+            color: #2c3e50;
+        }
+
+        .week-day-num {
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            padding: 6px 0 4px;
+        }
+
+        .week-day-num.today {
+            background-color: #2c3e50;
+            color: white;
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .week-day-num.other-month {
+            color: #bdc3c7;
+        }
+
+
+        /* 캘린더 이벤트 */
+        .cal-event {
+            margin: 2px 2px;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            background-color: #e8ecef;
+            color: #2c3e50;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background-color 0.15s;
+            border-left: 2px solid #7f8c8d;
+        }
+
+        .cal-event:hover {
+            background-color: #dde2e5;
+        }
+
+        .cal-event.billing {
+            background-color: #fef3e8;
+            border-left-color: #e67e22;
+            color: #784b0a;
+        }
+
+        .cal-event.contract {
+            background-color: #f0f3f4;
+            border-left-color: #2c3e50;
+            color: #2c3e50;
+        }
+
+        /* 이번주 일정 리스트 폴백 */
+        .week-event-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .week-event-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 12px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #bdc3c7;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .week-event-item:hover {
+            background-color: #edf0f1;
+        }
+
+        .week-event-item.billing {
+            border-left-color: #e67e22;
+        }
+
+        .week-event-item.contract {
+            border-left-color: #2c3e50;
+        }
+
+        .week-event-date {
+            font-size: 13px;
+            font-weight: 700;
+            color: #2c3e50;
+            min-width: 28px;
+            text-align: center;
+            padding-top: 1px;
+        }
+
+        .week-event-date .day-label {
+            font-size: 10px;
+            font-weight: 400;
+            color: #95a5a6;
+            display: block;
+        }
+
+        .week-event-info {
+            flex: 1;
+        }
+
+        .week-event-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 2px;
+        }
+
+        .week-event-detail {
+            font-size: 11px;
+            color: #95a5a6;
+        }
+
+        .week-event-tag {
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            background-color: #e8ecef;
+            color: #556270;
+            white-space: nowrap;
+            align-self: center;
+        }
+
+        .week-event-tag.billing {
+            background-color: #fef3e8;
+            color: #784b0a;
+        }
+
+        .week-event-tag.contract {
+            background-color: #f0f3f4;
+            color: #2c3e50;
+        }
+
         /* 반응형 */
         @media (max-width: 1100px) {
             .dashboard-grid-top,
@@ -737,10 +894,10 @@
             <!-- 하단 2열: 상위점수 Top5 거래처 / 최근 영업 히스토리 -->
             <div class="dashboard-grid-bottom">
 
-                <!-- 상위점수 Top5 거래처 -->
+                <!-- 우선 연락 필요 거래처 top5 -->
                 <div class="panel">
                     <div class="panel-header">
-                        <span class="panel-title">상위점수 거래처 TOP 5</span>
+                        <span class="panel-title">우선 연락 필요 거래처 top5</span>
                         <span class="panel-badge">점수 기반</span>
                     </div>
                     <div class="client-list">
@@ -851,6 +1008,92 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 캘린더 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">이번주 일정</span>
+                        <span class="panel-badge">2월 9일 – 15일</span>
+                    </div>
+
+                    <!-- 주간 캘린더 헤더 -->
+                    <div class="week-header">
+                        <div></div>
+                        <div class="week-header-cell">일<br><span class="week-day-num other-month">9</span></div>
+                        <div class="week-header-cell">월<br><span class="week-day-num other-month">10</span></div>
+                        <div class="week-header-cell">화<br><span class="week-day-num today">11</span></div>
+                        <div class="week-header-cell">수<br><span class="week-day-num">12</span></div>
+                        <div class="week-header-cell">목<br><span class="week-day-num">13</span></div>
+                        <div class="week-header-cell">금<br><span class="week-day-num">14</span></div>
+                        <div class="week-header-cell">토<br><span class="week-day-num">15</span></div>
+                    </div>
+
+                    <!-- 이벤트 행 -->
+                    <div style="display: grid; grid-template-columns: 44px repeat(7, 1fr); margin-top: 6px; gap: 2px;">
+                        <div style="font-size:10px; color:#bdc3c7; padding-top:3px;">일정</div>
+                        <!-- 일 9 -->
+                        <div></div>
+                        <!-- 월 10 -->
+                        <div></div>
+                        <!-- 화 11 (오늘) -->
+                        <div>
+                            <div class="cal-event contract">계약 검토</div>
+                        </div>
+                        <!-- 수 12 -->
+                        <div></div>
+                        <!-- 목 13 -->
+                        <div>
+                            <div class="cal-event">견적 미팅</div>
+                        </div>
+                        <!-- 금 14 -->
+                        <div></div>
+                        <!-- 토 15 (청구일) -->
+                        <div>
+                            <div class="cal-event billing">청구일</div>
+                        </div>
+                    </div>
+
+                    <!-- 이번주 일정 리스트 -->
+                    <div style="margin-top: 16px;">
+                        <div class="week-event-list">
+                            <div class="week-event-item contract">
+                                <div class="week-event-date">
+                                    11
+                                    <span class="day-label">화</span>
+                                </div>
+                                <div class="week-event-info">
+                                    <div class="week-event-title">계약서 검토</div>
+                                    <div class="week-event-detail">CT-2026-0210-002 · 오전 10:00</div>
+                                </div>
+                                <span class="week-event-tag contract">계약</span>
+                            </div>
+                            <div class="week-event-item">
+                                <div class="week-event-date">
+                                    13
+                                    <span class="day-label">목</span>
+                                </div>
+                                <div class="week-event-info">
+                                    <div class="week-event-title">견적 미팅 - 고추 종자</div>
+                                    <div class="week-event-detail">QT-2026-0213-001 · 오후 2:00</div>
+                                </div>
+                                <span class="week-event-tag">견적</span>
+                            </div>
+                            <div class="week-event-item billing">
+                                <div class="week-event-date">
+                                    15
+                                    <span class="day-label">토</span>
+                                </div>
+                                <div class="week-event-info">
+                                    <div class="week-event-title">청구 사이클 도래</div>
+                                    <div class="week-event-detail">월 2회 정기 청구일 · 미결 주문 포함 예정</div>
+                                </div>
+                                <span class="week-event-tag billing">청구</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
 
             </div>
 
