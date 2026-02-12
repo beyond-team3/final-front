@@ -5,6 +5,164 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>프로토타입 메인 틀</title>
     <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    
+
+/* Page Specific Styles */
+
         * {
             margin: 0;
             padding: 0;
@@ -158,13 +316,14 @@
                 pointer-events: none;
             }
         }
-    </style>
+    
+</style>
 </head>
 <body>
 <header class="header">
-    <button class="menu-button" id="menuToggle">☰</button>
-    <h1 class="header-title">종자 영업 관리 시스템</h1>
-</header>
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
 
 <aside class="sidebar" id="sidebar">
     <nav class="sidebar-nav">
@@ -393,7 +552,7 @@
 
                     <div class="info-title">
                         <span id="dispName">상품명 로딩중...</span>
-                        <span class="star-btn" id="starBtn" onclick="toggleDetailFav()">☆</span>
+                        <span class="star-btn" id="starBtn" onclick="toggleDetailFav()"></span>
                     </div>
 
                     <div class="info-label-main">상세 설명</div>
@@ -432,7 +591,7 @@
 
                     <div class="memo-container">
                         <div class="memo-header">
-                            <span class="memo-title">📝 품종 메모</span>
+                            <span class="memo-title"> 품종 메모</span>
                             <button class="btn-memo" id="memoBtn" onclick="toggleMemo()">메모 수정</button>
                         </div>
                         <textarea class="memo-input" id="memoInput" readonly placeholder="이 상품에 대한 고객 반응이나 영업 포인트를 기록해 두세요."></textarea>
@@ -626,17 +785,17 @@
                     const starBtn = document.getElementById('starBtn');
                     if (favs.includes(currentId)) {
                         starBtn.classList.add('active');
-                        starBtn.innerText = '★';
+                        starBtn.innerText = '';
                     } else {
                         starBtn.classList.remove('active');
-                        starBtn.innerText = '☆';
+                        starBtn.innerText = '';
                     }
 
                     const comps = JSON.parse(localStorage.getItem('myCompare') || '[]');
                     const compBtn = document.getElementById('compareBtn');
                     if (comps.includes(currentId)) {
                         compBtn.classList.add('active');
-                        compBtn.innerText = '✔ 담기 완료';
+                        compBtn.innerText = ' 담기 완료';
                     } else {
                         compBtn.classList.remove('active');
                         compBtn.innerText = '+ 비교 담기';
@@ -659,7 +818,7 @@
                         }
                         comps.push(currentId);
                         compBtn.classList.add('active');
-                        compBtn.innerText = '✔ 담기 완료';
+                        compBtn.innerText = ' 담기 완료';
                         alert('비교함에 담았습니다.');
                     }
                     localStorage.setItem('myCompare', JSON.stringify(comps));
@@ -672,11 +831,11 @@
                     if (favs.includes(currentId)) {
                         favs = favs.filter(id => id !== currentId);
                         starBtn.classList.remove('active');
-                        starBtn.innerText = '☆';
+                        starBtn.innerText = '';
                     } else {
                         favs.push(currentId);
                         starBtn.classList.add('active');
-                        starBtn.innerText = '★';
+                        starBtn.innerText = '';
                     }
                     localStorage.setItem('myFavorites', JSON.stringify(favs));
                 }
@@ -704,7 +863,8 @@
                 }
 
                 initDetail();
-            </script>
+            
+</script>
 
         </div>
     </div>

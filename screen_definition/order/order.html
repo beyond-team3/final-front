@@ -1,12 +1,167 @@
-<!DOCTYPE html>
-<html lang="ko">
-
-<head>
+<html lang="ko"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>주문서 작성 - SALES-ORD-001</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+
+
+        /* Page Specific Styles */
+
         * {
             margin: 0;
             padding: 0;
@@ -980,501 +1135,490 @@
                 gap: 12px;
             }
         }
+
     </style>
 </head>
 
 <body>
 
-    <!-- ───── 헤더 ───── -->
-    <header class="header">
-        <button class="menu-button" id="menuToggle">☰</button>
-        <h1 class="header-title">종자 영업 관리 시스템</h1>
-        <span class="header-badge">B2B</span>
-    </header>
+<!-- ───── 헤더 ───── -->
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
 
-    <!-- ───── 사이드바 ───── -->
-    <aside class="sidebar" id="sidebar">
-        <nav class="sidebar-nav">
-            <div class="nav-category">영업</div>
-            <div class="nav-item"><span class="nav-icon">📋</span>영업 대시보드</div>
-            <div class="nav-item active"><span class="nav-icon">📝</span>주문서 작성</div>
-            <div class="nav-item"><span class="nav-icon">📜</span>계약 관리</div>
-            <div class="nav-item"><span class="nav-icon">🏢</span>거래처 관리</div>
-            <div class="nav-category">이력</div>
-            <div class="nav-item"><span class="nav-icon">🕒</span>영업 히스토리</div>
-            <div class="nav-item"><span class="nav-icon">📦</span>주문 이력</div>
-            <div class="nav-category">설정</div>
-            <div class="nav-item"><span class="nav-icon">⚙️</span>설정</div>
-            <div class="nav-item"><span class="nav-icon">👤</span>프로필</div>
-        </nav>
-    </aside>
+<!-- ───── 사이드바 ───── -->
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">영업</div>
+        <div class="nav-item"><span class="nav-icon"></span>영업 대시보드</div>
+        <div class="nav-item active"><span class="nav-icon"></span>주문서 작성</div>
+        <div class="nav-item"><span class="nav-icon"></span>계약 관리</div>
+        <div class="nav-item"><span class="nav-icon"></span>거래처 관리</div>
+        <div class="nav-category">이력</div>
+        <div class="nav-item"><span class="nav-icon"></span>영업 히스토리</div>
+        <div class="nav-item"><span class="nav-icon"></span>주문 이력</div>
+        <div class="nav-category">설정</div>
+        <div class="nav-item"><span class="nav-icon">️</span>설정</div>
+        <div class="nav-item"><span class="nav-icon"></span>프로필</div>
+    </nav>
+</aside>
 
-    <!-- ───── 메인 컨텐츠 ───── -->
-    <main class="main-content" id="mainContent">
-        <div class="screen-content">
+<!-- ───── 메인 컨텐츠 ───── -->
+<main class="main-content" id="mainContent">
+    <div class="screen-content">
 
-            <!-- 페이지 헤더 -->
-            <div class="page-header">
-                <div class="page-header-left">
-                    <div class="breadcrumb">영업 &rsaquo; <span>주문서 작성</span></div>
-                    <div class="page-title">
-                        주문서 작성
-                        <span class="screen-id-badge">SALES-ORD-001</span>
+        <!-- 페이지 헤더 -->
+        <div class="page-header">
+            <div class="page-header-left">
+                <div class="breadcrumb">영업 › <span>주문서 작성</span></div>
+                <div class="page-title">
+                    주문서 작성
+                    <span class="screen-id-badge">SALES-ORD-001</span>
+                </div>
+                <div class="page-subtitle">계약서 기반으로 주문 정보를 입력할 수 있습니다.</div>
+            </div>
+        </div>
+
+        <!-- ───── 분할 레이아웃 시작 ───── -->
+        <div class="split-layout">
+
+            <!-- 왼쪽 패널: 입력 폼 -->
+            <div class="left-panel">
+                <!-- ① 계약서 요약 카드 -->
+                <div class="contract-card">
+                    <div class="contract-card-header">
+                        <div class="contract-card-icon">📄</div>
+                        <div>
+                            <div class="contract-card-label">선택된 계약서</div>
+                        </div>
+                        <div style="margin-left:auto"><span class="contract-status-badge">승인 완료</span></div>
                     </div>
-                    <div class="page-subtitle">계약서 기반으로 주문 정보를 입력하고 여신 잔액을 실시간으로 확인합니다.</div>
+                    <div class="contract-card-body">
+                        <div class="contract-field">
+                            <label>계약 번호</label>
+                            <div class="field-value highlight">CTR-2025-04-00183</div>
+                        </div>
+                        <div class="contract-field">
+                            <label>거래처명</label>
+                            <div class="field-value">㈜한국농업 (서울)</div>
+                        </div>
+                        <div class="contract-field">
+                            <label>계약 유효 기간</label>
+                            <div class="field-value">2025.04.01 ~ 2025.12.31</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ② 주문 상품 입력 -->
+                <div class="section">
+                    <div class="section-header">
+
+                        <span class="section-title">주문 상품 입력</span>
+                        <span class="section-desc">수량 입력 시 금액이 실시간 반영됩니다</span>
+                    </div>
+                    <div class="section-body" style="padding: 0;">
+                        <table class="product-table">
+                            <thead>
+                            <tr>
+                                <th>상품명 / 코드</th>
+                                <th class="center">계약 단가</th>
+                                <th class="center">계약 최소 수량</th>
+                                <th class="center">주문 수량</th>
+                                <th class="right">주문 금액</th>
+                            </tr>
+                            </thead>
+                            <tbody id="productTableBody">
+                            <tr>
+                                <td>
+                                    <div class="product-name">고추 씨앗 (대구한 1호)</div>
+                                    <div class="product-code">SEED-CHP-001 · 단위: kg</div>
+                                </td>
+                                <td class="center unit-price">₩85,000</td>
+                                <td class="center" style="color:#94a3b8; font-size:13px;">최소 10 kg</td>
+                                <td class="center">
+                                    <div class="qty-input-wrap" style="justify-content:center">
+                                        <button class="qty-btn" onclick="changeQty('P001', -1)">−</button>
+                                        <input class="qty-input" type="number" min="0" value="0" onchange="setQty('P001', this.value)" oninput="setQty('P001', this.value)" id="qty_P001">
+                                        <button class="qty-btn" onclick="changeQty('P001', 1)">+</button>
+                                    </div>
+                                </td>
+                                <td class="right">
+                                    <span class="row-total zero" id="rowTotal_P001">₩0</span>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>
+                                    <div class="product-name">토마토 씨앗 (슈퍼황금)</div>
+                                    <div class="product-code">SEED-TOM-009 · 단위: kg</div>
+                                </td>
+                                <td class="center unit-price">₩120,000</td>
+                                <td class="center" style="color:#94a3b8; font-size:13px;">최소 5 kg</td>
+                                <td class="center">
+                                    <div class="qty-input-wrap" style="justify-content:center">
+                                        <button class="qty-btn" onclick="changeQty('P002', -1)">−</button>
+                                        <input class="qty-input" type="number" min="0" value="0" onchange="setQty('P002', this.value)" oninput="setQty('P002', this.value)" id="qty_P002">
+                                        <button class="qty-btn" onclick="changeQty('P002', 1)">+</button>
+                                    </div>
+                                </td>
+                                <td class="right">
+                                    <span class="row-total zero" id="rowTotal_P002">₩0</span>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>
+                                    <div class="product-name">상추 씨앗 (버터헤드)</div>
+                                    <div class="product-code">SEED-LET-003 · 단위: kg</div>
+                                </td>
+                                <td class="center unit-price">₩45,000</td>
+                                <td class="center" style="color:#94a3b8; font-size:13px;">최소 20 kg</td>
+                                <td class="center">
+                                    <div class="qty-input-wrap" style="justify-content:center">
+                                        <button class="qty-btn" onclick="changeQty('P003', -1)">−</button>
+                                        <input class="qty-input" type="number" min="0" value="0" onchange="setQty('P003', this.value)" oninput="setQty('P003', this.value)" id="qty_P003">
+                                        <button class="qty-btn" onclick="changeQty('P003', 1)">+</button>
+                                    </div>
+                                </td>
+                                <td class="right">
+                                    <span class="row-total zero" id="rowTotal_P003">₩0</span>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>
+                                    <div class="product-name">배추 씨앗 (한국봄나리)</div>
+                                    <div class="product-code">SEED-CAB-007 · 단위: kg</div>
+                                </td>
+                                <td class="center unit-price">₩95,000</td>
+                                <td class="center" style="color:#94a3b8; font-size:13px;">최소 8 kg</td>
+                                <td class="center">
+                                    <div class="qty-input-wrap" style="justify-content:center">
+                                        <button class="qty-btn" onclick="changeQty('P004', -1)">−</button>
+                                        <input class="qty-input" type="number" min="0" value="0" onchange="setQty('P004', this.value)" oninput="setQty('P004', this.value)" id="qty_P004">
+                                        <button class="qty-btn" onclick="changeQty('P004', 1)">+</button>
+                                    </div>
+                                </td>
+                                <td class="right">
+                                    <span class="row-total zero" id="rowTotal_P004">₩0</span>
+                                </td>
+                            </tr>
+                            </tbody>
+                            <tfoot>
+                            <tr>
+                                <td colspan="5">
+                                    <div class="table-footer">
+                                        <span class="total-label">총 주문 금액</span>
+                                        <span class="total-amount"><span class="currency">₩</span><span id="totalAmountDisplay">0</span></span>
+                                    </div>
+                                </td>
+                            </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ③ 여신 시뮬레이션 대시보드 (SALES-ORD-002) -->
+                <div class="section">
+
+
+                </div>
+
+                <!-- ④ 배송 정보 입력 (SALES-ORD-003) -->
+                <div class="section">
+                    <div class="section-header">
+                        <span class="section-icon">🚚</span>
+                        <span class="section-title">배송 정보 입력</span>
+                        <span class="section-desc">SALES-ORD-003 · 배송 처리는 시스템 영역</span>
+                    </div>
+                    <div class="section-body">
+                        <div class="delivery-grid">
+                            <div class="form-group full-width">
+                                <label class="form-label">배송지 주소 <span class="required">*</span></label>
+                                <input class="form-input" type="text" placeholder="예: 서울특별시 강남구 테헤란로 123 농업센터 3층" value="서울특별시 강남구 테헤란로 123 농업센터 3층">
+                                <span class="form-hint">계약서 기본 배송지가 자동 입력됩니다. 변경 가능합니다.</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">수령인 <span class="required">*</span></label>
+                                <input class="form-input" type="text" placeholder="예: 홍길동 부장" value="홍길동 부장">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">연락처</label>
+                                <input class="form-input" type="text" placeholder="예: 010-1234-5678" value="010-1234-5678">
+                            </div>
+                            <div class="form-group full-width">
+                                <label class="form-label">요청사항</label>
+                                <textarea class="form-textarea" placeholder="배송 시 특이사항이 있으면 입력해 주세요. (예: 냉장 보관 필요, 2층 직접 납품 등)"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ⑤ 하단 액션 바 -->
+                <div class="action-bar">
+                    <div class="action-bar-left">
+                        <span style="font-size:13px; color:#94a3b8;">작성 중 · 마지막 자동저장 <strong style="color:#64748b;">방금 전</strong></span>
+                    </div>
+                    <div class="action-bar-right">
+                        <button class="btn btn-cancel" onclick="handleCancel()">
+                            <span class="btn-icon">✕</span>취소
+                        </button>
+                        <!-- PDF 미리보기 버튼 삭제 -->
+                        <button class="btn btn-save" id="saveBtn" onclick="handleSave()">
+                            <span class="btn-icon">✔</span>주문서 저장
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- ───── 분할 레이아웃 시작 ───── -->
-            <div class="split-layout">
-
-                <!-- 왼쪽 패널: 입력 폼 -->
-                <div class="left-panel">
-                    <!-- ① 계약서 요약 카드 -->
-                    <div class="contract-card">
-                        <div class="contract-card-header">
-                            <div class="contract-card-icon">📄</div>
-                            <div>
-                                <div class="contract-card-label">선택된 계약서</div>
-                            </div>
-                            <div style="margin-left:auto"><span class="contract-status-badge">승인 완료</span></div>
-                        </div>
-                        <div class="contract-card-body">
-                            <div class="contract-field">
-                                <label>계약 번호</label>
-                                <div class="field-value highlight">CTR-2025-04-00183</div>
-                            </div>
-                            <div class="contract-field">
-                                <label>거래처명</label>
-                                <div class="field-value">㈜한국농업 (서울)</div>
-                            </div>
-                            <div class="contract-field">
-                                <label>계약 유효 기간</label>
-                                <div class="field-value">2025.04.01 ~ 2025.12.31</div>
-                            </div>
-                        </div>
+            <!-- 오른쪽 패널: PDF 미리보기 -->
+            <div class="right-panel">
+                <div class="pdf-preview" id="pdfPreviewContent">
+                    <div class="pdf-title">주 문 서</div>
+                    <div class="pdf-meta-grid" id="pdfMeta">
+                        <div class="pdf-meta-row"><div class="label">주문 번호</div><div class="value">ORD-20260212-XXXX</div></div>
+                        <div class="pdf-meta-row"><div class="label">작성일</div><div class="value">2026. 2. 12.</div></div>
+                        <div class="pdf-meta-row"><div class="label">거래처명</div><div class="value">㈜한국농업 (서울)</div></div>
+                        <div class="pdf-meta-row"><div class="label">계약 번호</div><div class="value">CTR-2025-04-00183</div></div>
                     </div>
-
-                    <!-- ② 주문 상품 입력 -->
-                    <div class="section">
-                        <div class="section-header">
-                            <span class="section-icon">🌱</span>
-                            <span class="section-title">주문 상품 입력</span>
-                            <span class="section-desc">수량 입력 시 금액이 실시간 반영됩니다</span>
-                        </div>
-                        <div class="section-body" style="padding: 0;">
-                            <table class="product-table">
-                                <thead>
-                                    <tr>
-                                        <th>상품명 / 코드</th>
-                                        <th class="center">계약 단가</th>
-                                        <th class="center">계약 최소 수량</th>
-                                        <th class="center">주문 수량</th>
-                                        <th class="right">주문 금액</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="productTableBody">
-                                    <!-- JS로 렌더링 -->
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan="5">
-                                            <div class="table-footer">
-                                                <span class="total-label">총 주문 금액</span>
-                                                <span class="total-amount"><span class="currency">₩</span><span
-                                                        id="totalAmountDisplay">0</span></span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
+                    <div class="pdf-section-title">▪ 주문 상품 내역</div>
+                    <table class="pdf-table" id="pdfProductTable">
+                        <thead>
+                        <tr>
+                            <th>상품명</th>
+                            <th>단가</th>
+                            <th>수량</th>
+                            <th style="text-align:right">금액</th>
+                        </tr>
+                        </thead>
+                        <tbody id="pdfProductBody"><tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:40px;">주문할 상품의 수량을 입력해주세요.</td></tr></tbody>
+                        <tfoot>
+                        <tr class="pdf-total-row">
+                            <td colspan="3"><strong>합계</strong></td>
+                            <td class="right" id="pdfTotal">₩0</td>
+                        </tr>
+                        </tfoot>
+                    </table>
+                    <div class="pdf-section-title">▪ 배송 정보</div>
+                    <div class="pdf-meta-grid" id="pdfDelivery">
+                        <div class="pdf-meta-row"><div class="label">배송지</div><div class="value">서울특별시 강남구 테헤란로 123 농업센터 3층</div></div>
+                        <div class="pdf-meta-row"><div class="label">수령인</div><div class="value">홍길동 부장</div></div>
+                        <div class="pdf-meta-row"><div class="label">연락처</div><div class="value">010-1234-5678</div></div>
+                        <div class="pdf-meta-row"><div class="label">요청사항</div><div class="value">없음</div></div>
                     </div>
-
-                    <!-- ③ 여신 시뮬레이션 대시보드 (SALES-ORD-002) -->
-                    <div class="section">
-                        <div class="section-header">
-                            <span class="section-icon">💳</span>
-                            <span class="section-title">여신(Credit) 시뮬레이션</span>
-                            <span class="section-desc">SALES-ORD-002 · 실시간 계산</span>
+                    <div class="pdf-footer">
+                        <div class="pdf-sign">
+                            <div class="sign-line"></div>
+                            <div>거래처 확인</div>
                         </div>
-                        <div class="section-body">
-                            <div class="credit-grid">
-                                <div class="credit-card current">
-                                    <div class="credit-label">🏦 현재 여신 잔액</div>
-                                    <div class="credit-value"><span class="currency">₩</span><span
-                                            id="creditBalance">50,000,000</span></div>
-                                    <div class="credit-sub">기준: 2025년 4월</div>
-                                </div>
-                                <div class="credit-card order-amount">
-                                    <div class="credit-label">🛒 이번 주문 금액</div>
-                                    <div class="credit-value"><span class="currency">₩</span><span
-                                            id="creditOrder">0</span></div>
-                                    <div class="credit-sub">실시간 계산 중</div>
-                                </div>
-                                <div class="credit-card remaining" id="creditRemainingCard">
-                                    <div class="credit-label" id="creditRemainingLabel">✅ 예상 여신 잔액</div>
-                                    <div class="credit-value"><span class="currency">₩</span><span
-                                            id="creditRemaining">50,000,000</span></div>
-                                    <div class="credit-sub" id="creditRemainingSub">주문 가능 상태</div>
-                                </div>
-                            </div>
-
-                            <div class="credit-bar-wrap">
-                                <div class="credit-bar-label">
-                                    <span>여신 사용률</span>
-                                    <span id="creditUsagePercent">0%</span>
-                                </div>
-                                <div class="credit-bar-bg">
-                                    <div class="credit-bar-fill" id="creditBarFill" style="width:0%"></div>
-                                </div>
-                            </div>
-
-                            <div class="credit-warning hidden" id="creditWarning">
-                                <span class="warn-icon">⚠️</span>
-                                <div>
-                                    <div class="warn-text">여신 한도를 초과하였습니다. 주문서를 저장할 수 없습니다.</div>
-                                    <div class="warn-sub" id="creditOverAmount">초과 금액: ₩0 | 수량을 줄이거나 담당 영업자에게 문의하세요.
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="pdf-sign">
+                            <div class="sign-line"></div>
+                            <div>담당 영업자</div>
                         </div>
-                    </div>
-
-                    <!-- ④ 배송 정보 입력 (SALES-ORD-003) -->
-                    <div class="section">
-                        <div class="section-header">
-                            <span class="section-icon">🚚</span>
-                            <span class="section-title">배송 정보 입력</span>
-                            <span class="section-desc">SALES-ORD-003 · 배송 처리는 시스템 영역</span>
-                        </div>
-                        <div class="section-body">
-                            <div class="delivery-grid">
-                                <div class="form-group full-width">
-                                    <label class="form-label">배송지 주소 <span class="required">*</span></label>
-                                    <input class="form-input" type="text" placeholder="예: 서울특별시 강남구 테헤란로 123 농업센터 3층"
-                                        value="서울특별시 강남구 테헤란로 123 농업센터 3층">
-                                    <span class="form-hint">계약서 기본 배송지가 자동 입력됩니다. 변경 가능합니다.</span>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">수령인 <span class="required">*</span></label>
-                                    <input class="form-input" type="text" placeholder="예: 홍길동 부장" value="홍길동 부장">
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">연락처</label>
-                                    <input class="form-input" type="text" placeholder="예: 010-1234-5678"
-                                        value="010-1234-5678">
-                                </div>
-                                <div class="form-group full-width">
-                                    <label class="form-label">요청사항</label>
-                                    <textarea class="form-textarea"
-                                        placeholder="배송 시 특이사항이 있으면 입력해 주세요. (예: 냉장 보관 필요, 2층 직접 납품 등)"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ⑤ 하단 액션 바 -->
-                    <div class="action-bar">
-                        <div class="action-bar-left">
-                            <span style="font-size:13px; color:#94a3b8;">작성 중 · 마지막 자동저장 <strong
-                                    style="color:#64748b;">방금 전</strong></span>
-                        </div>
-                        <div class="action-bar-right">
-                            <button class="btn btn-cancel" onclick="handleCancel()">
-                                <span class="btn-icon">✕</span>취소
-                            </button>
-                            <!-- PDF 미리보기 버튼 삭제 -->
-                            <button class="btn btn-save" id="saveBtn" onclick="handleSave()">
-                                <span class="btn-icon">✔</span>주문서 저장
-                            </button>
+                        <div class="pdf-sign">
+                            <div class="sign-line"></div>
+                            <div>팀장 결재</div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 오른쪽 패널: PDF 미리보기 -->
-                <div class="right-panel">
-                    <div class="pdf-preview" id="pdfPreviewContent">
-                        <div class="pdf-title">주 문 서</div>
-                        <div class="pdf-meta-grid" id="pdfMeta"></div>
-                        <div class="pdf-section-title">▪ 주문 상품 내역</div>
-                        <table class="pdf-table" id="pdfProductTable">
-                            <thead>
-                                <tr>
-                                    <th>상품명</th>
-                                    <th>단가</th>
-                                    <th>수량</th>
-                                    <th style="text-align:right">금액</th>
-                                </tr>
-                            </thead>
-                            <tbody id="pdfProductBody"></tbody>
-                            <tfoot>
-                                <tr class="pdf-total-row">
-                                    <td colspan="3"><strong>합계</strong></td>
-                                    <td class="right" id="pdfTotal"></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                        <div class="pdf-section-title">▪ 배송 정보</div>
-                        <div class="pdf-meta-grid" id="pdfDelivery"></div>
-                        <div class="pdf-footer">
-                            <div class="pdf-sign">
-                                <div class="sign-line"></div>
-                                <div>거래처 확인</div>
-                            </div>
-                            <div class="pdf-sign">
-                                <div class="sign-line"></div>
-                                <div>담당 영업자</div>
-                            </div>
-                            <div class="pdf-sign">
-                                <div class="sign-line"></div>
-                                <div>팀장 결재</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        </div><!-- /split-layout -->
 
-            </div><!-- /split-layout -->
+    </div><!-- /screen-content -->
+</main>
 
-        </div><!-- /screen-content -->
-    </main>
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
 
-    <!-- 토스트 -->
-    <div class="toast" id="toast"></div>
+<script>
+    // ─── 더미 데이터 ───
+    const products = [
+        { id: 'P001', name: '고추 씨앗 (대구한 1호)', code: 'SEED-CHP-001', unitPrice: 85000, minQty: 10, unit: 'kg' },
+        { id: 'P002', name: '토마토 씨앗 (슈퍼황금)', code: 'SEED-TOM-009', unitPrice: 120000, minQty: 5, unit: 'kg' },
+        { id: 'P003', name: '상추 씨앗 (버터헤드)', code: 'SEED-LET-003', unitPrice: 45000, minQty: 20, unit: 'kg' },
+        { id: 'P004', name: '배추 씨앗 (한국봄나리)', code: 'SEED-CAB-007', unitPrice: 95000, minQty: 8, unit: 'kg' },
+    ];
 
-    <script>
-        // ─── 더미 데이터 ───
-        const CREDIT_BALANCE = 50000000;
+    let quantities = {};
+    products.forEach(p => { quantities[p.id] = 0; });
 
-        const products = [
-            { id: 'P001', name: '고추 씨앗 (대구한 1호)', code: 'SEED-CHP-001', unitPrice: 85000, minQty: 10, unit: 'kg' },
-            { id: 'P002', name: '토마토 씨앗 (슈퍼황금)', code: 'SEED-TOM-009', unitPrice: 120000, minQty: 5, unit: 'kg' },
-            { id: 'P003', name: '상추 씨앗 (버터헤드)', code: 'SEED-LET-003', unitPrice: 45000, minQty: 20, unit: 'kg' },
-            { id: 'P004', name: '배추 씨앗 (한국봄나리)', code: 'SEED-CAB-007', unitPrice: 95000, minQty: 8, unit: 'kg' },
-        ];
-
-        let quantities = {};
-        products.forEach(p => { quantities[p.id] = 0; });
-
-        // ─── 상품 테이블 렌더링 ───
-        function renderProductTable() {
-            const tbody = document.getElementById('productTableBody');
-            tbody.innerHTML = products.map(p => `
-        <tr>
-            <td>
-                <div class="product-name">${p.name}</div>
-                <div class="product-code">${p.code} · 단위: ${p.unit}</div>
-            </td>
-            <td class="center unit-price">₩${p.unitPrice.toLocaleString()}</td>
-            <td class="center" style="color:#94a3b8; font-size:13px;">최소 ${p.minQty} ${p.unit}</td>
-            <td class="center">
-                <div class="qty-input-wrap" style="justify-content:center">
-                    <button class="qty-btn" onclick="changeQty('${p.id}', -1)">−</button>
-                    <input class="qty-input" type="number" min="0" value="${quantities[p.id]}"
-                        onchange="setQty('${p.id}', this.value)"
-                        oninput="setQty('${p.id}', this.value)" id="qty_${p.id}">
-                    <button class="qty-btn" onclick="changeQty('${p.id}', 1)">+</button>
-                </div>
-            </td>
-            <td class="right">
-                <span class="row-total ${quantities[p.id] === 0 ? 'zero' : ''}" id="rowTotal_${p.id}">
-                    ₩${(quantities[p.id] * p.unitPrice).toLocaleString()}
-                </span>
-            </td>
-        </tr>
-    `).join('');
-        }
-
-        function changeQty(id, delta) {
-            quantities[id] = Math.max(0, (quantities[id] || 0) + delta);
-            updateAll();
-        }
-        function setQty(id, val) {
-            quantities[id] = Math.max(0, parseInt(val) || 0);
-            updateAll();
-        }
-
-        // ─── 금액 & 여신 계산 ───
-        function calcOrderTotal() {
-            return products.reduce((sum, p) => sum + (quantities[p.id] * p.unitPrice), 0);
-        }
-
-        function updateAll() {
-            const total = calcOrderTotal();
-            const remaining = CREDIT_BALANCE - total;
-            const isOver = remaining < 0;
-            const usagePct = Math.min(100, Math.round((total / CREDIT_BALANCE) * 100));
-
-            // 행별 금액 갱신
-            products.forEach(p => {
-                const rowEl = document.getElementById(`rowTotal_${p.id}`);
-                const amt = quantities[p.id] * p.unitPrice;
-                if (rowEl) {
-                    rowEl.textContent = `₩${amt.toLocaleString()}`;
-                    rowEl.className = `row-total ${amt === 0 ? 'zero' : ''}`;
-                }
-                const inp = document.getElementById(`qty_${p.id}`);
-                if (inp) inp.value = quantities[p.id];
-            });
-
-            // 합계
-            document.getElementById('totalAmountDisplay').textContent = total.toLocaleString();
-
-            // 여신 패널
-            document.getElementById('creditOrder').textContent = total.toLocaleString();
-            document.getElementById('creditRemaining').textContent = Math.abs(remaining).toLocaleString();
-            document.getElementById('creditUsagePercent').textContent = usagePct + '%';
-
-            const barFill = document.getElementById('creditBarFill');
-            barFill.style.width = usagePct + '%';
-            barFill.className = `credit-bar-fill ${isOver ? 'danger' : ''}`;
-
-            const card = document.getElementById('creditRemainingCard');
-            const label = document.getElementById('creditRemainingLabel');
-            const sub = document.getElementById('creditRemainingSub');
-
-            if (isOver) {
-                card.className = 'credit-card remaining over';
-                label.textContent = '🚨 여신 초과';
-                sub.textContent = `${(-remaining).toLocaleString()}원 초과`;
-                document.getElementById('creditWarning').classList.remove('hidden');
-                document.getElementById('creditOverAmount').textContent =
-                    `초과 금액: ₩${(-remaining).toLocaleString()} | 수량을 줄이거나 담당 영업자에게 문의하세요.`;
-                document.getElementById('saveBtn').disabled = true;
-            } else {
-                card.className = 'credit-card remaining';
-                label.textContent = '✅ 예상 여신 잔액';
-                sub.textContent = remaining === CREDIT_BALANCE ? '주문 가능 상태' : `₩${remaining.toLocaleString()} 잔여`;
-                document.getElementById('creditWarning').classList.add('hidden');
-                document.getElementById('saveBtn').disabled = false;
-            }
-
-            // PDF 실시간 업데이트
-            renderPdf();
-        }
-
-        // ─── PDF 실시간 렌더링 ───
-        function renderPdf() {
-            const total = calcOrderTotal();
-            const orderNo = 'ORD-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-XXXX'; // 임시 번호
-            const today = new Date().toLocaleDateString('ko-KR');
-
-            // 메타
-            document.getElementById('pdfMeta').innerHTML = `
-        <div class="pdf-meta-row"><div class="label">주문 번호</div><div class="value">${orderNo}</div></div>
-        <div class="pdf-meta-row"><div class="label">작성일</div><div class="value">${today}</div></div>
-        <div class="pdf-meta-row"><div class="label">거래처명</div><div class="value">㈜한국농업 (서울)</div></div>
-        <div class="pdf-meta-row"><div class="label">계약 번호</div><div class="value">CTR-2025-04-00183</div></div>
-    `;
-
-            // 상품 행 (수량이 0인 것도 보여줄지 결정해야 하는데, 보통 견적서/주문서는 선택된 것만 보여줌. 하지만 작성 중에는?
-            // User request: "견적서와 동일한 방식". 견적서는 "선택된 상품"만 보여줌.
-            // 기존 Logic: filter(p => quantities[p.id] > 0)
-            const activeProducts = products.filter(p => quantities[p.id] > 0);
-            const pdfBody = document.getElementById('pdfProductBody');
-
-            if (activeProducts.length === 0) {
-                pdfBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:40px;">주문할 상품의 수량을 입력해주세요.</td></tr>`;
-            } else {
-                pdfBody.innerHTML = activeProducts.map(p => `
+    // ─── 상품 테이블 렌더링 ───
+    function renderProductTable() {
+        const tbody = document.getElementById('productTableBody');
+        tbody.innerHTML = products.map(p => `
             <tr>
-                <td>${p.name}</td>
-                <td>₩${p.unitPrice.toLocaleString()}</td>
-                <td>${quantities[p.id]} ${p.unit}</td>
-                <td class="right">₩${(quantities[p.id] * p.unitPrice).toLocaleString()}</td>
+                <td>
+                    <div class="product-name">${p.name}</div>
+                    <div class="product-code">${p.code} · 단위: ${p.unit}</div>
+                </td>
+                <td class="center unit-price">₩${p.unitPrice.toLocaleString()}</td>
+                <td class="center" style="color:#94a3b8; font-size:13px;">최소 ${p.minQty} ${p.unit}</td>
+                <td class="center">
+                    <div class="qty-input-wrap" style="justify-content:center">
+                        <button class="qty-btn" onclick="changeQty('${p.id}', -1)">−</button>
+                        <input class="qty-input" type="number" min="0" value="${quantities[p.id]}"
+                            onchange="setQty('${p.id}', this.value)"
+                            oninput="setQty('${p.id}', this.value)" id="qty_${p.id}">
+                        <button class="qty-btn" onclick="changeQty('${p.id}', 1)">+</button>
+                    </div>
+                </td>
+                <td class="right">
+                    <span class="row-total ${quantities[p.id] === 0 ? 'zero' : ''}" id="rowTotal_${p.id}">
+                        ₩${(quantities[p.id] * p.unitPrice).toLocaleString()}
+                    </span>
+                </td>
             </tr>
         `).join('');
-            }
+    }
 
-            document.getElementById('pdfTotal').textContent = `₩${total.toLocaleString()}`;
-
-            // 배송 정보 연동
-            // input 값들을 가져와서 반영
-            const addr = document.querySelector('.delivery-grid .form-input:nth-child(2)'); // input index might vary
-            // let's grab by index from form-input class
-            const inputs = document.querySelectorAll('.form-input');
-            const textareas = document.querySelectorAll('.form-textarea');
-
-            // Delivery inputs: Address, Receiver, Contact. Textarea: Request.
-            // In HTML above:
-            // 1. Address input
-            // 2. Receiver input
-            // 3. Contact input
-            // 4. Request textarea
-
-            const valAddr = inputs[0] ? inputs[0].value : '';
-            const valReceiver = inputs[1] ? inputs[1].value : '';
-            const valContact = inputs[2] ? inputs[2].value : '';
-            const valReq = textareas[0] ? textareas[0].value : '없음';
-
-            document.getElementById('pdfDelivery').innerHTML = `
-        <div class="pdf-meta-row"><div class="label">배송지</div><div class="value">${valAddr || '(입력 대기)'}</div></div>
-        <div class="pdf-meta-row"><div class="label">수령인</div><div class="value">${valReceiver || '(입력 대기)'}</div></div>
-        <div class="pdf-meta-row"><div class="label">연락처</div><div class="value">${valContact}</div></div>
-        <div class="pdf-meta-row"><div class="label">요청사항</div><div class="value">${valReq || '없음'}</div></div>
-    `;
-        }
-
-        // ─── 저장 / 취소 ───
-        function handleSave() {
-            const total = calcOrderTotal();
-            if (total === 0) { showToast('⚠️ 주문 상품을 1개 이상 입력해 주세요.', '#d97706'); return; }
-            showToast('✅ 주문서가 저장되었습니다. 영업 히스토리에 자동 기록됩니다.', '#16a34a');
-        }
-
-        function handleCancel() {
-            if (calcOrderTotal() > 0) {
-                if (!confirm('작성 중인 주문서를 취소하시겠습니까? 입력한 내용이 초기화됩니다.')) return;
-            }
-            products.forEach(p => { quantities[p.id] = 0; });
-            updateAll(); // renderPdf가 여기서 호출됨
-            renderProductTable();
-            showToast('주문서 작성이 취소되었습니다.', '#64748b');
-        }
-
-        // ─── 토스트 ───
-        function showToast(msg, color = '#1e293b') {
-            const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.style.background = color;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3500);
-        }
-
-        // ─── 사이드바 토글 ───
-        document.getElementById('menuToggle').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.toggle('hidden');
-            document.getElementById('mainContent').classList.toggle('expanded');
-        });
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => {
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                item.classList.add('active');
-                if (window.innerWidth <= 768) {
-                    document.getElementById('sidebar').classList.add('hidden');
-                    document.getElementById('mainContent').classList.add('expanded');
-                }
-            });
-        });
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') {
-                const sb = document.getElementById('sidebar');
-                if (!sb.classList.contains('hidden')) {
-                    sb.classList.add('hidden');
-                    document.getElementById('mainContent').classList.add('expanded');
-                }
-            }
-        });
-
-        // 배송지 정보 변경 시에도 PDF 업데이트
-        document.querySelectorAll('.delivery-grid input, .delivery-grid textarea').forEach(el => {
-            el.addEventListener('input', renderPdf);
-        });
-
-        // ─── 초기 렌더 ───
-        renderProductTable();
+    function changeQty(id, delta) {
+        quantities[id] = Math.max(0, (quantities[id] || 0) + delta);
         updateAll();
-    </script>
-</body>
+    }
 
-</html>
+    function setQty(id, val) {
+        quantities[id] = Math.max(0, parseInt(val) || 0);
+        updateAll();
+    }
+
+    // ─── 금액 계산 ───
+    function calcOrderTotal() {
+        return products.reduce((sum, p) => sum + (quantities[p.id] * p.unitPrice), 0);
+    }
+
+    function updateAll() {
+        const total = calcOrderTotal();
+
+        // 행별 금액 갱신
+        products.forEach(p => {
+            const rowEl = document.getElementById(`rowTotal_${p.id}`);
+            const amt = quantities[p.id] * p.unitPrice;
+
+            if (rowEl) {
+                rowEl.textContent = `₩${amt.toLocaleString()}`;
+                rowEl.className = `row-total ${amt === 0 ? 'zero' : ''}`;
+            }
+
+            const inp = document.getElementById(`qty_${p.id}`);
+            if (inp) inp.value = quantities[p.id];
+        });
+
+        // 합계
+        document.getElementById('totalAmountDisplay').textContent = total.toLocaleString();
+
+        // PDF 실시간 업데이트
+        renderPdf();
+    }
+
+    // ─── PDF 실시간 렌더링 ───
+    function renderPdf() {
+        const total = calcOrderTotal();
+        const orderNo = 'ORD-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-XXXX';
+        const today = new Date().toLocaleDateString('ko-KR');
+
+        document.getElementById('pdfMeta').innerHTML = `
+            <div class="pdf-meta-row"><div class="label">주문 번호</div><div class="value">${orderNo}</div></div>
+            <div class="pdf-meta-row"><div class="label">작성일</div><div class="value">${today}</div></div>
+            <div class="pdf-meta-row"><div class="label">거래처명</div><div class="value">㈜한국농업 (서울)</div></div>
+            <div class="pdf-meta-row"><div class="label">계약 번호</div><div class="value">CTR-2025-04-00183</div></div>
+        `;
+
+        const activeProducts = products.filter(p => quantities[p.id] > 0);
+        const pdfBody = document.getElementById('pdfProductBody');
+
+        if (activeProducts.length === 0) {
+            pdfBody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="text-align:center;color:#94a3b8;padding:40px;">
+                        주문할 상품의 수량을 입력해주세요.
+                    </td>
+                </tr>`;
+        } else {
+            pdfBody.innerHTML = activeProducts.map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>₩${p.unitPrice.toLocaleString()}</td>
+                    <td>${quantities[p.id]} ${p.unit}</td>
+                    <td class="right">₩${(quantities[p.id] * p.unitPrice).toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('pdfTotal').textContent = `₩${total.toLocaleString()}`;
+    }
+
+    // ─── 저장 / 취소 ───
+    function handleSave() {
+        const total = calcOrderTotal();
+        if (total === 0) {
+            showToast('⚠️ 주문 상품을 1개 이상 입력해 주세요.', '#d97706');
+            return;
+        }
+        showToast('✅ 주문서가 저장되었습니다.', '#16a34a');
+    }
+
+    function handleCancel() {
+        if (calcOrderTotal() > 0) {
+            if (!confirm('작성 중인 주문서를 취소하시겠습니까? 입력한 내용이 초기화됩니다.')) return;
+        }
+        products.forEach(p => { quantities[p.id] = 0; });
+        updateAll();
+        renderProductTable();
+        showToast('주문서 작성이 취소되었습니다.', '#64748b');
+    }
+
+    // ─── 토스트 ───
+    function showToast(msg, color = '#1e293b') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.background = color;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    // ─── 초기 렌더 ───
+    renderProductTable();
+    updateAll();
+</script>
+
+
+
+<script>
+    (function() {
+        var ws = new WebSocket('ws://' + window.location.host +
+            '/jb-server-page?reloadMode=RELOAD_ON_SAVE&'+
+            'referrer=' + encodeURIComponent(window.location.pathname));
+        ws.onmessage = function (msg) {
+            if (msg.data === 'reload') {
+                window.location.reload();
+            }
+            if (msg.data.startsWith('update-css ')) {
+                var messageId = msg.data.substring(11);
+                var links = document.getElementsByTagName('link');
+                for (var i = 0; i < links.length; i++) {
+                    var link = links[i];
+                    if (link.rel !== 'stylesheet') continue;
+                    var clonedLink = link.cloneNode(true);
+                    var newHref = link.href.replace(/(&|\?)jbUpdateLinksId=\d+/, "$1jbUpdateLinksId=" + messageId);
+                    if (newHref !== link.href) {
+                        clonedLink.href = newHref;
+                    }
+                    else {
+                        var indexOfQuest = newHref.indexOf('?');
+                        if (indexOfQuest >= 0) {
+                            // to support ?foo#hash
+                            clonedLink.href = newHref.substring(0, indexOfQuest + 1) + 'jbUpdateLinksId=' + messageId + '&' +
+                                newHref.substring(indexOfQuest + 1);
+                        }
+                        else {
+                            clonedLink.href += '?' + 'jbUpdateLinksId=' + messageId;
+                        }
+                    }
+                    link.replaceWith(clonedLink);
+                }
+            }
+        };
+    })();
+</script></body></html>

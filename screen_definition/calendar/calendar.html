@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>프로토타입 메인 틀</title>
     <style>
+
         * {
             margin: 0;
             padding: 0;
@@ -159,7 +160,9 @@
             }
         }
     
-        /* ===== 캘린더 화면 스타일 (화이트 톤) ===== */
+
+/* Page Specific Styles */
+/* ===== 캘린더 화면 스타일 (화이트 톤) ===== */
         .calendar-page {
             display: flex;
             gap: 20px;
@@ -508,6 +511,7 @@
             .calendar-right { width: 100%; flex: 1 1 auto; }
         }
         @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
 
 </style>
 </head>
@@ -1256,7 +1260,8 @@
         // 초기 선택 날짜(예시)
         selectedDate = '2026-02-10';
         renderAll();
-    </script>
+    
+</script>
 
 </body>
 </html>
