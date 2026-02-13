@@ -54,6 +54,14 @@
         .edit-group input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
 
         @media (max-width: 600px) { .info-grid { grid-template-columns: 1fr; } }
+
+        .btn-briefing { background-color: #2563eb; color: white; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; }
+
+
+        .btn-briefing:hover {
+            background-color: #1d4ed8;
+        }
+
     </style>
 </head>
 
@@ -65,6 +73,10 @@
             <h1 id="client-main-title">🏢 OO육묘장 (C-001)</h1>
             <p>육묘장 | 사용중</p>
         </div>
+        <button class="btn-briefing" onclick="handleBriefingClick(2, 'C-001')">
+            영업 브리핑
+        </button>
+
     </div>
 
     <div class="tabs">
@@ -119,18 +131,18 @@
                 </div>
             </div>
 
-            <div class="memo-section">
-                <div class="memo-header">
-                    <h3>📝 메모 (회사 특징)</h3>
-                    <button class="btn-primary" onclick="toggleMemoEdit()">✏️ 메모 수정</button>
-                </div>
-                <div class="memo-content">
-                    <pre class="memo-text">• 주력 작물: 토마토, 파프리카
-• 시설 규모: 약 3,000평
-• 계약 선호 방식: 연간 정기 계약 선호
-• 특이사항: 유기농 인증 보유, 품질 중시</pre>
-                </div>
-            </div>
+<!--            <div class="memo-section">-->
+<!--                <div class="memo-header">-->
+<!--                    <h3>📝 메모 (회사 특징)</h3>-->
+<!--                    <button class="btn-primary" onclick="toggleMemoEdit()">✏️ 메모 수정</button>-->
+<!--                </div>-->
+<!--                <div class="memo-content">-->
+<!--                    <pre class="memo-text">• 주력 작물: 토마토, 파프리카-->
+<!--• 시설 규모: 약 3,000평-->
+<!--• 계약 선호 방식: 연간 정기 계약 선호-->
+<!--• 특이사항: 유기농 인증 보유, 품질 중시</pre>-->
+<!--                </div>-->
+<!--            </div>-->
         </div>
 
         <div class="tab-content hidden" id="history-tab">
@@ -279,6 +291,25 @@
 
     setupCropManager();
     window.onclick = (e) => { if(e.target.id === 'editModal') closeEditModal(); };
+
+    function goToBriefing(customerId) {
+        window.parent.postMessage(
+            { type: 'changePage', url: `notee.html?customerId=${customerId}` },
+            '*'
+        );
+    }
+
+
+    function handleBriefingClick(noteCount, customerId) {
+        if (noteCount < 3) {
+            alert("브리핑은 노트 3개 이상부터 생성됩니다.");
+            return;
+        }
+
+        goToBriefing(customerId);
+    }
+
+
 </script>
 </body>
 </html>
