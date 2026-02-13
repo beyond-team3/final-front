@@ -437,6 +437,22 @@
             font-weight: 500;
         }
 
+        .tag-add-btn {
+            background-color: transparent;
+            border: 1px dashed #aaa;
+            color: #777;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tag-add-btn:hover {
+            border-color: #3498db;
+            color: #3498db;
+            background-color: #eaf6ff;
+        }
+
         /* 이미지 업로드 */
         .image-upload-wrapper {
             width: 100%;
@@ -577,52 +593,57 @@
 
                 <div class="form-group">
                     <label>재배환경</label>
-                    <div class="tag-container">
+                    <div class="tag-container" id="tags-env">
                         <label class="tag-item"><input type="checkbox" name="env" value="노지"> 노지</label>
                         <label class="tag-item"><input type="checkbox" name="env" value="시설하우스"> 시설하우스</label>
                         <label class="tag-item"><input type="checkbox" name="env" value="고랭지"> 고랭지</label>
                         <label class="tag-item"><input type="checkbox" name="env" value="가정원예"> 가정원예</label>
+                        <button type="button" class="tag-add-btn" onclick="addCustomTag('env')">+ 태그</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>내병성</label>
-                    <div class="tag-container">
+                    <div class="tag-container" id="tags-res">
                         <label class="tag-item"><input type="checkbox" name="res" value="탄저병"> 탄저병</label>
                         <label class="tag-item"><input type="checkbox" name="res" value="바이러스"> 바이러스</label>
                         <label class="tag-item"><input type="checkbox" name="res" value="시들음병"> 시들음병</label>
                         <label class="tag-item"><input type="checkbox" name="res" value="역병"> 역병</label>
                         <label class="tag-item"><input type="checkbox" name="res" value="무름병"> 무름병</label>
+                        <button type="button" class="tag-add-btn" onclick="addCustomTag('res')">+ 태그</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>생육 및 숙기</label>
-                    <div class="tag-container">
+                    <div class="tag-container" id="tags-growth">
                         <label class="tag-item"><input type="checkbox" name="growth" value="조생종"> 조생종</label>
                         <label class="tag-item"><input type="checkbox" name="growth" value="중생종"> 중생종</label>
                         <label class="tag-item"><input type="checkbox" name="growth" value="만생종"> 만생종</label>
                         <label class="tag-item"><input type="checkbox" name="growth" value="극조생"> 극조생</label>
+                        <button type="button" class="tag-add-btn" onclick="addCustomTag('growth')">+ 태그</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>과실품질</label>
-                    <div class="tag-container">
+                    <div class="tag-container" id="tags-quality">
                         <label class="tag-item"><input type="checkbox" name="quality" value="고당도"> 고당도</label>
                         <label class="tag-item"><input type="checkbox" name="quality" value="대과종"> 대과종</label>
                         <label class="tag-item"><input type="checkbox" name="quality" value="저장성우수"> 저장성우수</label>
                         <label class="tag-item"><input type="checkbox" name="quality" value="착색우수"> 착색우수</label>
+                        <button type="button" class="tag-add-btn" onclick="addCustomTag('quality')">+ 태그</button>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>재배편의성</label>
-                    <div class="tag-container">
+                    <div class="tag-container" id="tags-conv">
                         <label class="tag-item"><input type="checkbox" name="conv" value="초세강"> 초세강</label>
                         <label class="tag-item"><input type="checkbox" name="conv" value="착과용이"> 착과용이</label>
                         <label class="tag-item"><input type="checkbox" name="conv" value="밀식적응"> 밀식적응</label>
                         <label class="tag-item"><input type="checkbox" name="conv" value="작업용이"> 작업용이</label>
+                        <button type="button" class="tag-add-btn" onclick="addCustomTag('conv')">+ 태그</button>
                     </div>
                 </div>
 
@@ -781,6 +802,39 @@
 
     // 태그 카테고리 정의
     const tagCategories = ['env', 'res', 'growth', 'quality', 'conv'];
+
+    // ----------------------------------------------------
+    // [기능: 태그 직접 추가]
+    // ----------------------------------------------------
+    function addCustomTag(category) {
+        // 팝업으로 태그명 입력 받기
+        const tagName = prompt("추가할 태그명을 입력하세요:");
+
+        if (tagName && tagName.trim() !== "") {
+            const containerId = "tags-" + category;
+            const container = document.getElementById(containerId);
+            const addButton = container.querySelector('.tag-add-btn');
+
+            // 중복 체크 (선택사항)
+            const existingInputs = container.querySelectorAll('input[type="checkbox"]');
+            for(let input of existingInputs) {
+                if(input.value === tagName) {
+                    alert("이미 존재하는 태그입니다.");
+                    return;
+                }
+            }
+
+            // 새 라벨 생성
+            const newLabel = document.createElement('label');
+            newLabel.className = 'tag-item';
+
+            // 새 체크박스 생성 (자동 체크됨)
+            newLabel.innerHTML = `<input type="checkbox" name="${category}" value="${tagName}" checked> ${tagName}`;
+
+            // 버튼 앞에 삽입
+            container.insertBefore(newLabel, addButton);
+        }
+    }
 
     // ----------------------------------------------------
     // [초기화 및 이벤트 리스너]

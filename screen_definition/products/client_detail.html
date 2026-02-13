@@ -310,11 +310,15 @@
         }
 
         .star-btn {
-            font-size: 30px;
+            font-size: 28px;
             color: #ddd;
             cursor: pointer;
             user-select: none;
             transition: 0.2s;
+        }
+
+        .star-btn:hover {
+            transform: scale(1.1);
         }
 
         .star-btn.active {
@@ -459,7 +463,9 @@
                         </div>
                     </div>
 
-                    <div class="info-desc-box" id="detailDesc">...</div>
+                    <div class="info-desc-box" id="detailDesc">
+                        상품 설명이 로딩중입니다...
+                    </div>
 
                     <div>
                         <div class="spec-section-title">📌 상세 품종 특성</div>
@@ -728,7 +734,7 @@
         checkStatus();
     }
 
-    // [추가된 함수] 유사도 분석 페이지 이동 기능
+    // 유사도 분석 페이지 이동 기능
     function goToSimilarity() {
         if (!currentId) {
             alert('오류: 상품 ID 없음');

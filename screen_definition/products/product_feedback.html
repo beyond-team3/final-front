@@ -5,263 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>상품 피드백 커뮤니티</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; height: 100vh; overflow: hidden; background-color: #f0f2f5; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
-            height: 100vh;
-            overflow: hidden;
-            background-color: #f0f2f5;
-        }
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 60px; background-color: #2c3e50; color: white; display: flex; align-items: center; padding: 0 20px; z-index: 1000; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        .menu-button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 8px 12px; margin-right: 20px; }
+        .header-title { font-size: 20px; font-weight: 600; }
 
-        /* 헤더 & 사이드바 (공통 스타일) */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background-color: #2c3e50;
-            color: white;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            z-index: 1000;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
+        .sidebar { position: fixed; top: 60px; left: 0; width: 250px; height: calc(100vh - 60px); background-color: #34495e; color: white; transition: transform 0.3s ease; z-index: 999; overflow-y: auto; }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .nav-category { padding: 20px 20px 10px; font-size: 12px; font-weight: 600; color: #95a5a6; text-transform: uppercase; }
+        .nav-item { padding: 12px 20px; cursor: pointer; border-left: 3px solid transparent; transition: 0.2s; }
+        .nav-item:hover { background-color: rgba(255, 255, 255, 0.1); border-left-color: #3498db; }
+        .nav-item.active { background-color: rgba(52, 152, 219, 0.3); border-left-color: #3498db; }
 
-        .menu-button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px 12px;
-            margin-right: 20px;
-        }
+        .main-content { position: fixed; top: 60px; left: 250px; right: 0; height: calc(100vh - 60px); transition: left 0.3s ease; display: flex; flex-direction: column; background-color: #f0f2f5; }
+        .main-content.expanded { left: 0; }
 
-        .header-title {
-            font-size: 20px;
-            font-weight: 600;
-        }
+        .chat-header-bar { background: white; padding: 15px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .prod-info { display: flex; align-items: center; gap: 15px; }
+        .prod-thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid #eee; }
+        .prod-text h3 { font-size: 16px; margin-bottom: 4px; color: #2c3e50; }
+        .prod-text p { font-size: 13px; color: #7f8c8d; }
 
-        .sidebar {
-            position: fixed;
-            top: 60px;
-            left: 0;
-            width: 250px;
-            height: calc(100vh - 60px);
-            background-color: #34495e;
-            color: white;
-            transition: transform 0.3s ease;
-            z-index: 999;
-            overflow-y: auto;
-        }
+        .chat-container { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .message-row { display: flex; align-items: flex-start; gap: 10px; max-width: 80%; }
+        .message-row.mine { align-self: flex-end; flex-direction: row-reverse; }
+        .profile-pic { width: 40px; height: 40px; border-radius: 50%; background-color: #ddd; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
 
-        .sidebar.hidden {
-            transform: translateX(-100%);
-        }
+        .message-content { display: flex; flex-direction: column; gap: 4px; position: relative; }
+        .sender-name { font-size: 12px; color: #555; margin-left: 4px; }
+        .message-row.mine .sender-name { text-align: right; margin-right: 4px; }
 
-        .nav-category {
-            padding: 20px 20px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #95a5a6;
-            text-transform: uppercase;
-        }
+        .bubble { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .message-row.other .bubble { background-color: white; color: #333; border-top-left-radius: 0; }
+        .message-row.mine .bubble { background-color: #3498db; color: white; border-top-right-radius: 0; }
 
-        .nav-item {
-            padding: 12px 20px;
-            cursor: pointer;
-            border-left: 3px solid transparent;
-            transition: 0.2s;
-        }
+        .timestamp { font-size: 11px; color: #999; margin-top: 2px; }
+        .message-row.mine .timestamp { text-align: right; }
 
-        .nav-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-left-color: #3498db;
+        /* [핵심 수정] 수정/삭제 버튼이 확실히 보이도록 스타일 개선 */
+        .msg-actions {
+            font-size: 12px; color: #555; text-align: right; margin-top: 4px;
+            display: flex; gap: 8px; justify-content: flex-end;
+            background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;
         }
+        .action-link { cursor: pointer; font-weight: bold; color: #333; text-decoration: none; }
+        .action-link:hover { text-decoration: underline; color: #000; }
 
-        .nav-item.active {
-            background-color: rgba(52, 152, 219, 0.3);
-            border-left-color: #3498db;
-        }
+        /* 인라인 수정 모드 스타일 */
+        .edit-mode-box { display: flex; flex-direction: column; gap: 5px; min-width: 250px; background: white; padding: 5px; border-radius: 8px; }
+        .edit-textarea { width: 100%; height: 60px; padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; resize: none; font-family: inherit; color: #333; }
+        .edit-btn-group { display: flex; gap: 5px; justify-content: flex-end; }
+        .btn-edit-save { background: #2ecc71; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .btn-edit-cancel { background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
 
-        /* 채팅 레이아웃 */
-        .main-content {
-            position: fixed;
-            top: 60px;
-            left: 250px;
-            right: 0;
-            height: calc(100vh - 60px);
-            transition: left 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            background-color: #f0f2f5;
-        }
-
-        .main-content.expanded {
-            left: 0;
-        }
-
-        .chat-header-bar {
-            background: white;
-            padding: 15px 20px;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .prod-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .prod-thumb {
-            width: 50px;
-            height: 50px;
-            border-radius: 8px;
-            object-fit: cover;
-            border: 1px solid #eee;
-        }
-
-        .prod-text h3 {
-            font-size: 16px;
-            margin-bottom: 4px;
-            color: #2c3e50;
-        }
-
-        .prod-text p {
-            font-size: 13px;
-            color: #7f8c8d;
-        }
-
-        .chat-container {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .message-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            max-width: 80%;
-        }
-
-        .message-row.mine {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
-
-        .profile-pic {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-
-        .message-content {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .sender-name {
-            font-size: 12px;
-            color: #555;
-            margin-left: 4px;
-        }
-
-        .message-row.mine .sender-name {
-            text-align: right;
-            margin-right: 4px;
-        }
-
-        .bubble {
-            padding: 10px 14px;
-            border-radius: 12px;
-            font-size: 14px;
-            line-height: 1.5;
-            position: relative;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .message-row.other .bubble {
-            background-color: white;
-            color: #333;
-            border-top-left-radius: 0;
-        }
-
-        .message-row.mine .bubble {
-            background-color: #3498db;
-            color: white;
-            border-top-right-radius: 0;
-        }
-
-        .timestamp {
-            font-size: 11px;
-            color: #999;
-            margin-top: 2px;
-        }
-
-        .message-row.mine .timestamp {
-            text-align: right;
-        }
-
-        .input-area {
-            background: white;
-            padding: 15px;
-            border-top: 1px solid #ddd;
-            display: flex;
-            gap: 10px;
-        }
-
-        .chat-input {
-            flex: 1;
-            height: 40px;
-            padding: 0 15px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            outline: none;
-        }
-
-        .btn-send {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #3498db;
-            color: white;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .input-area { background: white; padding: 15px; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        .chat-input { flex: 1; height: 40px; padding: 0 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+        .btn-send { width: 40px; height: 40px; border-radius: 50%; background: #3498db; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                max-width: 280px;
-            }
-
-            .main-content {
-                left: 0;
-            }
+            .sidebar { width: 100%; max-width: 280px; }
+            .main-content { left: 0; }
         }
     </style>
 </head>
@@ -291,14 +96,10 @@
                 <p>영업사원 피드백 커뮤니티</p>
             </div>
         </div>
-        <button onclick="history.back()"
-                style="padding: 6px 12px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">
-            돌아가기
-        </button>
+        <button onclick="history.back()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">돌아가기</button>
     </div>
 
-    <div class="chat-container" id="chatContainer">
-    </div>
+    <div class="chat-container" id="chatContainer"></div>
 
     <div class="input-area">
         <input type="text" class="chat-input" id="chatInput" placeholder="추가 의견을 입력하세요...">
@@ -436,7 +237,6 @@
         }
     ];
 
-    // 가상의 타 영업사원 피드백
     const mockMessages = [
         {sender: '김철수 대리', content: '이 품종은 작년 대비 수확량이 20% 늘었네요. 농가 만족도가 높습니다.', time: '오전 10:30', isMine: false},
         {sender: '이영희 과장', content: '탄저병 저항성이 확실히 좋네요. 추천할만 합니다.', time: '오후 1:15', isMine: false},
@@ -455,37 +255,66 @@
             document.getElementById('prodImg').src = product.imageUrl || '';
         }
 
+        renderAllMessages();
+    }
+
+    function renderAllMessages() {
         const container = document.getElementById('chatContainer');
         container.innerHTML = '';
 
-        // 1. 다른 영업사원들의 피드백 표시
-        mockMessages.forEach(msg => {
-            appendMessage(msg.sender, msg.content, msg.time, msg.isMine);
-        });
+        // 1. 타 영업사원 메시지
+        mockMessages.forEach(msg => appendMessage(msg.sender, msg.content, msg.time, false));
 
-        // 2. 내가 상세 페이지에서 저장한 피드백 표시
-        const myFeedback = localStorage.getItem('feedback_' + currentId);
-        if (myFeedback) {
-            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-            appendMessage('나', myFeedback, '방금 전', true);
+        // 2. 내 피드백 목록 (localStorage)
+        // 기존에 문자열로 저장된 데이터가 있을 수 있으므로 배열로 변환 시도
+        let storedData = localStorage.getItem('feedback_list_' + currentId);
+        let myFeedbacks = [];
+
+        try {
+            myFeedbacks = JSON.parse(storedData);
+            if (!Array.isArray(myFeedbacks)) myFeedbacks = []; // 배열 아니면 초기화
+        } catch (e) {
+            // JSON 파싱 실패 시 (구버전 데이터 등) -> 빈 배열 처리하거나 단일 문자열 처리
+            if (storedData) {
+                // 구버전 단일 문자열 데이터 호환
+                myFeedbacks = [{ id: Date.now(), content: storedData, date: new Date().toISOString() }];
+                // 포맷 업데이트
+                localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
+            }
         }
+
+        myFeedbacks.forEach(fb => {
+            const timeStr = new Date(fb.date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            appendMessage('나', fb.content, timeStr, true, fb.id);
+        });
 
         container.scrollTop = container.scrollHeight;
     }
 
-    function appendMessage(sender, text, time, isMine) {
+    function appendMessage(sender, text, time, isMine, msgId) {
         const container = document.getElementById('chatContainer');
         const row = document.createElement('div');
         row.className = `message-row ${isMine ? 'mine' : 'other'}`;
 
         const profileHtml = isMine ? '' : `<div class="profile-pic">👤</div>`;
 
+        // [수정] 수정/삭제 버튼 HTML 생성
+        const actionLinks = isMine ? `
+            <div class="msg-actions">
+                <span class="action-link" onclick="enableEditMode(${msgId})">수정</span> |
+                <span class="action-link" onclick="deleteMessage(${msgId})">삭제</span>
+            </div>
+        ` : '';
+
+        const bubbleId = isMine ? `bubble-${msgId}` : '';
+
         row.innerHTML = `
             ${profileHtml}
             <div class="message-content">
                 <span class="sender-name">${sender}</span>
-                <div class="bubble">${text}</div>
+                <div class="bubble" id="${bubbleId}">${text}</div>
                 <span class="timestamp">${time}</span>
+                ${actionLinks}
             </div>
         `;
         container.appendChild(row);
@@ -496,20 +325,70 @@
         const text = input.value.trim();
         if (!text) return;
 
-        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-        appendMessage('나', text, time, true);
+        let myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
+        if (!Array.isArray(myFeedbacks)) myFeedbacks = []; // 안전 장치
 
-        // 채팅창에서 입력한 내용도 로컬 스토리지에 업데이트 (선택 사항)
-        // localStorage.setItem('feedback_' + currentId, text);
+        const newMsg = {
+            id: Date.now(),
+            content: text,
+            date: new Date().toISOString()
+        };
+        myFeedbacks.push(newMsg);
+        localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
 
         input.value = '';
-        const container = document.getElementById('chatContainer');
-        container.scrollTop = container.scrollHeight;
+        renderAllMessages();
     }
 
-    document.getElementById('chatInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+    function deleteMessage(id) {
+        if(!confirm('삭제하시겠습니까?')) return;
+
+        let myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
+        myFeedbacks = myFeedbacks.filter(fb => fb.id !== id);
+
+        localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
+        renderAllMessages();
+    }
+
+    function enableEditMode(id) {
+        const bubble = document.getElementById(`bubble-${id}`);
+        if (!bubble) return;
+
+        const currentText = bubble.innerText;
+
+        // 인라인 수정 폼으로 교체
+        bubble.innerHTML = `
+            <div class="edit-mode-box">
+                <textarea class="edit-textarea" id="edit-input-${id}">${currentText}</textarea>
+                <div class="edit-btn-group">
+                    <button class="btn-edit-cancel" onclick="renderAllMessages()">취소</button>
+                    <button class="btn-edit-save" onclick="updateMessage(${id})">저장</button>
+                </div>
+            </div>
+        `;
+
+        // 수정 모드 진입 시 하단 액션 버튼 숨김 (선택 사항)
+        const actions = bubble.parentElement.querySelector('.msg-actions');
+        if(actions) actions.style.display = 'none';
+    }
+
+    function updateMessage(id) {
+        const newText = document.getElementById(`edit-input-${id}`).value.trim();
+        if(!newText) { alert('내용을 입력하세요.'); return; }
+
+        let myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
+        const targetIndex = myFeedbacks.findIndex(fb => fb.id === id);
+
+        if (targetIndex !== -1) {
+            myFeedbacks[targetIndex].content = newText;
+            // 수정 시간 업데이트 (선택 사항)
+            // myFeedbacks[targetIndex].date = new Date().toISOString();
+            localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
+            renderAllMessages();
+        }
+    }
+
+    document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
