@@ -84,15 +84,15 @@
     <div class="content-wrapper">
         <div class="screen-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 class="screen-title" id="mainTitle" style="margin:0;">영업 문서 작성 (영업사원)</h2>
+                <h2 class="screen-title" id="mainTitle" style="margin:0;">문서 작성</h2>
                 <button id="backBtn" class="btn btn-secondary" style="display:none;" onclick="location.reload()">뒤로가기</button>
             </div>
 
             <div id="mainBoard">
                 <div class="doc-board-container">
                     <div class="doc-card" onclick="alert('준비 중')"><i>📄</i><h3>견적서 작성</h3><p>요청서 선택 또는 신규 견적</p></div>
-                    <div class="doc-card" onclick="openModal('approvedQuotationModal')"><i>🤝</i><h3>계약서 작성</h3><p>계약서 작성</p></div>
-                    <div class="doc-card" onclick="alert('준비 중')"><i>💵</i><h3>청구서 작성</h3><p>(준비중)</p></div>
+                    <div class="doc-card" onclick="openModal('approvedQuotationModal')"><i>🤝</i><h3>계약서 작성</h3><p>견적서 선택 또는 신규 계약</p></div>
+                    <div class="doc-card" onclick="alert('준비 중')"><i>💵</i><h3>청구서 작성</h3><p>청구서 작성</p></div>
                 </div>
             </div>
 
@@ -177,7 +177,26 @@
 
 <div id="approvedQuotationModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>작성 방식 선택</h3><span style="cursor:pointer;" onclick="closeModal('approvedQuotationModal')">&times;</span></div><div class="modal-body"><table class="product-table"><thead><tr><th>견적번호</th><th>법인명</th><th>담당자</th><th>최종금액</th><th>선택</th></tr></thead><tbody><tr><td>QT-2026-001</td><td>(주) 강남종자</td><td>김철수</td><td>1,500,000</td><td><button class="btn btn-primary" onclick="startContract('QT-2026-001', 'C-001', '(주) 강남종자', '김철수')">선택</button></td></tr></tbody></table><button class="btn btn-success" style="width:100%; margin-top:15px; padding:12px;" onclick="startNewContract()">+ 계약서 신규 생성</button></div></div></div>
 
-<div id="corpSelectModal" class="modal"><div class="modal-content" style="width:500px;"><div class="modal-header"><h3>거래처 조회</h3><span style="cursor:pointer;" onclick="closeModal('corpSelectModal')">&times;</span></div><div class="modal-body"><table class="product-table"><thead><tr><th>코드</th><th>법인명</th><th>담당자</th><th>선택</th></tr></thead><tbody><tr><td>AG-001</td><td>경기대리점</td><td>박사장</td><td><button class="btn btn-primary" onclick="setCorp('AG-001','경기대리점', '박사장')">선택</button></td></tr></tbody></table></div></div></div>
+<div id="corpSelectModal" class="modal">
+    <div class="modal-content" style="width:500px;">
+        <div class="modal-header"><h3>거래처 조회</h3>
+            <span style="cursor:pointer;" onclick="closeModal('corpSelectModal')">&times;
+            </span>
+        </div>
+        <div class="modal-body">
+            <table class="product-table"><thead><tr><th>코드</th><th>법인명</th><th>담당자</th><th>선택</th></tr></thead>
+                <tbody>
+                <tr><td>AG-001</td><td>경기대리점</td><td>박사장</td>
+                    <td><button class="btn btn-primary" onclick="setCorp('AG-001','경기대리점', '박사장')">선택</button></td>
+                </tr>
+                <tr><td>NUR-001</td><td>중앙육묘장</td><td>최대표</td>
+                    <td><button class="btn btn-primary" onclick="setCorp('AG-001','경기대리점', '박사장')">선택</button></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 <div id="productSearchModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>상품 검색</h3><span style="cursor:pointer;" onclick="closeModal('productSearchModal')">&times;</span></div><div class="modal-body"><input type="text" id="modalSearchInput" class="form-control" placeholder="상품명 입력" oninput="handleProductSearch()"><div class="product-list-wrapper"><table class="product-table"><thead><tr><th>품종</th><th>상품명</th><th>단위</th><th>단가</th><th>선택</th></tr></thead><tbody id="modalProductTableBody"></tbody></table></div></div></div></div>
 

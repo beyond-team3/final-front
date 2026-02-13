@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>종자 영업 관리 시스템 - 아우 제작</title>
+    <title>종자 영업 관리 시스템</title>
     <style>
         /* 기본 레이아웃 스타일 */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -20,31 +20,35 @@
 
         .main-content { position: fixed; top: 60px; left: 250px; right: 0; height: calc(100vh - 60px); transition: left 0.3s ease; overflow-y: auto; }
         .main-content.expanded { left: 0; }
-        .content-wrapper { padding: 30px; max-width: 1400px; margin: 0 auto; }
+        .content-wrapper { padding: 30px; max-width: 1500px; margin: 0 auto; }
 
-        /* --- [추가] 메인 대시보드 보드 레이아웃 --- */
+        /* --- [추가] 흰색 컨테이너 스타일 --- */
+        .screen-content { background-color: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); min-height: calc(100vh - 120px); }
+
         #mainDashboard { display: block; }
-        .dashboard-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 30px; text-align: center; }
-        .doc-board-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; max-width: 900px; margin: 0 auto; }
-        .doc-card { background: white; border-radius: 12px; padding: 50px 30px; text-align: center; cursor: pointer; transition: 0.3s; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .dashboard-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 30px; text-align: left; }
+
+        .doc-board-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+        .doc-card { background: white; border-radius: 12px; padding: 50px 30px; text-align: center; cursor: pointer; transition: 0.3s; border: 1px solid #ddd; }
         .doc-card:hover { transform: translateY(-8px); border-color: #3498db; box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
         .doc-card i { font-size: 48px; display: block; margin-bottom: 20px; font-style: normal; }
         .doc-card h3 { font-size: 20px; margin-bottom: 10px; color: #2c3e50; }
         .doc-card p { color: #7f8c8d; font-size: 14px; }
 
-        /* --- [기존] 견적 요청서 작성 영역 (숨김 처리 기본) --- */
-        #requestWritePage { display: none; }
-        .quote-container { display: flex; gap: 25px; align-items: flex-start; }
-        .input-section { flex: 1; display: flex; flex-direction: column; gap: 20px; }
-        .card { background: white; border-radius: 8px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        /* --- 입력 영역 공통 스타일 --- */
+        #requestWritePage, #contractWritePage { display: none; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
 
-        .product-list-wrapper { max-height: 295px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
+        .quote-container { display: flex; gap: 25px; align-items: flex-start; }
+        .input-section { flex: 1.2; display: flex; flex-direction: column; gap: 20px; }
+        .card { background: #f9f9f9; border-radius: 8px; padding: 25px; border: 1px solid #eee; }
+
+        .product-list-wrapper { max-height: 295px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: white; }
         .product-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .product-table th { position: sticky; top: 0; background: #f8f9fa; z-index: 10; height: 45px; padding: 0 12px; border-bottom: 2px solid #dee2e6; text-align: left; font-size: 14px; }
-        .product-table td { height: 50px; padding: 0 12px; border-bottom: 1px solid #eee; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .product-table td { height: 50px; padding: 0 12px; border-bottom: 1px solid #eee; font-size: 14px; }
 
-        .qty-input { width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; }
-        .unit-input { width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; background-color: #fffde7; }
+        .qty-input, .form-control { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
         .textarea-field { width: 100%; height: 80px; padding: 12px; border: 1px solid #ddd; border-radius: 4px; resize: none; margin-top: 10px; }
 
         .btn { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-weight: 500; }
@@ -53,9 +57,10 @@
         .btn-secondary { background-color: #95a5a6; color: white; }
         .btn-danger { background-color: #e74c3c; color: white; padding: 5px 10px; }
 
-        .preview-section { width: 450px; position: sticky; top: 0; }
-        .pdf-viewer { background-color: #525659; padding: 15px; border-radius: 8px; min-height: 650px; display: flex; justify-content: center; }
-        .pdf-page { background: white; width: 100%; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 11px; }
+        /* PDF 미리보기 */
+        .preview-section { width: 480px; position: sticky; top: 0; }
+        .pdf-viewer { background-color: #525659; padding: 15px; border-radius: 8px; min-height: 700px; display: flex; justify-content: center; }
+        .pdf-page { background: white; width: 100%; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 11px; color: #000; }
         .pdf-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
         .pdf-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         .pdf-table th, .pdf-table td { border: 1px solid #ddd; padding: 6px; text-align: center; }
@@ -65,10 +70,6 @@
         .modal-content { background: white; width: 650px; border-radius: 8px; display: flex; flex-direction: column; max-height: 80vh; }
         .modal-header { padding: 15px 20px; background: #2c3e50; color: white; display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow: hidden; }
-        .search-controls { display: flex; gap: 10px; align-items: center; }
-        .filter-select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 130px; background-color: #fff; cursor: pointer; }
-        .search-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        .modal-list-wrapper { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -80,206 +81,157 @@
 <aside class="sidebar" id="sidebar">
     <nav class="sidebar-nav">
         <div class="nav-category" style="padding: 15px 20px; font-size: 12px; color: #95a5a6;">영업 관리</div>
-        <div class="nav-item active" onclick="goHome()">영업 문서 작성</div>
+        <div class="nav-item active" onclick="goHome()">문서 작성</div>
     </nav>
 </aside>
 
 <main class="main-content" id="mainContent">
     <div class="content-wrapper">
+        <div class="screen-content">
 
-        <div id="mainDashboard">
-            <h2 class="dashboard-title">영업 문서 작성</h2>
-            <div class="doc-board-container">
-                <div class="doc-card" onclick="openRequestPage()">
-                    <i>📄</i>
-                    <h3>견적 요청서 작성</h3>
-                    <p>신규 견적 요청서를 작성하고 PDF를 생성</p>
-                </div>
-                <div class="doc-card" onclick="alert('준비 중')">
-                    <i>🛒</i>
-                    <h3>주문서 작성</h3>
-                    <p>(준비중)</p>
+            <div id="mainDashboard">
+                <h2 class="dashboard-title">영업 문서 작성</h2>
+                <div class="doc-board-container">
+                    <div class="doc-card" onclick="openRequestPage()">
+                        <i>📄</i>
+                        <h3>견적 요청서 작성</h3>
+                        <p>신규 견적 요청서 작성</p>
+                    </div>
+                    <div class="doc-card" onclick="alert('주문서 작성 기능 준비 중')">
+                        <i>🛒</i>
+                        <h3>주문서 작성</h3>
+                        <p>계약 기반 주문서 작성</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div id="requestWritePage">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div style="color: #7f8c8d; font-size: 14px;">
-                    영업 문서 작성 > <span style="color: #2c3e50; font-weight: 500;">견적 요청서 작성</span>
-                </div>
-                <button class="btn btn-secondary" onclick="goHome()">뒤로가기</button>
-            </div>
-
-            <div class="quote-container">
-                <div class="input-section">
-                    <div class="card">
-                        <div class="card-header" style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                            <h2 style="font-size: 18px;">작성 품목</h2>
-                            <button class="btn btn-primary" onclick="openModal()">+ 상품 검색</button>
-                        </div>
-                        <div class="product-list-wrapper">
-                            <table class="product-table">
-                                <colgroup>
-                                    <col style="width: 25%;"><col style="width: 25%;"><col style="width: 15%;"><col style="width: 20%;"><col style="width: 15%;">
-                                </colgroup>
-                                <thead>
-                                <tr>
-                                    <th>품종명</th><th>상품명</th><th>수량</th><th>단위</th><th>작업</th>
-                                </tr>
-                                </thead>
-                                <tbody id="selectedProductList"></tbody>
-                            </table>
-                        </div>
+            <div id="requestWritePage">
+                <div class="page-header">
+                    <div style="color: #7f8c8d; font-size: 14px;">
+                        영업 문서 작성 > <span style="color: #2c3e50; font-weight: 600;">견적 요청서 작성</span>
                     </div>
-
-                    <div class="card">
-                        <h2 style="font-size: 18px;">추가 요구사항</h2>
-                        <textarea class="textarea-field" id="requirements" placeholder="기타 요구사항 입력" oninput="updatePreview()"></textarea>
-                    </div>
-
-                    <button class="btn btn-success" onclick="submitQuote()">견적 요청서 제출</button>
+                    <button class="btn btn-secondary" onclick="goHome()">뒤로가기</button>
                 </div>
 
-                <div class="preview-section">
-                    <div class="pdf-viewer">
-                        <div class="pdf-page">
-                            <div class="pdf-header"><h1>견적 요청서</h1></div>
-                            <p style="margin-bottom: 10px;">귀하의 무궁한 발전을 기원합니다.</p>
-                            <p>아래와 같이 견적을 요청하오니 검토 부탁드립니다..</p>
-                            <table class="pdf-table">
-                                <thead><tr><th>품종명</th><th>상품명</th><th>수량</th><th>단위</th></tr></thead>
-                                <tbody id="previewTableBody">
-                                <tr><td colspan="4" style="padding: 40px; color: #999;">상품을 선택해주세요.</td></tr>
-                                </tbody>
-                            </table>
-                            <div style="margin-top: 15px;">
-                                <strong>[요구사항]</strong>
-                                <p id="previewRequirements" style="margin-top: 5px; border: 1px solid #eee; padding: 10px; min-height: 40px;">없음</p>
+                <div class="quote-container">
+                    <div class="input-section">
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                <h3 style="font-size: 18px;">작성 품목</h3>
+                                <button class="btn btn-primary" onclick="openModal('productModal')">+ 상품 검색</button>
                             </div>
-                            <div style="margin-top: 30px; text-align: right;">
-                                <p>작성일: 2026년 02월 11일</p>
-                                <p style="margin-top: 8px;">요청자: (주) 그린상사</p>
+                            <div class="product-list-wrapper">
+                                <table class="product-table">
+                                    <colgroup>
+                                        <col style="width: 30%;"><col style="width: 30%;"><col style="width: 20%;"><col style="width: 20%;">
+                                    </colgroup>
+                                    <thead>
+                                    <tr><th>품종명</th><th>상품명</th><th>수량</th><th>작업</th></tr>
+                                    </thead>
+                                    <tbody id="selectedProductList"></tbody>
+                                </table>
                             </div>
                         </div>
+
+                        <div class="card">
+                            <h3 style="font-size: 18px;">추가 요구사항</h3>
+                            <textarea class="textarea-field" id="requirements" placeholder="기타 요구사항 입력" oninput="updatePreview()"></textarea>
+                        </div>
+
+                        <button class="btn btn-success" onclick="submitQuote()">견적 요청서 제출</button>
+                    </div>
+
+                    <div class="preview-section">
+                        <div class="pdf-viewer">
+                            <div class="pdf-page">
+                                <div class="pdf-header"><h1>견적 요청서</h1></div>
+                                <p style="margin-bottom: 10px;">귀하의 무궁한 발전을 기원합니다.</p>
+                                <p>아래와 같이 견적을 요청하오니 검토 부탁드립니다.</p>
+                                <table class="pdf-table">
+                                    <thead><tr><th>품종명</th><th>상품명</th><th>수량</th><th>단위</th></tr></thead>
+                                    <tbody id="previewTableBody">
+                                    <tr><td colspan="4" style="padding: 40px; color: #999;">상품을 선택해주세요.</td></tr>
+                                    </tbody>
+                                </table>
+                                <div style="margin-top: 15px;">
+                                    <strong>[요구사항]</strong>
+                                    <p id="previewRequirements" style="margin-top: 5px; border: 1px solid #eee; padding: 10px; min-height: 40px;">없음</p>
+                                </div>
+                                <div style="margin-top: 30px; text-align: right;">
+                                    <p>작성일: 2026년 02월 13일</p>
+                                    <p style="margin-top: 8px;">요청자: (주) 그린상사</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-    </div>
+            </div> </div> </div>
 </main>
 
 <div class="modal" id="productModal">
     <div class="modal-content">
         <div class="modal-header">
             <h3>상품 검색 및 필터</h3>
-            <span style="cursor:pointer; font-size: 24px;" onclick="closeModal()">&times;</span>
+            <span style="cursor:pointer; font-size: 24px;" onclick="closeModal('productModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <div class="search-controls">
-                <select id="varietyFilter" class="filter-select" onchange="handleSearch()">
-                    <option value="전체">품종 전체</option>
-                </select>
-                <input type="text" id="modalSearchInput" class="search-input" placeholder="상품명을 검색하세요 (예: 불지옥)" oninput="handleSearch()">
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="modalSearchInput" class="form-control" placeholder="상품명을 검색하세요" oninput="handleSearch()">
             </div>
-            <div class="modal-list-wrapper">
+            <div class="product-list-wrapper">
                 <table class="product-table">
                     <thead><tr><th>품종명</th><th>상품명</th><th>단위</th><th>선택</th></tr></thead>
                     <tbody id="modalProductTableBody"></tbody>
                 </table>
-                <div id="noResultMessage" style="display:none; text-align:center; padding:30px; color:#999;">결과가 없습니다.</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    /* --- [추가] 화면 전환 로직 --- */
     function goHome() {
         document.getElementById('mainDashboard').style.display = 'block';
         document.getElementById('requestWritePage').style.display = 'none';
-        // 메뉴 활성화 상태 변경
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        document.querySelector('.nav-item:nth-child(2)').classList.add('active');
     }
 
     function openRequestPage() {
         document.getElementById('mainDashboard').style.display = 'none';
         document.getElementById('requestWritePage').style.display = 'block';
-        // 메뉴 활성화 상태 변경
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        document.querySelector('.nav-item:nth-child(3)').classList.add('active');
     }
 
-    /* --- [기존] 견적 요청서 로직 (그대로 유지) --- */
     const MASTER_PRODUCTS = [
         { id: 101, variety: '고추', product: '불지옥', unit: 'kg' },
         { id: 102, variety: '고추', product: '청양골', unit: 'kg' },
         { id: 103, variety: '토마토', product: '레드킹', unit: 'kg' },
-        { id: 104, variety: '토마토', product: '스테비아팜', unit: 'kg' },
-        { id: 105, variety: '배추', product: '겨울왕국', unit: '립' },
-        { id: 106, variety: '배추', product: '항암배추', unit: '립' },
-        { id: 107, variety: '무', product: '보르도무', unit: '립' }
+        { id: 104, variety: '토마토', product: '스테비아팜', unit: 'kg' }
     ];
 
     let selectedProducts = [];
 
-    function initFilterDropdown() {
-        const varieties = [...new Set(MASTER_PRODUCTS.map(p => p.variety))];
-        const select = document.getElementById('varietyFilter');
-        select.innerHTML = '<option value="전체">품종 전체</option>' +
-            varieties.map(v => `<option value="${v}">${v}</option>`).join('');
-    }
-
-    function openModal() {
-        document.getElementById('productModal').style.display = 'flex';
-        document.getElementById('modalSearchInput').value = '';
-        document.getElementById('varietyFilter').value = '전체';
-        initFilterDropdown();
+    function openModal(id) {
+        document.getElementById(id).style.display = 'flex';
         handleSearch();
     }
-
-    function closeModal() { document.getElementById('productModal').style.display = 'none'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     function handleSearch() {
-        const filterVal = document.getElementById('varietyFilter').value;
         const keyword = document.getElementById('modalSearchInput').value.toLowerCase();
-        const filtered = MASTER_PRODUCTS.filter(p => {
-            const matchVar = (filterVal === '전체' || p.variety === filterVal);
-            const matchProd = p.product.toLowerCase().includes(keyword);
-            return matchVar && matchProd;
-        });
+        const filtered = MASTER_PRODUCTS.filter(p => p.product.toLowerCase().includes(keyword));
         const tbody = document.getElementById('modalProductTableBody');
-        const noMsg = document.getElementById('noResultMessage');
-        if (filtered.length === 0) {
-            tbody.innerHTML = ''; noMsg.style.display = 'block';
-        } else {
-            noMsg.style.display = 'none';
-            tbody.innerHTML = filtered.map(p => `
-                    <tr>
-                        <td>${p.variety}</td><td>${p.product}</td><td>${p.unit}</td>
-                        <td><button class="btn btn-primary" onclick="addProduct(${p.id})">선택</button></td>
-                    </tr>
-                `).join('');
-        }
+        tbody.innerHTML = filtered.map(p => `
+            <tr>
+                <td>${p.variety}</td><td>${p.product}</td><td>${p.unit}</td>
+                <td><button class="btn btn-primary" onclick="addProduct(${p.id})">선택</button></td>
+            </tr>
+        `).join('');
     }
 
     function addProduct(pid) {
         const p = MASTER_PRODUCTS.find(item => item.id === pid);
-        const existing = selectedProducts.find(item => item.product === p.product && item.variety === p.variety);
-        if (existing) { existing.quantity = parseInt(existing.quantity) + 1; }
-        else {
-            // 단위가 'kg'가 아니면 '립'으로 기본 설정
-            const unit = p.unit === 'kg' ? 'kg' : '립';
-            selectedProducts.push({ uid: Date.now(), masterId: p.id, variety: p.variety, product: p.product, quantity: 1, unit: unit });
-        }
-        render(); updatePreview(); closeModal();
-    }
-
-    function updateItem(uid, field, val) {
-        const item = selectedProducts.find(i => i.uid === uid);
-        if (item) { item[field] = val; updatePreview(); }
+        const existing = selectedProducts.find(item => item.id === pid);
+        if (existing) { existing.quantity++; }
+        else { selectedProducts.push({ ...p, quantity: 1, uid: Date.now() }); }
+        render(); updatePreview(); closeModal('productModal');
     }
 
     function removeProduct(uid) {
@@ -290,17 +242,18 @@
     function render() {
         const list = document.getElementById('selectedProductList');
         list.innerHTML = selectedProducts.map(p => `
-                <tr>
-                    <td>${p.variety}</td> <td>${p.product}</td> <td><input type="number" class="qty-input" value="${p.quantity}" min="1" oninput="updateItem(${p.uid}, 'quantity', this.value)"></td>
-                    <td>
-                        <select class="unit-input" onchange="updateItem(${p.uid}, 'unit', this.value)">
-                            <option value="립" ${p.unit === '립' ? 'selected' : ''}>립</option>
-                            <option value="kg" ${p.unit === 'kg' ? 'selected' : ''}>kg</option>
-                        </select>
-                    </td>
-                    <td><button class="btn btn-danger" onclick="removeProduct(${p.uid})">삭제</button></td>
-                </tr>
-            `).join('');
+            <tr>
+                <td>${p.variety}</td><td>${p.product}</td>
+                <td><input type="number" class="qty-input" value="${p.quantity}" min="1" oninput="updateQty(${p.uid}, this.value)"></td>
+                <td><button class="btn btn-danger" onclick="removeProduct(${p.uid})">삭제</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function updateQty(uid, val) {
+        const item = selectedProducts.find(i => i.uid === uid);
+        if(item) item.quantity = parseInt(val) || 1;
+        updatePreview();
     }
 
     function updatePreview() {
@@ -323,10 +276,14 @@
     function submitQuote() {
         if (selectedProducts.length === 0) { alert('상품을 골라주세요.'); return; }
         alert('제출이 완료 되었습니다.');
-        goHome(); // 제출 후 홈으로 이동
+        goHome();
     }
 
-    window.onclick = (e) => { if(e.target == document.getElementById('productModal')) closeModal(); }
+    window.onclick = (e) => {
+        if(e.target.classList.contains('modal')) {
+            e.target.style.display = 'none';
+        }
+    }
 </script>
 </body>
 </html>
