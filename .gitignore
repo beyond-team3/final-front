@@ -37,3 +37,6 @@ __screenshots__/
 
 # Mac OS
 .DS_Store
+
+# Local mock data
+mock-server/db.json
