@@ -54,7 +54,17 @@ const submit = () => {
     return
   }
 
-  const defaultClient = documentStore.clientMaster[0]
+  const defaultClient = isClient.value
+    ? documentStore.clientMaster.find((client) => client.name === authStore.me?.name)
+      || documentStore.clientMaster.find((client) => String(authStore.me?.name || '').includes(client.name))
+      || documentStore.clientMaster[0]
+    : documentStore.clientMaster[0]
+
+  if (!defaultClient) {
+    window.alert('거래처 정보를 찾을 수 없습니다.')
+    return
+  }
+
   const request = documentStore.createQuotationRequest({
     client: defaultClient,
     items: selectedItems.value,

@@ -1,17 +1,20 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useDocumentStore } from '@/stores/document'
+import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
+const historyStore = useHistoryStore()
 const authStore = useAuthStore()
 
 const selectedOrderId = ref(route.query.orderId || '')
+const selectedHistoryId = ref('')
 const remarks = ref('')
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
@@ -27,17 +30,35 @@ watch(selectedOrder, (order) => {
     return
   }
 
+  selectedHistoryId.value = order.historyId || ''
   remarks.value = `주문번호 ${order.id} 기준 청구서`
 }, { immediate: true })
+
+const pipelineOptions = computed(() => {
+  const clientId = selectedOrder.value?.client?.id
+  if (!clientId) {
+    return []
+  }
+  return historyStore.getPipelinesByClient(clientId)
+})
+
+onMounted(() => {
+  void historyStore.ensureLoaded()
+})
 
 const createInvoice = () => {
   if (!selectedOrder.value) {
     window.alert('주문서를 먼저 선택해주세요.')
     return
   }
+  if (!selectedHistoryId.value) {
+    window.alert('연결할 파이프라인을 선택해주세요.')
+    return
+  }
 
   documentStore.createInvoice({
     orderId: selectedOrder.value.id,
+    historyId: selectedHistoryId.value,
     client: selectedOrder.value.client,
     items: selectedOrder.value.items,
     remarks: remarks.value,
@@ -76,6 +97,15 @@ const createInvoice = () => {
           <p class="text-xs font-semibold text-slate-500">거래처</p>
           <p class="mt-1 text-sm font-bold text-slate-800">{{ selectedOrder?.client?.name || '-' }}</p>
         </div>
+        <label class="text-sm font-semibold text-slate-700 md:col-span-2">
+          연결 파이프라인
+          <select v-model="selectedHistoryId" class="mt-1 h-10 w-full rounded border border-slate-300 px-2 text-sm font-normal">
+            <option value="">파이프라인 선택</option>
+            <option v-for="pipeline in pipelineOptions" :key="pipeline.id" :value="pipeline.id">
+              {{ pipeline.id }} | {{ pipeline.stage }} | {{ pipeline.clientName }}
+            </option>
+          </select>
+        </label>
       </div>
 
       <div class="mt-5 grid gap-3 md:grid-cols-3">

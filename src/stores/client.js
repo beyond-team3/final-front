@@ -14,13 +14,36 @@ function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생�
   return error?.response?.data?.message || error?.message || fallback
 }
 
-function makeTempClient(payload = {}) {
+function getClientActiveValue(client = {}) {
+  if (typeof client.isActive === 'boolean') {
+    return client.isActive
+  }
+
+  const status = String(client.status || '').toUpperCase()
+  if (['INACTIVE', '휴면', '비활성'].includes(client.status) || status === 'INACTIVE') {
+    return false
+  }
+
+  return true
+}
+
+function normalizeClient(client = {}) {
+  const isActive = getClientActiveValue(client)
   return {
+    ...client,
+    isActive,
+    status: isActive ? 'active' : 'inactive',
+  }
+}
+
+function makeTempClient(payload = {}) {
+  return normalizeClient({
     id: `temp-${Date.now()}`,
     name: payload.clientName,
     type: payload.clientType,
     typeLabel: payload.clientType === 'DISTRIBUTOR' ? '대리점' : '기타',
     status: 'active',
+    isActive: true,
     bizNo: payload.bizNo,
     ceoName: payload.ceoName,
     companyPhone: payload.companyPhone || '-',
@@ -35,7 +58,7 @@ function makeTempClient(payload = {}) {
     receivable: 0,
     crops: [],
     pipelines: [],
-  }
+  })
 }
 
 export const useClientStore = defineStore('client', () => {
@@ -54,7 +77,7 @@ export const useClientStore = defineStore('client', () => {
 
     try {
       const result = await getClients(params)
-      clients.value = Array.isArray(result) ? result : []
+      clients.value = Array.isArray(result) ? result.map((client) => normalizeClient(client)) : []
       return clients.value
     } catch (e) {
       error.value = getErrorMessage(e, '거래처 목록을 불러오지 못했습니다.')
@@ -69,7 +92,8 @@ export const useClientStore = defineStore('client', () => {
     error.value = null
 
     try {
-      currentClient.value = await getClientDetail(id)
+      const result = await getClientDetail(id)
+      currentClient.value = normalizeClient(result)
       return currentClient.value
     } catch (e) {
       error.value = getErrorMessage(e, '거래처 상세를 불러오지 못했습니다.')
@@ -87,7 +111,7 @@ export const useClientStore = defineStore('client', () => {
       .then((created) => {
         const idx = clients.value.findIndex((item) => item.id === optimistic.id)
         if (idx >= 0 && created) {
-          clients.value[idx] = created
+          clients.value[idx] = normalizeClient(created)
         }
       })
       .catch((e) => {
@@ -100,19 +124,34 @@ export const useClientStore = defineStore('client', () => {
 
   const updateClient = (id, patch) => {
     const previous = clients.value.find((client) => String(client.id) === String(id))
+    const nextIsActive = typeof patch?.isActive === 'boolean' ? patch.isActive : null
+    const normalizedPatch = nextIsActive === null
+      ? patch
+      : {
+          ...patch,
+          isActive: nextIsActive,
+          status: nextIsActive ? 'active' : 'inactive',
+        }
 
     clients.value = clients.value.map((client) => {
       if (String(client.id) !== String(id)) {
         return client
       }
 
-      return {
+      return normalizeClient({
         ...client,
-        ...patch,
-      }
+        ...normalizedPatch,
+      })
     })
 
-    updateClientApi(id, patch)
+    if (String(currentClient.value?.id) === String(id)) {
+      currentClient.value = normalizeClient({
+        ...currentClient.value,
+        ...normalizedPatch,
+      })
+    }
+
+    updateClientApi(id, normalizedPatch)
       .then((updated) => {
         if (!updated) {
           return
@@ -123,11 +162,18 @@ export const useClientStore = defineStore('client', () => {
             return client
           }
 
-          return {
+          return normalizeClient({
             ...client,
             ...updated,
-          }
+          })
         })
+
+        if (String(currentClient.value?.id) === String(id)) {
+          currentClient.value = normalizeClient({
+            ...currentClient.value,
+            ...updated,
+          })
+        }
       })
       .catch((e) => {
         error.value = getErrorMessage(e, '거래처 수정에 실패했습니다.')
@@ -136,8 +182,12 @@ export const useClientStore = defineStore('client', () => {
             if (String(client.id) !== String(id)) {
               return client
             }
-            return previous
+            return normalizeClient(previous)
           })
+
+          if (String(currentClient.value?.id) === String(id)) {
+            currentClient.value = normalizeClient(previous)
+          }
         }
       })
   }
@@ -153,15 +203,28 @@ export const useClientStore = defineStore('client', () => {
           if (String(client.id) !== String(id)) {
             return client
           }
-          return {
+          return normalizeClient({
             ...client,
             ...updated,
-          }
+          })
         })
+
+        if (String(currentClient.value?.id) === String(id)) {
+          currentClient.value = normalizeClient({
+            ...currentClient.value,
+            ...updated,
+          })
+        }
       })
       .catch((e) => {
         error.value = getErrorMessage(e, '품종 추가에 실패했습니다.')
       })
+  }
+
+  const toggleClientActive = (id, isActive) => {
+    updateClient(id, {
+      isActive: Boolean(isActive),
+    })
   }
 
   void fetchClients()
@@ -177,6 +240,7 @@ export const useClientStore = defineStore('client', () => {
     fetchClientDetail,
     addClient,
     updateClient,
+    toggleClientActive,
     addVariety,
     toCurrency,
   }

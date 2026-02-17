@@ -107,6 +107,7 @@ onMounted(fetchClientDetail)
   </section>
 
   <section v-else>
+    <div v-if="currentClient">
     <PageHeader :title="`${currentClient.name} (${currentClient.id})`" :subtitle="`${currentClient.typeLabel} | 사용중`">
       <template #actions>
         <button
@@ -173,26 +174,26 @@ onMounted(fetchClientDetail)
         <h3 class="mb-3 text-lg font-semibold text-slate-800">취급 품종</h3>
         <div class="flex flex-wrap gap-2">
           <StatusBadge
-            v-for="crop in currentClient.crops"
+            v-for="crop in (currentClient?.crops || [])"
             :key="crop"
             status="success"
             :label="crop"
           />
-          <span v-if="currentClient.crops.length === 0" class="text-sm text-slate-400">등록된 품종이 없습니다.</span>
+          <span v-if="currentClient?.crops?.length === 0" class="text-sm text-slate-400">등록된 품종이 없습니다.</span>
         </div>
       </article>
     </div>
 
     <div v-else class="space-y-4">
       <PipelineTimelineCard
-        v-for="pipeline in currentClient.pipelines"
+        v-for="pipeline in (currentClient?.pipelines || [])"
         :key="pipeline.id"
         :pipeline="pipeline"
         :amount-formatter="toCurrency"
         :show-detail-button="false"
       />
 
-      <article v-if="currentClient.pipelines.length === 0" class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+      <article v-if="currentClient?.pipelines?.length === 0" class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
         영업 히스토리가 없습니다.
       </article>
     </div>
@@ -229,5 +230,7 @@ onMounted(fetchClientDetail)
         </div>
       </template>
     </ModalBase>
+    </div>
+    <LoadingSpinner v-else text="거래처 상세를 불러오는 중입니다." />
   </section>
 </template>

@@ -1,68 +1,20 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { ROLES } from '@/utils/constants'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UnifiedHistoryPanel from '@/components/history/UnifiedHistoryPanel.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useHistoryStore } from '@/stores/history'
+import { ROLES } from '@/utils/constants'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
-const pipelines = ref([
-  {
-    id: 1,
-    clientName: 'OO육묘장',
-    statusText: '계약 진행중',
-    statusTone: 'primary',
-    startDate: '2026-01-15',
-    amount: 15000000,
-    steps: [
-      { name: '견적요청', state: 'completed', statusText: '완료' },
-      { name: '견적서', state: 'completed', statusText: '완료' },
-      { name: '계약서', state: 'in-progress', statusText: '진행' },
-      { name: '주문서', state: 'waiting', statusText: '대기' },
-      { name: '명세서', state: 'waiting', statusText: '대기' },
-      { name: '청구서', state: 'waiting', statusText: '대기' },
-      { name: '결제완료', state: 'waiting', statusText: '대기' },
-    ],
-  },
-  {
-    id: 2,
-    clientName: '△△대리점',
-    statusText: '주문 완료',
-    statusTone: 'success',
-    startDate: '2026-01-10',
-    amount: 12000000,
-    steps: [
-      { name: '견적요청', state: 'completed', statusText: '완료' },
-      { name: '견적서', state: 'completed', statusText: '완료' },
-      { name: '계약서', state: 'completed', statusText: '완료' },
-      { name: '주문서', state: 'completed', statusText: '완료' },
-      { name: '명세서', state: 'in-progress', statusText: '진행' },
-      { name: '청구서', state: 'waiting', statusText: '대기' },
-      { name: '결제완료', state: 'waiting', statusText: '대기' },
-    ],
-  },
-  {
-    id: 3,
-    clientName: '□□농장',
-    statusText: '견적 대기중',
-    statusTone: 'warning',
-    startDate: '2026-01-25',
-    amount: 8000000,
-    steps: [
-      { name: '견적요청', state: 'completed', statusText: '완료' },
-      { name: '견적서', state: 'in-progress', statusText: '진행' },
-      { name: '계약서', state: 'waiting', statusText: '대기' },
-      { name: '주문서', state: 'waiting', statusText: '대기' },
-      { name: '명세서', state: 'waiting', statusText: '대기' },
-      { name: '청구서', state: 'waiting', statusText: '대기' },
-      { name: '결제완료', state: 'waiting', statusText: '대기' },
-    ],
-  },
-]) // TODO: API 연결
+const historyStore = useHistoryStore()
 
 const canEdit = computed(() => authStore.currentRole !== ROLES.CLIENT)
+const pipelines = computed(() => historyStore.pipelinesForView)
 
 const openPipelineDetail = (pipelineId) => {
   router.push({ name: 'pipeline-detail', params: { id: pipelineId } })
@@ -71,11 +23,23 @@ const openPipelineDetail = (pipelineId) => {
 const editPipeline = (pipelineId) => {
   router.push({ name: 'pipeline-detail', params: { id: pipelineId }, query: { edit: '1' } })
 }
+
+onMounted(() => {
+  void historyStore.fetchPipelines()
+})
 </script>
 
 <template>
   <section class="mx-auto max-w-[1200px] rounded-lg bg-white p-6 shadow-sm">
+    <LoadingSpinner v-if="historyStore.loading" text="영업 히스토리를 불러오는 중입니다." />
+    <ErrorMessage v-else-if="historyStore.error" :message="historyStore.error" @retry="historyStore.fetchPipelines" />
+    <EmptyState
+      v-else-if="pipelines.length === 0"
+      title="영업 히스토리가 없습니다."
+      description="문서를 작성하면 파이프라인이 생성됩니다."
+    />
     <UnifiedHistoryPanel
+      v-else
       title="영업 히스토리"
       :pipelines="pipelines"
       :show-client-name="true"

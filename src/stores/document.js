@@ -11,6 +11,7 @@ import {
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts } from '@/api/product'
+import { useHistoryStore } from '@/stores/history'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
   return error?.response?.data?.message || error?.message || fallback
@@ -55,9 +56,11 @@ const normalizeDocument = (doc = {}) => ({
   items: Array.isArray(doc.items) ? doc.items : [],
   totalAmount: Number(doc.totalAmount ?? doc.amount ?? 0),
   createdAt: doc.createdAt || doc.date || new Date().toISOString().slice(0, 10),
+  historyId: doc.historyId || doc.pipelineId || null,
 })
 
 export const useDocumentStore = defineStore('document', () => {
+  const historyStore = useHistoryStore()
   const productMaster = ref([])
   const clientMaster = ref([])
 
@@ -137,7 +140,7 @@ export const useDocumentStore = defineStore('document', () => {
   const createQuotationRequest = ({ client, items, requirements }) => {
     const id = makeId('RQ')
     const lineItems = (items || []).map(withAmount)
-    const next = {
+    const next = normalizeDocument({
       id,
       type: 'quotation-request',
       client,
@@ -146,9 +149,14 @@ export const useDocumentStore = defineStore('document', () => {
       status: 'REQUESTED',
       createdAt: formatDate(),
       totalAmount: totalAmountOf(lineItems),
-    }
+      historyId: null,
+    })
 
     quotationRequests.value.unshift(next)
+    const createdPipeline = historyStore.createPipeline(client, next)
+    if (createdPipeline) {
+      next.historyId = createdPipeline.id
+    }
     emitDocumentCreated('quotation-request', id)
 
     createQuotationRequestApi(next)
@@ -159,7 +167,10 @@ export const useDocumentStore = defineStore('document', () => {
 
         const idx = quotationRequests.value.findIndex((item) => item.id === id)
         if (idx >= 0) {
-          quotationRequests.value[idx] = created
+          quotationRequests.value[idx] = normalizeDocument({
+            ...created,
+            historyId: created?.historyId || next.historyId,
+          })
         }
       })
       .catch((e) => {
@@ -169,10 +180,12 @@ export const useDocumentStore = defineStore('document', () => {
     return next
   }
 
-  const createQuotation = ({ requestId, client, items, memo }) => {
+  const createQuotation = ({ requestId, client, items, memo, historyId }) => {
     const id = makeId('QT')
     const lineItems = (items || []).map(withAmount)
-    const next = {
+    const request = requestId ? getRequestById(requestId) : null
+    const linkedHistoryId = historyId || request?.historyId || null
+    const next = normalizeDocument({
       id,
       type: 'quotation',
       requestId: requestId || null,
@@ -183,16 +196,19 @@ export const useDocumentStore = defineStore('document', () => {
       createdAt: formatDate(),
       validUntil: formatDate(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)),
       totalAmount: totalAmountOf(lineItems),
-    }
+      historyId: linkedHistoryId,
+    })
 
     quotations.value.unshift(next)
+    const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
+    if (targetPipeline) {
+      next.historyId = targetPipeline.id
+    }
     emitDocumentCreated('quotation', id)
 
-    if (requestId) {
-      const request = getRequestById(requestId)
-      if (request) {
-        request.status = 'QUOTED'
-      }
+    if (request) {
+      request.status = 'QUOTED'
+      request.historyId = next.historyId || request.historyId || null
     }
 
     createQuotationApi(next)
@@ -203,7 +219,10 @@ export const useDocumentStore = defineStore('document', () => {
 
         const idx = quotations.value.findIndex((item) => item.id === id)
         if (idx >= 0) {
-          quotations.value[idx] = created
+          quotations.value[idx] = normalizeDocument({
+            ...created,
+            historyId: created?.historyId || next.historyId,
+          })
         }
       })
       .catch((e) => {
@@ -213,10 +232,12 @@ export const useDocumentStore = defineStore('document', () => {
     return next
   }
 
-  const createContract = ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms }) => {
+  const createContract = ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, historyId }) => {
     const id = makeId('CT')
     const lineItems = (items || []).map(withAmount)
-    const next = {
+    const quotation = quotationId ? getQuotationById(quotationId) : null
+    const linkedHistoryId = historyId || quotation?.historyId || null
+    const next = normalizeDocument({
       id,
       type: 'contract',
       quotationId: quotationId || null,
@@ -229,16 +250,19 @@ export const useDocumentStore = defineStore('document', () => {
       status: 'ACTIVE',
       createdAt: formatDate(),
       totalAmount: totalAmountOf(lineItems),
-    }
+      historyId: linkedHistoryId,
+    })
 
     contracts.value.unshift(next)
+    const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
+    if (targetPipeline) {
+      next.historyId = targetPipeline.id
+    }
     emitDocumentCreated('contract', id)
 
-    if (quotationId) {
-      const quotation = getQuotationById(quotationId)
-      if (quotation) {
-        quotation.status = 'CONTRACTED'
-      }
+    if (quotation) {
+      quotation.status = 'CONTRACTED'
+      quotation.historyId = next.historyId || quotation.historyId || null
     }
 
     createContractApi(next)
@@ -249,7 +273,10 @@ export const useDocumentStore = defineStore('document', () => {
 
         const idx = contracts.value.findIndex((item) => item.id === id)
         if (idx >= 0) {
-          contracts.value[idx] = created
+          contracts.value[idx] = normalizeDocument({
+            ...created,
+            historyId: created?.historyId || next.historyId,
+          })
         }
       })
       .catch((e) => {
@@ -259,10 +286,12 @@ export const useDocumentStore = defineStore('document', () => {
     return next
   }
 
-  const createOrder = ({ contractId, client, items, deliveryDate, memo }) => {
+  const createOrder = ({ contractId, client, items, deliveryDate, memo, historyId }) => {
     const id = makeId('OD')
     const lineItems = (items || []).map(withAmount)
-    const next = {
+    const contract = contractId ? getContractById(contractId) : null
+    const linkedHistoryId = historyId || contract?.historyId || null
+    const next = normalizeDocument({
       id,
       type: 'order',
       contractId,
@@ -273,9 +302,17 @@ export const useDocumentStore = defineStore('document', () => {
       status: 'ORDERED',
       createdAt: formatDate(),
       totalAmount: totalAmountOf(lineItems),
-    }
+      historyId: linkedHistoryId,
+    })
 
     orders.value.unshift(next)
+    const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
+    if (targetPipeline) {
+      next.historyId = targetPipeline.id
+    }
+    if (contract) {
+      contract.historyId = next.historyId || contract.historyId || null
+    }
     emitDocumentCreated('order', id)
 
     createOrderApi(next)
@@ -286,7 +323,10 @@ export const useDocumentStore = defineStore('document', () => {
 
         const idx = orders.value.findIndex((item) => item.id === id)
         if (idx >= 0) {
-          orders.value[idx] = created
+          orders.value[idx] = normalizeDocument({
+            ...created,
+            historyId: created?.historyId || next.historyId,
+          })
         }
       })
       .catch((e) => {
@@ -296,12 +336,14 @@ export const useDocumentStore = defineStore('document', () => {
     return next
   }
 
-  const createInvoice = ({ orderId, client, items, remarks, mode = 'pending' }) => {
+  const createInvoice = ({ orderId, client, items, remarks, mode = 'pending', historyId }) => {
     const id = makeId('IV')
     const lineItems = (items || []).map(withAmount)
     const supplyAmount = totalAmountOf(lineItems)
     const taxAmount = Math.round(supplyAmount * 0.1)
-    const next = {
+    const order = orderId ? getOrderById(orderId) : null
+    const linkedHistoryId = historyId || order?.historyId || null
+    const next = normalizeDocument({
       id,
       type: 'invoice',
       orderId,
@@ -314,9 +356,17 @@ export const useDocumentStore = defineStore('document', () => {
       supplyAmount,
       taxAmount,
       totalAmount: supplyAmount + taxAmount,
-    }
+      historyId: linkedHistoryId,
+    })
 
     invoices.value.unshift(next)
+    const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
+    if (targetPipeline) {
+      next.historyId = targetPipeline.id
+    }
+    if (order) {
+      order.historyId = next.historyId || order.historyId || null
+    }
     emitDocumentCreated('invoice', id)
 
     createInvoiceApi(next)
@@ -327,7 +377,10 @@ export const useDocumentStore = defineStore('document', () => {
 
         const idx = invoices.value.findIndex((item) => item.id === id)
         if (idx >= 0) {
-          invoices.value[idx] = created
+          invoices.value[idx] = normalizeDocument({
+            ...created,
+            historyId: created?.historyId || next.historyId,
+          })
         }
       })
       .catch((e) => {

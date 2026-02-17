@@ -10,14 +10,40 @@ const dashboard = ref(null)
 const loading = ref(false)
 const error = ref('')
 
+const prototypeKpis = [
+  {
+    label: '이번 달 전체 매출',
+    iconClass: 'blue',
+    icon: '₩',
+    value: '₩2.4억',
+    change: '▲ 전월 대비 +12.3%',
+    changeClass: 'positive',
+  },
+  {
+    label: '전년 대비 증감률',
+    iconClass: 'green',
+    icon: '',
+    value: '+18.7%',
+    change: '▲ 목표 +15% 달성',
+    changeClass: 'positive',
+  },
+  {
+    label: '승인 대기 문서',
+    iconClass: 'orange',
+    icon: '',
+    value: '23건',
+    change: '견적 12 / 계약 8 / 주문 3',
+    changeClass: 'neutral',
+  },
+]
+
 const title = computed(() => dashboard.value?.title || '관리자 대시보드')
-const kpis = computed(() => dashboard.value?.kpis ?? [])
 const rankings = computed(() => dashboard.value?.rankings ?? [])
 const approvals = computed(() => dashboard.value?.approvals ?? [])
 const rankingPeriod = computed(() => dashboard.value?.rankingPeriod || '')
 const trendPeriod = computed(() => dashboard.value?.trendPeriod || '')
 const approvalCount = computed(() => dashboard.value?.approvalCount ?? approvals.value.length)
-const hasData = computed(() => kpis.value.length || rankings.value.length || approvals.value.length)
+const hasData = computed(() => prototypeKpis.length || rankings.value.length || approvals.value.length)
 
 const fetchDashboard = async () => {
   loading.value = true
@@ -52,13 +78,13 @@ onMounted(fetchDashboard)
     <h2 class="screen-title">{{ title }}</h2>
 
     <div class="kpi-grid">
-      <div v-for="kpi in kpis" :key="kpi.label" class="kpi-card">
+      <div v-for="kpi in prototypeKpis" :key="kpi.label" class="kpi-card">
         <div class="kpi-header">
           <span class="kpi-label">{{ kpi.label }}</span>
           <div class="kpi-icon" :class="kpi.iconClass">{{ kpi.icon }}</div>
         </div>
         <div class="kpi-value">{{ kpi.value }}</div>
-        <div class="kpi-change" :class="kpi.positive ? 'positive' : 'neutral'">{{ kpi.change }}</div>
+        <div class="kpi-change" :class="kpi.changeClass">{{ kpi.change }}</div>
       </div>
     </div>
 

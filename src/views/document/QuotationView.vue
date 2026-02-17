@@ -1,13 +1,16 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
+import { useHistoryStore } from '@/stores/history'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
+const historyStore = useHistoryStore()
 
 const selectedRequestId = ref(route.query.requestId || '')
+const selectedHistoryId = ref('')
 const clientId = ref('')
 const memo = ref('')
 const lineItems = ref([])
@@ -18,9 +21,16 @@ const selectedClient = computed(() => documentStore.clientMaster.find((item) => 
 watch(selectedRequest, (request) => {
   if (!request) return
   clientId.value = request.client.id
+  selectedHistoryId.value = request.historyId || ''
   memo.value = request.requirements || ''
   lineItems.value = request.items.map((item) => ({ ...item }))
 }, { immediate: true })
+
+const pipelineOptions = computed(() => historyStore.getPipelinesByClient(clientId.value))
+
+onMounted(() => {
+  void historyStore.ensureLoaded()
+})
 
 const addItem = (product) => {
   lineItems.value.push({
@@ -57,8 +67,14 @@ const submit = () => {
     return
   }
 
+  if (!selectedRequest.value && !selectedHistoryId.value) {
+    window.alert('연결할 파이프라인을 선택해주세요.')
+    return
+  }
+
   const quotation = documentStore.createQuotation({
     requestId: selectedRequest.value?.id,
+    historyId: selectedRequest.value?.historyId || selectedHistoryId.value || null,
     client: selectedClient.value,
     items: lineItems.value,
     memo: memo.value,
@@ -95,6 +111,12 @@ const submit = () => {
             <select v-model="clientId" class="h-10 rounded border border-slate-300 px-2 text-sm">
               <option value="">거래처 선택</option>
               <option v-for="client in documentStore.clientMaster" :key="client.id" :value="client.id">{{ client.name }}</option>
+            </select>
+            <select v-model="selectedHistoryId" class="h-10 rounded border border-slate-300 px-2 text-sm">
+              <option value="">파이프라인 선택</option>
+              <option v-for="pipeline in pipelineOptions" :key="pipeline.id" :value="pipeline.id">
+                {{ pipeline.id }} | {{ pipeline.stage }} | {{ pipeline.clientName }}
+              </option>
             </select>
             <input v-model="memo" type="text" class="h-10 rounded border border-slate-300 px-2 text-sm" placeholder="내부 비고">
           </div>

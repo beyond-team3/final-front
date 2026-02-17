@@ -11,3 +11,11 @@ export function getPipelineDetail(id) {
 export function getSalesDocuments(contractId) {
   return api.get(`/history/${contractId}/documents`)
 }
+
+export function createPipeline(data) {
+  return api.post('/history/sales', data)
+}
+
+export function updatePipeline(id, data) {
+  return api.patch(`/history/pipeline/${id}`, data)
+}

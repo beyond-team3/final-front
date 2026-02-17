@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useClientStore } from '@/stores/client'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
@@ -147,9 +148,10 @@ onMounted(fetchClients)
             <td class="px-6 py-4 text-slate-900">{{ client.managerName }}</td>
             <td class="px-6 py-4 text-slate-900">{{ getRegion(client.address || client.region) }}</td>
             <td class="px-6 py-4">
-              <span class="inline-block rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-900">
-                {{ client.status === 'active' ? '사용중' : '대기' }}
-              </span>
+              <StatusBadge
+                :status="client.isActive ? 'success' : 'danger'"
+                :label="client.isActive ? '활성' : '비활성'"
+              />
             </td>
             <td class="px-6 py-4">
               <button

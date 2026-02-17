@@ -39,7 +39,7 @@ const columns = [
   { key: 'email', label: '이메일' },
   { key: 'phone', label: '전화번호' },
   { key: 'address', label: '주소' },
-  { key: 'status', label: '상태' },
+  { key: 'isActive', label: '상태' },
   { key: 'createdAt', label: '등록일시' },
   { key: 'action', label: '액션' },
 ]
@@ -54,7 +54,10 @@ const rows = computed(() => {
         .toLowerCase()
         .includes(keyword)
 
-    const matchStatus = !filters.value.status || employee.status === filters.value.status
+    const isActive = Boolean(employee.isActive)
+    const matchStatus =
+      !filters.value.status ||
+      (filters.value.status === 'ACTIVE' ? isActive : !isActive)
     return matchKeyword && matchStatus
   })
 })
@@ -108,8 +111,8 @@ onMounted(fetchEmployees)
       empty-text="등록된 사원이 없습니다."
       @row-click="openDetail"
     >
-      <template #cell-status="{ value }">
-        <StatusBadge :status="value === 'ACTIVE' ? 'success' : 'danger'" :label="value === 'ACTIVE' ? '활성' : '비활성'" />
+      <template #cell-isActive="{ value }">
+        <StatusBadge :status="value ? 'success' : 'danger'" :label="value ? '활성' : '비활성'" />
       </template>
 
       <template #cell-action="{ row }">

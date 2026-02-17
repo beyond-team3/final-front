@@ -1,13 +1,16 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
+import { useHistoryStore } from '@/stores/history'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
+const historyStore = useHistoryStore()
 
 const selectedQuotationId = ref(route.query.quotationId || '')
+const selectedHistoryId = ref('')
 const clientId = ref('')
 const startDate = ref(new Date().toISOString().slice(0, 10))
 const endDate = ref(new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString().slice(0, 10))
@@ -21,8 +24,15 @@ const selectedClient = computed(() => documentStore.clientMaster.find((item) => 
 watch(selectedQuotation, (quotation) => {
   if (!quotation) return
   clientId.value = quotation.client.id
+  selectedHistoryId.value = quotation.historyId || ''
   lineItems.value = quotation.items.map((item) => ({ ...item }))
 }, { immediate: true })
+
+const pipelineOptions = computed(() => historyStore.getPipelinesByClient(clientId.value))
+
+onMounted(() => {
+  void historyStore.ensureLoaded()
+})
 
 const total = computed(() => lineItems.value.reduce((sum, item) => sum + Number(item.amount || 0), 0))
 
@@ -33,9 +43,14 @@ const submit = () => {
     window.alert('견적서 정보와 품목을 확인해주세요.')
     return
   }
+  if (!selectedHistoryId.value) {
+    window.alert('연결할 파이프라인을 선택해주세요.')
+    return
+  }
 
   const contract = documentStore.createContract({
     quotationId: selectedQuotation.value?.id,
+    historyId: selectedHistoryId.value,
     client: selectedClient.value,
     items: lineItems.value,
     startDate: startDate.value,
@@ -69,6 +84,12 @@ const submit = () => {
             <select v-model="selectedQuotationId" class="h-10 rounded border border-slate-300 px-2 text-sm md:col-span-2">
               <option value="">견적서 선택</option>
               <option v-for="quotation in documentStore.quotations" :key="quotation.id" :value="quotation.id">{{ quotation.id }} | {{ quotation.client.name }}</option>
+            </select>
+            <select v-model="selectedHistoryId" class="h-10 rounded border border-slate-300 px-2 text-sm md:col-span-2">
+              <option value="">파이프라인 선택</option>
+              <option v-for="pipeline in pipelineOptions" :key="pipeline.id" :value="pipeline.id">
+                {{ pipeline.id }} | {{ pipeline.stage }} | {{ pipeline.clientName }}
+              </option>
             </select>
             <input :value="selectedClient?.code || '-'" readonly class="h-10 rounded border border-slate-300 bg-slate-50 px-2 text-sm">
             <input :value="selectedClient?.name || '-'" readonly class="h-10 rounded border border-slate-300 bg-slate-50 px-2 text-sm">

@@ -21,6 +21,8 @@ const clientStore = useClientStore()
 
 const activeTab = ref('info')
 const isEditModalOpen = ref(false)
+const isActivationModalOpen = ref(false)
+const nextActivationStatus = ref('ACTIVE')
 
 const currentClientId = computed(() => route.params.id)
 const { currentClient, loading, error } = storeToRefs(clientStore)
@@ -47,6 +49,9 @@ const tabOptions = computed(() => [
 const cropOptions = ['가지', '갓', '고추', '무', '배추', '상추', '수박', '시금치', '양파', '오이', '옥수수', '참외', '토마토', '파', '파프리카', '호박', '양배추']
 
 const toCurrency = (value) => clientStore.toCurrency(value)
+const isClientActive = computed(() => Boolean(currentClient.value?.isActive))
+const clientStatusText = computed(() => (isClientActive.value ? '활성' : '비활성'))
+const clientStatusSubtitle = computed(() => (isClientActive.value ? '사용중' : '비활성'))
 
 const openEditModal = () => {
   if (!currentClient.value) {
@@ -82,19 +87,45 @@ const submitEdit = () => {
   isEditModalOpen.value = false
 }
 
+const openActivationModal = () => {
+  if (!currentClient.value || !isAdmin.value) {
+    return
+  }
+
+  nextActivationStatus.value = isClientActive.value ? 'ACTIVE' : 'INACTIVE'
+  isActivationModalOpen.value = true
+}
+
+const applyActivation = () => {
+  if (!currentClient.value || !isAdmin.value) {
+    return
+  }
+
+  const nextIsActive = nextActivationStatus.value === 'ACTIVE'
+  const ok = window.confirm('선택한 상태로 변경할까요?')
+  if (!ok) {
+    return
+  }
+
+  clientStore.toggleClientActive(currentClient.value.id, nextIsActive)
+  isActivationModalOpen.value = false
+}
+
 const addCrop = () => {
   const crop = selectedCrop.value
   if (!crop || !currentClient.value) {
     return
   }
 
-  if (currentClient.value.crops.includes(crop)) {
+  const crops = currentClient.value?.crops || []
+
+  if (crops.includes(crop)) {
     selectedCrop.value = ''
     return
   }
 
   clientStore.updateClient(currentClient.value.id, {
-    crops: [...currentClient.value.crops, crop],
+    crops: [...crops, crop],
   })
   selectedCrop.value = ''
 }
@@ -104,8 +135,10 @@ const removeCrop = (crop) => {
     return
   }
 
+  const crops = currentClient.value?.crops || []
+
   clientStore.updateClient(currentClient.value.id, {
-    crops: currentClient.value.crops.filter((item) => item !== crop),
+    crops: crops.filter((item) => item !== crop),
   })
 }
 
@@ -142,7 +175,8 @@ onMounted(fetchClientDetail)
   </section>
 
   <section v-else>
-    <PageHeader :title="`${currentClient.name} (${currentClient.id})`" :subtitle="`${currentClient.typeLabel} | 사용중`">
+    <div v-if="currentClient">
+    <PageHeader :title="`${currentClient.name} (${currentClient.id})`" :subtitle="`${currentClient.typeLabel} | ${clientStatusSubtitle}`">
       <template #actions>
         <button
           type="button"
@@ -159,6 +193,14 @@ onMounted(fetchClientDetail)
         >
           거래처 수정
         </button>
+        <button
+          v-if="isAdmin"
+          type="button"
+          class="rounded bg-slate-800 px-3 py-2 text-sm font-bold text-white hover:bg-slate-700"
+          @click="openActivationModal"
+        >
+          활성화 관리
+        </button>
       </template>
     </PageHeader>
 
@@ -166,7 +208,16 @@ onMounted(fetchClientDetail)
 
     <div v-if="activeTab === 'info'" class="grid gap-4 lg:grid-cols-2">
       <article class="rounded-lg border border-slate-200 bg-white p-5">
-        <h3 class="mb-4 text-lg font-semibold text-slate-800">기본 정보</h3>
+        <div class="mb-4 flex items-center justify-between gap-2">
+          <h3 class="text-lg font-semibold text-slate-800">기본 정보</h3>
+          <div
+            class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold"
+            :class="isClientActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'"
+          >
+            <span class="h-2 w-2 rounded-full" :class="isClientActive ? 'bg-emerald-500' : 'bg-rose-500'" />
+            <span>{{ clientStatusText }}</span>
+          </div>
+        </div>
         <dl class="space-y-2 text-sm">
           <div class="flex justify-between gap-2"><dt class="text-slate-500">법인명</dt><dd class="font-medium">{{ currentClient.name }}</dd></div>
           <div class="flex justify-between gap-2"><dt class="text-slate-500">사업자번호</dt><dd class="font-medium">{{ currentClient.bizNo }}</dd></div>
@@ -209,7 +260,7 @@ onMounted(fetchClientDetail)
         <h3 class="mb-3 text-lg font-semibold text-slate-800">취급 품종</h3>
         <div class="flex flex-wrap gap-2">
           <button
-            v-for="crop in currentClient.crops"
+            v-for="crop in (currentClient?.crops || [])"
             :key="crop"
             type="button"
             class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-900 hover:bg-emerald-200"
@@ -231,21 +282,21 @@ onMounted(fetchClientDetail)
             </select>
           </label>
 
-          <span v-if="currentClient.crops.length === 0" class="text-sm text-slate-400">등록된 품종이 없습니다.</span>
+          <span v-if="currentClient?.crops?.length === 0" class="text-sm text-slate-400">등록된 품종이 없습니다.</span>
         </div>
       </article>
     </div>
 
     <div v-else class="space-y-4">
       <PipelineTimelineCard
-        v-for="pipeline in currentClient.pipelines"
+        v-for="pipeline in (currentClient?.pipelines || [])"
         :key="pipeline.id"
         :pipeline="pipeline"
         :amount-formatter="toCurrency"
         @detail="openPipelineDetail"
       />
 
-      <article v-if="currentClient.pipelines.length === 0" class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
+      <article v-if="currentClient?.pipelines?.length === 0" class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
         영업 히스토리가 없습니다.
       </article>
     </div>
@@ -281,5 +332,48 @@ onMounted(fetchClientDetail)
         </div>
       </template>
     </ModalBase>
+
+    <ModalBase v-model="isActivationModalOpen" title="활성화 상태 변경" width-class="max-w-lg">
+      <div class="space-y-3">
+        <p class="text-sm text-slate-600">변경할 상태를 선택하세요. 선택 후 적용 시 상태가 변경됩니다.</p>
+
+        <label class="flex cursor-pointer items-start gap-2 rounded border border-slate-200 p-3">
+          <input v-model="nextActivationStatus" type="radio" value="ACTIVE" class="mt-1" />
+          <span>
+            <strong class="block text-sm text-slate-800">활성</strong>
+            <small class="text-xs text-slate-500">로그인 및 기능 사용 가능</small>
+          </span>
+        </label>
+
+        <label class="flex cursor-pointer items-start gap-2 rounded border border-slate-200 p-3">
+          <input v-model="nextActivationStatus" type="radio" value="INACTIVE" class="mt-1" />
+          <span>
+            <strong class="block text-sm text-slate-800">비활성</strong>
+            <small class="text-xs text-slate-500">로그인 제한(관리 목적)</small>
+          </span>
+        </label>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            @click="isActivationModalOpen = false"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            @click="applyActivation"
+          >
+            적용
+          </button>
+        </div>
+      </template>
+    </ModalBase>
+    </div>
+    <LoadingSpinner v-else text="거래처 상세를 불러오는 중입니다." />
   </section>
 </template>

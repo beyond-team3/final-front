@@ -9,7 +9,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 const router = useRouter()
 
 const accounts = ref([
-  { type: 'EMPLOYEE', id: 'emp-2001', name: '이하경', email: 'hakyung02@naver.com', status: 'ACTIVE', lastLogin: '2026-02-11 10:12' },
+  { type: 'EMPLOYEE', id: 'emp-2001', name: '오재이', email: 'ojaei02@naver.com', status: 'ACTIVE', lastLogin: '2026-02-11 10:12' },
   { type: 'EMPLOYEE', id: 'emp-2002', name: '김영업', email: 'sales01@seed.co.kr', status: 'ACTIVE', lastLogin: '2026-02-10 18:05' },
   { type: 'EMPLOYEE', id: 'emp-2003', name: '박관리', email: 'admin@seed.co.kr', status: 'INACTIVE', lastLogin: '2026-02-02 09:40' },
   { type: 'CLIENT', id: 'cli-5001', name: '대동농장', email: 'contact@daedongfarm.com', status: 'ACTIVE', lastLogin: '2026-02-09 14:22' },

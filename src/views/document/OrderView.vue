@@ -1,19 +1,22 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import OrderModal from '@/components/document/OrderModal.vue'
 import { useDocumentStore } from '@/stores/document'
+import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
+const historyStore = useHistoryStore()
 const authStore = useAuthStore()
 
 const showContractModal = ref(false)
 const selectedContractId = ref(route.query.contractId || '')
+const selectedHistoryId = ref('')
 const memo = ref('')
 const deliveryDate = ref(new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString().slice(0, 10))
 const lineItems = ref([])
@@ -27,8 +30,28 @@ watch(selectedContract, (contract) => {
     return
   }
 
+  selectedHistoryId.value = contract.historyId || ''
   lineItems.value = contract.items.map((item) => ({ ...item }))
 }, { immediate: true })
+
+const baseClientId = computed(() => {
+  if (isClient.value) {
+    return documentStore.clientMaster[0]?.id || null
+  }
+
+  return selectedContract.value?.client?.id || null
+})
+
+const pipelineOptions = computed(() => {
+  if (!baseClientId.value) {
+    return []
+  }
+  return historyStore.getPipelinesByClient(baseClientId.value)
+})
+
+onMounted(() => {
+  void historyStore.ensureLoaded()
+})
 
 const total = computed(() => lineItems.value.reduce((sum, item) => sum + Number(item.amount || 0), 0))
 
@@ -75,6 +98,10 @@ const submitOrder = () => {
     window.alert('상품을 1개 이상 선택해주세요.')
     return
   }
+  if (!selectedHistoryId.value) {
+    window.alert('연결할 파이프라인을 선택해주세요.')
+    return
+  }
 
   const client = isClient.value
     ? documentStore.clientMaster[0]
@@ -82,6 +109,7 @@ const submitOrder = () => {
 
   documentStore.createOrder({
     contractId: isClient.value ? null : selectedContract.value.id,
+    historyId: selectedHistoryId.value,
     client,
     items: lineItems.value,
     deliveryDate: deliveryDate.value,
@@ -123,6 +151,15 @@ const submitOrder = () => {
         <label class="text-sm font-semibold text-slate-700">
           납기일
           <input v-model="deliveryDate" type="date" class="mt-1 h-10 w-full rounded border border-slate-300 px-2 text-sm font-normal" :disabled="!isSalesRep && !isClient" />
+        </label>
+        <label class="text-sm font-semibold text-slate-700 md:col-span-3">
+          연결 파이프라인
+          <select v-model="selectedHistoryId" class="mt-1 h-10 w-full rounded border border-slate-300 px-2 text-sm font-normal">
+            <option value="">파이프라인 선택</option>
+            <option v-for="pipeline in pipelineOptions" :key="pipeline.id" :value="pipeline.id">
+              {{ pipeline.id }} | {{ pipeline.stage }} | {{ pipeline.clientName }}
+            </option>
+          </select>
         </label>
       </div>
 

@@ -77,6 +77,42 @@
       "password": "qewr",
       "role": "CLIENT",
       "id": 8
+    },
+    {
+      "loginId": "ㅂㄷㅈㄱ",
+      "password": "qwer",
+      "role": "SALES_REP",
+      "id": 9
+    },
+    {
+      "loginId": "ㅂㄷㅈㄱ",
+      "password": "qewr",
+      "role": "ADMIN",
+      "id": 10
+    },
+    {
+      "loginId": "qwer",
+      "password": "qwer",
+      "role": "SALES_REP",
+      "id": 11
+    },
+    {
+      "loginId": "qwer",
+      "password": "qwer",
+      "role": "ADMIN",
+      "id": 12
+    },
+    {
+      "loginId": "qwer",
+      "password": "qwer",
+      "role": "CLIENT",
+      "id": 13
+    },
+    {
+      "loginId": "qwer",
+      "password": "qwer",
+      "role": "ADMIN",
+      "id": 14
     }
   ],
   "clients": [
@@ -109,18 +145,9 @@
       "status": "활성"
     },
     {
-      "id": 3,
-      "name": "한빛농자재",
-      "region": "제주 서귀포",
-      "type": "소매상",
-      "contact": "064-732-2201",
-      "manager": "강태윤",
-      "managerPhone": "010-6621-8840",
-      "varieties": [
-        "감귤 접목묘 CJ-3",
-        "상추 LS-8"
-      ],
-      "status": "활성"
+      "isActive": false,
+      "status": "inactive",
+      "id": 3
     },
     {
       "id": 4,
@@ -139,14 +166,9 @@
   ],
   "employees": [
     {
-      "id": 1,
-      "name": "김민수",
-      "department": "영업1팀",
-      "position": "대리",
-      "contact": "010-2211-3388",
-      "email": "minsu.kim@seedcorp.co.kr",
-      "region": "전북 익산",
-      "joinedAt": "2022-03-01"
+      "isActive": false,
+      "status": "INACTIVE",
+      "id": 1
     },
     {
       "id": 2,
@@ -244,6 +266,33 @@
       "imageUrl": "https://images.example.com/products/lettuce-ls8.jpg",
       "stock": 300,
       "updatedAt": "2026-02-16"
+    },
+    {
+      "name": "신규품종1",
+      "category": "무",
+      "desc": "신규 품종 설명.",
+      "imageUrl": "",
+      "priceData": {
+        "amount": 200,
+        "unit": "립",
+        "price": 12000
+      },
+      "tags": {
+        "env": [
+          "고랭지"
+        ],
+        "res": [
+          "바이러스"
+        ],
+        "growth": [
+          "중생종"
+        ],
+        "quality": [
+          "저장성우수"
+        ],
+        "conv": []
+      },
+      "id": 6
     }
   ],
   "favorites": [
@@ -383,6 +432,43 @@
       "documentId": null,
       "nextAction": "샘플 제안서 발송",
       "updatedAt": "2026-02-09"
+    },
+    {
+      "id": "H-1771299738429",
+      "clientId": 1,
+      "clientName": "그린팜유통",
+      "pipelineStage": "견적",
+      "stageNumber": 2,
+      "status": "진행중",
+      "documentId": "QT-1771299811997",
+      "documents": [
+        {
+          "id": "RQ-1771299738428",
+          "type": "quotation-request",
+          "typeLabel": "견적요청서",
+          "stage": "견적요청",
+          "stageNumber": 1,
+          "status": "REQUESTED",
+          "date": "2026-02-17",
+          "amount": 0,
+          "remark": ""
+        },
+        {
+          "id": "QT-1771299811997",
+          "type": "quotation",
+          "typeLabel": "견적서",
+          "stage": "견적",
+          "stageNumber": 2,
+          "status": "ISSUED",
+          "date": "2026-02-17",
+          "amount": 0,
+          "remark": ""
+        }
+      ],
+      "amount": 0,
+      "updatedAt": "2026-02-17",
+      "startDate": "2026-02-17",
+      "nextAction": ""
     }
   ],
   "notes": [
