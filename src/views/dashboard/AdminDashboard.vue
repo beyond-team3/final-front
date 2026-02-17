@@ -1,32 +1,55 @@
 <script setup>
+import { computed, onMounted, ref } from 'vue'
 import DashboardCalendar from '@/components/dashboard/DashboardCalendar.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { getAdminDashboard } from '@/api/dashboard'
 
-const kpis = [
-  { label: '이번 달 전체 매출', icon: '₩', iconClass: 'blue', value: '₩2.4억', change: '▲ 전월 대비 +12.3%', positive: true },
-  { label: '전년 대비 증감률', icon: '', iconClass: 'green', value: '+18.7%', change: '▲ 목표 +15% 달성', positive: true },
-  { label: '승인 대기 문서', icon: '', iconClass: 'orange', value: '23건', change: '견적 12 / 계약 8 / 주문 3', positive: false },
-]
+const dashboard = ref(null)
+const loading = ref(false)
+const error = ref('')
 
-const rankings = [
-  { rank: 1, name: '김영업', amount: '₩45,600,000', width: 100 },
-  { rank: 2, name: '이종자', amount: '₩38,900,000', width: 85 },
-  { rank: 3, name: '박판매', amount: '₩31,200,000', width: 68 },
-  { rank: 4, name: '최농협', amount: '₩28,700,000', width: 63 },
-  { rank: 5, name: '정파종', amount: '₩24,500,000', width: 54 },
-]
+const title = computed(() => dashboard.value?.title || '관리자 대시보드')
+const kpis = computed(() => dashboard.value?.kpis ?? [])
+const rankings = computed(() => dashboard.value?.rankings ?? [])
+const approvals = computed(() => dashboard.value?.approvals ?? [])
+const rankingPeriod = computed(() => dashboard.value?.rankingPeriod || '')
+const trendPeriod = computed(() => dashboard.value?.trendPeriod || '')
+const approvalCount = computed(() => dashboard.value?.approvalCount ?? approvals.value.length)
+const hasData = computed(() => kpis.value.length || rankings.value.length || approvals.value.length)
 
-const approvals = [
-  { title: '견적서 승인 요청', meta: '김영업 → 대농농협', time: '5분 전' },
-  { title: '계약서 승인 요청', meta: '이종자 → 해뜰농장', time: '23분 전' },
-  { title: '주문서 승인 요청', meta: '박판매 → 초록농원', time: '1시간 전' },
-  { title: '견적서 승인 요청', meta: '최농협 → 풍년농장', time: '2시간 전' },
-  { title: '계약서 승인 요청', meta: '정파종 → 햇살농원', time: '3시간 전' },
-]
+const fetchDashboard = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    dashboard.value = await getAdminDashboard()
+  } catch (e) {
+    error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchDashboard)
 </script>
 
 <template>
-  <section class="dashboard-shell">
-    <h2 class="screen-title">관리자 대시보드</h2>
+  <section v-if="loading" class="dashboard-shell">
+    <LoadingSpinner text="관리자 대시보드를 불러오는 중입니다." />
+  </section>
+
+  <section v-else-if="error" class="dashboard-shell">
+    <ErrorMessage :message="error" @retry="fetchDashboard" />
+  </section>
+
+  <section v-else-if="!hasData" class="dashboard-shell">
+    <EmptyState title="표시할 관리자 데이터가 없습니다." description="데이터 등록 후 다시 확인해주세요." />
+  </section>
+
+  <section v-else class="dashboard-shell">
+    <h2 class="screen-title">{{ title }}</h2>
 
     <div class="kpi-grid">
       <div v-for="kpi in kpis" :key="kpi.label" class="kpi-card">
@@ -43,7 +66,7 @@ const approvals = [
       <div class="chart-card">
         <div class="chart-header">
           <h2 class="chart-title">매출 추이</h2>
-          <span class="chart-period">최근 12개월</span>
+          <span class="chart-period">{{ trendPeriod }}</span>
         </div>
         <div class="chart-placeholder">라인 차트 영역 (Chart.js 또는 D3.js 연동)</div>
       </div>
@@ -53,7 +76,7 @@ const approvals = [
       <div class="operation-card">
         <div class="operation-header">
           <h3 class="operation-title">영업사원별 매출 랭킹</h3>
-          <span class="chart-period">이번 달</span>
+          <span class="chart-period">{{ rankingPeriod }}</span>
         </div>
         <div class="ranking-list">
           <div v-for="item in rankings" :key="item.rank" class="ranking-item">
@@ -72,7 +95,7 @@ const approvals = [
       <div class="operation-card">
         <div class="operation-header">
           <h3 class="operation-title">최근 승인 요청</h3>
-          <span class="operation-badge">23</span>
+          <span class="operation-badge">{{ approvalCount }}</span>
         </div>
         <div class="operation-list">
           <div v-for="item in approvals" :key="item.title + item.time" class="operation-item">

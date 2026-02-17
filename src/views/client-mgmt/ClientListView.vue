@@ -1,6 +1,10 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useClientStore } from '@/stores/client'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
@@ -8,6 +12,7 @@ import { ROLES } from '@/utils/constants'
 const router = useRouter()
 const clientStore = useClientStore()
 const authStore = useAuthStore()
+const { clients, loading, error } = storeToRefs(clientStore)
 
 const keyword = ref('')
 const region = ref('')
@@ -15,13 +20,15 @@ const type = ref('')
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 
 const getRegion = (address) => {
-  if (address.includes('서울')) {
+  const text = String(address || '')
+
+  if (text.includes('서울')) {
     return '서울'
   }
-  if (address.includes('경기')) {
+  if (text.includes('경기')) {
     return '경기'
   }
-  if (address.includes('충청') || address.includes('충북') || address.includes('충남')) {
+  if (text.includes('충청') || text.includes('충북') || text.includes('충남')) {
     return '충청'
   }
   return '기타'
@@ -30,8 +37,8 @@ const getRegion = (address) => {
 const filteredClients = computed(() => {
   const lowerKeyword = keyword.value.trim().toLowerCase()
 
-  return clientStore.clients.filter((client) => {
-    const clientRegion = getRegion(client.address)
+  return clients.value.filter((client) => {
+    const clientRegion = getRegion(client.address || client.region)
     const matchKeyword =
       !lowerKeyword ||
       [client.name, client.bizNo, client.managerName]
@@ -47,6 +54,16 @@ const filteredClients = computed(() => {
 const openDetail = (id) => {
   router.push(`/clients/${id}`)
 }
+
+const fetchClients = async () => {
+  try {
+    await clientStore.fetchClients()
+  } catch (e) {
+    // error state is managed by store
+  }
+}
+
+onMounted(fetchClients)
 </script>
 
 <template>
@@ -93,7 +110,17 @@ const openDetail = (id) => {
       </div>
     </section>
 
-    <section class="overflow-hidden rounded-lg bg-white shadow-sm">
+    <LoadingSpinner v-if="loading" text="거래처 목록을 불러오는 중입니다." />
+
+    <ErrorMessage v-else-if="error" :message="error" @retry="fetchClients" />
+
+    <EmptyState
+      v-else-if="filteredClients.length === 0"
+      title="조회 가능한 거래처가 없습니다."
+      description="검색 조건을 변경하거나 잠시 후 다시 시도해주세요."
+    />
+
+    <section v-else class="overflow-hidden rounded-lg bg-white shadow-sm">
       <table class="w-full border-collapse text-sm">
         <thead class="bg-slate-50 text-slate-700">
           <tr>
@@ -118,7 +145,7 @@ const openDetail = (id) => {
               <span class="inline-block rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-900">{{ client.typeLabel }}</span>
             </td>
             <td class="px-6 py-4 text-slate-900">{{ client.managerName }}</td>
-            <td class="px-6 py-4 text-slate-900">{{ getRegion(client.address) }}</td>
+            <td class="px-6 py-4 text-slate-900">{{ getRegion(client.address || client.region) }}</td>
             <td class="px-6 py-4">
               <span class="inline-block rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-900">
                 {{ client.status === 'active' ? '사용중' : '대기' }}
@@ -133,9 +160,6 @@ const openDetail = (id) => {
                 보기
               </button>
             </td>
-          </tr>
-          <tr v-if="filteredClients.length === 0">
-            <td colspan="7" class="px-6 py-8 text-center text-sm text-slate-400">조회 가능한 거래처가 없습니다.</td>
           </tr>
         </tbody>
       </table>

@@ -1,61 +1,63 @@
-import { h } from 'vue'
+import { defineAsyncComponent, h } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import { endRouteMeasure, startRouteMeasure } from '@/utils/performance'
 
-import SalesRepLayout from '@/layouts/SalesRepLayout.vue'
-import AdminLayout from '@/layouts/AdminLayout.vue'
-import ClientLayout from '@/layouts/ClientLayout.vue'
-import LoginView from '@/views/auth/LoginView.vue'
-import ClientListView from '@/views/client-mgmt/ClientListView.vue'
-import ClientDetailView from '@/views/client-mgmt/ClientDetailView.vue'
-import ClientRegisterView from '@/views/client-mgmt/ClientRegisterView.vue'
-import EmployeeListView from '@/views/employee-mgmt/EmployeeListView.vue'
-import EmployeeDetailView from '@/views/employee-mgmt/EmployeeDetailView.vue'
-import EmployeeRegisterView from '@/views/employee-mgmt/EmployeeRegisterView.vue'
-import UserListView from '@/views/user/UserListView.vue'
-import UserDetailView from '@/views/user/UserDetailView.vue'
-import UserRegisterView from '@/views/user/UserRegisterView.vue'
-import SalesRepDashboard from '@/views/dashboard/SalesRepDashboard.vue'
-import AdminDashboard from '@/views/dashboard/AdminDashboard.vue'
-import ClientDashboard from '@/views/dashboard/ClientDashboard.vue'
-import AdminCatalogView from '@/views/product/AdminCatalogView.vue'
-import AdminProductDetailView from '@/views/product/AdminProductDetailView.vue'
-import AdminCompareView from '@/views/product/AdminCompareView.vue'
-import AdminFavoritesView from '@/views/product/AdminFavoritesView.vue'
-import ProductRegisterView from '@/views/product/ProductRegisterView.vue'
-import ClientCatalogView from '@/views/product/ClientCatalogView.vue'
-import ClientProductDetailView from '@/views/product/ClientProductDetailView.vue'
-import ClientCompareView from '@/views/product/ClientCompareView.vue'
-import ClientFavoritesView from '@/views/product/ClientFavoritesView.vue'
-import ProductFeedbackView from '@/views/product/ProductFeedbackView.vue'
-import SimilarityAnalysisView from '@/views/product/SimilarityAnalysisView.vue'
-import QuotationRequestView from '@/views/document/QuotationRequestView.vue'
-import QuotationView from '@/views/document/QuotationView.vue'
-import ContractView from '@/views/document/ContractView.vue'
-import DocumentCreateView from '@/views/document/DocumentCreateView.vue'
-import DocumentAllView from '@/views/document/DocumentAllView.vue'
-import OrderView from '@/views/document/OrderView.vue'
-import InvoiceView from '@/views/document/InvoiceView.vue'
-import InvoiceListView from '@/views/document/InvoiceListView.vue'
-import SalesHistoryView from '@/views/history/SalesHistoryView.vue'
-import PipelineDetailView from '@/views/history/PipelineDetailView.vue'
-import DocumentListView from '@/views/history/DocumentListView.vue'
-import NoteView from '@/views/note/NoteView.vue'
-import NoteSearchView from '@/views/note/NoteSearchView.vue'
-import NoteBriefingView from '@/views/note/NoteBriefingView.vue'
-import CropRecommendView from '@/views/recommendation/CropRecommendView.vue'
-import PestMapView from '@/views/pest-map/PestMapView.vue'
-import SalesRepStatsView from '@/views/statistics/SalesRepStatsView.vue'
-import AdminStatsView from '@/views/statistics/AdminStatsView.vue'
-import CalendarView from '@/views/schedule/CalendarView.vue'
-import ApprovalView from '@/views/approval/ApprovalView.vue'
-import PaymentView from '@/views/payment/PaymentView.vue'
-import SalesRepNotificationView from '@/views/notification/SalesRepNotificationView.vue'
-import AdminNotificationView from '@/views/notification/AdminNotificationView.vue'
-import ClientNotificationView from '@/views/notification/ClientNotificationView.vue'
-import MyPageView from '@/views/settings/MyPageView.vue'
-import ClientMyPageView from '@/views/settings/ClientMyPageView.vue'
+const SalesRepLayout = defineAsyncComponent(() => import('@/layouts/SalesRepLayout.vue'))
+const AdminLayout = defineAsyncComponent(() => import('@/layouts/AdminLayout.vue'))
+const ClientLayout = defineAsyncComponent(() => import('@/layouts/ClientLayout.vue'))
+
+const LoginView = defineAsyncComponent(() => import('@/views/auth/LoginView.vue'))
+const ClientListView = defineAsyncComponent(() => import('@/views/client-mgmt/ClientListView.vue'))
+const ClientDetailView = defineAsyncComponent(() => import('@/views/client-mgmt/ClientDetailView.vue'))
+const ClientRegisterView = defineAsyncComponent(() => import('@/views/client-mgmt/ClientRegisterView.vue'))
+const EmployeeListView = defineAsyncComponent(() => import('@/views/employee-mgmt/EmployeeListView.vue'))
+const EmployeeDetailView = defineAsyncComponent(() => import('@/views/employee-mgmt/EmployeeDetailView.vue'))
+const EmployeeRegisterView = defineAsyncComponent(() => import('@/views/employee-mgmt/EmployeeRegisterView.vue'))
+const UserListView = defineAsyncComponent(() => import('@/views/user/UserListView.vue'))
+const UserDetailView = defineAsyncComponent(() => import('@/views/user/UserDetailView.vue'))
+const UserRegisterView = defineAsyncComponent(() => import('@/views/user/UserRegisterView.vue'))
+const SalesRepDashboard = defineAsyncComponent(() => import('@/views/dashboard/SalesRepDashboard.vue'))
+const AdminDashboard = defineAsyncComponent(() => import('@/views/dashboard/AdminDashboard.vue'))
+const ClientDashboard = defineAsyncComponent(() => import('@/views/dashboard/ClientDashboard.vue'))
+const AdminCatalogView = defineAsyncComponent(() => import('@/views/product/AdminCatalogView.vue'))
+const AdminProductDetailView = defineAsyncComponent(() => import('@/views/product/AdminProductDetailView.vue'))
+const AdminCompareView = defineAsyncComponent(() => import('@/views/product/AdminCompareView.vue'))
+const AdminFavoritesView = defineAsyncComponent(() => import('@/views/product/AdminFavoritesView.vue'))
+const ProductRegisterView = defineAsyncComponent(() => import('@/views/product/ProductRegisterView.vue'))
+const ClientCatalogView = defineAsyncComponent(() => import('@/views/product/ClientCatalogView.vue'))
+const ClientProductDetailView = defineAsyncComponent(() => import('@/views/product/ClientProductDetailView.vue'))
+const ClientCompareView = defineAsyncComponent(() => import('@/views/product/ClientCompareView.vue'))
+const ClientFavoritesView = defineAsyncComponent(() => import('@/views/product/ClientFavoritesView.vue'))
+const ProductFeedbackView = defineAsyncComponent(() => import('@/views/product/ProductFeedbackView.vue'))
+const SimilarityAnalysisView = defineAsyncComponent(() => import('@/views/product/SimilarityAnalysisView.vue'))
+const QuotationRequestView = defineAsyncComponent(() => import('@/views/document/QuotationRequestView.vue'))
+const QuotationView = defineAsyncComponent(() => import('@/views/document/QuotationView.vue'))
+const ContractView = defineAsyncComponent(() => import('@/views/document/ContractView.vue'))
+const DocumentCreateView = defineAsyncComponent(() => import('@/views/document/DocumentCreateView.vue'))
+const DocumentAllView = defineAsyncComponent(() => import('@/views/document/DocumentAllView.vue'))
+const OrderView = defineAsyncComponent(() => import('@/views/document/OrderView.vue'))
+const InvoiceView = defineAsyncComponent(() => import('@/views/document/InvoiceView.vue'))
+const InvoiceListView = defineAsyncComponent(() => import('@/views/document/InvoiceListView.vue'))
+const SalesHistoryView = defineAsyncComponent(() => import('@/views/history/SalesHistoryView.vue'))
+const PipelineDetailView = defineAsyncComponent(() => import('@/views/history/PipelineDetailView.vue'))
+const DocumentListView = defineAsyncComponent(() => import('@/views/history/DocumentListView.vue'))
+const NoteView = defineAsyncComponent(() => import('@/views/note/NoteView.vue'))
+const NoteSearchView = defineAsyncComponent(() => import('@/views/note/NoteSearchView.vue'))
+const NoteBriefingView = defineAsyncComponent(() => import('@/views/note/NoteBriefingView.vue'))
+const CropRecommendView = defineAsyncComponent(() => import('@/views/recommendation/CropRecommendView.vue'))
+const PestMapView = defineAsyncComponent(() => import('@/views/pest-map/PestMapView.vue'))
+const SalesRepStatsView = defineAsyncComponent(() => import('@/views/statistics/SalesRepStatsView.vue'))
+const AdminStatsView = defineAsyncComponent(() => import('@/views/statistics/AdminStatsView.vue'))
+const CalendarView = defineAsyncComponent(() => import('@/views/schedule/CalendarView.vue'))
+const ApprovalView = defineAsyncComponent(() => import('@/views/approval/ApprovalView.vue'))
+const PaymentView = defineAsyncComponent(() => import('@/views/payment/PaymentView.vue'))
+const SalesRepNotificationView = defineAsyncComponent(() => import('@/views/notification/SalesRepNotificationView.vue'))
+const AdminNotificationView = defineAsyncComponent(() => import('@/views/notification/AdminNotificationView.vue'))
+const ClientNotificationView = defineAsyncComponent(() => import('@/views/notification/ClientNotificationView.vue'))
+const MyPageView = defineAsyncComponent(() => import('@/views/settings/MyPageView.vue'))
+const ClientMyPageView = defineAsyncComponent(() => import('@/views/settings/ClientMyPageView.vue'))
 
 const createEmptyView = (title) => ({
   name: `Empty${title.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -258,6 +260,8 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
+  startRouteMeasure(to)
+
   const authStore = useAuthStore()
   const currentRole = authStore.currentRole
 
@@ -280,6 +284,10 @@ router.beforeEach((to) => {
   }
 
   return true
+})
+
+router.afterEach((to) => {
+  endRouteMeasure(to)
 })
 
 export default router

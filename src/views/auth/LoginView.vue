@@ -1,16 +1,20 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import { ROLES } from '@/utils/constants'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { loading, error } = storeToRefs(authStore)
 
 const selectedRole = ref(ROLES.SALES_REP)
 const loginId = ref('')
 const loginPw = ref('')
 const errorMessage = ref('')
+const isSubmitting = computed(() => loading.value)
 
 const roleOptions = [
   { label: '영업사원', value: ROLES.SALES_REP },
@@ -18,15 +22,29 @@ const roleOptions = [
   { label: '거래처', value: ROLES.CLIENT },
 ]
 
-const onSubmit = () => {
+const onSubmit = async () => {
   if (!loginId.value.trim() || !loginPw.value.trim()) {
     errorMessage.value = 'ID와 PW를 확인해주세요.'
     return
   }
 
   errorMessage.value = ''
-  authStore.setRole(selectedRole.value)
-  router.push('/dashboard')
+
+  try {
+    const result = await authStore.login({
+      loginId: loginId.value.trim(),
+      password: loginPw.value.trim(),
+      role: selectedRole.value,
+    })
+
+    if (!result?.role) {
+      authStore.setRole(selectedRole.value)
+    }
+
+    router.push('/dashboard')
+  } catch (e) {
+    // error state is managed by store
+  }
 }
 </script>
 
@@ -79,12 +97,14 @@ const onSubmit = () => {
 
         <button
           type="submit"
+          :disabled="isSubmitting"
           class="h-11 w-full rounded bg-slate-800 text-sm font-semibold text-white hover:bg-slate-700"
         >
-          로그인
+          {{ isSubmitting ? '로그인 중...' : '로그인' }}
         </button>
 
         <p v-if="errorMessage" class="text-sm font-medium text-red-600">{{ errorMessage }}</p>
+        <ErrorMessage v-else-if="error" :message="error" retry-label="다시 로그인" @retry="onSubmit" />
       </form>
     </div>
   </div>

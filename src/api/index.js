@@ -1,189 +1,155 @@
-const DEFAULT_TIMEOUT = 10000
+import axios from 'axios'
+import { useApiCache } from '@/composables/useApiCache'
+import { endApiMeasure, startApiMeasure } from '@/utils/performance'
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+const { buildCacheKey, getCachedValue, invalidateRelatedCache, setCachedValue } = useApiCache()
 
-function mergeHeaders(defaultHeaders, headers) {
-  return {
-    ...(defaultHeaders || {}),
-    ...(headers || {}),
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+function emitApiEvent(type, detail = {}) {
+  if (typeof window === 'undefined') {
+    return
   }
+
+  window.dispatchEvent(new CustomEvent(type, { detail }))
 }
-
-function buildUrl(path, params) {
-  const url = new URL(path, window.location.origin)
-
-  if (params && typeof params === 'object') {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') {
-        return
-      }
-      url.searchParams.append(key, value)
-    })
-  }
-
-  return url.pathname + url.search
-}
-
-function createApiClient() {
-  const requestHandlers = []
-  const responseSuccessHandlers = []
-  const responseErrorHandlers = []
-
-  const defaults = {
-    baseURL,
-    timeout: DEFAULT_TIMEOUT,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  }
-
-  const client = {
-    defaults,
-    interceptors: {
-      request: {
-        use(onFulfilled, onRejected) {
-          requestHandlers.push({ onFulfilled, onRejected })
-        },
-      },
-      response: {
-        use(onFulfilled, onRejected) {
-          responseSuccessHandlers.push(onFulfilled)
-          responseErrorHandlers.push(onRejected)
-        },
-      },
-    },
-    async request(config) {
-      let nextConfig = {
-        method: 'GET',
-        headers: mergeHeaders(defaults.headers, config.headers),
-        timeout: defaults.timeout,
-        ...config,
-      }
-
-      for (const handler of requestHandlers) {
-        try {
-          if (handler?.onFulfilled) {
-            // eslint-disable-next-line no-await-in-loop
-            nextConfig = await handler.onFulfilled(nextConfig)
-          }
-        } catch (error) {
-          if (handler?.onRejected) {
-            // eslint-disable-next-line no-await-in-loop
-            await handler.onRejected(error)
-          }
-          throw error
-        }
-      }
-
-      const controller = new AbortController()
-      const timeoutId = window.setTimeout(() => controller.abort(), nextConfig.timeout)
-
-      try {
-        const requestUrl = buildUrl(`${nextConfig.baseURL || defaults.baseURL}${nextConfig.url}`, nextConfig.params)
-        const response = await fetch(requestUrl, {
-          method: nextConfig.method,
-          headers: nextConfig.headers,
-          body: nextConfig.data ? JSON.stringify(nextConfig.data) : undefined,
-          signal: controller.signal,
-        })
-
-        let data = null
-        const contentType = response.headers.get('content-type') || ''
-        if (contentType.includes('application/json')) {
-          data = await response.json()
-        } else {
-          data = await response.text()
-        }
-
-        let normalized = {
-          data,
-          status: response.status,
-          headers: response.headers,
-          config: nextConfig,
-        }
-
-        if (!response.ok) {
-          const error = new Error('API request failed')
-          error.response = normalized
-          throw error
-        }
-
-        for (const handler of responseSuccessHandlers) {
-          if (handler) {
-            // eslint-disable-next-line no-await-in-loop
-            normalized = await handler(normalized)
-          }
-        }
-
-        return normalized
-      } catch (error) {
-        let nextError = error
-
-        for (const handler of responseErrorHandlers) {
-          if (handler) {
-            try {
-              // eslint-disable-next-line no-await-in-loop
-              await handler(nextError)
-            } catch (handledError) {
-              nextError = handledError
-            }
-          }
-        }
-
-        throw nextError
-      } finally {
-        window.clearTimeout(timeoutId)
-      }
-    },
-    get(url, config = {}) {
-      return client.request({ ...config, method: 'GET', url })
-    },
-    post(url, data, config = {}) {
-      return client.request({ ...config, method: 'POST', url, data })
-    },
-    put(url, data, config = {}) {
-      return client.request({ ...config, method: 'PUT', url, data })
-    },
-    delete(url, config = {}) {
-      return client.request({ ...config, method: 'DELETE', url })
-    },
-  }
-
-  return client
-}
-
-const api = createApiClient()
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token') // TODO: Pinia auth store에서 가져오기
+    const token = localStorage.getItem('token')
+
     if (token) {
-      return {
-        ...config,
-        headers: {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        },
+      config.headers.Authorization = `Bearer ${token}`
+    }
+
+    startApiMeasure(config)
+
+    config.headers['X-Request-Started-At'] = String(Date.now())
+    emitApiEvent('api:request:start', {
+      method: config.method,
+      url: config.url,
+    })
+
+    if (String(config.method || 'get').toLowerCase() === 'get') {
+      const cacheKey = buildCacheKey(config)
+      config.__cacheKey = cacheKey
+
+      const cachedData = getCachedValue(cacheKey)
+
+      if (cachedData !== null) {
+        config.adapter = () => Promise.resolve({
+          data: cachedData,
+          status: 200,
+          statusText: 'OK',
+          headers: config.headers,
+          config,
+          request: { fromCache: true },
+        })
       }
     }
+
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 )
 
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // TODO: 토큰 만료 처리 및 로그인 페이지 리다이렉트
+  (response) => {
+    const method = String(response.config?.method || 'get').toLowerCase()
+
+    if (method === 'get' && response.config?.__cacheKey && !response.request?.fromCache) {
+      setCachedValue(response.config.__cacheKey, response.data)
     }
 
-    if (error.response?.status === 403) {
-      // TODO: 권한 없음 처리
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      invalidateRelatedCache(response.config?.url)
+    }
+
+    endApiMeasure(response.config, response.status, false)
+
+    emitApiEvent('api:request:end', {
+      method: response.config?.method,
+      url: response.config?.url,
+      status: response.status,
+      fromCache: Boolean(response.request?.fromCache),
+    })
+
+    return response.data
+  },
+  async (error) => {
+    const status = error?.response?.status
+    const requestConfig = error?.config || {}
+    const method = String(requestConfig.method || '').toLowerCase()
+
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      invalidateRelatedCache(requestConfig.url)
+    }
+
+    endApiMeasure(requestConfig, status || 0, true)
+
+    emitApiEvent('api:request:end', {
+      method: requestConfig.method,
+      url: requestConfig.url,
+      status: status || 0,
+      failed: true,
+    })
+
+    if (status === 401) {
+      try {
+        const [{ useAuthStore }, { default: router }] = await Promise.all([
+          import('@/stores/auth'),
+          import('@/router'),
+        ])
+
+        const authStore = useAuthStore()
+        await authStore.logout()
+      } catch (logoutError) {
+        console.error('401 처리 중 로그아웃 실패:', logoutError)
+      }
+
+      if (window.location.pathname !== '/login') {
+        router.push('/login')
+      }
+    }
+
+    if (status === 403) {
+      emitApiEvent('api:error', {
+        status,
+        message: '권한이 없습니다.',
+      })
+      console.warn('권한이 없습니다.')
+    }
+
+    if (status >= 500) {
+      emitApiEvent('api:error', {
+        status,
+        message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+      })
+      console.error('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+    }
+
+    if (!error.response) {
+      const isTimeout = error.code === 'ECONNABORTED'
+      const message = isTimeout
+        ? '요청 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.'
+        : '네트워크 연결을 확인해주세요.'
+
+      emitApiEvent('api:error', {
+        status: 0,
+        message,
+      })
+
+      console.error(message)
     }
 
     return Promise.reject(error)
-  }
+  },
 )
 
 export default api

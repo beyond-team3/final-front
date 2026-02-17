@@ -1,7 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import DataTable from '@/components/common/DataTable.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SearchFilter from '@/components/common/SearchFilter.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -9,6 +13,7 @@ import { useClientStore } from '@/stores/client'
 
 const router = useRouter()
 const clientStore = useClientStore()
+const { clients, loading, error } = storeToRefs(clientStore)
 
 const filters = ref({
   keyword: '',
@@ -38,7 +43,7 @@ const columns = [
 ]
 
 const rows = computed(() => {
-  return clientStore.clients.filter((client) => {
+  return clients.value.filter((client) => {
     const keyword = filters.value.keyword.trim().toLowerCase()
     const matchKeyword =
       !keyword ||
@@ -62,6 +67,16 @@ const openDetail = (client) => {
 const openRegister = () => {
   router.push('/clients/register')
 }
+
+const fetchClients = async () => {
+  try {
+    await clientStore.fetchClients()
+  } catch (e) {
+    // error state is managed by store
+  }
+}
+
+onMounted(fetchClients)
 </script>
 
 <template>
@@ -85,7 +100,18 @@ const openRegister = () => {
       reset-label="초기화"
     />
 
+    <LoadingSpinner v-if="loading" text="거래처 목록을 불러오는 중입니다." />
+
+    <ErrorMessage v-else-if="error" :message="error" @retry="fetchClients" />
+
+    <EmptyState
+      v-else-if="rows.length === 0"
+      title="등록된 거래처가 없습니다."
+      description="신규 거래처를 등록한 뒤 다시 확인해주세요."
+    />
+
     <DataTable
+      v-else
       :columns="columns"
       :rows="rows"
       row-key="id"

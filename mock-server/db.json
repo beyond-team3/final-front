@@ -1,0 +1,763 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "kim_sr",
+      "password": "pass1234",
+      "name": "김민수",
+      "role": "SALES_REP",
+      "email": "minsu.kim@seedcorp.co.kr",
+      "phone": "010-2211-3388",
+      "department": "영업1팀",
+      "region": "전북 익산",
+      "lastLoginAt": "2026-02-15T09:10:00"
+    },
+    {
+      "id": 2,
+      "username": "lee_admin",
+      "password": "pass1234",
+      "name": "이서연",
+      "role": "ADMIN",
+      "email": "seoyeon.lee@seedcorp.co.kr",
+      "phone": "010-4512-7741",
+      "department": "영업관리팀",
+      "region": "본사",
+      "lastLoginAt": "2026-02-16T08:20:00"
+    },
+    {
+      "id": 3,
+      "username": "greenfarm_client",
+      "password": "pass1234",
+      "name": "그린팜유통",
+      "role": "CLIENT",
+      "email": "sales@greenfarm.co.kr",
+      "phone": "031-882-1190",
+      "department": "구매팀",
+      "region": "경기 여주",
+      "lastLoginAt": "2026-02-16T07:55:00"
+    },
+    {
+      "id": 4,
+      "username": "park_sr",
+      "password": "pass1234",
+      "name": "박지훈",
+      "role": "SALES_REP",
+      "email": "jihoon.park@seedcorp.co.kr",
+      "phone": "010-7733-5420",
+      "department": "영업2팀",
+      "region": "경남 밀양",
+      "lastLoginAt": "2026-02-14T17:40:00"
+    },
+    {
+      "id": 5,
+      "username": "han_client",
+      "password": "pass1234",
+      "name": "한빛농자재",
+      "role": "CLIENT",
+      "email": "order@hanbitagri.co.kr",
+      "phone": "064-732-2201",
+      "department": "자재구매",
+      "region": "제주 서귀포",
+      "lastLoginAt": "2026-02-15T13:35:00"
+    },
+    {
+      "loginId": "qwer",
+      "password": "qwer",
+      "role": "SALES_REP",
+      "id": 6
+    },
+    {
+      "loginId": "ㅂㅈㄷㄱ",
+      "password": "qwer",
+      "role": "ADMIN",
+      "id": 7
+    },
+    {
+      "loginId": "ㅂㅈㄷㄱ",
+      "password": "qewr",
+      "role": "CLIENT",
+      "id": 8
+    }
+  ],
+  "clients": [
+    {
+      "id": 1,
+      "name": "그린팜유통",
+      "region": "경기 여주",
+      "type": "도매상",
+      "contact": "031-882-1190",
+      "manager": "정호성",
+      "managerPhone": "010-3001-4412",
+      "varieties": [
+        "고추 PR-21",
+        "토마토 TY-9"
+      ],
+      "status": "활성"
+    },
+    {
+      "id": 2,
+      "name": "청솔영농조합",
+      "region": "전남 나주",
+      "type": "영농조합",
+      "contact": "061-332-0081",
+      "manager": "오지은",
+      "managerPhone": "010-8452-5003",
+      "varieties": [
+        "배추 BS-10",
+        "무 MR-5"
+      ],
+      "status": "활성"
+    },
+    {
+      "id": 3,
+      "name": "한빛농자재",
+      "region": "제주 서귀포",
+      "type": "소매상",
+      "contact": "064-732-2201",
+      "manager": "강태윤",
+      "managerPhone": "010-6621-8840",
+      "varieties": [
+        "감귤 접목묘 CJ-3",
+        "상추 LS-8"
+      ],
+      "status": "활성"
+    },
+    {
+      "id": 4,
+      "name": "동해농업법인",
+      "region": "강원 강릉",
+      "type": "농업법인",
+      "contact": "033-641-2900",
+      "manager": "배수민",
+      "managerPhone": "010-9554-1120",
+      "varieties": [
+        "감자 PT-11",
+        "옥수수 CS-2"
+      ],
+      "status": "휴면"
+    }
+  ],
+  "employees": [
+    {
+      "id": 1,
+      "name": "김민수",
+      "department": "영업1팀",
+      "position": "대리",
+      "contact": "010-2211-3388",
+      "email": "minsu.kim@seedcorp.co.kr",
+      "region": "전북 익산",
+      "joinedAt": "2022-03-01"
+    },
+    {
+      "id": 2,
+      "name": "박지훈",
+      "department": "영업2팀",
+      "position": "과장",
+      "contact": "010-7733-5420",
+      "email": "jihoon.park@seedcorp.co.kr",
+      "region": "경남 밀양",
+      "joinedAt": "2020-09-15"
+    },
+    {
+      "id": 3,
+      "name": "최가은",
+      "department": "영업1팀",
+      "position": "사원",
+      "contact": "010-8110-4500",
+      "email": "gaeun.choi@seedcorp.co.kr",
+      "region": "충남 논산",
+      "joinedAt": "2024-01-10"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "고추 PR-21",
+      "category": "고추",
+      "price": 38000,
+      "unit": "500립",
+      "traits": [
+        "내병성",
+        "고수량",
+        "초세강"
+      ],
+      "imageUrl": "https://images.example.com/products/pepper-pr21.jpg",
+      "stock": 120,
+      "updatedAt": "2026-02-15"
+    },
+    {
+      "id": 2,
+      "name": "토마토 TY-9",
+      "category": "토마토",
+      "price": 42000,
+      "unit": "1,000립",
+      "traits": [
+        "TYLCV 저항",
+        "균일과",
+        "당도우수"
+      ],
+      "imageUrl": "https://images.example.com/products/tomato-ty9.jpg",
+      "stock": 80,
+      "updatedAt": "2026-02-14"
+    },
+    {
+      "id": 3,
+      "name": "배추 BS-10",
+      "category": "배추",
+      "price": 27000,
+      "unit": "5,000립",
+      "traits": [
+        "결구력 우수",
+        "저온신장성",
+        "수확안정"
+      ],
+      "imageUrl": "https://images.example.com/products/cabbage-bs10.jpg",
+      "stock": 200,
+      "updatedAt": "2026-02-13"
+    },
+    {
+      "id": 4,
+      "name": "감자 PT-11",
+      "category": "감자",
+      "price": 35000,
+      "unit": "20kg",
+      "traits": [
+        "상품률 우수",
+        "중생종",
+        "저장성 양호"
+      ],
+      "imageUrl": "https://images.example.com/products/potato-pt11.jpg",
+      "stock": 60,
+      "updatedAt": "2026-02-12"
+    },
+    {
+      "id": 5,
+      "name": "상추 LS-8",
+      "category": "엽채",
+      "price": 19000,
+      "unit": "10,000립",
+      "traits": [
+        "엽색 진함",
+        "내서성",
+        "수량성"
+      ],
+      "imageUrl": "https://images.example.com/products/lettuce-ls8.jpg",
+      "stock": 300,
+      "updatedAt": "2026-02-16"
+    }
+  ],
+  "favorites": [
+    {
+      "id": 1,
+      "userId": 1,
+      "productId": 1
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "productId": 2
+    },
+    {
+      "id": 3,
+      "userId": 3,
+      "productId": 3
+    },
+    {
+      "id": 4,
+      "userId": 5,
+      "productId": 5
+    }
+  ],
+  "compares": [
+    {
+      "id": 1,
+      "userId": 1,
+      "productId": 1
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "productId": 3
+    },
+    {
+      "id": 3,
+      "userId": 3,
+      "productId": 2
+    },
+    {
+      "id": 4,
+      "userId": 5,
+      "productId": 4
+    }
+  ],
+  "documents": [
+    {
+      "id": 1,
+      "type": "quotation-request",
+      "clientId": 3,
+      "clientName": "그린팜유통",
+      "authorId": 3,
+      "authorName": "그린팜유통",
+      "status": "접수",
+      "amount": 760000,
+      "date": "2026-02-10"
+    },
+    {
+      "id": 2,
+      "type": "quotation",
+      "clientId": 3,
+      "clientName": "그린팜유통",
+      "authorId": 1,
+      "authorName": "김민수",
+      "status": "발행",
+      "amount": 810000,
+      "date": "2026-02-11"
+    },
+    {
+      "id": 3,
+      "type": "contract",
+      "clientId": 2,
+      "clientName": "청솔영농조합",
+      "authorId": 2,
+      "authorName": "박지훈",
+      "status": "체결",
+      "amount": 1300000,
+      "date": "2026-02-08"
+    },
+    {
+      "id": 4,
+      "type": "order",
+      "clientId": 5,
+      "clientName": "한빛농자재",
+      "authorId": 5,
+      "authorName": "한빛농자재",
+      "status": "처리중",
+      "amount": 540000,
+      "date": "2026-02-14"
+    },
+    {
+      "id": 5,
+      "type": "invoice",
+      "clientId": 2,
+      "clientName": "청솔영농조합",
+      "authorId": 1,
+      "authorName": "김민수",
+      "status": "발행",
+      "amount": 1300000,
+      "date": "2026-02-12"
+    }
+  ],
+  "history": [
+    {
+      "id": 1,
+      "clientId": 3,
+      "clientName": "그린팜유통",
+      "pipelineStage": "견적",
+      "documentId": 2,
+      "nextAction": "가격 협의 미팅",
+      "updatedAt": "2026-02-12"
+    },
+    {
+      "id": 2,
+      "clientId": 2,
+      "clientName": "청솔영농조합",
+      "pipelineStage": "계약",
+      "documentId": 3,
+      "nextAction": "3월 납품 일정 확정",
+      "updatedAt": "2026-02-13"
+    },
+    {
+      "id": 3,
+      "clientId": 5,
+      "clientName": "한빛농자재",
+      "pipelineStage": "주문",
+      "documentId": 4,
+      "nextAction": "출고 승인 대기",
+      "updatedAt": "2026-02-15"
+    },
+    {
+      "id": 4,
+      "clientId": 1,
+      "clientName": "동해농업법인",
+      "pipelineStage": "리드",
+      "documentId": null,
+      "nextAction": "샘플 제안서 발송",
+      "updatedAt": "2026-02-09"
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "authorId": 1,
+      "authorName": "김민수",
+      "clientId": 3,
+      "clientName": "그린팜유통",
+      "content": "3월 초 고추 물량 확대 요청. 단가 인하 협의 필요.",
+      "date": "2026-02-10"
+    },
+    {
+      "id": 2,
+      "authorId": 2,
+      "authorName": "박지훈",
+      "clientId": 2,
+      "clientName": "청솔영농조합",
+      "content": "배추 BS-10 반응 긍정적. 추가 시범재배 의사 확인.",
+      "date": "2026-02-11"
+    },
+    {
+      "id": 3,
+      "authorId": 1,
+      "authorName": "김민수",
+      "clientId": 5,
+      "clientName": "한빛농자재",
+      "content": "제주 지역 운송비 반영한 견적 재산출 예정.",
+      "date": "2026-02-14"
+    },
+    {
+      "id": 4,
+      "authorId": 3,
+      "authorName": "최가은",
+      "clientId": 1,
+      "clientName": "동해농업법인",
+      "content": "감자 PT-11 샘플 제공 후 1주 내 피드백 예정.",
+      "date": "2026-02-15"
+    }
+  ],
+  "recommendations": [
+    {
+      "id": 1,
+      "region": "전북 익산",
+      "season": "봄",
+      "recommendedVarieties": [
+        "고추 PR-21",
+        "토마토 TY-9"
+      ],
+      "reason": "일교차가 커 초기 활착이 좋은 품종 권장"
+    },
+    {
+      "id": 2,
+      "region": "제주 서귀포",
+      "season": "여름",
+      "recommendedVarieties": [
+        "상추 LS-8",
+        "토마토 TY-9"
+      ],
+      "reason": "고온기 내서성이 높은 품종 중심"
+    },
+    {
+      "id": 3,
+      "region": "강원 강릉",
+      "season": "가을",
+      "recommendedVarieties": [
+        "감자 PT-11",
+        "배추 BS-10"
+      ],
+      "reason": "저온 대응력과 저장성이 우수한 품종"
+    }
+  ],
+  "pestMap": [
+    {
+      "id": 1,
+      "location": "전남 나주",
+      "pestName": "노균병",
+      "severity": "중",
+      "affectedCrop": "배추",
+      "reportedAt": "2026-02-12"
+    },
+    {
+      "id": 2,
+      "location": "경남 밀양",
+      "pestName": "총채벌레",
+      "severity": "상",
+      "affectedCrop": "고추",
+      "reportedAt": "2026-02-13"
+    },
+    {
+      "id": 3,
+      "location": "제주 서귀포",
+      "pestName": "흰가루병",
+      "severity": "하",
+      "affectedCrop": "상추",
+      "reportedAt": "2026-02-15"
+    }
+  ],
+  "statistics": [
+    {
+      "id": 1,
+      "period": "2026-01",
+      "type": "clientSales",
+      "items": [
+        {
+          "name": "그린팜유통",
+          "sales": 810000
+        },
+        {
+          "name": "청솔영농조합",
+          "sales": 1300000
+        },
+        {
+          "name": "한빛농자재",
+          "sales": 540000
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "period": "2026-01",
+      "type": "productSales",
+      "items": [
+        {
+          "name": "고추 PR-21",
+          "sales": 960000
+        },
+        {
+          "name": "토마토 TY-9",
+          "sales": 840000
+        },
+        {
+          "name": "배추 BS-10",
+          "sales": 610000
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "period": "2026-01",
+      "type": "employeeSales",
+      "items": [
+        {
+          "name": "김민수",
+          "sales": 1220000
+        },
+        {
+          "name": "박지훈",
+          "sales": 1300000
+        },
+        {
+          "name": "최가은",
+          "sales": 450000
+        }
+      ]
+    }
+  ],
+  "schedules": [
+    {
+      "id": 1,
+      "date": "2026-02-17",
+      "title": "그린팜유통 가격협의",
+      "description": "고추 PR-21 2차 계약 단가 협의",
+      "authorId": 1,
+      "authorName": "김민수"
+    },
+    {
+      "id": 2,
+      "date": "2026-02-18",
+      "title": "청솔영농조합 방문",
+      "description": "시범재배 결과 확인 및 다음 시즌 제안",
+      "authorId": 2,
+      "authorName": "박지훈"
+    },
+    {
+      "id": 3,
+      "date": "2026-02-19",
+      "title": "월간 영업회의",
+      "description": "1월 실적 리뷰 및 2월 목표 공유",
+      "authorId": 2,
+      "authorName": "이서연"
+    },
+    {
+      "id": 4,
+      "date": "2026-02-20",
+      "title": "한빛농자재 출고확인",
+      "description": "주문건 출고 상태 점검",
+      "authorId": 1,
+      "authorName": "김민수"
+    }
+  ],
+  "approvals": [
+    {
+      "id": 1,
+      "documentId": 4,
+      "requesterId": 1,
+      "requesterName": "김민수",
+      "status": "pending",
+      "reason": "긴급 출고 승인 요청",
+      "requestedAt": "2026-02-14"
+    },
+    {
+      "id": 2,
+      "documentId": 5,
+      "requesterId": 2,
+      "requesterName": "박지훈",
+      "status": "approved",
+      "reason": "기발행 청구서 정산 승인",
+      "requestedAt": "2026-02-12"
+    },
+    {
+      "id": 3,
+      "documentId": 2,
+      "requesterId": 3,
+      "requesterName": "최가은",
+      "status": "rejected",
+      "reason": "할인율 초과로 재검토 필요",
+      "requestedAt": "2026-02-11"
+    }
+  ],
+  "payments": [
+    {
+      "id": 1,
+      "clientId": 3,
+      "clientName": "그린팜유통",
+      "amount": 810000,
+      "status": "paid",
+      "method": "계좌이체",
+      "date": "2026-02-13"
+    },
+    {
+      "id": 2,
+      "clientId": 2,
+      "clientName": "청솔영농조합",
+      "amount": 1300000,
+      "status": "pending",
+      "method": "가상계좌",
+      "date": "2026-02-15"
+    },
+    {
+      "id": 3,
+      "clientId": 5,
+      "clientName": "한빛농자재",
+      "amount": 540000,
+      "status": "failed",
+      "method": "카드",
+      "date": "2026-02-14"
+    }
+  ],
+  "notifications": [
+    {
+      "id": 1,
+      "targetRole": "SALES_REP",
+      "message": "그린팜유통 견적 요청이 접수되었습니다.",
+      "isRead": false,
+      "date": "2026-02-16T09:00:00"
+    },
+    {
+      "id": 2,
+      "targetRole": "ADMIN",
+      "message": "승인 요청 1건이 대기 중입니다.",
+      "isRead": false,
+      "date": "2026-02-16T09:10:00"
+    },
+    {
+      "id": 3,
+      "targetRole": "CLIENT",
+      "message": "주문서 처리 상태가 업데이트되었습니다.",
+      "isRead": true,
+      "date": "2026-02-15T15:20:00"
+    },
+    {
+      "id": 4,
+      "targetRole": "SALES_REP",
+      "message": "2월 19일 월간 영업회의 일정이 등록되었습니다.",
+      "isRead": true,
+      "date": "2026-02-15T18:00:00"
+    }
+  ],
+  "dashboardSalesRep": [
+    {
+      "id": 1,
+      "userId": 1,
+      "monthlyTarget": 5000000,
+      "monthlySales": 3560000,
+      "openPipelines": 6,
+      "todaySchedules": 2,
+      "recentClients": [
+        "그린팜유통",
+        "한빛농자재"
+      ]
+    },
+    {
+      "id": 2,
+      "userId": 4,
+      "monthlyTarget": 4500000,
+      "monthlySales": 2890000,
+      "openPipelines": 4,
+      "todaySchedules": 1,
+      "recentClients": [
+        "청솔영농조합",
+        "동해농업법인"
+      ]
+    },
+    {
+      "id": 3,
+      "userId": 2,
+      "monthlyTarget": 3000000,
+      "monthlySales": 1260000,
+      "openPipelines": 3,
+      "todaySchedules": 1,
+      "recentClients": [
+        "한빛농자재"
+      ]
+    }
+  ],
+  "dashboardAdmin": [
+    {
+      "id": 1,
+      "totalSales": 12600000,
+      "newClients": 3,
+      "pendingApprovals": 1,
+      "activeEmployees": 12,
+      "topProduct": "고추 PR-21"
+    },
+    {
+      "id": 2,
+      "totalSales": 11900000,
+      "newClients": 2,
+      "pendingApprovals": 2,
+      "activeEmployees": 11,
+      "topProduct": "토마토 TY-9"
+    },
+    {
+      "id": 3,
+      "totalSales": 13100000,
+      "newClients": 4,
+      "pendingApprovals": 1,
+      "activeEmployees": 13,
+      "topProduct": "배추 BS-10"
+    }
+  ],
+  "dashboardClient": [
+    {
+      "id": 1,
+      "clientId": 3,
+      "outstandingAmount": 0,
+      "recentOrders": 2,
+      "favoriteProducts": [
+        "고추 PR-21",
+        "토마토 TY-9"
+      ],
+      "lastDeliveryDate": "2026-02-13"
+    },
+    {
+      "id": 2,
+      "clientId": 5,
+      "outstandingAmount": 540000,
+      "recentOrders": 1,
+      "favoriteProducts": [
+        "상추 LS-8",
+        "감자 PT-11"
+      ],
+      "lastDeliveryDate": "2026-02-10"
+    },
+    {
+      "id": 3,
+      "clientId": 2,
+      "outstandingAmount": 1300000,
+      "recentOrders": 3,
+      "favoriteProducts": [
+        "배추 BS-10",
+        "무 MR-5"
+      ],
+      "lastDeliveryDate": "2026-02-12"
+    }
+  ]
+}

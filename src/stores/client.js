@@ -3,15 +3,20 @@ import { defineStore } from 'pinia'
 import {
   addClientVariety,
   createClient,
+  getClientDetail,
   getClients,
   updateClient as updateClientApi,
 } from '@/api/client'
 
 const toCurrency = (value) => `₩${Number(value || 0).toLocaleString('ko-KR')}`
 
-function toClientEntity(payload, nextNumber) {
+function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
+  return error?.response?.data?.message || error?.message || fallback
+}
+
+function makeTempClient(payload = {}) {
   return {
-    id: `C-${String(nextNumber).padStart(3, '0')}`,
+    id: `temp-${Date.now()}`,
     name: payload.clientName,
     type: payload.clientType,
     typeLabel: payload.clientType === 'DISTRIBUTOR' ? '대리점' : '기타',
@@ -35,50 +40,69 @@ function toClientEntity(payload, nextNumber) {
 
 export const useClientStore = defineStore('client', () => {
   const clients = ref([])
+  const currentClient = ref(null)
   const loading = ref(false)
   const error = ref(null)
 
   const activeClients = computed(() => clients.value.filter((client) => client.status === 'active'))
 
-  const getClientById = (id) => clients.value.find((client) => client.id === id)
+  const getClientById = (id) => clients.value.find((client) => String(client.id) === String(id))
 
   async function fetchClients(params) {
     loading.value = true
     error.value = null
 
     try {
-      const { data } = await getClients(params)
-      clients.value = data
+      const result = await getClients(params)
+      clients.value = Array.isArray(result) ? result : []
+      return clients.value
     } catch (e) {
-      error.value = e
+      error.value = getErrorMessage(e, '거래처 목록을 불러오지 못했습니다.')
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchClientDetail(id) {
+    loading.value = true
+    error.value = null
+
+    try {
+      currentClient.value = await getClientDetail(id)
+      return currentClient.value
+    } catch (e) {
+      error.value = getErrorMessage(e, '거래처 상세를 불러오지 못했습니다.')
+      throw e
     } finally {
       loading.value = false
     }
   }
 
   const addClient = (payload) => {
-    const optimistic = toClientEntity(payload, clients.value.length + 1)
+    const optimistic = makeTempClient(payload)
     clients.value.unshift(optimistic)
 
     createClient(payload)
-      .then(({ data }) => {
-        if (!data) {
-          return
-        }
-
-        const index = clients.value.findIndex((client) => client.id === optimistic.id)
-        if (index >= 0) {
-          clients.value[index] = data
+      .then((created) => {
+        const idx = clients.value.findIndex((item) => item.id === optimistic.id)
+        if (idx >= 0 && created) {
+          clients.value[idx] = created
         }
       })
       .catch((e) => {
-        error.value = e
+        error.value = getErrorMessage(e, '거래처 등록에 실패했습니다.')
+        clients.value = clients.value.filter((item) => item.id !== optimistic.id)
       })
+
+    return optimistic.id
   }
 
   const updateClient = (id, patch) => {
+    const previous = clients.value.find((client) => String(client.id) === String(id))
+
     clients.value = clients.value.map((client) => {
-      if (client.id !== id) {
+      if (String(client.id) !== String(id)) {
         return client
       }
 
@@ -88,26 +112,69 @@ export const useClientStore = defineStore('client', () => {
       }
     })
 
-    updateClientApi(id, patch).catch((e) => {
-      error.value = e
-    })
+    updateClientApi(id, patch)
+      .then((updated) => {
+        if (!updated) {
+          return
+        }
+
+        clients.value = clients.value.map((client) => {
+          if (String(client.id) !== String(id)) {
+            return client
+          }
+
+          return {
+            ...client,
+            ...updated,
+          }
+        })
+      })
+      .catch((e) => {
+        error.value = getErrorMessage(e, '거래처 수정에 실패했습니다.')
+        if (previous) {
+          clients.value = clients.value.map((client) => {
+            if (String(client.id) !== String(id)) {
+              return client
+            }
+            return previous
+          })
+        }
+      })
   }
 
   const addVariety = (id, crop) => {
-    addClientVariety(id, { crop }).catch((e) => {
-      error.value = e
-    })
+    addClientVariety(id, { crop })
+      .then((updated) => {
+        if (!updated) {
+          return
+        }
+
+        clients.value = clients.value.map((client) => {
+          if (String(client.id) !== String(id)) {
+            return client
+          }
+          return {
+            ...client,
+            ...updated,
+          }
+        })
+      })
+      .catch((e) => {
+        error.value = getErrorMessage(e, '품종 추가에 실패했습니다.')
+      })
   }
 
   void fetchClients()
 
   return {
     clients,
+    currentClient,
     loading,
     error,
     activeClients,
     getClientById,
     fetchClients,
+    fetchClientDetail,
     addClient,
     updateClient,
     addVariety,

@@ -1,6 +1,10 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -19,10 +23,7 @@ const activeTab = ref('info')
 const isEditModalOpen = ref(false)
 
 const currentClientId = computed(() => route.params.id)
-const currentClient = computed(() => {
-  const found = clientStore.getClientById(currentClientId.value)
-  return found || clientStore.clients[0]
-})
+const { currentClient, loading, error } = storeToRefs(clientStore)
 
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 const selectedCrop = ref('')
@@ -111,10 +112,36 @@ const removeCrop = (crop) => {
 const openPipelineDetail = (pipelineId) => {
   router.push({ name: 'pipeline-detail', params: { id: pipelineId } })
 }
+
+const fetchClientDetail = async () => {
+  if (!currentClientId.value) {
+    return
+  }
+
+  try {
+    await clientStore.fetchClientDetail(currentClientId.value)
+  } catch (e) {
+    // error state is managed by store
+  }
+}
+
+onMounted(fetchClientDetail)
 </script>
 
 <template>
-  <section v-if="currentClient">
+  <section v-if="loading">
+    <LoadingSpinner text="거래처 상세를 불러오는 중입니다." />
+  </section>
+
+  <section v-else-if="error">
+    <ErrorMessage :message="error" @retry="fetchClientDetail" />
+  </section>
+
+  <section v-else-if="!currentClient">
+    <EmptyState title="거래처 정보를 찾을 수 없습니다." description="목록에서 다시 선택해 주세요." />
+  </section>
+
+  <section v-else>
     <PageHeader :title="`${currentClient.name} (${currentClient.id})`" :subtitle="`${currentClient.typeLabel} | 사용중`">
       <template #actions>
         <button

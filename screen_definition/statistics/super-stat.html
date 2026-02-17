@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ko.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <style>
-
         * {
             margin: 0;
             padding: 0;
@@ -129,7 +128,7 @@
             margin: 0 auto;
         }
 
-        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        /* 화면별 컨텐츠 영역 */
         .screen-content {
             background-color: white;
             border-radius: 8px;
@@ -147,26 +146,7 @@
             border-bottom: 2px solid #ecf0f1;
         }
 
-        /* 반응형 */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                max-width: 280px;
-            }
-
-            .main-content {
-                left: 0;
-            }
-
-            .sidebar:not(.hidden) ~ .main-content {
-                filter: brightness(0.7);
-                pointer-events: none;
-            }
-        }
-    
-
-/* Page Specific Styles */
-/* ========== 매출 통계 화면 스타일 ========== */
+        /* ========== 매출 통계 화면 스타일 ========== */
 
         /* 필터 영역 */
         .filter-section {
@@ -554,8 +534,7 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-    
-</style>
+    </style>
 </head>
 <body>
     <!-- 헤더 -->
@@ -604,6 +583,10 @@
                                     <input type="radio" id="typeClient" name="viewType" value="client">
                                     <label for="typeClient">거래처별</label>
                                 </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="typeVariety" name="viewType" value="variety">
+                                    <label for="typeVariety">품종별</label>
+                                </div>
                             </div>
                         </div>
 
@@ -647,7 +630,7 @@
                         <div class="filter-group">
                             <label class="filter-label">비교</label>
                             <button class="toggle-button" id="compareToggle">
-                                <span></span>
+                                <span>📊</span>
                                 <span>전년도 대비</span>
                             </button>
                         </div>
@@ -657,11 +640,11 @@
                 <!-- 그래프 전환 버튼 -->
                 <div class="chart-toggle">
                     <button class="chart-toggle-btn active" data-chart="line">
-                        <span></span>
+                        <span>📈</span>
                         <span>추이 보기</span>
                     </button>
                     <button class="chart-toggle-btn" data-chart="bar" id="barChartBtn">
-                        <span></span>
+                        <span>📊</span>
                         <span>순위 비교</span>
                     </button>
                 </div>
@@ -683,54 +666,7 @@
     </main>
 
     <script>
-
-        // 사이드바 토글 기능
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
-
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('hidden');
-            mainContent.classList.toggle('expanded');
-        });
-
-        // 네비게이션 아이템 클릭 이벤트
-        const navItems = document.querySelectorAll('.nav-item');
-        
-        navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                // 모든 아이템에서 active 클래스 제거
-                navItems.forEach(nav => nav.classList.remove('active'));
-                
-                // 클릭된 아이템에 active 클래스 추가
-                item.classList.add('active');
-                
-                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
-                const screenName = item.getAttribute('data-screen');
-                console.log(`${screenName} 화면으로 이동`);
-                
-                // 실제 프로젝트에서는 다음과 같이 사용:
-                // window.location.href = `${screenName}.html`;
-                
-                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.add('hidden');
-                    mainContent.classList.add('expanded');
-                }
-            });
-        });
-
-        // ESC 키로 사이드바 닫기
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
-                sidebar.classList.add('hidden');
-                mainContent.classList.add('expanded');
-            }
-        });
-    
-
-// Page Specific Scripts
-// ========== 사이드바 토글 기능 ==========
+        // ========== 사이드바 토글 기능 ==========
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('mainContent');
@@ -784,6 +720,13 @@
                 { id: 4, name: '바이오시드' },
                 { id: 5, name: '한국농산' }
             ],
+            varieties: [
+                { id: 1, name: '청양고추' },
+                { id: 2, name: '대박토마토' },
+                { id: 3, name: '금싸라기참외' },
+                { id: 4, name: '흑토마토' },
+                { id: 5, name: '천하장사배추' }
+            ],
             // 월별 상세 매출 데이터 (날짜 범위 확인용)
             monthlySales: {
                 // 2024년 데이터 (전년도)
@@ -802,6 +745,13 @@
                         3: [6500000, 7000000, 7400000, 7900000, 8400000, 8800000, 8500000, 9100000, 9600000, 10000000, 10400000, 10800000],
                         4: [7800000, 8400000, 8900000, 9500000, 10000000, 10600000, 10200000, 10900000, 11400000, 12000000, 12400000, 12900000],
                         5: [6000000, 6500000, 6800000, 7300000, 7700000, 8200000, 7900000, 8400000, 8900000, 9300000, 9700000, 10000000]
+                    },
+                    varieties: {
+                        1: [7200000, 7800000, 8100000, 8600000, 9100000, 9700000, 9300000, 10000000, 10500000, 11000000, 11400000, 11800000],
+                        2: [8800000, 9500000, 10000000, 10600000, 11200000, 11800000, 11500000, 12200000, 12800000, 13400000, 13900000, 14400000],
+                        3: [5500000, 5900000, 6200000, 6600000, 7000000, 7400000, 7100000, 7600000, 8000000, 8400000, 8700000, 9000000],
+                        4: [6800000, 7300000, 7700000, 8200000, 8700000, 9200000, 8800000, 9400000, 9900000, 10400000, 10800000, 11200000],
+                        5: [9700000, 10500000, 11000000, 11700000, 12400000, 13100000, 12700000, 13500000, 14200000, 14900000, 15400000, 16000000]
                     }
                 },
                 // 2025년 데이터 (당해년도)
@@ -820,6 +770,13 @@
                         3: [7700000, 8900000, 8200000, 9500000, 10000000, 10700000, 10100000, 11000000, 11500000, 12100000, 12400000, 12900000],
                         4: [9200000, 10700000, 9800000, 11300000, 11900000, 12700000, 12100000, 13100000, 13700000, 14400000, 14800000, 15400000],
                         5: [7200000, 8300000, 7700000, 8900000, 9300000, 10000000, 9500000, 10300000, 10800000, 11300000, 11700000, 12100000]
+                    },
+                    varieties: {
+                        1: [8500000, 9800000, 9100000, 10500000, 11000000, 11800000, 11200000, 12100000, 12700000, 13300000, 13700000, 14200000],
+                        2: [10500000, 12200000, 11200000, 12900000, 13500000, 14500000, 13700000, 14900000, 15600000, 16300000, 16800000, 17500000],
+                        3: [6500000, 7500000, 6900000, 8000000, 8400000, 9000000, 8500000, 9200000, 9700000, 10200000, 10500000, 10900000],
+                        4: [8000000, 9300000, 8600000, 9900000, 10400000, 11100000, 10500000, 11400000, 12000000, 12600000, 12900000, 13400000],
+                        5: [11500000, 13300000, 12300000, 14200000, 14900000, 15900000, 15100000, 16400000, 17200000, 18000000, 18500000, 19300000]
                     }
                 }
             }
@@ -912,9 +869,9 @@
             }
 
             multiSelectGroup.style.display = 'flex';
-            
-            const items = state.viewType === 'employee' ? sampleData.employees : sampleData.clients;
-            multiSelectLabel.textContent = state.viewType === 'employee' ? '사원 선택' : '거래처 선택';
+
+            const items = state.viewType === 'employee' ? sampleData.employees : state.viewType === 'client' ? sampleData.clients : sampleData.varieties;
+            multiSelectLabel.textContent = state.viewType === 'employee' ? '사원 선택' : state.viewType === 'client' ? '거래처 선택' : '품종 선택';
             
             multiSelectDropdown.innerHTML = items.map(item => `
                 <div class="multi-select-option" data-id="${item.id}">
@@ -948,7 +905,7 @@
             if (state.selectedItems.length === 0) {
                 text.textContent = '선택하세요';
             } else {
-                const items = state.viewType === 'employee' ? sampleData.employees : sampleData.clients;
+                const items = state.viewType === 'employee' ? sampleData.employees : state.viewType === 'client' ? sampleData.clients : sampleData.varieties;
                 const selectedNames = state.selectedItems.map(id => {
                     const item = items.find(i => i.id === id);
                     return item ? item.name : '';
@@ -1081,8 +1038,8 @@
                 }
             } else {
                 // 사원별/거래처별
-                const items = state.viewType === 'employee' ? sampleData.employees : sampleData.clients;
-                const dataKey = state.viewType === 'employee' ? 'employees' : 'clients';
+                const items = state.viewType === 'employee' ? sampleData.employees : state.viewType === 'client' ? sampleData.clients : sampleData.varieties;
+                const dataKey = state.viewType === 'employee' ? 'employees' : state.viewType === 'client' ? 'clients' : 'varieties';
 
                 // 선택된 항목만 표시 (선택 없으면 빈 배열)
                 const itemsToShow = state.selectedItems.length > 0
@@ -1273,7 +1230,7 @@
                             // 선택 안내 메시지
                             title: {
                                 display: isEmptySelection,
-                                text: state.viewType === 'employee' ? '사원을 선택하세요' : '거래처를 선택하세요',
+                                text: state.viewType === 'employee' ? '사원을 선택하세요' : state.viewType === 'client' ? '거래처를 선택하세요' : '품종을 선택하세요',
                                 font: { size: 16 },
                                 color: '#95a5a6',
                                 padding: { top: 150 }
@@ -1382,7 +1339,6 @@
         updateMultiSelect();
         updateBarChartButton();
         updateChart();
-    
-</script>
+    </script>
 </body>
 </html>

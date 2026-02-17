@@ -1,31 +1,57 @@
 <script setup>
-const orders = [
-  { no: 'OD-2026-0210-001', date: '2026년 2월 10일', status: '처리 중', statusClass: 'processing', summary: '고추 품종 A-123 × 500kg · 토마토 품종 B-456 × 300kg 외 1건', amount: '₩12,500,000', action: '상세 보기' },
-  { no: 'OD-2026-0209-002', date: '2026년 2월 9일', status: '승인 대기', statusClass: 'pending', summary: '배추 품종 C-789 × 400kg · 상추 품종 D-012 × 200kg', amount: '₩8,300,000', action: '주문 취소' },
-  { no: 'OD-2026-0207-003', date: '2026년 2월 7일', status: '완료', statusClass: 'completed', summary: '오이 품종 E-345 × 150kg · 가지 품종 F-678 × 100kg', amount: '₩5,600,000', action: '재주문' },
-]
+import { computed, onMounted, ref } from 'vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { getClientDashboard } from '@/api/dashboard'
 
-const billings = [
-  { no: 'IN-2026-0210-001', due: '기한 2026.02.17 (D-6)', amount: '₩12,500,000', status: '결제 대기', type: 'due-soon' },
-  { no: 'IN-2026-0208-002', due: '기한 2026.02.22 (D-11)', amount: '₩8,300,000', status: '결제 대기', type: 'due-soon' },
-  { no: 'IN-2026-0205-003', due: '2026.02.05 완료', amount: '₩11,200,000', status: '결제 완료', type: 'paid' },
-]
+const dashboard = ref(null)
+const loading = ref(false)
+const error = ref('')
 
-const notifications = [
-  { time: '5분 전', title: '견적서 승인 완료', detail: 'QT-2026-0210-002가 승인되었습니다.', isNew: true },
-  { time: '1시간 전', title: '청구서 발급', detail: 'IN-2026-0210-001이 발급되었습니다. · ₩12,500,000', isNew: true },
-  { time: '3시간 전', title: '주문서 처리 시작', detail: 'OD-2026-0210-001 처리가 시작되었습니다.', isNew: true },
-  { time: '어제', title: '명세서 발급', detail: 'ST-2026-0209-001이 발급되었습니다.', isNew: false },
-  { time: '2일 전', title: '계약서 승인 완료', detail: 'CT-2026-0208-001이 승인되었습니다.', isNew: false },
-]
+const orders = computed(() => dashboard.value?.orders ?? [])
+const billings = computed(() => dashboard.value?.billings ?? [])
+const notifications = computed(() => dashboard.value?.notifications ?? [])
+const title = computed(() => dashboard.value?.title || '내 거래 현황')
+const subtitle = computed(() => dashboard.value?.subtitle || '')
+const billingCycleValue = computed(() => dashboard.value?.billingCycle?.value || '-')
+const billingCycleNext = computed(() => dashboard.value?.billingCycle?.next || '-')
+const hasData = computed(() => orders.value.length || billings.value.length || notifications.value.length)
+
+const fetchDashboard = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    dashboard.value = await getClientDashboard()
+  } catch (e) {
+    error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchDashboard)
 </script>
 
 <template>
-  <section class="dashboard-shell">
+  <section v-if="loading" class="dashboard-shell">
+    <LoadingSpinner text="거래처 대시보드를 불러오는 중입니다." />
+  </section>
+
+  <section v-else-if="error" class="dashboard-shell">
+    <ErrorMessage :message="error" @retry="fetchDashboard" />
+  </section>
+
+  <section v-else-if="!hasData" class="dashboard-shell">
+    <EmptyState title="표시할 거래 데이터가 없습니다." description="데이터 등록 후 다시 확인해주세요." />
+  </section>
+
+  <section v-else class="dashboard-shell">
     <div class="dashboard-header">
       <div>
-        <div class="dashboard-title">내 거래 현황</div>
-        <div class="dashboard-subtitle">대농농협 · 2026년 2월 11일</div>
+        <div class="dashboard-title">{{ title }}</div>
+        <div class="dashboard-subtitle">{{ subtitle }}</div>
       </div>
     </div>
 
@@ -63,9 +89,9 @@ const notifications = [
           <div class="billing-cycle-row">
             <div>
               <div class="billing-cycle-label">청구 사이클</div>
-              <div class="billing-cycle-value">월별 (매월 15일)</div>
+              <div class="billing-cycle-value">{{ billingCycleValue }}</div>
             </div>
-            <div class="billing-cycle-next">다음 청구일 2월 15일</div>
+            <div class="billing-cycle-next">{{ billingCycleNext }}</div>
           </div>
 
           <div class="billing-list">
@@ -86,7 +112,7 @@ const notifications = [
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">최근 알림</span>
-          <span class="panel-badge">5건</span>
+          <span class="panel-badge">{{ notifications.length }}건</span>
         </div>
         <div class="notif-list">
           <div v-for="item in notifications" :key="item.time + item.title" class="notif-item" :class="item.isNew ? 'new' : ''">

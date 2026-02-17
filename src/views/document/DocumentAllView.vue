@@ -33,12 +33,17 @@ const normalizeStatus = (status) => {
 }
 
 const sourceRows = computed(() => {
+  const formatAmount = (value) => {
+    const amount = Number(value || 0)
+    return amount > 0 ? `${amount.toLocaleString()}원` : '-'
+  }
+
   const dynamicRows = [
     ...documentStore.quotationRequests.map((doc) => ({
       id: doc.id,
       type: '견적요청서',
       date: doc.createdAt,
-      amount: doc.totalAmount > 0 ? `${doc.totalAmount.toLocaleString()}원` : '-',
+      amount: formatAmount(doc.totalAmount),
       status: normalizeStatus(doc.status),
       remark: doc.requirements || '',
       rejectReason: '',
@@ -47,7 +52,7 @@ const sourceRows = computed(() => {
       id: doc.id,
       type: '견적서',
       date: doc.createdAt,
-      amount: `${doc.totalAmount.toLocaleString()}원`,
+      amount: formatAmount(doc.totalAmount),
       status: normalizeStatus(doc.status),
       remark: doc.memo || '',
       rejectReason: '',
@@ -56,7 +61,7 @@ const sourceRows = computed(() => {
       id: doc.id,
       type: '계약서',
       date: doc.createdAt,
-      amount: `${doc.totalAmount.toLocaleString()}원`,
+      amount: formatAmount(doc.totalAmount),
       status: normalizeStatus(doc.status),
       remark: doc.specialTerms || '',
       rejectReason: '',
@@ -65,7 +70,7 @@ const sourceRows = computed(() => {
       id: doc.id,
       type: '주문서',
       date: doc.createdAt,
-      amount: `${doc.totalAmount.toLocaleString()}원`,
+      amount: formatAmount(doc.totalAmount),
       status: normalizeStatus(doc.status),
       remark: doc.memo || '',
       rejectReason: '',
@@ -76,7 +81,7 @@ const sourceRows = computed(() => {
         id: `${doc.id}-S`,
         type: '명세서',
         date: doc.createdAt,
-        amount: `${doc.totalAmount.toLocaleString()}원`,
+        amount: formatAmount(doc.totalAmount),
         status: '발행완료',
         remark: doc.remarks || '',
         rejectReason: '',
@@ -85,7 +90,7 @@ const sourceRows = computed(() => {
       id: doc.id,
       type: '청구서',
       date: doc.createdAt,
-      amount: `${doc.totalAmount.toLocaleString()}원`,
+      amount: formatAmount(doc.totalAmount),
       status: normalizeStatus(doc.status),
       remark: doc.remarks || '',
       rejectReason: '',

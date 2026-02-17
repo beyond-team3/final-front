@@ -1,43 +1,64 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import DashboardCalendar from '@/components/dashboard/DashboardCalendar.vue'
 import DashboardReference from '@/components/dashboard/DashboardReference.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { getSalesRepDashboard } from '@/api/dashboard'
 
-const monthlyBars = [
-  { month: '9월', height: 38 },
-  { month: '10월', height: 52 },
-  { month: '11월', height: 45 },
-  { month: '12월', height: 60 },
-  { month: '1월', height: 48 },
-  { month: '2월', height: 56, current: true },
-]
-
-const billings = [
-  { client: '대농농협', docNo: 'CT-2026-0210-001', amount: '₩12,500,000', status: '청구 가능', type: 'ready' },
-  { client: '해뜰농장', docNo: 'OD-2026-0210-003', amount: '₩8,300,000', status: '승인 대기', type: 'pending' },
-  { client: '초록농원', docNo: 'OD-2026-0209-002', amount: '₩5,600,000', status: '청구 가능', type: 'ready' },
-  { client: '풍년농장', docNo: 'CT-2026-0210-002', amount: '₩6,700,000', status: '계약 작성 중', type: 'pending' },
-  { client: '황금들판', docNo: 'IN-2026-0207-001', amount: '₩15,200,000', status: '청구 완료', type: 'done' },
-]
-
-const timelineFilters = ['전체', '견적', '계약', '주문']
+const dashboard = ref(null)
+const loading = ref(false)
+const error = ref('')
 const selectedTimelineFilter = ref('전체')
 
-const timeline = [
-  { date: '2시간 전', title: '계약서 승인 완료 - 대농농협', detail: 'CT-2026-0210-001 · ₩12,500,000', state: 'completed' },
-  { date: '5시간 전', title: '견적서 승인 대기 중 - 해뜰농장', detail: 'QT-2026-0210-003 · ₩8,300,000', state: 'pending' },
-  { date: '어제', title: '주문서 발행 완료 - 초록농원', detail: 'OD-2026-0209-002 · ₩5,600,000', state: 'completed' },
-  { date: '2일 전', title: '견적요청서 접수 - 풍년농장', detail: 'RQ-2026-0208-001 · 고추 종자 외 3건', state: 'completed' },
-  { date: '3일 전', title: '청구서 발급 완료 - 황금들판', detail: 'IN-2026-0207-001 · ₩15,200,000', state: 'completed' },
-]
+const timelineFilters = computed(() => dashboard.value?.timelineFilters ?? ['전체', '견적', '계약', '주문'])
+const monthlyBars = computed(() => dashboard.value?.monthlyBars ?? [])
+const billings = computed(() => dashboard.value?.billings ?? [])
+const timeline = computed(() => dashboard.value?.timeline ?? [])
+const headerTitle = computed(() => dashboard.value?.header?.title || '내 영업 현황')
+const headerSubtitle = computed(() => dashboard.value?.header?.subtitle || '')
+const periodLabel = computed(() => dashboard.value?.monthlySales?.periodLabel || '')
+const monthlyAmount = computed(() => dashboard.value?.monthlySales?.amount || '-')
+const monthlyChange = computed(() => dashboard.value?.monthlySales?.change || '-')
+const monthlyDiff = computed(() => dashboard.value?.monthlySales?.diff || '-')
+const monthlyCompleted = computed(() => dashboard.value?.monthlySales?.completedCount || '-')
+const hasData = computed(() => monthlyBars.value.length || billings.value.length || timeline.value.length)
+
+const fetchDashboard = async () => {
+  loading.value = true
+  error.value = ''
+
+  try {
+    dashboard.value = await getSalesRepDashboard()
+  } catch (e) {
+    error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchDashboard)
 </script>
 
 <template>
-  <section class="dashboard-shell">
+  <section v-if="loading" class="dashboard-shell">
+    <LoadingSpinner text="영업 대시보드를 불러오는 중입니다." />
+  </section>
+
+  <section v-else-if="error" class="dashboard-shell">
+    <ErrorMessage :message="error" @retry="fetchDashboard" />
+  </section>
+
+  <section v-else-if="!hasData" class="dashboard-shell">
+    <EmptyState title="표시할 영업 데이터가 없습니다." description="데이터 등록 후 다시 확인해주세요." />
+  </section>
+
+  <section v-else class="dashboard-shell">
     <div class="dashboard-header">
       <div>
-        <div class="dashboard-title">내 영업 현황</div>
-        <div class="dashboard-subtitle">김영업 · 2026년 2월 기준</div>
+        <div class="dashboard-title">{{ headerTitle }}</div>
+        <div class="dashboard-subtitle">{{ headerSubtitle }}</div>
       </div>
     </div>
 
@@ -45,12 +66,12 @@ const timeline = [
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">개인 월별 매출</span>
-          <span class="panel-badge">2026년 2월</span>
+          <span class="panel-badge">{{ periodLabel }}</span>
         </div>
         <div class="monthly-sales-summary">
           <div class="monthly-main-row">
-            <div class="monthly-amount">₩456,000,000</div>
-            <div class="monthly-change">▲ 15.2% 전월 대비</div>
+            <div class="monthly-amount">{{ monthlyAmount }}</div>
+            <div class="monthly-change">{{ monthlyChange }}</div>
           </div>
 
           <div class="monthly-bar-chart">
@@ -63,11 +84,11 @@ const timeline = [
           <div class="monthly-meta">
             <div class="monthly-meta-item">
               <div class="monthly-meta-label">전월 대비 증감</div>
-              <div class="monthly-meta-value">+₩62,000,000</div>
+              <div class="monthly-meta-value">{{ monthlyDiff }}</div>
             </div>
             <div class="monthly-meta-item">
               <div class="monthly-meta-label">완료 계약 건수</div>
-              <div class="monthly-meta-value">18건</div>
+              <div class="monthly-meta-value">{{ monthlyCompleted }}</div>
             </div>
           </div>
         </div>
@@ -76,7 +97,7 @@ const timeline = [
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">이번달 청구 대상 계약</span>
-          <span class="panel-badge">5건</span>
+          <span class="panel-badge">{{ billings.length }}건</span>
         </div>
         <div class="billing-list">
           <div

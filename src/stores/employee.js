@@ -1,79 +1,91 @@
-import { ref } from 'vue'
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import {
   createEmployee,
+  getEmployeeDetail,
   getEmployees,
   updateEmployee as updateEmployeeApi,
 } from '@/api/employee'
 
-function nowString() {
-  const now = new Date()
-  const yyyy = now.getFullYear()
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const dd = String(now.getDate()).padStart(2, '0')
-  const hh = String(now.getHours()).padStart(2, '0')
-  const min = String(now.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}`
+function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
+  return error?.response?.data?.message || error?.message || fallback
 }
 
-function toEmployeeEntity(payload, nextNumber) {
+function makeTempEmployee(payload = {}) {
   return {
-    id: `E-${String(nextNumber).padStart(3, '0')}`,
+    id: `temp-${Date.now()}`,
     name: payload.empName,
     email: payload.empEmail,
     phone: payload.empPhone || '-',
     address: payload.empAddress || '-',
     status: 'ACTIVE',
-    createdAt: nowString(),
+    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
   }
 }
 
 export const useEmployeeStore = defineStore('employee', () => {
   const employees = ref([])
+  const currentEmployee = ref(null)
   const loading = ref(false)
   const error = ref(null)
 
-  const getEmployeeById = (id) => employees.value.find((employee) => employee.id === id)
+  const getEmployeeById = (id) => employees.value.find((employee) => String(employee.id) === String(id))
 
   async function fetchEmployees(params) {
     loading.value = true
     error.value = null
 
     try {
-      const { data } = await getEmployees(params)
-      employees.value = data
+      const result = await getEmployees(params)
+      employees.value = Array.isArray(result) ? result : []
+      return employees.value
     } catch (e) {
-      error.value = e
+      error.value = getErrorMessage(e, '사원 목록을 불러오지 못했습니다.')
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchEmployeeDetail(id) {
+    loading.value = true
+    error.value = null
+
+    try {
+      currentEmployee.value = await getEmployeeDetail(id)
+      return currentEmployee.value
+    } catch (e) {
+      error.value = getErrorMessage(e, '사원 상세를 불러오지 못했습니다.')
+      throw e
     } finally {
       loading.value = false
     }
   }
 
   const addEmployee = (payload) => {
-    const optimistic = toEmployeeEntity(payload, employees.value.length + 1)
+    const optimistic = makeTempEmployee(payload)
     employees.value.unshift(optimistic)
 
     createEmployee(payload)
-      .then(({ data }) => {
-        if (!data) {
-          return
-        }
-
-        const index = employees.value.findIndex((employee) => employee.id === optimistic.id)
-        if (index >= 0) {
-          employees.value[index] = data
+      .then((created) => {
+        const idx = employees.value.findIndex((item) => item.id === optimistic.id)
+        if (idx >= 0 && created) {
+          employees.value[idx] = created
         }
       })
       .catch((e) => {
-        error.value = e
+        error.value = getErrorMessage(e, '사원 등록에 실패했습니다.')
+        employees.value = employees.value.filter((item) => item.id !== optimistic.id)
       })
 
     return optimistic.id
   }
 
   const updateEmployee = (id, patch) => {
+    const previous = employees.value.find((employee) => String(employee.id) === String(id))
+
     employees.value = employees.value.map((employee) => {
-      if (employee.id !== id) {
+      if (String(employee.id) !== String(id)) {
         return employee
       }
 
@@ -83,19 +95,47 @@ export const useEmployeeStore = defineStore('employee', () => {
       }
     })
 
-    updateEmployeeApi(id, patch).catch((e) => {
-      error.value = e
-    })
+    updateEmployeeApi(id, patch)
+      .then((updated) => {
+        if (!updated) {
+          return
+        }
+
+        employees.value = employees.value.map((employee) => {
+          if (String(employee.id) !== String(id)) {
+            return employee
+          }
+
+          return {
+            ...employee,
+            ...updated,
+          }
+        })
+      })
+      .catch((e) => {
+        error.value = getErrorMessage(e, '사원 수정에 실패했습니다.')
+
+        if (previous) {
+          employees.value = employees.value.map((employee) => {
+            if (String(employee.id) !== String(id)) {
+              return employee
+            }
+            return previous
+          })
+        }
+      })
   }
 
   void fetchEmployees()
 
   return {
     employees,
+    currentEmployee,
     loading,
     error,
     getEmployeeById,
     fetchEmployees,
+    fetchEmployeeDetail,
     addEmployee,
     updateEmployee,
   }

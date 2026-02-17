@@ -1,7 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import DataTable from '@/components/common/DataTable.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SearchFilter from '@/components/common/SearchFilter.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -9,6 +13,7 @@ import { useEmployeeStore } from '@/stores/employee'
 
 const router = useRouter()
 const employeeStore = useEmployeeStore()
+const { employees, loading, error } = storeToRefs(employeeStore)
 
 const filters = ref({
   keyword: '',
@@ -40,7 +45,7 @@ const columns = [
 ]
 
 const rows = computed(() => {
-  return employeeStore.employees.filter((employee) => {
+  return employees.value.filter((employee) => {
     const keyword = filters.value.keyword.trim().toLowerCase()
     const matchKeyword =
       !keyword ||
@@ -57,6 +62,16 @@ const rows = computed(() => {
 const openDetail = (employee) => {
   router.push(`/employees/${employee.id}`)
 }
+
+const fetchEmployees = async () => {
+  try {
+    await employeeStore.fetchEmployees()
+  } catch (e) {
+    // error state is managed by store
+  }
+}
+
+onMounted(fetchEmployees)
 </script>
 
 <template>
@@ -75,7 +90,18 @@ const openDetail = (employee) => {
 
     <SearchFilter v-model="filters" :fields="filterFields" search-label="조회" reset-label="초기화" />
 
+    <LoadingSpinner v-if="loading" text="사원 목록을 불러오는 중입니다." />
+
+    <ErrorMessage v-else-if="error" :message="error" @retry="fetchEmployees" />
+
+    <EmptyState
+      v-else-if="rows.length === 0"
+      title="등록된 사원이 없습니다."
+      description="신규 사원을 등록한 뒤 다시 확인해주세요."
+    />
+
     <DataTable
+      v-else
       :columns="columns"
       :rows="rows"
       row-key="id"
