@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getClients } from '@/api/client'
-import {
+import { updateNote as updateNoteApi,
   createNote as createNoteApi,
   getAIBriefing,
   getNotes,
