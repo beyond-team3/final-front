@@ -53,7 +53,7 @@ const closeDetail = () => {
 }
 
 const goEdit = (id) => {
-  router.push({ name: 'note-write', query: { editId: id } })
+  router.push({ name: 'notes', query: { editId: id } })
 }
 </script>
 
