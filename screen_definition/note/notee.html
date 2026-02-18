@@ -51,8 +51,8 @@
         <!-- Note Creation Screen -->
         <div id="sec-write" class="screen-content">
             <h2 class="text-2xl font-bold mb-6">영업 활동 기록</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 bg-white p-8 rounded-lg shadow-sm">
+            <div class="grid grid-cols-1">
+                <div class="bg-white p-8 rounded-lg shadow-sm">
                     <div class="space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -81,16 +81,12 @@
                         </div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-                    <h4 class="font-bold text-sky-600 mb-4 border-b pb-3 flex items-center"><i class="fas fa-sparkles mr-2"></i> AI 실시간 요약</h4>
-                    <div id="realtime-summary" class="text-sm text-slate-500 italic">저장 시 AI가 핵심 내용을 요약합니다.</div>
-                </div>
             </div>
         </div>
 
         <!-- Note List Screen -->
         <div id="sec-list" class="screen-content hidden">
-            <h2 class="text-2xl font-bold mb-6">활동 기록 탐색</h2>
+            <h2 class="text-2xl font-bold mb-6">영업 노트 탐색</h2>
             <div class="bg-white p-5 rounded-lg shadow-sm border mb-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
@@ -117,8 +113,8 @@
                     </div>
                     <div class="flex space-x-2">
                         <select id="filter-sort" onchange="renderNotes()" class="w-full border-slate-300 p-2 rounded text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
-                            <option value="desc">최신순</option>
-                            <option value="asc">오래된순</option>
+                            <option value="asc">최신순</option>
+                            <option value="desc">오래된순</option>
                         </select>
                         <button onclick="resetFilters()" title="필터 초기화" class="w-10 bg-slate-200 text-slate-600 rounded text-sm hover:bg-slate-300 transition-colors"><i class="fas fa-rotate-left"></i></button>
                     </div>
@@ -141,7 +137,7 @@
                     <div class="bg-gradient-to-r from-slate-700 to-slate-800 p-8 rounded-lg text-white shadow-lg">
                         <div class="flex justify-between items-start">
                              <div><h3 id="b-client-name" class="text-3xl font-bold mb-1"></h3><p class="text-slate-300 text-sm">AI 전략 분석 리포트</p></div>
-                             <span class="text-xs font-bold bg-sky-500/80 px-3 py-1 rounded-full">AI Model v3.2</span>
+
                         </div>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -166,7 +162,10 @@
     <div class="modal-overlay fixed inset-0" onclick="closeModal()"></div>
     <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col z-10">
         <div class="flex justify-between items-center p-5 border-b">
-            <h3 class="text-xl font-bold">활동 노트 원문</h3>
+            <div class="flex items-center">
+                <h3 id="modal-note-title" class="text-xl font-bold">영업 노트 원문</h3>
+                <span id="modal-edited-badge" class="ml-3 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full hidden">수정됨</span>
+            </div>
             <button onclick="closeModal()" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
         </div>
         <div class="p-8 overflow-y-auto">
@@ -187,6 +186,23 @@
     </div>
 </div>
 
+<!-- AI Summary Modal -->
+<div id="ai-summary-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="modal-overlay fixed inset-0" onclick="closeAiSummaryModal()"></div>
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden z-10">
+        <div class="p-5 border-b bg-slate-50">
+            <h3 class="text-xl font-bold flex items-center"><i class="fas fa-sparkles text-sky-500 mr-3"></i>AI 요약 분석 결과</h3>
+        </div>
+        <div class="p-8">
+            <p class="text-sm text-slate-600 mb-4">새로운 영업 활동 노트가 저장되었으며, AI가 분석한 핵심 요약은 다음과 같습니다.</p>
+            <div id="ai-summary-content" class="bg-sky-50 border border-sky-200 p-6 rounded-lg text-slate-700 space-y-2"></div>
+        </div>
+        <div class="p-4 bg-slate-50 border-t text-right">
+             <button onclick="closeAiSummaryModal()" class="bg-sky-600 text-white px-6 py-2 rounded-md font-bold hover:bg-sky-700">확인</button>
+        </div>
+    </div>
+</div>
+
 <script>
     // --- DATABASE ---
     const db = {
@@ -196,6 +212,7 @@
             "c3": { name: "대산종묘", type: "대리점" },
             "c4": { name: "푸른들 종자", type: "대리점" },
             "c5": { name: "해오름 농원", type: "육묘장" },
+            "c6": { name: "OO육묘장 (C-001)", type: "육묘장" },
         },
         contracts: {
             "c1": ["2026년 고추종자 공급", "여름 대목용 종자 수급"],
@@ -203,8 +220,45 @@
             "c3": ["신품종 토마토 시범재배", "상토 및 비료 공급"],
             "c4": ["양파/대파 종자 총판", "월동배추 사전계약"],
             "c5": ["방울토마토 모종 계약"],
+            "c6": ["2026년 봄작기 고추 계약", "하반기 토마토 종자 공급 계약"],
         },
         notes: [
+            {
+                id: 101,
+                clientId: "c6",
+                contract: "2026년 봄작기 고추 계약",
+                date: "2026-02-12",
+                content: "봄작기 물량 협의. A품종 35만립 요청. 작년 발아 문제로 품질 보증 요구 강함. 경쟁사 B사에서 단가 인하 제안 들어온 상태.",
+                summary: [
+                    "A품종 35만립 요청",
+                    "발아 품질 보증 요구",
+                    "경쟁사 단가 인하 제안 존재"
+                ]
+            },
+            {
+                id: 102,
+                clientId: "c6",
+                contract: "2026년 봄작기 고추 계약",
+                date: "2026-02-05",
+                content: "기존 B품종 생육 균일도 이슈 언급. 차기 계약 시 개선 요구. 연구소 테스트 데이터 요청.",
+                summary: [
+                    "B품종 균일도 이슈",
+                    "차기 계약 개선 요구",
+                    "연구소 테스트 데이터 요청"
+                ]
+            },
+            {
+                id: 103,
+                clientId: "c6",
+                contract: "하반기 토마토 종자 공급 계약",
+                date: "2026-01-25",
+                content: "토마토 신품종 TY-프라임 관심 표명. 당도 및 저장성 데이터 공유 요청. 시범재배 검토 중.",
+                summary: [
+                    "TY-프라임 관심 표명",
+                    "당도·저장성 데이터 요청",
+                    "시범재배 검토 단계"
+                ]
+            },
             { id: 1, clientId: "c1", contract: "2026년 고추종자 공급", date: "2026-02-12", content: "차주 방문하여 고추 신품종 '빅파이어'의 샘플 전달 예정. 작년 탄저병 피해에 대한 우려가 크셔서, 저항성 품종에 대한 관심이 높음. '빅파이어'가 탄저병 및 칼라병 복합 저항성 품종임을 집중적으로 어필. 샘플 테스트 후 긍정적 반응일 시, 내년 주력 품종으로의 전환 가능성 타진.", summary: ["'빅파이어' 샘플 전달 약속", "탄저병 저항성에 높은 관심 확인", "차기 주력 품종 전환 가능성"] },
             { id: 2, clientId: "c2", contract: "지역특화 오이종자 계약", date: "2026-02-11", content: "원예농협 조합장님과 미팅. 기존 '백다다기' 품종의 작황 변동성에 대한 조합원 불만이 일부 접수됨. 새로운 품종으로 '여름청'을 제안. 내열성, 내병성이 우수하고 수확량이 안정적이라는 점을 데이터와 함께 설명. 소규모 시범재배 후, 조합원 대상 설명회 개최를 제안하여 긍정적인 답변을 받음.", summary: ["'백다다기' 품종 불만 접수", "'여름청' 품종 제안 및 데이터 설명", "시범재배 및 설명회 개최 합의"] },
             { id: 3, clientId: "c1", contract: "2026년 고추종자 공급", date: "2026-01-20", content: "유선 통화. 작년 납품했던 '슈퍼마니따' 품종의 발아율이 기대보다 낮았다는 클레임 제기. 원인 파악을 위해 육묘장 환경(온도, 습도, 상토)에 대한 정보를 요청. 당사 연구소에 데이터 전달하여 정확한 원인 분석 후 피드백 약속. 신뢰 회복이 우선.", summary: ["'슈퍼마ni따' 발아율 클레임", "육묘 환경 데이터 요청", "원인 분석 및 피드백 약속"] },
@@ -213,14 +267,38 @@
             { id: 6, clientId: "c1", contract: "여름 대목용 종자 수급", date: "2026-02-01", content: "대목용 종자 '흥선대원'의 재고가 얼마 남지 않았다는 소식을 듣고 방문. 경쟁사에서 비슷한 품종을 더 저렴하게 제안했다는 정보를 입수. 우리는 가격 대신 품종의 순도와 발아율 보증을 강하게 어필. 결국 기존 물량에 5% 추가 계약 성공.", summary: ["경쟁사 저가 제안 정보 입수", "품질 우위로 대응", "5% 추가 계약 성공"] },
         ],
         briefings: {
+            "c6": {
+                statusChange: `
+        <p>• 최근 봄작기 A품종 물량 35만립 요청으로 계약 확대 의지 확인.</p>
+        <p>• 작년 발아 이슈로 품질 신뢰 회복이 핵심 과제로 작용.</p>
+        <p>• 경쟁사 단가 인하 제안 존재로 가격 압박 요인 발생.</p>
+    `,
+                pattern: `
+        <p>• 데이터 기반 의사결정을 선호하며, 품질 관련 이슈에 매우 민감함.</p>
+        <p>• 신품종 도입에는 적극적이나 반드시 사전 테스트를 요구하는 경향.</p>
+    `,
+                strategy: `
+        발아율 및 균일도 관련 공인 시험 데이터를 우선 제공하여 신뢰 회복을 최우선 목표로 설정.
+        경쟁사 대비 가격 경쟁 대신 품질 보증 및 장기 공급 안정성을 강조하는 전략 권장.
+        TY-프라임 시범재배 제안서를 구체화하여 교차 판매 기회 확보 필요.
+    `,
+                recentNoteIds: [101, 102]
+            },
+
             "c1": {
                 statusChange: "<p>• 최근 '빅파이어' 고추 신품종에 대한 강한 도입 의지를 보임. 탄저병 저항성이 핵심 결정 요인으로 작용.</p><p>• 과거 '슈퍼마니따' 품종의 발아율 클레임 이력이 있어, 데이터 기반의 신뢰성 확보가 중요.</p>",
                 pattern: "<p>• 안정적인 대량 공급처로서, 신품종 테스트에 적극적이나 품질 문제에 민감하게 반응하는 경향.</p><p>• 가격보다는 품종의 기능성(내병성, 수확량)을 더 중요하게 고려함.</p>",
                 strategy: "차주 '빅파이어' 샘플 전달 시, 발아율 및 저항성 관련 공인 데이터를 반드시 함께 제공하여 과거 클레임에 대한 우려를 해소하고 전문성을 부각해야 함. 성공적인 테스트 이후, 주력 품종 전환을 위한 프로모션 제안 준비 필요.",
                 recentNoteIds: [1, 3]
             }
+
         }
     };
+    
+    // --- STATE MANAGEMENT ---
+    let isEditMode = false;
+    let editingNoteId = null;
+
 
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', init);
@@ -276,7 +354,7 @@
     }
 
     // --- DATA & UI SYNC ---
-    function syncContracts(type) {
+    function syncContracts(type, selectedContract = "") {
         const clientId = document.getElementById(type === 'in' ? 'in-client' : 'filter-client').value;
         const select = document.getElementById(type === 'in' ? 'in-contract' : 'filter-contract');
         
@@ -284,9 +362,12 @@
         if (clientId && db.contracts[clientId]) {
             db.contracts[clientId].forEach(c => select.add(new Option(c, c)));
         }
+        if (selectedContract) {
+            select.value = selectedContract;
+        }
     }
 
-    // --- NOTE CREATION ---
+    // --- NOTE CREATION & EDIT ---
     async function saveNote() {
         const clientId = document.getElementById('in-client').value;
         const contract = document.getElementById('in-contract').value;
@@ -299,10 +380,12 @@
         }
 
         const btn = document.getElementById('saveBtn');
-        btn.innerHTML = '<div class="loader w-5 h-5 border-2 rounded-full"></div>';
+        const originalBtnText = btn.innerHTML;
+        
+        btn.innerHTML = `<div class="loader w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div> ${isEditMode ? '수정' : '분석'} 중...`;
         btn.disabled = true;
 
-        // Mock AI Summary Generation
+        // AI 분석 시뮬레이션
         setTimeout(() => {
             const mockSummaries = [
                 ["신규 품종 제안 및 긍정적 반응", "샘플 테스트 일정 조율", "경쟁사 동향 파악"],
@@ -311,24 +394,102 @@
             ];
             const selectedSummary = mockSummaries[Math.floor(Math.random() * mockSummaries.length)];
 
-            const newNote = {
-                id: Date.now(),
-                clientId,
-                contract,
-                content,
-                summary: selectedSummary,
-                date
-            };
-            db.notes.unshift(newNote);
+            if (isEditMode) {
+                // 수정 로직
+                const noteIndex = db.notes.findIndex(n => n.id === editingNoteId);
+                if (noteIndex > -1) {
+                    const updatedNote = {
+                        ...db.notes[noteIndex],
+                        clientId,
+                        contract: contract || "일반 상담",
+                        content,
+                        date,
+                        summary: selectedSummary, // AI 요약 자동 갱신
+                        isEdited: true,
+                        updatedAt: new Date().toISOString()
+                    };
+                    db.notes[noteIndex] = updatedNote;
+                    updateBriefing(updatedNote, true);
+                }
+            } else {
+                // 신규 생성 로직
+                const newNote = {
+                    id: Date.now(),
+                    clientId,
+                    contract: contract || "일반 상담",
+                    content,
+                    summary: selectedSummary,
+                    date
+                };
+                db.notes.unshift(newNote);
+                updateBriefing(newNote, false);
+            }
             
-            updateBriefing(newNote);
-
-            document.getElementById('realtime-summary').innerHTML = `<ul class="list-disc list-inside space-y-1.5 text-slate-600">${selectedSummary.map(s => `<li>${s}</li>`).join('')}</ul>`;
-            btn.innerHTML = '<i class="fas fa-save mr-2"></i> 저장 및 AI 분석';
+            const summaryHtml = `
+            <ul class="space-y-3">
+                ${selectedSummary.map(s => `
+                    <li class="flex items-start">
+                        <i class="fas fa-check-circle text-sky-500 mt-1 mr-3"></i>
+                        <span class="font-medium text-slate-700">${s}</span>
+                    </li>
+                `).join('')}
+            </ul>`;
+            document.getElementById('ai-summary-content').innerHTML = summaryHtml;
+            document.querySelector('#ai-summary-modal .text-sm').textContent = `영업 활동 노트가 성공적으로 ${isEditMode ? '수정' : '저장'}되었으며, AI가 분석한 핵심 요약은 다음과 같습니다.`;
+            
+            const modal = document.getElementById('ai-summary-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            btn.innerHTML = originalBtnText;
             btn.disabled = false;
-            document.getElementById('in-content').value = "";
-            alert('성공적으로 저장되었습니다.');
-        }, 800);
+        }, 1200);
+    }
+    
+    function showEditNote(noteId) {
+        const note = db.notes.find(n => n.id === noteId);
+        if (!note) return;
+
+        isEditMode = true;
+        editingNoteId = noteId;
+
+        document.getElementById('in-client').value = note.clientId;
+        syncContracts('in', note.contract);
+        document.getElementById('in-date').value = note.date;
+        document.getElementById('in-content').value = note.content;
+        
+        document.querySelector('#sec-write h2').textContent = "영업 활동 수정";
+        const saveBtn = document.getElementById('saveBtn');
+        saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i> 수정 및 AI 재분석';
+        saveBtn.classList.remove('bg-sky-600', 'hover:bg-sky-700');
+        saveBtn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+
+        showSection('write');
+    }
+
+    function resetWriteForm() {
+        isEditMode = false;
+        editingNoteId = null;
+
+        document.getElementById('in-client').value = "";
+        document.getElementById('in-contract').innerHTML = '<option value="">계약 선택</option>';
+        document.getElementById('in-content').value = "";
+        document.getElementById('in-date').value = new Date().toISOString().split('T')[0];
+        
+        document.querySelector('#sec-write h2').textContent = "영업 활동 기록";
+        const saveBtn = document.getElementById('saveBtn');
+        saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i> 저장 및 AI 분석';
+        saveBtn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+        saveBtn.classList.add('bg-sky-600', 'hover:bg-sky-700');
+    }
+
+    function closeAiSummaryModal() {
+        const modal = document.getElementById('ai-summary-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        
+        resetWriteForm();
+        showSection('list');
     }
     
     // --- NOTE LIST & FILTER ---
@@ -350,7 +511,11 @@
             return matchClient && matchContract && matchDate && matchSearch;
         });
 
-        filtered.sort((a, b) => fSort === 'desc' ? b.id - a.id : a.id - b.id);
+        filtered.sort((a, b) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return fSort === 'desc' ? dateA - dateB : dateB - dateA;
+        });
 
         if (filtered.length === 0) {
             container.innerHTML = '<div class="col-span-full py-20 text-center text-slate-400"><i class="fas fa-box-open text-4xl mb-4"></i><p>조건에 맞는 기록이 없습니다.</p></div>';
@@ -358,18 +523,22 @@
         }
 
         container.innerHTML = filtered.map(n => `
-            <div class="border rounded-lg p-5 shadow-sm bg-white hover:shadow-md hover:border-sky-300 transition-all">
+            <div class="border rounded-lg p-5 shadow-sm bg-white hover:shadow-md hover:border-sky-300 transition-all relative">
                 <div class="flex justify-between items-start mb-3">
                     <span class="font-bold text-sky-600">${db.clients[n.clientId].name}</span>
                     <span class="text-xs text-slate-400 font-medium">${n.date}</span>
                 </div>
-                <div class="bg-slate-50 p-4 rounded-md mb-4">
+                <div class="bg-slate-
+                50 p-4 rounded-md mb-4">
                     <p class="text-xs text-slate-500 font-bold mb-1.5">AI 요약</p>
                     <p class="text-sm text-slate-600 line-clamp-2">${n.summary.join(', ')}</p>
                 </div>
                 <div class="flex justify-between items-center text-sm">
-                    <span class="text-slate-500 truncate max-w-[150px]"><i class="fa-regular fa-file-lines mr-2 text-slate-400"></i>${n.contract || '일반 상담'}</span>
-                    <button onclick="showNoteModal(${n.id})" class="text-sky-500 font-bold hover:underline">원문 보기</button>
+                    <span class="text-slate-500 truncate max-w-[120px]"><i class="fa-regular fa-file-lines mr-2 text-slate-400"></i>${n.contract || '일반 상담'}</span>
+                    <div class="space-x-3">
+                        <button onclick="showEditNote(${n.id})" class="text-amber-500 font-bold hover:underline">수정</button>
+                        <button onclick="showNoteModal(${n.id})" class="text-sky-500 font-bold hover:underline">원문 보기</button>
+                    </div>
                 </div>
             </div>
         `).join('');
@@ -380,7 +549,7 @@
         document.getElementById('filter-contract').innerHTML = '<option value="">모든 계약</option>';
         document.getElementById('filter-date-start').value = '';
         document.getElementById('filter-date-end').value = '';
-        document.getElementById('filter-sort').value = 'desc';
+        document.getElementById('filter-sort').value = 'asc';
         document.getElementById('search-keyword').value = '';
         renderNotes();
     }
@@ -393,6 +562,14 @@
         document.getElementById('modal-contract').innerText = note.contract || '일반 상담';
         document.getElementById('modal-date').innerText = note.date;
         document.getElementById('modal-content').innerText = note.content;
+        
+        const editedBadge = document.getElementById('modal-edited-badge');
+        if (note.isEdited) {
+            editedBadge.classList.remove('hidden');
+        } else {
+            editedBadge.classList.add('hidden');
+        }
+
         document.getElementById('note-modal').classList.remove('hidden');
         document.getElementById('note-modal').classList.add('flex');
     }
@@ -400,6 +577,7 @@
     function closeModal() {
         document.getElementById('note-modal').classList.add('hidden');
         document.getElementById('note-modal').classList.remove('flex');
+        document.getElementById('modal-edited-badge').classList.add('hidden'); // Hide the badge when modal closes
     }
     
     // --- BRIEFING ---
@@ -449,7 +627,8 @@
     
     function generateBriefing(clientId) {
         // Mock function to generate a full briefing from scratch
-        const clientNotes = db.notes.filter(n => n.clientId === clientId).sort((a, b) => b.id - a.id);
+        const clientNotes = db.notes.filter(n => n.clientId === clientId).sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (clientNotes.length < 2) return null;
         const lastNote = clientNotes[0];
         const secondLastNote = clientNotes[1];
 
@@ -462,19 +641,23 @@
         return briefing;
     }
     
-    function updateBriefing(newNote) {
-        // Mock function to update a briefing with a new note
-        const { clientId } = newNote;
+    function updateBriefing(note, isUpdate) {
+        const { clientId } = note;
         const clientNotes = db.notes.filter(n => n.clientId === clientId);
-        if (clientNotes.length < 3) return; // Not enough data to create/update briefing
+        if (clientNotes.length < 3) return;
 
-        const oldBriefing = db.briefings[clientId] || generateBriefing(clientId);
+        let oldBriefing = db.briefings[clientId];
+        if (!oldBriefing || isUpdate) {
+            oldBriefing = generateBriefing(clientId);
+        }
+        if(!oldBriefing) return;
 
+        const tag = isUpdate ? '수정' : '신규';
         const updatedBriefing = {
-            statusChange: `<p>• (신규) ${newNote.date} 활동: '${newNote.summary[0]}' 관련 논의가 진행되었습니다.</p>` + oldBriefing.statusChange,
-            pattern: oldBriefing.pattern, // Pattern is assumed to be long-term, so not updated frequently
-            strategy: `(신규 제안) '${newNote.summary[0]}' 건과 관련하여, 다음 미팅 시 ${newNote.summary[1]}에 대한 구체적인 안을 제시하는 것이 효과적일 것으로 보입니다.`,
-            recentNoteIds: [newNote.id, ...oldBriefing.recentNoteIds].slice(0, 2)
+            statusChange: `<p>• (${tag}) ${note.date} 활동: '${note.summary[0]}' 관련 논의가 진행되었습니다.</p>` + (oldBriefing.statusChange || ''),
+            pattern: oldBriefing.pattern,
+            strategy: `(${tag} 제안) '${note.summary[0]}' 건과 관련하여, 다음 미팅 시 ${note.summary[1]}에 대한 구체적인 안을 제시하는 것이 효과적일 것으로 보입니다.`,
+            recentNoteIds: [note.id, ...oldBriefing.recentNoteIds.filter(id => id !== note.id)].slice(0, 2)
         };
 
         db.briefings[clientId] = updatedBriefing;
