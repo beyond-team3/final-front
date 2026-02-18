@@ -135,52 +135,71 @@ export const useNoteStore = defineStore('note', () => {
     }
   }
 
-  const createNote = ({ clientId, contract, crop, variety, date, content }) => {
+  const createNote = async ({ clientId, contract, date, content }) => {
     const next = {
-      id: Date.now(),
       clientId,
-      contract: contract || '',
-      crop: crop || '',
-      variety: variety || '',
+      contract: contract || '일반 상담',
       date: date || today(),
       content,
       summary: generateSummary(content),
+      isEdited: false,
     }
 
-    notes.value.unshift(next)
-
-    if (clientId && contract) {
-      const nextContracts = new Set(contracts.value[clientId] || [])
-      nextContracts.add(contract)
-      contracts.value = {
-        ...contracts.value,
-        [clientId]: [...nextContracts],
+    try {
+      const created = await createNoteApi(next)
+      const noteWithSummary = {
+        ...created,
+        summary: Array.isArray(created.summary) ? created.summary : generateSummary(created.content),
       }
+      notes.value.unshift(noteWithSummary)
+
+      if (clientId && contract) {
+        const nextContracts = new Set(contracts.value[clientId] || [])
+        nextContracts.add(contract)
+        contracts.value = {
+          ...contracts.value,
+          [clientId]: [...nextContracts],
+        }
+      }
+      return noteWithSummary
+    } catch (e) {
+      error.value = getErrorMessage(e, '노트 저장에 실패했습니다.')
+      throw e
+    }
+  }
+
+  const updateNote = async (id, { clientId, contract, date, content }) => {
+    const next = {
+      clientId,
+      contract: contract || '일반 상담',
+      date: date || today(),
+      content,
+      summary: generateSummary(content),
+      isEdited: true,
+      updatedAt: new Date().toISOString(),
     }
 
-    createNoteApi(next)
-      .then((created) => {
-        if (!created) {
-          return
-        }
+    try {
+      const updated = await updateNoteApi(id, next)
+      const noteWithSummary = {
+        ...updated,
+        summary: Array.isArray(updated.summary) ? updated.summary : generateSummary(updated.content),
+      }
 
-        const idx = notes.value.findIndex((item) => item.id === next.id)
-        if (idx >= 0) {
-          notes.value[idx] = {
-            ...created,
-            summary: Array.isArray(created.summary) ? created.summary : generateSummary(created.content),
-          }
-        }
-      })
-      .catch((e) => {
-        error.value = getErrorMessage(e, '노트 저장에 실패했습니다.')
-      })
+      const idx = notes.value.findIndex((item) => item.id === id)
+      if (idx >= 0) {
+        notes.value[idx] = noteWithSummary
+      }
 
-    return next
+      return noteWithSummary
+    } catch (e) {
+      error.value = getErrorMessage(e, '노트 수정에 실패했습니다.')
+      throw e
+    }
   }
 
   const getNotesByClient = (clientId) => notes.value
-    .filter((note) => note.clientId === clientId)
+    .filter((note) => note.clientId === Number(clientId) || note.clientId === clientId)
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
 
   async function fetchBriefingByClient(clientId) {
@@ -196,8 +215,7 @@ export const useNoteStore = defineStore('note', () => {
       }
       return briefing
     } catch (e) {
-      error.value = getErrorMessage(e, '브리핑을 불러오지 못했습니다.')
-
+      // Fallback logic if API fails or returns 404
       const list = getNotesByClient(clientId)
       if (list.length >= 3) {
         const fallback = defaultBriefing(getClientName(clientId), list)
@@ -207,12 +225,12 @@ export const useNoteStore = defineStore('note', () => {
         }
         return fallback
       }
-
       return null
     }
   }
 
   const getBriefingByClient = (clientId) => {
+    if (!clientId) return null
     const list = getNotesByClient(clientId)
     if (list.length < 3) {
       return null
@@ -331,6 +349,7 @@ export const useNoteStore = defineStore('note', () => {
     getContractsByClient,
     generateSummary,
     createNote,
+    updateNote,
     getNotesByClient,
     getBriefingByClient,
     searchClientNotes,

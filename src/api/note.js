@@ -8,6 +8,10 @@ export function createNote(data) {
   return api.post('/notes', data)
 }
 
+export function updateNote(id, data) {
+  return api.put(`/notes/${id}`, data)
+}
+
 export function searchNotes(params) {
   return api.get('/notes/search', { params })
 }
