@@ -102,7 +102,7 @@ const goEdit = (id) => {
             <option value="asc">오래된순</option>
           </select>
           <button @click="resetFilter" title="필터 초기화" class="w-10 bg-slate-200 text-slate-600 rounded text-sm hover:bg-slate-300 transition-colors">
-            <i class="fas fa-rotate-left"></i>
+            <i class="fas fa-rotate-left">↻</i>
           </button>
         </div>
       </div>
@@ -125,7 +125,7 @@ const goEdit = (id) => {
         <div class="flex justify-between items-center text-sm">
           <span class="text-slate-500 truncate max-w-[120px]">
             <i class="fa-regular fa-file-lines mr-2 text-slate-400"></i>
-            {{ note.contract || '일반 상담' }}
+<!--            {{ note.contract || '일반 상담' }}-->
           </span>
           <div class="space-x-3">
             <button @click="goEdit(note.id)" class="text-amber-500 font-bold hover:underline">수정</button>
@@ -155,7 +155,7 @@ const goEdit = (id) => {
           <div class="flex justify-between items-end mb-4">
             <div>
               <p class="text-xl font-bold text-sky-600">{{ noteStore.getClientName(selectedNote?.clientId) }}</p>
-              <p class="text-sm text-slate-500">{{ selectedNote?.contract || '일반 상담' }}</p>
+<!--              <p class="text-sm text-slate-500">{{ selectedNote?.contract || '일반 상담' }}</p>-->
             </div>
             <p class="text-sm text-slate-400 font-medium">{{ selectedNote?.date }}</p>
           </div>
