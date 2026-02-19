@@ -204,11 +204,7 @@ const openEditModal = (eventItem = null) => {
 }
 
 const goToRecommendationDetail = async (item, index = null) => {
-<<<<<<< HEAD
   if (!item?.id) {
-=======
-  if (item?.id == null) {
->>>>>>> 0e131a1 (fix(calendar): async 없어서 생긴 에러 해결)
     return
   }
   if (index !== null) {
@@ -556,12 +552,12 @@ onBeforeUnmount(() => {
 .info-box .k { font-size: 12px; font-weight: 900; color: #6b7a8c; }
 .info-box .v { font-size: 13px; font-weight: 800; color: #2c3e50; line-height: 1.5; }
 .empty { padding: 12px; color: #6b7a8c; }
-@media (max-width: 1120px) {
+ @media (max-width: 1120px) {
   .calendar-page { flex-direction: column; }
   .calendar-left { min-width: 0; }
   .calendar-right { width: 100%; flex: 1 1 auto; }
 }
-@media (max-width: 640px) {
+ @media (max-width: 640px) {
   .form-grid { grid-template-columns: 1fr; }
 }
 </style>
