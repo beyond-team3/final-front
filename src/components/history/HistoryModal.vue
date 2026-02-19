@@ -23,16 +23,41 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  showDownload: {
+    type: Boolean,
+    default: false,
+  },
+  hideRemark: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const showInfoPanel = computed(() => props.mode !== 'readonly')
-const showRemark = computed(() => props.mode !== 'admin-rejected')
+const showRemark = computed(() => showInfoPanel.value && !props.hideRemark && props.mode !== 'admin-rejected')
 const showRejectReason = computed(() => props.mode === 'sales-rejected' || props.mode === 'admin-rejected')
 
 const close = () => {
   emit('update:modelValue', false)
+}
+
+const downloadDocument = () => {
+  const content = [
+    'MonSoon Document Preview',
+    `document: ${props.title || 'document'}`,
+    `generatedAt: ${new Date().toISOString()}`,
+  ].join('\n')
+  const blob = new Blob([content], { type: 'application/pdf' })
+  const objectUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = objectUrl
+  anchor.download = `${String(props.title || 'document').replace(/[\\/:*?"<>|]/g, '_')}.pdf`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(objectUrl)
 }
 </script>
 
@@ -46,9 +71,19 @@ const close = () => {
       <section class="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         <header class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
           <h3 class="text-lg font-semibold text-slate-800">{{ title }}</h3>
-          <button type="button" class="rounded px-2 py-1 text-xl text-slate-500 hover:bg-slate-200" @click="close">
-            ×
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="showDownload"
+              type="button"
+              class="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+              @click="downloadDocument"
+            >
+              다운로드
+            </button>
+            <button type="button" class="rounded px-2 py-1 text-xl text-slate-500 hover:bg-slate-200" @click="close">
+              ×
+            </button>
+          </div>
         </header>
 
         <div class="flex min-h-0 flex-1 bg-slate-200">

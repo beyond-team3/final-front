@@ -5,23 +5,15 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UnifiedHistoryPanel from '@/components/history/UnifiedHistoryPanel.vue'
-import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
-import { ROLES } from '@/utils/constants'
 
 const router = useRouter()
-const authStore = useAuthStore()
 const historyStore = useHistoryStore()
 
-const canEdit = computed(() => authStore.currentRole !== ROLES.CLIENT)
 const pipelines = computed(() => historyStore.pipelinesForView)
 
 const openPipelineDetail = (pipelineId) => {
   router.push({ name: 'pipeline-detail', params: { id: pipelineId } })
-}
-
-const editPipeline = (pipelineId) => {
-  router.push({ name: 'pipeline-detail', params: { id: pipelineId }, query: { edit: '1' } })
 }
 
 onMounted(() => {
@@ -43,9 +35,7 @@ onMounted(() => {
       title="영업 히스토리"
       :pipelines="pipelines"
       :show-client-name="true"
-      :show-edit-button="canEdit"
       @detail="openPipelineDetail"
-      @edit="editPipeline"
     />
   </section>
 </template>
