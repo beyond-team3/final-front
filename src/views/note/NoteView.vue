@@ -30,21 +30,26 @@ watch(() => form.value.clientId, (newVal, oldVal) => {
   }
 })
 
-onMounted(async () => {
-  const noteId = route.query.editId
-  if (noteId) {
-    const note = noteStore.notes.find(n => n.id === Number(noteId))
-    if (note) {
-      isEditMode.value = true
-      editingNoteId.value = Number(noteId)
-      form.value = {
-        clientId: note.clientId,
-        contract: note.contract,
-        date: note.date,
-        content: note.content,
-      }
+const loadEditNote = (noteId) => {
+  const note = noteStore.notes.find(n => n.id === Number(noteId))
+  if (note) {
+    isEditMode.value = true
+    editingNoteId.value = Number(noteId)
+    form.value = {
+      clientId: note.clientId,
+      contract: note.contract,
+      date: note.date,
+      content: note.content,
     }
   }
+}
+
+watch(() => noteStore.notes, () => {
+  const noteId = route.query.editId
+  if (noteId && !isEditMode.value) {
+    loadEditNote(noteId)
+  }
+}, { immediate: true })
 })
 
 const saveNote = async () => {

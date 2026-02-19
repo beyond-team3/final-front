@@ -65,7 +65,6 @@ const loadBriefing = async () => {
       status.value = 'ERROR'
     }
   } catch (e) {
-    console.error('Briefing Load Error:', e)
     if (currentId === selectedClientId.value) {
       status.value = 'ERROR'
     }
@@ -88,7 +87,8 @@ watch(() => noteStore.loading, (isLoading) => {
 // URL 쿼리 파라미터 연동
 watch(() => route.query.clientId, (newId) => {
   if (newId) {
-    selectedClientId.value = Number(newId) || newId
+    const parsed = Number(newId)
+    selectedClientId.value = Number.isNaN(parsed) ? newId : parsed
   }
 }, { immediate: true })
 
