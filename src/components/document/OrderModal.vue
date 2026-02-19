@@ -44,7 +44,7 @@ const selectContract = (contract) => {
             <td class="px-3 py-2 font-semibold text-slate-800">{{ contract.id }}</td>
             <td class="px-3 py-2">{{ contract.client.name }}</td>
             <td class="px-3 py-2">{{ contract.startDate }} ~ {{ contract.endDate }}</td>
-            <td class="px-3 py-2">{{ contract.salesRep?.name || contract.salesRep || '-' }}</td>
+            <td class="px-3 py-2">{{ contract.salesRep?.name || (typeof contract.salesRep === 'string' ? contract.salesRep : '-') }}</td>
             <td class="px-3 py-2">
               <button
                 type="button"
