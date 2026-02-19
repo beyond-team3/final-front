@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { ref, watch } from 'vue'
+
+const props = defineProps({
   item: {
     type: Object,
     required: true,
@@ -23,30 +25,47 @@ defineProps({
 })
 
 const emit = defineEmits(['select', 'toggle-compare', 'toggle-favorite'])
+
+const imageLoadError = ref(false)
+
+watch(() => props.item.imageUrl, () => {
+  imageLoadError.value = false
+})
+
+const onKeyActivate = (event, id) => {
+  if (['BUTTON', 'A', 'INPUT'].includes(event.target.tagName)) return
+  if (['Enter', ' '].includes(event.key)) {
+    event.preventDefault()
+    emit('select', id)
+  }
+}
 </script>
 
 <template>
-  <article 
-    class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+  <div
+    class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm cursor-pointer transition-shadow hover:shadow-md"
+    tabindex="0"
+    role="button"
     @click="emit('select', item.id)"
+    @keydown="onKeyActivate($event, item.id)"
   >
     <div class="relative h-48 bg-slate-100">
-      <img 
-        v-if="item.imageUrl" 
-        :src="item.imageUrl" 
-        :alt="item.name" 
+      <img
+        v-if="item.imageUrl && !imageLoadError"
+        :src="item.imageUrl"
+        :alt="item.name"
         class="h-full w-full object-cover"
-        @error="$event.target.style.display='none'" 
+        @error="imageLoadError = true"
       />
-      <div v-else class="flex h-full w-full items-center justify-center text-slate-400">
-        <span class="text-4xl">🌱</span>
+      <div v-else class="flex h-full w-full items-center justify-center text-4xl">
+        📦
       </div>
 
       <div v-if="showCompare || showFavorite" class="absolute right-2 top-2 flex gap-1">
         <button
           v-if="showCompare"
           type="button"
-          class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold hover:bg-white"
+          class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold"
           :class="compareActive ? 'text-emerald-700 ring-1 ring-emerald-500' : 'text-slate-600'"
           @click.stop="emit('toggle-compare', item.id)"
         >
@@ -55,7 +74,7 @@ const emit = defineEmits(['select', 'toggle-compare', 'toggle-favorite'])
         <button
           v-if="showFavorite"
           type="button"
-          class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold hover:bg-white"
+          class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold"
           :class="favoriteActive ? 'text-amber-600' : 'text-slate-600'"
           @click.stop="emit('toggle-favorite', item.id)"
         >
@@ -69,5 +88,5 @@ const emit = defineEmits(['select', 'toggle-compare', 'toggle-favorite'])
       <h3 class="mt-1 text-base font-bold text-slate-800">{{ item.name }}</h3>
       <p class="mt-2 line-clamp-2 text-sm text-slate-500">{{ item.desc }}</p>
     </div>
-  </article>
+  </div>
 </template>
