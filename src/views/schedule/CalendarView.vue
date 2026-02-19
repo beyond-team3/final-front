@@ -203,7 +203,7 @@ const openEditModal = (eventItem = null) => {
   editModalOpen.value = true
 }
 
-const goToRecommendationDetail = (item, index = null) => {
+const goToRecommendationDetail = async (item, index = null) => {
   if (item?.id == null) {
     return
   }
