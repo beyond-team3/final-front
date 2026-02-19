@@ -1,10 +1,13 @@
 <script setup>
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import axios from 'axios'
 import PageHeader from '@/components/common/PageHeader.vue'
 
 const router = useRouter()
+const route = useRoute()
 
+// 1. 초기 데이터 (미등록 리스트)
 const unassignedData = ref({
   CLIENT: ['(주)가나종묘', '대한농산', '우리종자'],
   SALES: ['채치수 (신규사원)', '권준호 (신규사원)'],
@@ -28,7 +31,9 @@ const form = reactive({
 const targetOptions = ref([])
 const showTargetArea = ref(false)
 const showSalesArea = ref(false)
+const isLocked = ref(false) // 사원 관리에서 진입 시 역할 고정용
 
+// 역할 변경 시 처리 로직
 const updateTargetList = (type) => {
   targetOptions.value = unassignedData.value[type] || []
   form.targetPerson = ''
@@ -52,47 +57,59 @@ const onTypeChange = () => {
   }
 }
 
-const onSubmit = () => {
-  const { accountType, targetPerson } = form
-  if (!accountType || !targetPerson || !form.loginId || !form.loginPw) {
+// 페이지 진입 시 쿼리 파라미터 체크 (?role=SALES 등)
+onMounted(() => {
+  const queryRole = route.query.role
+  if (queryRole) {
+    form.accountType = queryRole
+    isLocked.value = true
+    onTypeChange()
+  }
+})
+
+const onSubmit = async () => {
+  const { accountType, targetPerson, loginId, loginPw } = form
+  if (!accountType || !targetPerson || !loginId || !loginPw) {
+    alert('모든 필드를 입력해주세요.')
     return
   }
 
-  unassignedData.value[accountType] = (unassignedData.value[accountType] || []).filter((name) => name !== targetPerson)
+  try {
+    const newUser = {
+      ...form,
+      id: Date.now(),
+      createdAt: new Date().toISOString()
+    }
 
-  form.accountType = ''
-  form.targetPerson = ''
-  form.salesPerson = ''
-  form.loginId = ''
-  form.loginPw = ''
-  showTargetArea.value = false
-  showSalesArea.value = false
-  targetOptions.value = []
+    // db.json의 users 경로로 POST 요청
+    await axios.post('http://localhost:3001/users', newUser)
 
-  // TODO: API 연결
-  router.push('/users')
+    unassignedData.value[accountType] = (unassignedData.value[accountType] || []).filter((name) => name !== targetPerson)
+
+    alert('계정 등록이 완료되었슴돠!')
+    router.push('/employees')
+  } catch (error) {
+    console.error('등록 실패:', error)
+    alert('DB 저장에 실패했슴돠.')
+  }
 }
 </script>
 
 <template>
   <section>
-    <PageHeader title="계정 등록" subtitle="미등록 대상자를 선택해 계정을 생성합니다.">
-      <template #actions>
-        <button
-          type="button"
-          class="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-          @click="router.push('/users')"
-        >
-          목록으로
-        </button>
-      </template>
-    </PageHeader>
+    <PageHeader title="계정 등록" subtitle="미등록 대상자를 선택해 계정을 생성합니다." />
 
     <div class="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-6">
       <form class="space-y-4" @submit.prevent="onSubmit">
         <label class="block text-sm font-medium text-slate-700">
           계정 역할
-          <select v-model="form.accountType" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" required @change="onTypeChange">
+          <select
+              v-model="form.accountType"
+              :disabled="isLocked"
+              class="mt-1 h-11 w-full rounded border border-slate-300 px-3 disabled:bg-slate-100"
+              required
+              @change="onTypeChange"
+          >
             <option disabled value="">역할을 선택하세요</option>
             <option value="CLIENT">거래처 (Client)</option>
             <option value="SALES">영업사원 (Sales)</option>
@@ -103,7 +120,9 @@ const onSubmit = () => {
         <label v-if="showTargetArea" class="block text-sm font-medium text-slate-700">
           미등록 대상자 선택
           <select v-model="form.targetPerson" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" required>
-            <option disabled value="">{{ targetOptions.length ? `${form.accountType} 목록에서 선택하세요` : '모든 대상의 계정이 등록되었습니다.' }}</option>
+            <option disabled value="">
+              {{ targetOptions.length ? '대상자를 선택하세요' : '모든 대상의 계정이 등록되었습니다.' }}
+            </option>
             <option v-for="item in targetOptions" :key="item" :value="item">{{ item }}</option>
           </select>
         </label>

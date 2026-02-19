@@ -2,7 +2,7 @@
   "users": [
     {
       "id": 1,
-      "username": "kim_sr",
+      "loginId": "kim_sr",
       "password": "pass1234",
       "name": "김민수",
       "role": "SALES_REP",
@@ -14,7 +14,7 @@
     },
     {
       "id": 2,
-      "username": "lee_admin",
+      "loginId": "lee_admin",
       "password": "pass1234",
       "name": "이서연",
       "role": "ADMIN",
@@ -26,7 +26,7 @@
     },
     {
       "id": 3,
-      "username": "greenfarm_client",
+      "loginId": "greenfarm_client",
       "password": "pass1234",
       "name": "그린팜유통",
       "role": "CLIENT",
@@ -38,7 +38,7 @@
     },
     {
       "id": 4,
-      "username": "park_sr",
+      "loginId": "park_sr",
       "password": "pass1234",
       "name": "박지훈",
       "role": "SALES_REP",
@@ -50,7 +50,7 @@
     },
     {
       "id": 5,
-      "username": "han_client",
+      "loginId": "han_client",
       "password": "pass1234",
       "name": "한빛농자재",
       "role": "CLIENT",
@@ -175,29 +175,31 @@
   ],
   "employees": [
     {
-      "isActive": false,
-      "status": "INACTIVE",
-      "id": 1
+      "id": 1,
+      "name": "김민수",
+      "email": "minsu.kim@seedcorp.co.kr",
+      "phone": "010-2211-3388",
+      "address": "전북 익산시 어딘가",
+      "isActive": true,
+      "createdAt": "2023-02-13T09:10:00"
     },
     {
       "id": 2,
       "name": "박지훈",
-      "department": "영업2팀",
-      "position": "과장",
-      "contact": "010-7733-5420",
       "email": "jihoon.park@seedcorp.co.kr",
-      "region": "경남 밀양",
-      "joinedAt": "2020-09-15"
+      "phone": "010-7733-5420",
+      "address": "경남 밀양시 어딘가",
+      "isActive": true,
+      "createdAt": "2023-02-13T09:10:00"
     },
     {
       "id": 3,
       "name": "최가은",
-      "department": "영업1팀",
-      "position": "사원",
-      "contact": "010-8110-4500",
       "email": "gaeun.choi@seedcorp.co.kr",
-      "region": "충남 논산",
-      "joinedAt": "2024-01-10"
+      "phone": "010-8110-4500",
+      "address": "충남 논산",
+      "isActive": true,
+      "createdAt": "2023-02-13T09:10:00"
     }
   ],
   "products": [
