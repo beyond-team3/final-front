@@ -35,7 +35,7 @@ const selectContract = (contract) => {
             <th class="px-3 py-2">계약번호</th>
             <th class="px-3 py-2">거래처</th>
             <th class="px-3 py-2">기간</th>
-            <th class="px-3 py-2 text-right">합계</th>
+            <th class="px-3 py-2">담당자</th>
             <th class="px-3 py-2">선택</th>
           </tr>
         </thead>
@@ -44,7 +44,7 @@ const selectContract = (contract) => {
             <td class="px-3 py-2 font-semibold text-slate-800">{{ contract.id }}</td>
             <td class="px-3 py-2">{{ contract.client.name }}</td>
             <td class="px-3 py-2">{{ contract.startDate }} ~ {{ contract.endDate }}</td>
-            <td class="px-3 py-2 text-right">{{ contract.totalAmount.toLocaleString() }}원</td>
+            <td class="px-3 py-2">{{ contract.salesRep?.name || contract.salesRep || '-' }}</td>
             <td class="px-3 py-2">
               <button
                 type="button"
