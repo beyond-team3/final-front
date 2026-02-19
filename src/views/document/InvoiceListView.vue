@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useDocumentStore } from '@/stores/document'
@@ -9,6 +9,10 @@ import { ROLES } from '@/utils/constants'
 const router = useRouter()
 const documentStore = useDocumentStore()
 const authStore = useAuthStore()
+
+onMounted(() => {
+  void documentStore.fetchDocuments()
+})
 
 const tab = ref('pending')
 const keyword = ref('')
