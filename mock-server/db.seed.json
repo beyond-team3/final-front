@@ -67,202 +67,71 @@
       "password": "qwer",
       "role": "SALES_REP",
       "id": 6
-    },
-    {
-      "loginId": "ㅂㅈㄷㄱ",
-      "password": "qwer",
-      "role": "ADMIN",
-      "id": 7
-    },
-    {
-      "loginId": "ㅂㅈㄷㄱ",
-      "password": "qewr",
-      "role": "CLIENT",
-      "id": 8
-    },
-    {
-      "loginId": "ㅂㄷㅈㄱ",
-      "password": "qwer",
-      "role": "SALES_REP",
-      "id": 9
-    },
-    {
-      "loginId": "ㅂㄷㅈㄱ",
-      "password": "qewr",
-      "role": "ADMIN",
-      "id": 10
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "SALES_REP",
-      "id": 11
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "ADMIN",
-      "id": 12
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "CLIENT",
-      "id": 13
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "ADMIN",
-      "id": 14
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "SALES_REP",
-      "id": 15
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "SALES_REP",
-      "id": 16
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "SALES_REP",
-      "id": 17
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "SALES_REP",
-      "id": 18
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "SALES_REP",
-      "id": 19
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "SALES_REP",
-      "id": 20
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "SALES_REP",
-      "id": 21
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "ADMIN",
-      "id": 22
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "CLIENT",
-      "id": 23
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "ADMIN",
-      "id": 24
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "CLIENT",
-      "id": 25
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "CLIENT",
-      "id": 26
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "CLIENT",
-      "id": 27
-    },
-    {
-      "loginId": "1234",
-      "password": "1234",
-      "role": "CLIENT",
-      "id": 28
-    },
-    {
-      "loginId": "kim_sr",
-      "password": "pass1234",
-      "role": "CLIENT",
-      "id": 29
     }
   ],
   "clients": [
     {
       "id": 1,
-      "name": "그린팜유통",
-      "region": "경기 여주",
-      "type": "도매상",
-      "contact": "031-882-1190",
-      "manager": "정호성",
-      "managerPhone": "010-3001-4412",
-      "varieties": [
-        "고추 PR-21",
-        "토마토 TY-9"
-      ],
-      "status": "활성"
+      "name": "OO육묘장",
+      "bizNo": "123-45-67890",
+      "ceoName": "김사장",
+      "companyPhone": "02-123-4567",
+      "address": "서울특별시 강남구 테헤란로 123",
+      "managerName": "김철수",
+      "managerPhone": "010-1234-5678",
+      "managerEmail": "kim@farm.com",
+      "type": "NURSERY",
+      "typeLabel": "육묘장",
+      "isActive": true,
+      "crops": ["토마토", "파프리카", "오이", "고추", "상추"]
     },
     {
       "id": 2,
+      "code": "C-002",
       "name": "청솔영농조합",
-      "region": "전남 나주",
-      "type": "영농조합",
-      "contact": "061-332-0081",
-      "manager": "오지은",
-      "managerPhone": "010-8452-5003",
-      "varieties": [
-        "배추 BS-10",
-        "무 MR-5"
-      ],
-      "status": "활성"
+      "bizNo": "220-81-12345",
+      "ceoName": "이청솔",
+      "companyPhone": "031-123-4567",
+      "address": "경기도 평택시 고덕면 평택항로 45",
+      "managerName": "박민재",
+      "managerPhone": "010-2222-3333",
+      "managerEmail": "park@cheongsol.com",
+      "type": "NURSERY",
+      "typeLabel": "육묘장",
+      "isActive": true,
+      "crops": ["참외", "배추"]
     },
     {
       "id": 3,
-      "name": "태양종묘공사",
-      "region": "충남 천안",
-      "type": "소매상",
-      "contact": "041-551-7800",
-      "manager": "김태양",
-      "managerPhone": "010-2233-9988",
-      "varieties": [
-        "양파 ON-3",
-        "마늘 GN-1"
-      ],
-      "status": "활성"
+      "code": "C-003",
+      "name": "그린팜유통",
+      "bizNo": "105-86-54321",
+      "ceoName": "정그린",
+      "companyPhone": "02-555-6666",
+      "address": "서울특별시 송파구 송파대로 678",
+      "managerName": "이영희",
+      "managerPhone": "010-4444-5555",
+      "managerEmail": "lee@greenfarm.co.kr",
+      "type": "DISTRIBUTOR",
+      "typeLabel": "대리점",
+      "isActive": false,
+      "crops": []
     },
     {
       "id": 4,
-      "name": "동해농업법인",
-      "region": "강원 강릉",
-      "type": "농업법인",
-      "contact": "033-641-2900",
-      "manager": "배수민",
-      "managerPhone": "010-9554-1120",
-      "varieties": [
-        "감자 PT-11",
-        "옥수수 CS-2"
-      ],
-      "status": "휴면"
+      "code": "C-004",
+      "name": "한빛농자재",
+      "bizNo": "602-12-98765",
+      "ceoName": "최한빛",
+      "companyPhone": "042-888-9999",
+      "address": "충청남도 논산시 가야곡면 한빛길 10",
+      "managerName": "최한빛",
+      "managerPhone": "010-7777-8888",
+      "managerEmail": "choi@hanbit.com",
+      "type": "DISTRIBUTOR",
+      "typeLabel": "대리점",
+      "isActive": true,
+      "crops": ["호박", "토마토", "수박", "양파", "파"]
     }
   ],
   "employees": [
