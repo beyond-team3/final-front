@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
 
@@ -8,6 +9,7 @@ const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDat
 const ym = (d) => `${d.getFullYear()}.${pad2(d.getMonth() + 1)}`
 
 const authStore = useAuthStore()
+const router = useRouter()
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 const filterState = ref({ sales: 'ALL', client: 'ALL', employee: 'ALL' })
 
@@ -95,10 +97,10 @@ const events = ref([
 ])
 
 const recommendations = ref([
-  { name: '마라톤 수박 대목', tag: '내병성/중약세', colorA: '#f5f7fb', colorB: '#e6eefb' },
-  { name: '스위트 방울토마토', tag: '당도/수량성', colorA: '#f8fbf2', colorB: '#e2f4d9' },
-  { name: '프레시 오이', tag: '여름작 추천', colorA: '#f4fbfd', colorB: '#d9f0f7' },
-  { name: '파워 고추', tag: '내병성', colorA: '#fff7ef', colorB: '#ffe6cd' },
+  { id: 1, name: '마라톤 수박 대목', tag: '내병성/중약세', colorA: '#f5f7fb', colorB: '#e6eefb' },
+  { id: 2, name: '스위트 방울토마토', tag: '당도/수량성', colorA: '#f8fbf2', colorB: '#e2f4d9' },
+  { id: 3, name: '프레시 오이', tag: '여름작 추천', colorA: '#f4fbfd', colorB: '#d9f0f7' },
+  { id: 4, name: '파워 고추', tag: '내병성', colorA: '#fff7ef', colorB: '#ffe6cd' },
 ])
 const recommendIdx = ref(0)
 let carouselTimer = null
@@ -121,6 +123,14 @@ const labelHistory = (cat) => ({
   ORDER: '주문',
   INVOICE: '청구',
 }[cat] || '영업')
+
+const historyLabelWithOwner = (ev) => {
+  const baseLabel = labelHistory(ev?.historyCategory)
+  if (isAdmin.value && ev?.type === 'history' && ev?.employeeName) {
+    return `${baseLabel} - ${ev.employeeName}`
+  }
+  return baseLabel
+}
 
 const passHistoryFilter = (ev) => {
   if (ev.type !== 'history') return true
@@ -191,6 +201,16 @@ const openEditModal = (eventItem = null) => {
   editTitle.value = (eventItem?.title || '').replace('개인 일정: ', '')
   editDesc.value = eventItem?.desc || ''
   editModalOpen.value = true
+}
+
+const goToRecommendationDetail = (item, index = null) => {
+  if (!item?.id) {
+    return
+  }
+  if (index !== null) {
+    recommendIdx.value = index
+  }
+  router.push(`/products/${item.id}`)
 }
 
 const resetFilters = () => {
@@ -344,7 +364,11 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="carousel">
-            <div class="carousel-img" :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }">
+            <div
+              class="carousel-img"
+              :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
+              @click="goToRecommendationDetail(currentRecommendation)"
+            >
               <div class="carousel-main-text">{{ currentRecommendation.name }}</div>
             </div>
             <div class="carousel-caption">{{ currentRecommendation.name }}</div>
@@ -353,9 +377,9 @@ onBeforeUnmount(() => {
           <div class="recommend-list">
             <div
               v-for="(item, index) in recommendations"
-              :key="item.name"
+              :key="item.id"
               class="recommend-item"
-              @click="recommendIdx = index"
+              @click="goToRecommendationDetail(item, index)"
             >
               <div class="recommend-name">{{ item.name }}</div>
               <div class="recommend-tag">{{ item.tag }}</div>
@@ -377,7 +401,7 @@ onBeforeUnmount(() => {
             <div v-for="ev in selectedDayEvents" :key="ev.id" class="modal-item" @click="openDetail(ev)">
               <div class="modal-item-top">
                 <div class="modal-item-title">{{ ev.time ? `${ev.time} · ` : '' }}{{ ev.title }}</div>
-                <div class="pill" :class="ev.type">{{ ev.type === 'history' ? labelHistory(ev.historyCategory) : '개인' }}</div>
+                <div class="pill" :class="ev.type">{{ ev.type === 'history' ? historyLabelWithOwner(ev) : '개인' }}</div>
               </div>
               <div class="modal-item-desc">{{ ev.desc }}</div>
             </div>
@@ -396,7 +420,7 @@ onBeforeUnmount(() => {
         <div class="modal-body" style="display: grid; gap: 10px;">
           <div class="info-box"><div class="k">제목</div><div class="v">{{ detailEvent?.title }}</div></div>
           <div class="info-box"><div class="k">시간</div><div class="v">{{ detailEvent?.time || '-' }}</div></div>
-          <div class="info-box"><div class="k">구분</div><div class="v">{{ detailEvent?.type === 'history' ? `영업 문서 일정 (${labelHistory(detailEvent?.historyCategory)})` : '개인 일정' }}</div></div>
+          <div class="info-box"><div class="k">구분</div><div class="v">{{ detailEvent?.type === 'history' ? `영업 문서 일정 (${historyLabelWithOwner(detailEvent)})` : '개인 일정' }}</div></div>
           <div class="info-box"><div class="k">설명</div><div class="v">{{ detailEvent?.desc || '-' }}</div></div>
 
           <div class="modal-actions">
@@ -479,7 +503,7 @@ onBeforeUnmount(() => {
 .side-header { padding: 14px 16px; border-bottom: 1px solid #eef2f6; display: flex; align-items: center; justify-content: space-between; }
 .side-title { font-size: 15px; font-weight: 800; color: #2c3e50; }
 .carousel { padding: 12px 16px 0; }
-.carousel-img { width: 100%; height: 190px; border-radius: 12px; border: 1px solid #eef2f6; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.carousel-img { width: 100%; height: 190px; border-radius: 12px; border: 1px solid #eef2f6; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .carousel-main-text { font-size: 20px; font-weight: 800; color: #2c3e50; padding: 0 16px; text-align: center; }
 .carousel-caption { margin-top: 10px; font-weight: 800; color: #2c3e50; font-size: 13px; }
 .recommend-list { padding: 10px 10px 14px; }
