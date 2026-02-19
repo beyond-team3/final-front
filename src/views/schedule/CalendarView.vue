@@ -204,7 +204,7 @@ const openEditModal = (eventItem = null) => {
 }
 
 const goToRecommendationDetail = async (item, index = null) => {
-  if (!item?.id) {
+  if (item?.id == null) {
     return
   }
   if (index !== null) {
