@@ -525,14 +525,14 @@
     {
       "id": 2,
       "clientId": 2,
-      "coreStatus": "최근 봄작기 물량 협의 증가",
+      "statusChange": [
+        "최근 봄작기 물량 협의 증가"
+      ],
+      "pattern": [
+        "매년 봄 시즌 단가 협의 반복"
+      ],
       "strategy": "품질 보증 강화 및 경쟁사 대비 가격 차별화 전략 필요",
-      "patterns": "매년 봄 시즌 단가 협의 반복",
-      "recentNotes": [
-        "A품종 35만립 요청",
-        "품질 보증 요구 강함",
-        "경쟁사 단가 인하 제안"
-      ]
+      "recentNoteIds": [1, 2, 3]
     }
   ],
   "recommendations": [
