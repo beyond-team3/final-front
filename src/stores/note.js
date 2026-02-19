@@ -1,7 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getClients } from '@/api/client'
-import { updateNote as updateNoteApi,
+import {
+  updateNote as updateNoteApi,
   createNote as createNoteApi,
   getAIBriefing,
   getNotes,
@@ -207,41 +208,49 @@ export const useNoteStore = defineStore('note', () => {
       return null
     }
 
+    // Fallback logic extracted for reuse
+    const useFallback = () => {
+      const list = getNotesByClient(clientId)
+      // 최소 3개 미만이면 fallback 불가 -> null 반환 (View에서 처리)
+      if (list.length < 3) {
+        return null
+      }
+
+      const fallback = defaultBriefing(getClientName(clientId), list)
+      briefingByClient.value = {
+        ...briefingByClient.value,
+        [clientId]: fallback,
+      }
+      return fallback
+    }
+
     try {
       const briefing = await getAIBriefing(clientId)
+
+      // Validate API response structure
+      const isValid = briefing
+        && Array.isArray(briefing.statusChange)
+        && Array.isArray(briefing.pattern)
+        && briefing.strategy
+
+      if (!isValid) {
+        throw new Error('Valid briefing data missing, using fallback')
+      }
+
       briefingByClient.value = {
         ...briefingByClient.value,
         [clientId]: briefing,
       }
       return briefing
     } catch (e) {
-      // Fallback logic if API fails or returns 404
-      const list = getNotesByClient(clientId)
-      if (list.length >= 3) {
-        const fallback = defaultBriefing(getClientName(clientId), list)
-        briefingByClient.value = {
-          ...briefingByClient.value,
-          [clientId]: fallback,
-        }
-        return fallback
-      }
-      return null
+      // API call failed or data is invalid -> use fallback
+      return useFallback()
     }
   }
 
   const getBriefingByClient = (clientId) => {
     if (!clientId) return null
-    const list = getNotesByClient(clientId)
-    if (list.length < 3) {
-      return null
-    }
-
-    if (!briefingByClient.value[clientId]) {
-      void fetchBriefingByClient(clientId)
-      return defaultBriefing(getClientName(clientId), list)
-    }
-
-    return briefingByClient.value[clientId]
+    return briefingByClient.value[clientId] || null
   }
 
   const searchClientNotes = ({ clientId, contract, variety, keyword, dateFrom, dateTo, sort = 'desc' } = {}) => {
