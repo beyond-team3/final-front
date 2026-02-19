@@ -5,6 +5,8 @@ import {
   getSalesHistory,
   updatePipeline as updatePipelineApi,
 } from '@/api/history'
+import { useAuthStore } from '@/stores/auth'
+import { ROLES } from '@/utils/constants'
 
 const STAGES = [
   { type: 'quotation-request', name: '견적요청', number: 1, docLabel: '견적요청서' },
@@ -114,6 +116,8 @@ function normalizePipeline(raw = {}) {
     id: String(raw.id),
     clientId: raw.clientId ?? null,
     clientName: raw.clientName || '-',
+    salesRepName: raw.salesRepName || '-',
+    salesRepPhone: raw.salesRepPhone || '-',
     stage: stage.name,
     stageNumber: stage.number,
     status: raw.status || '진행중',
@@ -125,11 +129,78 @@ function normalizePipeline(raw = {}) {
   }
 }
 
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
 export const useHistoryStore = defineStore('history', () => {
+  const authStore = useAuthStore()
   const pipelines = ref([])
   const loading = ref(false)
   const error = ref(null)
   const loaded = ref(false)
+
+  const isClientRole = computed(() => authStore.currentRole === ROLES.CLIENT)
+
+  const getViewerClientIdentity = (source = []) => {
+    const me = authStore.me || {}
+    const byClientId = me.clientId ?? me.client?.id ?? null
+    const byName = String(me.clientName || me.name || '').trim()
+    const normalizedByName = normalizeText(byName)
+    const numericMeId = Number(me.id)
+    const hasNumericMeId = Number.isFinite(numericMeId)
+
+    if (byClientId !== null && byClientId !== undefined && byClientId !== '') {
+      return { clientId: String(byClientId), clientName: byName }
+    }
+
+    if (Array.isArray(source) && source.length > 0) {
+      if (hasNumericMeId) {
+        const matchedById = source.find((item) => Number(item?.clientId) === numericMeId)
+        if (matchedById) {
+          return {
+            clientId: String(matchedById.clientId),
+            clientName: String(matchedById.clientName || '').trim(),
+          }
+        }
+      }
+
+      if (normalizedByName) {
+        const matchedByName = source.find((item) => normalizeText(item?.clientName) === normalizedByName)
+        if (matchedByName) {
+          return {
+            clientId: matchedByName.clientId != null ? String(matchedByName.clientId) : null,
+            clientName: String(matchedByName.clientName || '').trim(),
+          }
+        }
+      }
+    }
+
+    return {
+      clientId: hasNumericMeId ? String(numericMeId) : null,
+      clientName: byName || null,
+    }
+  }
+
+  const filterRawPipelinesForClient = (list = []) => {
+    if (!isClientRole.value) {
+      return list
+    }
+
+    const identity = getViewerClientIdentity(list)
+    const hasClientId = identity.clientId !== null && identity.clientId !== ''
+    const hasClientName = Boolean(identity.clientName)
+
+    if (!hasClientId && !hasClientName) {
+      return []
+    }
+
+    return list.filter((item) => {
+      const clientIdMatch = hasClientId && String(item?.clientId ?? '') === identity.clientId
+      const clientNameMatch = hasClientName && normalizeText(item?.clientName) === normalizeText(identity.clientName)
+      return clientIdMatch || clientNameMatch
+    })
+  }
 
   const pipelinesForView = computed(() => {
     return [...pipelines.value]
@@ -154,7 +225,18 @@ export const useHistoryStore = defineStore('history', () => {
     error.value = null
 
     try {
-      const list = normalizeList(await getSalesHistory(params)).map(normalizePipeline)
+      const baseParams = { ...(params || {}) }
+      if (isClientRole.value) {
+        const identity = getViewerClientIdentity()
+        if (identity.clientId) {
+          baseParams.clientId = identity.clientId
+        } else if (identity.clientName) {
+          baseParams.clientName = identity.clientName
+        }
+      }
+
+      const rawList = normalizeList(await getSalesHistory(baseParams))
+      const list = filterRawPipelinesForClient(rawList).map(normalizePipeline)
       pipelines.value = list
       loaded.value = true
       return list

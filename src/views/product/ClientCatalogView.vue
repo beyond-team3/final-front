@@ -1,8 +1,10 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SearchFilter from '@/components/common/SearchFilter.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import ProductCatalogCard from '@/components/product/ProductCatalogCard.vue'
 import { useProductStore } from '@/stores/product'
 
@@ -14,7 +16,7 @@ const filters = ref({
   env: '',
   keyword: '',
 })
-const visibleCount = ref(6)
+const visibleCount = ref(12)
 
 const filterFields = computed(() => [
   {
@@ -53,11 +55,11 @@ const visibleProducts = computed(() => filteredProducts.value.slice(0, visibleCo
 const hasMoreProducts = computed(() => filteredProducts.value.length > visibleCount.value)
 
 watch(filters, () => {
-  visibleCount.value = 6
+  visibleCount.value = 12
 }, { deep: true })
 
 const loadMore = () => {
-  visibleCount.value += 3
+  visibleCount.value += 6
 }
 
 const toggleCompare = (id) => {
@@ -75,6 +77,14 @@ const openCompare = () => {
 
   router.push('/products/compare')
 }
+
+onMounted(async () => {
+  try {
+    await productStore.fetchProducts()
+  } catch (err) {
+    console.error('Failed to fetch products:', err)
+  }
+})
 </script>
 
 <template>
@@ -100,34 +110,39 @@ const openCompare = () => {
 
     <SearchFilter v-model="filters" :fields="filterFields" search-label="검색" reset-label="초기화" />
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <ProductCatalogCard
-        v-for="item in visibleProducts"
-        :key="item.id"
-        :item="item"
-        :compare-active="productStore.isInCompare(item.id)"
-        :favorite-active="productStore.isFavorite(item.id)"
-        @select="(id) => router.push(`/products/${id}`)"
-        @toggle-compare="toggleCompare"
-        @toggle-favorite="productStore.toggleFavoriteItem"
-      />
+    <LoadingSpinner v-if="productStore.loading" message="상품 목록을 불러오는 중..." />
+    <ErrorMessage v-else-if="productStore.error" :message="productStore.error" />
 
-      <div
-        v-if="filteredProducts.length === 0"
-        class="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-500"
-      >
-        검색 결과가 없습니다.
+    <template v-else>
+      <section class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
+        <ProductCatalogCard
+          v-for="item in visibleProducts"
+          :key="item.id"
+          :item="item"
+          :compare-active="productStore.isInCompare(item.id)"
+          :favorite-active="productStore.isFavorite(item.id)"
+          @select="(id) => router.push(`/products/${id}`)"
+          @toggle-compare="toggleCompare"
+          @toggle-favorite="productStore.toggleFavoriteItem"
+        />
+
+        <div
+          v-if="filteredProducts.length === 0"
+          class="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-500"
+        >
+          검색 결과가 없습니다.
+        </div>
+      </section>
+
+      <div v-if="hasMoreProducts" class="mt-6 text-center">
+        <button
+          type="button"
+          class="rounded-full border border-slate-300 bg-white px-10 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          @click="loadMore"
+        >
+          더 보기 +
+        </button>
       </div>
-    </section>
-
-    <div v-if="hasMoreProducts" class="mt-6 text-center">
-      <button
-        type="button"
-        class="rounded-full border border-slate-300 bg-white px-10 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        @click="loadMore"
-      >
-        더 보기 +
-      </button>
-    </div>
+    </template>
   </section>
 </template>

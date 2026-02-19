@@ -2,8 +2,11 @@
 import { computed, ref } from 'vue'
 import { useDocumentStore } from '@/stores/document'
 import HistoryModal from '@/components/history/HistoryModal.vue'
+import { useAuthStore } from '@/stores/auth'
+import { ROLES } from '@/utils/constants'
 
 const documentStore = useDocumentStore()
+const authStore = useAuthStore()
 
 const searchText = ref('')
 const selectedType = ref('ALL')
@@ -97,7 +100,15 @@ const sourceRows = computed(() => {
     })),
   ]
 
-  return dynamicRows.length > 0 ? dynamicRows : fallbackRows
+  if (dynamicRows.length > 0) {
+    return dynamicRows
+  }
+
+  if (authStore.currentRole === ROLES.CLIENT) {
+    return []
+  }
+
+  return fallbackRows
 })
 
 const typeOptions = computed(() => ['ALL', ...new Set(sourceRows.value.map((row) => row.type))])
@@ -132,7 +143,20 @@ const modalMode = computed(() => {
     return 'sales-clean'
   }
 
-  return selectedDoc.value.status.includes('반려') ? 'sales-rejected' : 'sales-clean'
+  if (selectedDoc.value.status.includes('반려')) {
+    return authStore.currentRole === ROLES.ADMIN ? 'admin-rejected' : 'sales-rejected'
+  }
+
+  return 'sales-clean'
+})
+
+const shouldHideRemark = computed(() => {
+  return authStore.currentRole === ROLES.ADMIN || authStore.currentRole === ROLES.CLIENT
+})
+const canDownload = computed(() => {
+  return authStore.currentRole === ROLES.SALES_REP
+    || authStore.currentRole === ROLES.ADMIN
+    || authStore.currentRole === ROLES.CLIENT
 })
 </script>
 
@@ -214,6 +238,8 @@ const modalMode = computed(() => {
       v-model="isModalOpen"
       :title="selectedDoc ? selectedDoc.id : '문서 상세'"
       :mode="modalMode"
+      :show-download="canDownload"
+      :hide-remark="shouldHideRemark"
       :remark="selectedDoc ? selectedDoc.remark : ''"
       :reject-reason="selectedDoc ? selectedDoc.rejectReason : ''"
     />
