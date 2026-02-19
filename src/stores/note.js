@@ -26,7 +26,7 @@ const defaultBriefing = (clientName, notes) => {
       '가격보다 안정적인 품질과 납기 준수에 높은 가중치를 둡니다.',
     ],
     strategy: `'${latest.summary?.[0] || '핵심 이슈'}'에 맞춘 후속 자료를 준비해 다음 미팅에서 실행 계획을 제시하세요.`,
-    recentNoteIds: notes.slice(0, 2).map((item) => item.id),
+    recentNoteIds: notes.slice(0, 3).map((item) => item.id),
     clientName,
   }
 }
@@ -225,7 +225,12 @@ export const useNoteStore = defineStore('note', () => {
     }
 
     try {
-      const briefing = await getAIBriefing(clientId)
+      // API call: mock server returns array for query
+      const response = await getAIBriefing(clientId)
+
+      // json-server returns array when querying by property. We take the first item.
+      // If it's a real API it might return the object directly. We handle both.
+      const briefing = Array.isArray(response) ? response[0] : response
 
       // Validate API response structure
       const isValid = briefing
