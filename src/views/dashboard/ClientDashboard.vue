@@ -129,20 +129,20 @@ onMounted(fetchDashboard)
 </template>
 
 <style scoped>
-.dashboard-shell { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
-.dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e8ecef; }
+.dashboard-shell { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); display: flex; flex-direction: column; height: 100%; box-sizing: border-box; }
+.dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e8ecef; flex-shrink: 0; }
 .dashboard-title { font-size: 22px; font-weight: 700; color: #2c3e50; }
 .dashboard-subtitle { font-size: 13px; color: #95a5a6; margin-top: 4px; }
-.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; flex: 1; min-height: 0; }
 
-.panel { border: 1px solid #e8ecef; border-radius: 8px; padding: 22px; }
-.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.panel { border: 1px solid #e8ecef; border-radius: 8px; padding: 22px; display: flex; flex-direction: column; overflow: hidden; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
 .panel-title { font-size: 15px; font-weight: 600; color: #2c3e50; }
 .panel-link { font-size: 12px; color: #7f8c8d; text-decoration: none; }
 .panel-badge { font-size: 11px; color: #7f8c8d; background: #f0f3f4; padding: 3px 8px; border-radius: 4px; }
 
-.order-list { display: flex; flex-direction: column; gap: 8px; }
-.order-card { padding: 14px 16px; border: 1px solid #e8ecef; border-radius: 6px; }
+.order-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
+.order-card { padding: 14px 16px; border: 1px solid #e8ecef; border-radius: 6px; flex-shrink: 0; }
 .order-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .order-no { font-size: 13px; font-weight: 600; color: #2c3e50; }
 .order-date { font-size: 11px; color: #95a5a6; margin-top: 2px; }
@@ -155,13 +155,13 @@ onMounted(fetchDashboard)
 .order-amount { font-size: 14px; font-weight: 700; color: #2c3e50; }
 .order-action { font-size: 12px; color: #7f8c8d; }
 
-.billing-credit-wrap { display: flex; flex-direction: column; gap: 14px; }
-.billing-cycle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #f8f9fa; border-radius: 6px; }
+.billing-credit-wrap { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
+.billing-cycle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #f8f9fa; border-radius: 6px; flex-shrink: 0; }
 .billing-cycle-label { font-size: 11px; color: #95a5a6; }
 .billing-cycle-value { font-size: 14px; font-weight: 600; color: #2c3e50; margin-top: 2px; }
 .billing-cycle-next { font-size: 12px; color: #7f8c8d; }
 .billing-list { display: flex; flex-direction: column; gap: 8px; }
-.billing-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #bdc3c7; }
+.billing-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #bdc3c7; flex-shrink: 0; }
 .billing-item.due-soon { border-left-color: #e67e22; }
 .billing-item.paid { border-left-color: #95a5a6; }
 .billing-left { display: flex; flex-direction: column; gap: 3px; }
@@ -172,7 +172,7 @@ onMounted(fetchDashboard)
 .billing-amount { font-size: 14px; font-weight: 700; color: #2c3e50; }
 .billing-status-tag { font-size: 11px; color: #7f8c8d; }
 
-.notif-list { position: relative; padding-left: 26px; }
+.notif-list { position: relative; padding-left: 26px; overflow-y: auto; flex: 1; }
 .notif-list::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 1px; background: #e0e0e0; }
 .notif-item { position: relative; margin-bottom: 14px; }
 .notif-item:last-child { margin-bottom: 0; }
