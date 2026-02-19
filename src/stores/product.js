@@ -175,8 +175,16 @@ export const useProductStore = defineStore('product', () => {
     compareItems.value = []
     
     try {
-      // 일괄 삭제 API가 없다면 개별 삭제 처리 (Promise.all 사용)
-      await Promise.all(previous.map(id => removeFromCompareApi(id)))
+      const results = await Promise.allSettled(previous.map(id => removeFromCompareApi(id)))
+      
+      const failed = results
+        .map((result, index) => result.status === 'rejected' ? previous[index] : null)
+        .filter(id => id !== null)
+
+      if (failed.length > 0) {
+        compareItems.value = failed
+        error.value = '일부 항목을 비교함에서 삭제하지 못했습니다.'
+      }
     } catch (e) {
       compareItems.value = previous
       error.value = getErrorMessage(e, '비교함 초기화 실패')
