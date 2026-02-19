@@ -26,7 +26,7 @@ const defaultBriefing = (clientName, notes) => {
       '가격보다 안정적인 품질과 납기 준수에 높은 가중치를 둡니다.',
     ],
     strategy: `'${latest.summary?.[0] || '핵심 이슈'}'에 맞춘 후속 자료를 준비해 다음 미팅에서 실행 계획을 제시하세요.`,
-    recentNoteIds: notes.slice(0, 2).map((item) => item.id),
+    recentNoteIds: notes.slice(0, 3).map((item) => item.id),
     clientName,
   }
 }
