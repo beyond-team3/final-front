@@ -14,11 +14,8 @@ const unassignedData = ref({
   ADMIN: ['이운영 (본사관리)'],
 })
 
-const salesPeople = [
-  '영업1팀 강백호',
-  '영업2팀 서태웅',
-  '지원팀 송태섭',
-]
+// ★ 영업사원 목록을 담을 ref (초기값 빈 배열)
+const salesPeople = ref([])
 
 const form = reactive({
   accountType: '',
@@ -31,9 +28,19 @@ const form = reactive({
 const targetOptions = ref([])
 const showTargetArea = ref(false)
 const showSalesArea = ref(false)
-const isLocked = ref(false) // 사원 관리에서 진입 시 역할 고정용
+const isLocked = ref(false)
 
-// 역할 변경 시 처리 로직
+// ★ DB의 employees에서 영업사원 성함을 가져오는 함수
+const fetchSalesPeople = async () => {
+  try {
+    const response = await axios.get('http://localhost:3001/employees')
+    // 직원 목록에서 이름(name)만 추출하여 배열로 저장
+    salesPeople.value = response.data.map(emp => emp.name)
+  } catch (error) {
+    console.error('직원 목록 로드 실패:', error)
+  }
+}
+
 const updateTargetList = (type) => {
   targetOptions.value = unassignedData.value[type] || []
   form.targetPerson = ''
@@ -57,8 +64,10 @@ const onTypeChange = () => {
   }
 }
 
-// 페이지 진입 시 쿼리 파라미터 체크 (?role=SALES 등)
-onMounted(() => {
+onMounted(async () => {
+  // 페이지 진입 시 영업사원 목록부터 가져옵니다.
+  await fetchSalesPeople()
+
   const queryRole = route.query.role
   if (queryRole) {
     form.accountType = queryRole
@@ -81,13 +90,18 @@ const onSubmit = async () => {
       createdAt: new Date().toISOString()
     }
 
-    // db.json의 users 경로로 POST 요청
     await axios.post('http://localhost:3001/users', newUser)
 
     unassignedData.value[accountType] = (unassignedData.value[accountType] || []).filter((name) => name !== targetPerson)
 
     alert('계정 등록이 완료되었슴돠!')
-    router.push('/employees')
+
+    // ★ 계정 역할에 따른 페이지 이동 분기 처리
+    if (accountType === 'CLIENT') {
+      router.push('/clients') // 거래처 관리로 이동
+    } else {
+      router.push('/employees') // 그 외(SALES, ADMIN)는 사원 관리로 이동
+    }
   } catch (error) {
     console.error('등록 실패:', error)
     alert('DB 저장에 실패했슴돠.')
@@ -131,7 +145,7 @@ const onSubmit = async () => {
           담당 영업사원 매칭
           <select v-model="form.salesPerson" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" :required="showSalesArea">
             <option disabled value="">영업사원 선택</option>
-            <option v-for="sales in salesPeople" :key="sales" :value="sales">{{ sales }}</option>
+            <option v-for="salesName in salesPeople" :key="salesName" :value="salesName">{{ salesName }}</option>
           </select>
         </label>
 
