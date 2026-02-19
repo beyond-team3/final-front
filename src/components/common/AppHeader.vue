@@ -9,8 +9,8 @@ const emit = defineEmits(['toggle-sidebar'])
 
 const roleLabel = computed(() => authStore.currentRole || '미선택')
 
-const logout = () => {
-  authStore.setRole(null)
+const logout = async () => {
+  await authStore.logout()
   router.push('/login')
 }
 
