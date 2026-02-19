@@ -315,7 +315,7 @@ export const useProductStore = defineStore('product', () => {
 
   const getFeedbackMessages = (productId) => feedbackByProduct.value[Number(productId)] || []
 
-  const addFeedbackMessage = (productId, content, sender = '나') => {
+  const addFeedbackMessage = (productId, content, sender = '나', parentId = null) => {
     const key = Number(productId)
     if (!key || !content?.trim()) {
       return
@@ -328,6 +328,7 @@ export const useProductStore = defineStore('product', () => {
       sender,
       content: content.trim(),
       isMine: true,
+      parentId,
       createdAt: new Date().toISOString(),
     }
 
