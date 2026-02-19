@@ -13,6 +13,55 @@ const documentStore = useDocumentStore()
 const historyStore = useHistoryStore()
 const authStore = useAuthStore()
 
+// ================================================================
+// [DUMMY] 계약서 더미 데이터
+// TODO: API 연결 후 이 블록 전체 삭제하고,
+//       아래 selectedContract를 store 기반으로 복원할 것
+// ================================================================
+const DUMMY_CONTRACTS = [
+  {
+    id: 7,
+    type: 'contract',
+    status: 'ACTIVE',
+    startDate: '2026-02-10',
+    endDate: '2026-12-31',
+    billingCycle: '월 1회',
+    historyId: 1,
+    salesRep: { name: '김민수' },
+    client: {
+      id: 1,
+      name: '그린팜유통',
+      contact: '정호성',
+      phone: '010-3001-4412',
+    },
+    items: [
+      { id: 'P003', productId: 'P003', name: '고추 PR-21', variety: '고추', unit: '500립', unitPrice: 38000, minQty: 10, quantity: 0, amount: 0 },
+      { id: 'P004', productId: 'P004', name: '토마토 TY-9', variety: '토마토', unit: '1,000립', unitPrice: 42000, minQty: 10, quantity: 0, amount: 0 },
+    ],
+  },
+  {
+    id: 3,
+    type: 'contract',
+    status: '체결',
+    startDate: '2026-02-08',
+    endDate: '2026-12-31',
+    billingCycle: '월 1회',
+    historyId: 2,
+    salesRep: { name: '박지훈' },
+    client: {
+      id: 2,
+      name: '청솔영농조합',
+      contact: '오지은',
+      phone: '061-332-0081',
+    },
+    items: [
+      { id: 'P001', productId: 'P001', name: '배추 BS-10', variety: '배추', unit: '5,000립', unitPrice: 27000, minQty: 5, quantity: 0, amount: 0 },
+      { id: 'P002', productId: 'P002', name: '무 MR-5', variety: '무', unit: '3,000립', unitPrice: 22000, minQty: 5, quantity: 0, amount: 0 },
+    ],
+  },
+]
+// ================================================================
+
 const selectedContractId = ref(route.query.contractId || '')
 const selectedHistoryId = ref('')
 const deliveryAddress = ref('')
@@ -24,14 +73,27 @@ const lineItems = ref([])
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
-const selectedContract = computed(() => documentStore.getContractById(selectedContractId.value) || null)
+
+// [DUMMY] 계약서 조회 - store 대신 더미에서 찾음
+// TODO: API 연결 후 아래 한 줄로 교체
+//   const selectedContract = computed(() => documentStore.getContractById(selectedContractId.value) || null)
+const selectedContract = computed(() => {
+  const id = selectedContractId.value
+  if (!id) return null
+  return DUMMY_CONTRACTS.find((c) => String(c.id) === String(id)) || null
+})
+
+// [DUMMY] 모달에 넘길 계약서 목록 - store 대신 더미 사용
+// TODO: API 연결 후 아래 한 줄로 교체
+//   const contractList = computed(() => documentStore.contracts)
+const contractList = computed(() => DUMMY_CONTRACTS)
 
 watch(selectedContract, (contract) => {
   if (!contract) return
   selectedHistoryId.value = contract.historyId || ''
   lineItems.value = contract.items.map((item) => ({ ...item, quantity: 0 }))
-  // 계약서 기본 배송지 자동입력
-  deliveryAddress.value = contract.client?.address || ''
+  // 배송지는 사용자가 직접 입력하는 필드 - 자동입력 없음
+  deliveryAddress.value = ''
   deliveryRecipient.value = contract.client?.contact || ''
   deliveryPhone.value = contract.client?.phone || ''
 }, { immediate: true })
@@ -48,7 +110,6 @@ const pipelineOptions = computed(() => {
 
 onMounted(() => {
   void historyStore.ensureLoaded()
-  // 클라이언트일 경우 계약서 상품 목록 초기화
   if (isClient.value && selectedContract.value) {
     lineItems.value = selectedContract.value.items.map((item) => ({ ...item, quantity: 0 }))
   }
@@ -111,6 +172,13 @@ const orderNoPreview = computed(() => {
 })
 
 const pdfItems = computed(() => lineItems.value.filter((i) => Number(i.quantity) > 0))
+
+// 계약서 선택 모달
+const showContractModal = ref(false)
+
+const onSelectContract = (contract) => {
+  selectedContractId.value = String(contract.id)
+}
 </script>
 
 <template>
@@ -118,6 +186,14 @@ const pdfItems = computed(() => lineItems.value.filter((i) => Number(i.quantity)
     <PageHeader
         :title="isClient ? '주문서 작성' : '주문서'"
         :subtitle="isClient ? '계약서 기반으로 주문서를 작성합니다.' : '계약서 기반으로 주문서를 작성하거나 조회합니다.'"
+    />
+
+    <!-- [DUMMY] OrderModal - contractList에 더미 데이터 전달 -->
+    <!-- TODO: API 연결 후 :contracts="contractList" 그대로 유지, contractList computed만 store로 교체 -->
+    <OrderModal
+        v-model="showContractModal"
+        :contracts="contractList"
+        @select="onSelectContract"
     />
 
     <div class="split-layout">
@@ -134,6 +210,10 @@ const pdfItems = computed(() => lineItems.value.filter((i) => Number(i.quantity)
             <div v-if="selectedContract" style="margin-left:auto">
               <span class="contract-status-badge">승인 완료</span>
             </div>
+            <!-- 계약서 선택 버튼 (영업사원용) -->
+            <button v-if="isSalesRep" class="btn btn-cancel" style="margin-left:auto" @click="showContractModal = true">
+              📋 계약서 선택
+            </button>
           </div>
           <div class="contract-card-body">
             <div class="contract-field">
@@ -238,7 +318,7 @@ const pdfItems = computed(() => lineItems.value.filter((i) => Number(i.quantity)
               <div class="form-group full-width">
                 <label class="form-label">배송지 주소 <span class="required">*</span></label>
                 <input v-model="deliveryAddress" class="form-input" type="text" placeholder="예: 서울특별시 강남구 테헤란로 123 농업센터 3층" />
-                <span class="form-hint">계약서 기본 배송지가 자동 입력됩니다. 변경 가능합니다.</span>
+                <span class="form-hint">배송지를 직접 입력해 주세요.</span>
               </div>
               <div class="form-group">
                 <label class="form-label">수령인 <span class="required">*</span></label>
@@ -256,7 +336,7 @@ const pdfItems = computed(() => lineItems.value.filter((i) => Number(i.quantity)
           </div>
         </div>
 
-        <!-- ⑤ 액션 바 -->
+        <!-- 액션 바 -->
         <div class="action-bar">
           <div class="action-bar-left">
             <span class="autosave-hint">작성 중 · 마지막 자동저장 <strong>방금 전</strong></span>
@@ -449,7 +529,7 @@ const pdfItems = computed(() => lineItems.value.filter((i) => Number(i.quantity)
 .btn-save:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
 .btn-save:disabled { background: linear-gradient(135deg, #94a3b8, #94a3b8); box-shadow: none; cursor: not-allowed; opacity: 0.7; transform: none; }
 
-/* ───── PDF 미리보기 (ContractView 스타일) ───── */
+/* ───── PDF 미리보기 ───── */
 .pdf-wrap { background: #525659; padding: 16px; border-radius: 12px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.2); }
 .pdf-preview { background: white; padding: 32px; min-height: 700px; border-radius: 4px; font-family: serif; font-size: 12px; color: #1e293b; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
 .pdf-title { text-align: center; font-size: 22px; font-weight: 800; letter-spacing: 4px; margin-bottom: 24px; padding-bottom: 14px; border-bottom: 2px solid #1e293b; }

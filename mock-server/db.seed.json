@@ -308,7 +308,30 @@
       ],
       "imageUrl": "https://images.example.com/products/pepper-pr21.jpg",
       "stock": 120,
-      "updatedAt": "2026-02-15"
+      "updatedAt": "2026-02-15",
+      "tags": {
+        "env": [
+          "노지",
+          "비닐하우스"
+        ],
+        "res": [
+          "탄저병",
+          "바이러스"
+        ],
+        "growth": [
+          "조생종",
+          "강세"
+        ],
+        "quality": [
+          "고수량",
+          "매운맛우수"
+        ],
+        "conv": [
+          "기계수확가능",
+          "장기수확"
+        ]
+      },
+      "desc": "탄저병·칼라병 복합 저항성을 갖춘 고수량 고추 품종. 초세가 강하고 노지·비닐하우스 모두 적합."
     },
     {
       "id": 2,
@@ -323,7 +346,30 @@
       ],
       "imageUrl": "https://images.example.com/products/tomato-ty9.jpg",
       "stock": 80,
-      "updatedAt": "2026-02-14"
+      "updatedAt": "2026-02-14",
+      "tags": {
+        "env": [
+          "비닐하우스",
+          "노지"
+        ],
+        "res": [
+          "바이러스",
+          "TYLCV"
+        ],
+        "growth": [
+          "조생종",
+          "강세"
+        ],
+        "quality": [
+          "고수량",
+          "당도우수"
+        ],
+        "conv": [
+          "기계수확가능",
+          "장기수확"
+        ]
+      },
+      "desc": "TYLCV 저항성을 갖춘 고품질 토마토. 당도가 우수하고 균일과율이 높아 상품성이 뛰어남."
     },
     {
       "id": 3,
@@ -338,7 +384,29 @@
       ],
       "imageUrl": "https://images.example.com/products/cabbage-bs10.jpg",
       "stock": 200,
-      "updatedAt": "2026-02-13"
+      "updatedAt": "2026-02-13",
+      "tags": {
+        "env": [
+          "노지",
+          "고랭지"
+        ],
+        "res": [
+          "노균병",
+          "무름병"
+        ],
+        "growth": [
+          "중생종",
+          "저온강"
+        ],
+        "quality": [
+          "결구력우수",
+          "저장성우수"
+        ],
+        "conv": [
+          "기계수확가능"
+        ]
+      },
+      "desc": "저온 신장성이 우수한 결구 배추. 수확 안정성이 높고 저장성이 좋아 유통에 유리."
     },
     {
       "id": 4,
@@ -353,7 +421,29 @@
       ],
       "imageUrl": "https://images.example.com/products/potato-pt11.jpg",
       "stock": 60,
-      "updatedAt": "2026-02-12"
+      "updatedAt": "2026-02-12",
+      "tags": {
+        "env": [
+          "노지",
+          "고랭지"
+        ],
+        "res": [
+          "역병",
+          "바이러스"
+        ],
+        "growth": [
+          "중생종",
+          "저온강"
+        ],
+        "quality": [
+          "상품률우수",
+          "저장성우수"
+        ],
+        "conv": [
+          "기계수확가능"
+        ]
+      },
+      "desc": "중생종 감자로 상품률이 우수하고 저장성이 양호. 역병 저항성으로 안정적 재배 가능."
     },
     {
       "id": 5,
@@ -368,7 +458,28 @@
       ],
       "imageUrl": "https://images.example.com/products/lettuce-ls8.jpg",
       "stock": 300,
-      "updatedAt": "2026-02-16"
+      "updatedAt": "2026-02-16",
+      "tags": {
+        "env": [
+          "비닐하우스",
+          "노지"
+        ],
+        "res": [
+          "노균병"
+        ],
+        "growth": [
+          "조생종",
+          "저온강"
+        ],
+        "quality": [
+          "고수량",
+          "저장성우수"
+        ],
+        "conv": [
+          "기계수확가능"
+        ]
+      },
+      "desc": "내서성이 강한 여름 상추. 엽색이 진하고 수량성이 높아 연중 재배에 적합."
     },
     {
       "name": "신규품종1",
@@ -382,7 +493,8 @@
       },
       "tags": {
         "env": [
-          "고랭지"
+          "고랭지",
+          "노지"
         ],
         "res": [
           "바이러스"
