@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SearchFilter from '@/components/common/SearchFilter.vue'
@@ -9,11 +9,16 @@ import { useProductStore } from '@/stores/product'
 const router = useRouter()
 const productStore = useProductStore()
 
+onMounted(() => {
+  productStore.fetchProducts()
+})
+
 const filters = ref({
   category: '',
   env: '',
   keyword: '',
 })
+const visibleCount = ref(12)
 
 const filterFields = computed(() => [
   {
@@ -47,6 +52,17 @@ const filteredProducts = computed(() => {
     return matchCategory && matchEnv && matchKeyword
   })
 })
+
+const visibleProducts = computed(() => filteredProducts.value.slice(0, visibleCount.value))
+const hasMoreProducts = computed(() => filteredProducts.value.length > visibleCount.value)
+
+watch(filters, () => {
+  visibleCount.value = 12
+}, { deep: true })
+
+const loadMore = () => {
+  visibleCount.value += 6
+}
 
 const goDetail = (id) => {
   router.push(`/products/${id}`)
@@ -99,9 +115,9 @@ const openCompare = () => {
 
     <SearchFilter v-model="filters" :fields="filterFields" search-label="검색" reset-label="초기화" />
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <section class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))">
       <ProductCatalogCard
-        v-for="item in filteredProducts"
+        v-for="item in visibleProducts"
         :key="item.id"
         :item="item"
         :compare-active="productStore.isInCompare(item.id)"
@@ -118,5 +134,15 @@ const openCompare = () => {
         검색 결과가 없습니다.
       </div>
     </section>
+
+    <div v-if="hasMoreProducts" class="mt-6 text-center">
+      <button
+        type="button"
+        class="rounded-full border border-slate-300 bg-white px-10 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        @click="loadMore"
+      >
+        더 보기 +
+      </button>
+    </div>
   </section>
 </template>

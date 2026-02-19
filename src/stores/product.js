@@ -1,14 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
-  addFavorite,
-  addToCompare,
   createProduct as createProductApi,
-  getCompareList,
-  getFavorites,
   getProducts,
-  removeFavorite,
-  removeFromCompare,
   submitFeedback,
   updateProduct as updateProductApi,
 } from '@/api/product'
@@ -102,24 +96,33 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
-  async function fetchFavorites() {
+  function loadFromStorage(key) {
     try {
-      favoriteItems.value = normalizeIdList(await getFavorites())
-      return favoriteItems.value
+      const stored = localStorage.getItem(key)
+      return stored ? JSON.parse(stored) : []
     } catch (e) {
-      error.value = getErrorMessage(e, '즐겨찾기 목록을 불러오지 못했습니다.')
-      return favoriteItems.value
+      console.error(`Failed to load ${key} from localStorage`, e)
+      return []
     }
   }
 
-  async function fetchCompareList() {
+  function saveToStorage(key, value) {
     try {
-      compareItems.value = normalizeIdList(await getCompareList())
-      return compareItems.value
+      localStorage.setItem(key, JSON.stringify(value))
     } catch (e) {
-      error.value = getErrorMessage(e, '비교 목록을 불러오지 못했습니다.')
-      return compareItems.value
+      console.error(`Failed to save ${key} to localStorage`, e)
     }
+  }
+
+  // API 대신 localStorage 사용
+  function fetchFavorites() {
+    favoriteItems.value = loadFromStorage('myFavorites')
+    return favoriteItems.value
+  }
+
+  function fetchCompareList() {
+    compareItems.value = loadFromStorage('myCompare')
+    return compareItems.value
   }
 
   const addCompareItem = (id) => {
@@ -133,23 +136,14 @@ export const useProductStore = defineStore('product', () => {
     }
 
     compareItems.value.push(productId)
-    addToCompare(productId).catch((e) => {
-      error.value = getErrorMessage(e, '비교 목록 추가에 실패했습니다.')
-      compareItems.value = compareItems.value.filter((item) => item !== productId)
-    })
-
+    saveToStorage('myCompare', compareItems.value)
     return { ok: true, reason: 'added' }
   }
 
   const removeCompareItem = (id) => {
     const productId = Number(id)
-    const prev = [...compareItems.value]
     compareItems.value = compareItems.value.filter((item) => item !== productId)
-
-    removeFromCompare(productId).catch((e) => {
-      error.value = getErrorMessage(e, '비교 목록 삭제에 실패했습니다.')
-      compareItems.value = prev
-    })
+    saveToStorage('myCompare', compareItems.value)
   }
 
   const toggleCompareItem = (id) => {
@@ -162,13 +156,8 @@ export const useProductStore = defineStore('product', () => {
   }
 
   const clearCompareItems = () => {
-    const prev = [...compareItems.value]
     compareItems.value = []
-
-    Promise.all(prev.map((id) => removeFromCompare(id))).catch((e) => {
-      error.value = getErrorMessage(e, '비교 목록 초기화에 실패했습니다.')
-      compareItems.value = prev
-    })
+    saveToStorage('myCompare', [])
   }
 
   const addFavoriteItem = (id) => {
@@ -178,21 +167,13 @@ export const useProductStore = defineStore('product', () => {
     }
 
     favoriteItems.value.push(productId)
-    addFavorite(productId).catch((e) => {
-      error.value = getErrorMessage(e, '즐겨찾기 추가에 실패했습니다.')
-      favoriteItems.value = favoriteItems.value.filter((item) => item !== productId)
-    })
+    saveToStorage('myFavorites', favoriteItems.value)
   }
 
   const removeFavoriteItem = (id) => {
     const productId = Number(id)
-    const prev = [...favoriteItems.value]
     favoriteItems.value = favoriteItems.value.filter((item) => item !== productId)
-
-    removeFavorite(productId).catch((e) => {
-      error.value = getErrorMessage(e, '즐겨찾기 삭제에 실패했습니다.')
-      favoriteItems.value = prev
-    })
+    saveToStorage('myFavorites', favoriteItems.value)
   }
 
   const toggleFavoriteItem = (id) => {

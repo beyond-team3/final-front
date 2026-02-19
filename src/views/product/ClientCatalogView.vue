@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SearchFilter from '@/components/common/SearchFilter.vue'
@@ -9,12 +9,16 @@ import { useProductStore } from '@/stores/product'
 const router = useRouter()
 const productStore = useProductStore()
 
+onMounted(() => {
+  productStore.fetchProducts()
+})
+
 const filters = ref({
   category: '',
   env: '',
   keyword: '',
 })
-const visibleCount = ref(6)
+const visibleCount = ref(12)
 
 const filterFields = computed(() => [
   {
@@ -100,7 +104,7 @@ const openCompare = () => {
 
     <SearchFilter v-model="filters" :fields="filterFields" search-label="검색" reset-label="초기화" />
 
-    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <section class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))">
       <ProductCatalogCard
         v-for="item in visibleProducts"
         :key="item.id"
