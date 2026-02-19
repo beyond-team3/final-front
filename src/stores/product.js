@@ -290,19 +290,20 @@ export const useProductStore = defineStore('product', () => {
 
   const getFeedbackMessages = (productId) => feedbackByProduct.value[Number(productId)] || []
 
-  const addFeedbackMessage = (productId, content, sender = '나') => {
+  const addFeedbackMessage = (productId, content, sender = '나', parentId = null) => {
     const key = Number(productId)
     if (!key || !content?.trim()) {
       return
     }
 
     const list = [...(feedbackByProduct.value[key] || [])]
-    const nextId = Date.now()
+    const nextId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
     const next = {
       id: nextId,
       sender,
       content: content.trim(),
       isMine: true,
+      parentId,
       createdAt: new Date().toISOString(),
     }
 
