@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
@@ -203,14 +203,18 @@ const openEditModal = (eventItem = null) => {
   editModalOpen.value = true
 }
 
-const goToRecommendationDetail = (item, index = null) => {
+const goToRecommendationDetail = async (item, index = null) => {
   if (!item?.id) {
     return
   }
-  if (index !== null) {
-    recommendIdx.value = index
+  try {
+    await router.push(`/products/${item.id}`)
+    if (index !== null) {
+      recommendIdx.value = index
+    }
+  } catch (err) {
+    // Ignore navigation failures and preserve current carousel index.
   }
-  router.push(`/products/${item.id}`)
 }
 
 const resetFilters = () => {
@@ -264,7 +268,9 @@ const startRecommendTimer = () => {
   }, 5000)
 }
 
-startRecommendTimer()
+onMounted(() => {
+  startRecommendTimer()
+})
 
 onBeforeUnmount(() => {
   if (carouselTimer) {
@@ -346,7 +352,7 @@ onBeforeUnmount(() => {
                 <div class="day-num">{{ cell.day }}</div>
                 <div class="badge-row">
                   <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id" class="badge" :class="ev.type">
-                    {{ ev.type === 'history' ? `${labelHistory(ev.historyCategory)} · ${ev.title}` : ev.title }}
+                    {{ ev.type === 'history' ? `${historyLabelWithOwner(ev)} · ${ev.title}` : ev.title }}
                   </div>
                   <div v-if="cell.events.length > 3" class="badge">+{{ cell.events.length - 3 }}</div>
                 </div>
@@ -363,7 +369,7 @@ onBeforeUnmount(() => {
             <span style="font-size:12px;color:#6b7a8c;">자동 슬라이드</span>
           </div>
 
-          <div class="carousel">
+          <div v-if="currentRecommendation" class="carousel">
             <div
               class="carousel-img"
               :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
