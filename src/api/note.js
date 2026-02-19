@@ -23,3 +23,7 @@ export function getAIBriefing(clientId) {
 export function getClientNote(clientId) {
   return api.get(`/notes/client/${clientId}`)
 }
+
+export function deleteNote(id) {
+  return api.delete(`/notes/${id}`)
+}

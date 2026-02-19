@@ -6,6 +6,7 @@ import {
   createNote as createNoteApi,
   getAIBriefing,
   getNotes,
+  deleteNote as deleteNoteApi,
 } from '@/api/note'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
@@ -209,6 +210,21 @@ export const useNoteStore = defineStore('note', () => {
     }
   }
 
+  const deleteNote = async (id) => {
+    const targetId = Number(id)
+    try {
+      await deleteNoteApi(targetId)
+      const index = notes.value.findIndex((item) => item.id === targetId)
+      if (index !== -1) {
+        notes.value.splice(index, 1)
+      }
+    } catch (e) {
+      console.error('삭제 처리 중 오류:', e)
+      error.value = getErrorMessage(e, '노트 삭제에 실패했습니다.')
+      throw e
+    }
+  }
+
   const getNotesByClient = (clientId) => notes.value
     .filter((note) => note.clientId === Number(clientId) || note.clientId === clientId)
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
@@ -374,6 +390,7 @@ export const useNoteStore = defineStore('note', () => {
     generateSummary,
     createNote,
     updateNote,
+    deleteNote,
     getNotesByClient,
     getBriefingByClient,
     searchClientNotes,
