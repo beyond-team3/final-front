@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
 
-const credit = ref(50000000)
 const selectedInvId = ref(null)
 const selectedMethod = ref('')
 const successOpen = ref(false)
@@ -35,7 +34,6 @@ const totals = computed(() => {
   return { supply, tax, total: supply + tax }
 })
 
-const creditAfter = computed(() => credit.value + totals.value.total)
 const canPay = computed(() => Boolean(selectedInvoice.value && selectedMethod.value))
 
 const selectInvoice = (id) => {
@@ -59,7 +57,6 @@ const handlePay = () => {
 
   // TODO: API 연결
   selectedInvoice.value.status = 'paid'
-  credit.value += totals.value.total
 
   const now = new Date().toLocaleString('ko-KR')
   successMessage.value = `${selectedInvoice.value.id} / ${methodLabels[selectedMethod.value]} / ₩${totals.value.total.toLocaleString()} (${now})`
@@ -74,15 +71,7 @@ const closeSuccess = () => {
 
 <template>
   <section class="screen-content">
-    <PageHeader title="결제 관리" subtitle="청구서를 선택하고 결제 처리하면 여신이 즉시 반영됩니다." />
-
-    <div class="credit-banner">
-      <div>
-        <p class="label">현재 여신</p>
-        <p class="credit">₩{{ credit.toLocaleString() }}</p>
-      </div>
-      <p class="sub">결제 완료 시 결제 금액만큼 여신이 증가합니다.</p>
-    </div>
+    <PageHeader title="결제 관리" subtitle="청구서를 선택하고 결제 처리하세요." />
 
     <div class="layout">
       <section class="card">
@@ -92,31 +81,31 @@ const closeSuccess = () => {
 
         <table v-else class="table">
           <thead>
-            <tr>
-              <th>번호</th>
-              <th>거래처</th>
-              <th class="right">금액(부가세 포함)</th>
-              <th>발행일</th>
-              <th>상태</th>
-            </tr>
+          <tr>
+            <th>번호</th>
+            <th>거래처</th>
+            <th class="right">금액(부가세 포함)</th>
+            <th>발행일</th>
+            <th>상태</th>
+          </tr>
           </thead>
           <tbody>
-            <tr
+          <tr
               v-for="invoice in invoices"
               :key="invoice.id"
               :class="{ selected: invoice.id === selectedInvId, paid: invoice.status === 'paid' }"
               @click="selectInvoice(invoice.id)"
-            >
-              <td>{{ invoice.id }}<br><small>{{ invoice.orderNo }}</small></td>
-              <td>{{ invoice.company }}</td>
-              <td class="right">₩{{ (invoice.supply + Math.round(invoice.supply * 0.1)).toLocaleString() }}</td>
-              <td>{{ invoice.issueDate }}</td>
-              <td>
+          >
+            <td>{{ invoice.id }}<br><small>{{ invoice.orderNo }}</small></td>
+            <td>{{ invoice.company }}</td>
+            <td class="right">₩{{ (invoice.supply + Math.round(invoice.supply * 0.1)).toLocaleString() }}</td>
+            <td>{{ invoice.issueDate }}</td>
+            <td>
                 <span class="status" :class="invoice.status === 'paid' ? 'paid' : 'unpaid'">
                   {{ invoice.status === 'paid' ? '결제완료' : '미결제' }}
                 </span>
-              </td>
-            </tr>
+            </td>
+          </tr>
           </tbody>
         </table>
       </section>
@@ -137,12 +126,6 @@ const closeSuccess = () => {
           <button type="button" class="method" :class="{ active: selectedMethod === 'transfer' }" @click="selectedMethod = 'transfer'">계좌이체</button>
         </div>
 
-        <div class="sim-card">
-          <p><span>결제 전 여신</span>₩{{ credit.toLocaleString() }}</p>
-          <p><span>결제 금액</span>{{ totals.total ? `+₩${totals.total.toLocaleString()}` : '-' }}</p>
-          <p><span>결제 후 여신</span>{{ totals.total ? `₩${creditAfter.toLocaleString()}` : `₩${credit.toLocaleString()}` }}</p>
-        </div>
-
         <div class="actions">
           <button type="button" class="btn-sub" @click="resetSelection">취소</button>
           <button type="button" class="btn-primary" :disabled="!canPay" @click="handlePay">결제 실행</button>
@@ -153,7 +136,6 @@ const closeSuccess = () => {
     <ModalBase v-model="successOpen" title="결제 완료" width-class="max-w-lg" :close-on-backdrop="false">
       <p class="success-text">결제가 정상 처리되었습니다.</p>
       <p class="success-message">{{ successMessage }}</p>
-      <p class="success-message">현재 여신: ₩{{ credit.toLocaleString() }}</p>
 
       <template #footer>
         <div class="flex justify-end">
@@ -166,10 +148,6 @@ const closeSuccess = () => {
 
 <style scoped>
 .screen-content { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
-.credit-banner { border: 1px solid #dbeafe; background: #eff6ff; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.label { font-size: 12px; color: #64748b; font-weight: 700; }
-.credit { margin-top: 4px; font-size: 24px; color: #1d4ed8; font-weight: 800; }
-.sub { font-size: 12px; color: #64748b; align-self: center; }
 .layout { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
 .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
 .card h3 { font-size: 15px; color: #1f2937; font-weight: 700; margin-bottom: 10px; }
@@ -191,9 +169,6 @@ const closeSuccess = () => {
 .method-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .method { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 8px; background: #fff; font-size: 12px; font-weight: 700; color: #334155; }
 .method.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
-.sim-card { margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: #f8fafc; }
-.sim-card p { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; color: #334155; }
-.sim-card p span { color: #64748b; font-weight: 700; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .btn-primary { border: none; border-radius: 9px; padding: 10px 14px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 700; }
 .btn-primary:disabled { opacity: .45; }
