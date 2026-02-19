@@ -1,114 +1,80 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getMyInfo, login as loginApi, logout as logoutApi } from '@/api/auth'
 
 const ROLE_KEY = 'currentRole'
 const TOKEN_KEY = 'token'
 
-function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-  return error?.response?.data?.message || error?.message || fallback
-}
-
 export const useAuthStore = defineStore('auth', () => {
-  const currentRole = ref(localStorage.getItem(ROLE_KEY) || null)
-  const token = ref(localStorage.getItem(TOKEN_KEY) || null)
-  const me = ref(null)
-  const loading = ref(false)
-  const error = ref(null)
+    const currentRole = ref(localStorage.getItem(ROLE_KEY) || null)
+    const token = ref(localStorage.getItem(TOKEN_KEY) || null)
+    const me = ref(null)
+    const loading = ref(false)
+    const error = ref(null)
 
-  const setRole = (role) => {
-    currentRole.value = role
-
-    if (role) {
-      localStorage.setItem(ROLE_KEY, role)
-      return
+    const setRole = (role) => {
+        currentRole.value = role
+        role ? localStorage.setItem(ROLE_KEY, role) : localStorage.removeItem(ROLE_KEY)
     }
 
-    localStorage.removeItem(ROLE_KEY)
-  }
-
-  const setToken = (nextToken) => {
-    token.value = nextToken
-
-    if (nextToken) {
-      localStorage.setItem(TOKEN_KEY, nextToken)
-      return
+    const setToken = (nextToken) => {
+        token.value = nextToken
+        nextToken ? localStorage.setItem(TOKEN_KEY, nextToken) : localStorage.removeItem(TOKEN_KEY)
     }
 
-    localStorage.removeItem(TOKEN_KEY)
-  }
+    async function login({ loginId, password }) {
+        loading.value = true
+        error.value = null
 
-  async function login(payload) {
-    loading.value = true
-    error.value = null
+        try {
+            const response = await fetch(`http://localhost:3001/users?loginId=${loginId}`)
+            const users = await response.json()
+            const account = users[0]
 
-    try {
-      const result = await loginApi(payload)
+            if (!account) {
+                throw new Error('등록되지 않은 사용자입니다.')
+            }
 
-      if (result?.token) {
-        setToken(result.token)
-      }
+            if (account.password !== password) {
+                throw new Error('비밀번호가 일치하지 않습니다.')
+            }
 
-      if (result?.role) {
-        setRole(result.role)
-      }
+            let detailData = {}
+            if (account.refId) {
+                const table = account.role === 'CLIENT' ? 'clients' : 'employees'
+                const detailRes = await fetch(`http://localhost:3001/${table}/${account.refId}`)
+                if (detailRes.ok) {
+                    detailData = await detailRes.json()
+                }
+            }
 
-      if (result?.user) {
-        me.value = result.user
-      }
+            // 5. [성공] 스토어 상태 업데이트
+            const finalUser = { ...account, ...detailData }
+            me.value = finalUser
+            setToken('fake-jwt-token-for-now') // 임시 토큰
+            setRole(account.role)
 
-      return result
-    } catch (e) {
-      error.value = getErrorMessage(e, '로그인에 실패했습니다.')
-      throw e
-    } finally {
-      loading.value = false
+            return finalUser
+        } catch (e) {
+            error.value = e.message || '로그인 중 오류 발생'
+            throw e
+        } finally {
+            loading.value = false
+        }
     }
-  }
 
-  async function fetchMyInfo() {
-    loading.value = true
-    error.value = null
-
-    try {
-      me.value = await getMyInfo()
-      return me.value
-    } catch (e) {
-      error.value = getErrorMessage(e, '사용자 정보를 불러오지 못했습니다.')
-      throw e
-    } finally {
-      loading.value = false
+    async function logout() {
+        me.value = null
+        setToken(null)
+        setRole(null)
     }
-  }
 
-  async function logout() {
-    loading.value = true
-    error.value = null
-
-    try {
-      if (token.value) {
-        await logoutApi()
-      }
-    } catch (e) {
-      error.value = getErrorMessage(e, '로그아웃 처리 중 오류가 발생했습니다.')
-    } finally {
-      me.value = null
-      setToken(null)
-      setRole(null)
-      loading.value = false
+    return {
+        currentRole,
+        token,
+        me,
+        loading,
+        error,
+        login,
+        logout,
     }
-  }
-
-  return {
-    currentRole,
-    token,
-    me,
-    loading,
-    error,
-    setRole,
-    setToken,
-    login,
-    fetchMyInfo,
-    logout,
-  }
 })
