@@ -36,15 +36,15 @@ const selectedClientData = computed(() =>
 // ── 명세서(Statement) 목록 ───────────────────────────────
 // 계약에 연결된 주문서들의 명세서 항목
 const statementList = computed(() => {
-  if (!selectedContract.value && !contractId.value) return []
+  // contractId가 URL에 없으면 invoiceId로 invoice를 찾아서 contractId를 가져옴
+  const resolvedContractId = contractId.value
+      || documentStore.invoices?.find((inv) => String(inv.id) === String(invoiceId.value))?.contractId
+      || null
 
-  // 현재 invoice의 orderId들 수집
-  const relatedOrderIds = documentStore.orders
-      ?.filter((o) => o.contractId === contractId.value)
-      .map((o) => o.id) || []
+  if (!resolvedContractId) return []
 
   return documentStore.statements
-      ?.filter((s) => relatedOrderIds.includes(s.order_id))
+      ?.filter((s) => String(s.contractId) === String(resolvedContractId))
       .map((s) => ({
         id: s.id,
         orderId: s.order_id,

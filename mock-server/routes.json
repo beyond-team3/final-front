@@ -32,5 +32,6 @@
   "/api/notifications": "/notifications",
   "/api/notifications/:id/*": "/notifications/:id",
   "/api/users": "/users",
-  "/api/users/:id": "/users/:id"
+  "/api/users/:id": "/users/:id",
+  "/api/statements": "/statements"
 }
