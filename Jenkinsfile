@@ -80,7 +80,7 @@ pipeline {
                             sed -i "s|image: ${imageName}:.*|image: ${imageName}:${newTag}|g" ${targetFile}
 
                             # Commit & Push
-                            git add ${targetFile}
+                            git add "${targetFile}"
                             # Push 할 때만 일회성으로 비밀번호를 다시 조합해서 사용
                             git diff-index --quiet HEAD || (git commit -m "🚀 [CD] Update ${imageName} to ${newTag}" && git push https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} main)
 
