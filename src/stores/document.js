@@ -418,7 +418,6 @@ export const useDocumentStore = defineStore('document', () => {
         fetchProductMaster(),
         fetchClientMaster(),
         fetchDocuments(),
-        fetchStatements(),
       ])
     } finally {
       loading.value = false
