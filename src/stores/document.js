@@ -431,17 +431,17 @@ export const useDocumentStore = defineStore('document', () => {
         loading.value = true
         error.value = null
 
-        try {
-            await Promise.all([
-                fetchProductMaster(),
-                fetchClientMaster(),
-                fetchDocuments(),
-                fetchStatements(),
-            ])
-        } finally {
-            loading.value = false
-        }
+    try {
+      await Promise.all([
+        fetchProductMaster(),
+        fetchClientMaster(),
+        fetchDocuments(),
+        fetchStatements(),
+      ])
+    } finally {
+      loading.value = false
     }
+  }
 
     const pendingInvoices = computed(() => invoices.value.filter((item) => item.status === 'pending'))
     const issuedInvoices = computed(() => invoices.value.filter((item) => item.status === 'issued'))
