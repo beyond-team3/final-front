@@ -145,9 +145,18 @@
       "status": "활성"
     },
     {
-      "isActive": false,
-      "status": "inactive",
-      "id": 3
+      "id": 3,
+      "name": "태양종묘공사",
+      "region": "충남 천안",
+      "type": "소매상",
+      "contact": "041-551-7800",
+      "manager": "김태양",
+      "managerPhone": "010-2233-9988",
+      "varieties": [
+        "양파 ON-3",
+        "마늘 GN-1"
+      ],
+      "status": "활성"
     },
     {
       "id": 4,
