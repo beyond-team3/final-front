@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useNoteStore } from '@/stores/note'
@@ -50,7 +50,6 @@ watch(() => noteStore.notes, () => {
     loadEditNote(noteId)
   }
 }, { immediate: true })
-})
 
 const saveNote = async () => {
   if (!form.value.clientId || !form.value.date || !form.value.content.trim()) {
