@@ -126,34 +126,44 @@ const employeeMonthlySales = {
 }
 
 const monthLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+const yearOptions = [2023, 2024, 2025, 2026]
+const monthOptions = Array.from({ length: 12 }, (_, index) => index + 1)
 
 const clientDropdownOpen = ref(false)
 const selectedClients = ref([])
 const clientPeriodType = ref('monthly')
-const clientStartDate = ref('2025-01-01')
-const clientEndDate = ref('2025-12-31')
+const clientStartYear = ref(2025)
+const clientStartMonth = ref(1)
+const clientEndYear = ref(2025)
+const clientEndMonth = ref(12)
 const clientCompareYear = ref(false)
 const clientChartType = ref('line')
 
 const varietyDropdownOpen = ref(false)
 const selectedVarieties = ref([])
 const varietyPeriodType = ref('monthly')
-const varietyStartDate = ref('2025-01-01')
-const varietyEndDate = ref('2025-12-31')
+const varietyStartYear = ref(2025)
+const varietyStartMonth = ref(1)
+const varietyEndYear = ref(2025)
+const varietyEndMonth = ref(12)
 const varietyCompareYear = ref(false)
 const varietyChartType = ref('line')
 
 const employeeDropdownOpen = ref(false)
 const selectedEmployees = ref([])
 const employeePeriodType = ref('monthly')
-const employeeStartDate = ref('2025-01-01')
-const employeeEndDate = ref('2025-12-31')
+const employeeStartYear = ref(2025)
+const employeeStartMonth = ref(1)
+const employeeEndYear = ref(2025)
+const employeeEndMonth = ref(12)
 const employeeCompareYear = ref(false)
 const employeeChartType = ref('line')
 
 const personalUnit = ref('month')
-const personalStartDate = ref('2025-01-01')
-const personalEndDate = ref('2025-12-31')
+const personalStartYear = ref(2025)
+const personalStartMonth = ref(1)
+const personalEndYear = ref(2025)
+const personalEndMonth = ref(12)
 const personalCompareYear = ref(false)
 
 const personalCanvas = ref(null)
@@ -165,46 +175,137 @@ let clientChart = null
 let varietyChart = null
 let employeeChart = null
 
-const getMonthRange = (startDate, endDate) => {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  const startMonth = Number.isNaN(start.getTime()) ? 0 : start.getMonth()
-  const endMonth = Number.isNaN(end.getTime()) ? 11 : end.getMonth()
-  if (endMonth < startMonth) {
-    return { startMonth: endMonth, endMonth: startMonth }
-  }
-  return { startMonth, endMonth }
-}
+const toMonthIndex = (year, month) => (Number(year) * 12) + (Number(month) - 1)
+const fromMonthIndex = (index) => ({ year: Math.floor(index / 12), month: (index % 12) + 1 })
+const createZeroValues = (length) => Array.from({ length }, () => 0)
 
-const sumQuarter = (months, startMonth, endMonth) => {
-  const data = [0, 0, 0, 0]
-  for (let m = startMonth; m <= endMonth; m += 1) {
-    data[Math.floor(m / 3)] += months[m]
-  }
-  const startQ = Math.floor(startMonth / 3)
-  const endQ = Math.floor(endMonth / 3)
+const getNormalizedMonthRange = (startYear, startMonth, endYear, endMonth) => {
+  const startIndex = toMonthIndex(startYear, startMonth)
+  const endIndex = toMonthIndex(endYear, endMonth)
+  const normalizedStartIndex = Math.min(startIndex, endIndex)
+  const normalizedEndIndex = Math.max(startIndex, endIndex)
+  const start = fromMonthIndex(normalizedStartIndex)
+  const end = fromMonthIndex(normalizedEndIndex)
   return {
-    labels: ['Q1', 'Q2', 'Q3', 'Q4'].slice(startQ, endQ + 1),
-    values: data.slice(startQ, endQ + 1),
+    ...start,
+    endYear: end.year,
+    endMonth: end.month,
+    startIndex: normalizedStartIndex,
+    endIndex: normalizedEndIndex,
+    isMultiYear: start.year !== end.year,
   }
 }
 
-const getPersonalData = () => {
-  const { startMonth, endMonth } = getMonthRange(personalStartDate.value, personalEndDate.value)
-  if (personalUnit.value === 'month') {
+const createMonthPoints = (range) => {
+  const points = []
+  for (let index = range.startIndex; index <= range.endIndex; index += 1) {
+    points.push(fromMonthIndex(index))
+  }
+  return points
+}
+
+const formatMonthLabel = (point, isMultiYear) => {
+  if (isMultiYear && (point.month === 1 || point.month === 12)) {
+    return `${point.year}.${point.month}월`
+  }
+  return monthLabels[point.month - 1]
+}
+
+const MAX_MONTH_TICKS = 12
+const toMonthlyContexts = (monthPoints) => monthPoints.map((point) => ({ points: [point] }))
+
+const compressMonthlyContexts = (monthPoints) => {
+  if (monthPoints.length <= MAX_MONTH_TICKS) {
+    return toMonthlyContexts(monthPoints)
+  }
+  const groupSize = Math.ceil(monthPoints.length / MAX_MONTH_TICKS)
+  const contexts = []
+  for (let index = 0; index < monthPoints.length; index += groupSize) {
+    contexts.push({
+      points: monthPoints.slice(index, index + groupSize),
+    })
+  }
+  return contexts
+}
+
+const formatMonthlyContextLabel = (context, isMultiYear) => {
+  const start = context.points[0]
+  return formatMonthLabel(start, isMultiYear)
+}
+
+const getPeriodContexts = (monthPoints, periodType, isMultiYear) => {
+  if (periodType === 'monthly') {
+    const contexts = compressMonthlyContexts(monthPoints)
     return {
-      labels: monthLabels.slice(startMonth, endMonth + 1),
-      current: personalSales[2025].slice(startMonth, endMonth + 1),
-      previous: personalSales[2024].slice(startMonth, endMonth + 1),
+      labels: contexts.map((context) => formatMonthlyContextLabel(context, isMultiYear)),
+      contexts,
     }
   }
 
-  const currentQuarter = sumQuarter(personalSales[2025], startMonth, endMonth)
-  const previousQuarter = sumQuarter(personalSales[2024], startMonth, endMonth)
+  const quarterMap = new Map()
+  monthPoints.forEach((point) => {
+    const quarter = Math.floor((point.month - 1) / 3) + 1
+    const key = `${point.year}-${quarter}`
+    if (!quarterMap.has(key)) {
+      quarterMap.set(key, {
+        year: point.year,
+        quarter,
+        points: [],
+      })
+    }
+    quarterMap.get(key).points.push(point)
+  })
+  const contexts = Array.from(quarterMap.values())
   return {
-    labels: currentQuarter.labels,
-    current: currentQuarter.values,
-    previous: previousQuarter.values,
+    labels: contexts.map((context) => (isMultiYear ? `${context.year} Q${context.quarter}` : `Q${context.quarter}`)),
+    contexts,
+  }
+}
+
+const getValuesByContexts = (contexts, periodType, resolver) => {
+  if (periodType === 'monthly') {
+    return contexts.map((context) => context.points.reduce((sum, point) => sum + resolver(point), 0))
+  }
+  return contexts.map((context) => context.points.reduce((sum, point) => sum + resolver(point), 0))
+}
+
+const getPersonalMonthlyValue = (year, month) => personalSales?.[year]?.[month - 1] ?? 0
+const getEntityMonthlyValue = (source, id, year, month) => source?.[year]?.[id]?.[month - 1] ?? 0
+
+const enforceMonthOrder = (startYearRef, startMonthRef, endYearRef, endMonthRef) => {
+  watch([startYearRef, startMonthRef, endYearRef, endMonthRef], ([startY, startM, endY, endM]) => {
+    if (toMonthIndex(startY, startM) <= toMonthIndex(endY, endM)) {
+      return
+    }
+    const nextStartYear = endY
+    const nextStartMonth = endM
+    endYearRef.value = startY
+    endMonthRef.value = startM
+    startYearRef.value = nextStartYear
+    startMonthRef.value = nextStartMonth
+  })
+}
+
+enforceMonthOrder(personalStartYear, personalStartMonth, personalEndYear, personalEndMonth)
+enforceMonthOrder(clientStartYear, clientStartMonth, clientEndYear, clientEndMonth)
+enforceMonthOrder(varietyStartYear, varietyStartMonth, varietyEndYear, varietyEndMonth)
+enforceMonthOrder(employeeStartYear, employeeStartMonth, employeeEndYear, employeeEndMonth)
+
+const getPersonalData = () => {
+  const range = getNormalizedMonthRange(
+    personalStartYear.value,
+    personalStartMonth.value,
+    personalEndYear.value,
+    personalEndMonth.value,
+  )
+  const monthPoints = createMonthPoints(range)
+  const periodType = personalUnit.value === 'month' ? 'monthly' : 'quarterly'
+  const { labels, contexts } = getPeriodContexts(monthPoints, periodType, range.isMultiYear)
+
+  return {
+    labels,
+    current: getValuesByContexts(contexts, periodType, (point) => getPersonalMonthlyValue(point.year, point.month)),
+    previous: getValuesByContexts(contexts, periodType, (point) => getPersonalMonthlyValue(point.year - 1, point.month)),
   }
 }
 
@@ -227,16 +328,16 @@ const selectedEmployeeText = computed(() => {
 })
 
 const createLineOrBarDatasets = (items, source, periodType, range, compareYear, chartType) => {
-  const labels = periodType === 'monthly'
-    ? monthLabels.slice(range.startMonth, range.endMonth + 1)
-    : sumQuarter(source[2025][items[0].id], range.startMonth, range.endMonth).labels
+  const monthPoints = createMonthPoints(range)
+  const { labels, contexts } = getPeriodContexts(monthPoints, periodType, range.isMultiYear)
+  const emptyValues = createZeroValues(labels.length)
 
   if (items.length === 0) {
     return {
       labels,
       datasets: [{
         label: '항목을 선택하세요',
-        data: labels.map(() => 0),
+        data: emptyValues,
         borderColor: '#d1d5db',
         backgroundColor: '#e5e7eb',
       }],
@@ -245,8 +346,7 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
 
   if (chartType === 'bar') {
     const currentTotals = items.map((item) => {
-      const monthly = source[2025][item.id]
-      const values = monthly.slice(range.startMonth, range.endMonth + 1)
+      const values = monthPoints.map((point) => getEntityMonthlyValue(source, item.id, point.year, point.month))
       return { name: item.name, amount: values.reduce((sum, value) => sum + value, 0), id: item.id }
     }).sort((a, b) => b.amount - a.amount)
 
@@ -254,7 +354,7 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
       return {
         labels: currentTotals.map((item) => item.name),
         datasets: [{
-          label: '2025년 누적 매출',
+          label: '선택 기간 누적 매출',
           data: currentTotals.map((item) => item.amount),
           backgroundColor: currentTotals.map((_, index) => palette[index % palette.length]),
           borderColor: currentTotals.map((_, index) => palette[index % palette.length]),
@@ -264,8 +364,7 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
     }
 
     const previousTotals = items.map((item) => {
-      const monthly = source[2024][item.id]
-      const values = monthly.slice(range.startMonth, range.endMonth + 1)
+      const values = monthPoints.map((point) => getEntityMonthlyValue(source, item.id, point.year - 1, point.month))
       return { name: item.name, amount: values.reduce((sum, value) => sum + value, 0) }
     })
 
@@ -273,14 +372,14 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
       labels: currentTotals.map((item) => item.name),
       datasets: [
         {
-          label: '2025년',
+          label: '조회 기간',
           data: currentTotals.map((item) => item.amount),
           backgroundColor: '#3498db',
           borderColor: '#3498db',
           borderWidth: 2,
         },
         {
-          label: '2024년 (전년도)',
+          label: '전년도 동기간',
           data: currentTotals.map((item) => previousTotals.find((prev) => prev.name === item.name)?.amount || 0),
           backgroundColor: '#d1d5db',
           borderColor: '#9ca3af',
@@ -292,13 +391,14 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
 
   const datasets = []
   items.forEach((item, index) => {
-    const monthlyCurrent = source[2025][item.id]
-    const current = periodType === 'monthly'
-      ? monthlyCurrent.slice(range.startMonth, range.endMonth + 1)
-      : sumQuarter(monthlyCurrent, range.startMonth, range.endMonth).values
+    const current = getValuesByContexts(
+      contexts,
+      periodType,
+      (point) => getEntityMonthlyValue(source, item.id, point.year, point.month),
+    )
 
     datasets.push({
-      label: `${item.name} (2025)`,
+      label: `${item.name} (조회 기간)`,
       data: current,
       borderColor: palette[index % palette.length],
       backgroundColor: `${palette[index % palette.length]}33`,
@@ -307,13 +407,14 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
     })
 
     if (compareYear) {
-      const monthlyPrevious = source[2024][item.id]
-      const previous = periodType === 'monthly'
-        ? monthlyPrevious.slice(range.startMonth, range.endMonth + 1)
-        : sumQuarter(monthlyPrevious, range.startMonth, range.endMonth).values
+      const previous = getValuesByContexts(
+        contexts,
+        periodType,
+        (point) => getEntityMonthlyValue(source, item.id, point.year - 1, point.month),
+      )
 
       datasets.push({
-        label: `${item.name} (2024)`,
+        label: `${item.name} (전년도 동기간)`,
         data: previous,
         borderColor: '#9ca3af',
         backgroundColor: '#9ca3af33',
@@ -399,7 +500,12 @@ const renderClientChart = () => {
     clientChart.destroy()
   }
 
-  const range = getMonthRange(clientStartDate.value, clientEndDate.value)
+  const range = getNormalizedMonthRange(
+    clientStartYear.value,
+    clientStartMonth.value,
+    clientEndYear.value,
+    clientEndMonth.value,
+  )
   const selected = clients.filter((item) => selectedClients.value.includes(item.id))
   const chartData = createLineOrBarDatasets(selected, clientMonthlySales, clientPeriodType.value, range, clientCompareYear.value, clientChartType.value)
 
@@ -435,7 +541,12 @@ const renderVarietyChart = () => {
     varietyChart.destroy()
   }
 
-  const range = getMonthRange(varietyStartDate.value, varietyEndDate.value)
+  const range = getNormalizedMonthRange(
+    varietyStartYear.value,
+    varietyStartMonth.value,
+    varietyEndYear.value,
+    varietyEndMonth.value,
+  )
   const selected = varieties.filter((item) => selectedVarieties.value.includes(item.id))
   const chartData = createLineOrBarDatasets(selected, varietyMonthlySales, varietyPeriodType.value, range, varietyCompareYear.value, varietyChartType.value)
 
@@ -471,7 +582,12 @@ const renderEmployeeChart = () => {
     employeeChart.destroy()
   }
 
-  const range = getMonthRange(employeeStartDate.value, employeeEndDate.value)
+  const range = getNormalizedMonthRange(
+    employeeStartYear.value,
+    employeeStartMonth.value,
+    employeeEndYear.value,
+    employeeEndMonth.value,
+  )
   const selected = employees.filter((item) => selectedEmployees.value.includes(item.id))
   const chartData = createLineOrBarDatasets(selected, employeeMonthlySales, employeePeriodType.value, range, employeeCompareYear.value, employeeChartType.value)
 
@@ -498,10 +614,44 @@ const renderEmployeeChart = () => {
   })
 }
 
-watch([personalUnit, personalStartDate, personalEndDate, personalCompareYear], renderPersonalChart)
-watch([clientPeriodType, clientStartDate, clientEndDate, clientCompareYear, clientChartType, selectedClients], renderClientChart, { deep: true })
-watch([varietyPeriodType, varietyStartDate, varietyEndDate, varietyCompareYear, varietyChartType, selectedVarieties], renderVarietyChart, { deep: true })
-watch([employeePeriodType, employeeStartDate, employeeEndDate, employeeCompareYear, employeeChartType, selectedEmployees], renderEmployeeChart, { deep: true })
+watch([
+  personalUnit,
+  personalStartYear,
+  personalStartMonth,
+  personalEndYear,
+  personalEndMonth,
+  personalCompareYear,
+], renderPersonalChart)
+watch([
+  clientPeriodType,
+  clientStartYear,
+  clientStartMonth,
+  clientEndYear,
+  clientEndMonth,
+  clientCompareYear,
+  clientChartType,
+  selectedClients,
+], renderClientChart, { deep: true })
+watch([
+  varietyPeriodType,
+  varietyStartYear,
+  varietyStartMonth,
+  varietyEndYear,
+  varietyEndMonth,
+  varietyCompareYear,
+  varietyChartType,
+  selectedVarieties,
+], renderVarietyChart, { deep: true })
+watch([
+  employeePeriodType,
+  employeeStartYear,
+  employeeStartMonth,
+  employeeEndYear,
+  employeeEndMonth,
+  employeeCompareYear,
+  employeeChartType,
+  selectedEmployees,
+], renderEmployeeChart, { deep: true })
 watch(viewType, async () => {
   await nextTick()
   if (viewType.value === 'personal') {
@@ -589,9 +739,19 @@ onBeforeUnmount(() => {
         <div class="inline-row">
           <label>기간 단위</label>
           <select v-model="personalUnit"><option value="month">월별</option><option value="quarter">분기별</option></select>
-          <input v-model="personalStartDate" type="date">
+          <select v-model.number="personalStartYear">
+            <option v-for="year in yearOptions" :key="`personal-start-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="personalStartMonth">
+            <option v-for="month in monthOptions" :key="`personal-start-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
           <span>~</span>
-          <input v-model="personalEndDate" type="date">
+          <select v-model.number="personalEndYear">
+            <option v-for="year in yearOptions" :key="`personal-end-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="personalEndMonth">
+            <option v-for="month in monthOptions" :key="`personal-end-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
         </div>
         <button class="compare-btn" :class="{ active: personalCompareYear }" type="button" @click="personalCompareYear = !personalCompareYear">전년도 대비</button>
       </div>
@@ -603,9 +763,19 @@ onBeforeUnmount(() => {
         <div class="inline-row">
           <label>기간 단위</label>
           <select v-model="clientPeriodType"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
-          <input v-model="clientStartDate" type="date">
+          <select v-model.number="clientStartYear">
+            <option v-for="year in yearOptions" :key="`client-start-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="clientStartMonth">
+            <option v-for="month in monthOptions" :key="`client-start-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
           <span>~</span>
-          <input v-model="clientEndDate" type="date">
+          <select v-model.number="clientEndYear">
+            <option v-for="year in yearOptions" :key="`client-end-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="clientEndMonth">
+            <option v-for="month in monthOptions" :key="`client-end-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
         </div>
         <button class="compare-btn" :class="{ active: clientCompareYear }" type="button" @click="clientCompareYear = !clientCompareYear">전년도 대비</button>
       </div>
@@ -621,9 +791,19 @@ onBeforeUnmount(() => {
         <div class="inline-row">
           <label>기간 단위</label>
           <select v-model="employeePeriodType"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
-          <input v-model="employeeStartDate" type="date">
+          <select v-model.number="employeeStartYear">
+            <option v-for="year in yearOptions" :key="`employee-start-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="employeeStartMonth">
+            <option v-for="month in monthOptions" :key="`employee-start-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
           <span>~</span>
-          <input v-model="employeeEndDate" type="date">
+          <select v-model.number="employeeEndYear">
+            <option v-for="year in yearOptions" :key="`employee-end-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="employeeEndMonth">
+            <option v-for="month in monthOptions" :key="`employee-end-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
         </div>
         <button class="compare-btn" :class="{ active: employeeCompareYear }" type="button" @click="employeeCompareYear = !employeeCompareYear">전년도 대비</button>
       </div>
@@ -639,9 +819,19 @@ onBeforeUnmount(() => {
         <div class="inline-row">
           <label>기간 단위</label>
           <select v-model="varietyPeriodType"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
-          <input v-model="varietyStartDate" type="date">
+          <select v-model.number="varietyStartYear">
+            <option v-for="year in yearOptions" :key="`variety-start-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="varietyStartMonth">
+            <option v-for="month in monthOptions" :key="`variety-start-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
           <span>~</span>
-          <input v-model="varietyEndDate" type="date">
+          <select v-model.number="varietyEndYear">
+            <option v-for="year in yearOptions" :key="`variety-end-year-${year}`" :value="year">{{ year }}년</option>
+          </select>
+          <select v-model.number="varietyEndMonth">
+            <option v-for="month in monthOptions" :key="`variety-end-month-${month}`" :value="month">{{ month }}월</option>
+          </select>
         </div>
         <button class="compare-btn" :class="{ active: varietyCompareYear }" type="button" @click="varietyCompareYear = !varietyCompareYear">전년도 대비</button>
       </div>
