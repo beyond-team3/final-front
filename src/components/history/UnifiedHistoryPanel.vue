@@ -14,17 +14,13 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  showEditButton: {
-    type: Boolean,
-    default: false,
-  },
   emptyText: {
     type: String,
     default: '영업 히스토리가 없습니다.',
   },
 })
 
-const emit = defineEmits(['detail', 'edit'])
+const emit = defineEmits(['detail'])
 
 const historySort = ref('latest')
 
@@ -115,7 +111,6 @@ const stepClass = (state) => {
 
       <div class="actions">
         <button type="button" class="btn-sub" @click="emit('detail', pipeline.id)">상세보기</button>
-        <button v-if="showEditButton" type="button" class="btn-primary" @click="emit('edit', pipeline.id)">수정</button>
       </div>
     </article>
 

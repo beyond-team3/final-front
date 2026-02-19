@@ -12,7 +12,9 @@ import {
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts } from '@/api/product'
+import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
+import { ROLES } from '@/utils/constants'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
   return error?.response?.data?.message || error?.message || fallback
@@ -28,6 +30,10 @@ function normalizeList(data) {
   }
 
   return []
+}
+
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase()
 }
 
 const withAmount = (item) => ({
@@ -61,6 +67,7 @@ const normalizeDocument = (doc = {}) => ({
 })
 
 export const useDocumentStore = defineStore('document', () => {
+  const authStore = useAuthStore()
   const historyStore = useHistoryStore()
   const productMaster = ref([])
   const clientMaster = ref([])
@@ -74,6 +81,99 @@ export const useDocumentStore = defineStore('document', () => {
 
   const loading = ref(false)
   const error = ref(null)
+  const isClientRole = computed(() => authStore.currentRole === ROLES.CLIENT)
+
+  const getViewerClientIdentity = (source = [], resolver = () => ({})) => {
+    const me = authStore.me || {}
+    const byClientId = me.clientId ?? me.client?.id ?? null
+    const byName = String(me.clientName || me.name || '').trim()
+    const normalizedByName = normalizeText(byName)
+    const numericMeId = Number(me.id)
+    const hasNumericMeId = Number.isFinite(numericMeId)
+
+    if (byClientId !== null && byClientId !== undefined && byClientId !== '') {
+      return { clientId: String(byClientId), clientName: byName }
+    }
+
+    if (Array.isArray(source) && source.length > 0) {
+      if (hasNumericMeId) {
+        const matchedById = source.find((item) => Number(resolver(item).clientId) === numericMeId)
+        if (matchedById) {
+          const resolved = resolver(matchedById)
+          return {
+            clientId: resolved.clientId != null ? String(resolved.clientId) : null,
+            clientName: String(resolved.clientName || '').trim(),
+          }
+        }
+      }
+
+      if (normalizedByName) {
+        const matchedByName = source.find((item) => normalizeText(resolver(item).clientName) === normalizedByName)
+        if (matchedByName) {
+          const resolved = resolver(matchedByName)
+          return {
+            clientId: resolved.clientId != null ? String(resolved.clientId) : null,
+            clientName: String(resolved.clientName || '').trim(),
+          }
+        }
+      }
+    }
+
+    return {
+      clientId: hasNumericMeId ? String(numericMeId) : null,
+      clientName: byName || null,
+    }
+  }
+
+  const filterClientsForViewer = (list = []) => {
+    if (!isClientRole.value) {
+      return list
+    }
+
+    const identity = getViewerClientIdentity(list, (item) => ({
+      clientId: item?.id,
+      clientName: item?.name,
+    }))
+
+    const hasClientId = identity.clientId !== null && identity.clientId !== ''
+    const hasClientName = Boolean(identity.clientName)
+    if (!hasClientId && !hasClientName) {
+      return []
+    }
+
+    return list.filter((item) => {
+      const clientIdMatch = hasClientId && String(item?.id ?? '') === identity.clientId
+      const clientNameMatch = hasClientName && normalizeText(item?.name) === normalizeText(identity.clientName)
+      return clientIdMatch || clientNameMatch
+    })
+  }
+
+  const filterDocsForViewer = (list = []) => {
+    if (!isClientRole.value) {
+      return list
+    }
+
+    const identity = getViewerClientIdentity(list, (item) => {
+      const client = normalizeClient(item)
+      return {
+        clientId: client.id,
+        clientName: client.name,
+      }
+    })
+
+    const hasClientId = identity.clientId !== null && identity.clientId !== ''
+    const hasClientName = Boolean(identity.clientName)
+    if (!hasClientId && !hasClientName) {
+      return []
+    }
+
+    return list.filter((item) => {
+      const client = normalizeClient(item)
+      const clientIdMatch = hasClientId && String(client.id ?? '') === identity.clientId
+      const clientNameMatch = hasClientName && normalizeText(client.name) === normalizeText(identity.clientName)
+      return clientIdMatch || clientNameMatch
+    })
+  }
 
   const formatDate = (date = new Date()) => date.toISOString().slice(0, 10)
   const makeId = (prefix) => `${prefix}-${Date.now()}`
@@ -109,7 +209,7 @@ export const useDocumentStore = defineStore('document', () => {
   async function fetchClientMaster(params) {
     try {
       const clients = await getClients(params)
-      clientMaster.value = normalizeList(clients).map((item) => ({
+      clientMaster.value = filterClientsForViewer(normalizeList(clients)).map((item) => ({
         id: item.id,
         code: item.code || item.bizNo || String(item.id),
         name: item.name,
@@ -124,7 +224,17 @@ export const useDocumentStore = defineStore('document', () => {
 
   async function fetchDocuments(params) {
     try {
-      const docs = normalizeList(await getDocuments(params)).map(normalizeDocument)
+      const baseParams = { ...(params || {}) }
+      if (isClientRole.value) {
+        const identity = getViewerClientIdentity()
+        if (identity.clientId) {
+          baseParams.clientId = identity.clientId
+        } else if (identity.clientName) {
+          baseParams.clientName = identity.clientName
+        }
+      }
+
+      const docs = filterDocsForViewer(normalizeList(await getDocuments(baseParams))).map(normalizeDocument)
       quotationRequests.value = docs.filter((doc) => doc.type === 'quotation-request' || doc.type === 'REQUEST')
       quotations.value = docs.filter((doc) => doc.type === 'quotation' || doc.type === 'QUOTATION')
       contracts.value = docs.filter((doc) => doc.type === 'contract' || doc.type === 'CONTRACT')
