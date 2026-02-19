@@ -49,6 +49,43 @@ pipeline {
 		}
 	}
 
+	stage('Update Manifest (CD)') {
+                when { branch 'main' } // dev 브랜치 빌드일 때만 실행 (상황에 맞게 main으로 변경 가능)
+                steps {
+                    script {
+                        // 설정 변수
+                        def manifestRepoUrl = "github.com/beyond-team3/final-manifests.git" // CD 레포지토리 주소 (https:// 빼고)
+                        def targetFile = "frontend/deployment.yml" // 수정할 파일 경로
+                        def imageName = "21monsoon/monsoon-frontend" // 도커 이미지 이름
+                        def newTag = "${env.APP_VERSION_PREFIX}.${env.BUILD_ID}" // 새로 빌드된 태그
+
+                        echo "[CD] GitOps 레포지토리의 ${targetFile} 버전을 ${newTag}로 업데이트합니다."
+
+                        // 깃허브 자격증명 불러오기 (기존 github-access-token 사용)
+                        withCredentials([usernamePassword(credentialsId: 'github-access-token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                            sh """
+                                # 안전한 작업을 위해 임시 폴더 생성 후 Clone
+                                rm -rf temp-manifests
+                                git clone https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} temp-manifests
+                                cd temp-manifests
+
+                                # 젠킨스 봇 계정 설정
+                                git config user.email "jenkins-bot@monsoon.com"
+                                git config user.name "Jenkins-CI-Bot"
+
+                                # deployment.yml 파일에서 기존 image: 태그를 새 버전으로 덮어쓰기
+                                sed -i "s|image: ${imageName}:.*|image: ${imageName}:${newTag}|g" ${targetFile}
+
+                                # 변경사항 확인 및 Push
+                                git add ${targetFile}
+                                # 변경된 내용이 있을 때만 commit & push 진행
+                                git diff-index --quiet HEAD || (git commit -m "Update ${imageName} to ${newTag}" && git push origin main)
+                            """
+                        }
+                    }
+                }
+            }
+
 	post {
 		success {
 			discordSend (webhookURL: "${env.DISCORD_WEBHOOK}",
