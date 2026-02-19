@@ -7,30 +7,26 @@ import { ROLES } from '@/utils/constants'
 
 const authStore = useAuthStore()
 
-const usersByRole = {
-  [ROLES.ADMIN]: {
-    accountType: '관리자',
-    name: '박관리',
-    loginId: 'admin_1001',
-    email: 'admin@seedflow.com',
-    phone: '02-300-4400',
-    address: '서울특별시 강남구 테헤란로 128',
-    department: '영업관리팀',
-    updatedAt: '2026-02-16 09:40',
-  },
-  [ROLES.SALES_REP]: {
-    accountType: '영업사원',
-    name: '김영업',
-    loginId: 'emp_2001',
-    email: 'hong@company.com',
-    phone: '010-1234-5678',
-    address: '서울특별시 ○○구 ○○로 00',
-    department: '수도권영업팀',
-    updatedAt: '2026-02-11 10:00',
-  },
-}
+const user = computed(() => {
+  const me = authStore.me || {}
 
-const user = computed(() => usersByRole[authStore.currentRole] || usersByRole[ROLES.SALES_REP])
+  const roleLabels = {
+    [ROLES.ADMIN]: '관리자',
+    [ROLES.SALES_REP]: '영업사원',
+    [ROLES.CLIENT]: '거래처',
+  }
+
+  return {
+    accountType: roleLabels[authStore.currentRole] || '미지정',
+    name: me.name || '-',
+    loginId: me.loginId || '-',
+    email: me.email || '-',
+    phone: me.phone || '-',
+    address: me.address || '-',
+    department: me.department || '-', // 사원 전용 필드
+    updatedAt: me.lastLoginAt ? new Date(me.lastLoginAt).toLocaleString() : '기록 없음',
+  }
+})
 
 const passwordForm = ref({ current: '', next: '', nextConfirm: '' })
 const passwordHint = ref('')
@@ -46,29 +42,66 @@ const openModal = () => {
   isModalOpen.value = true
 }
 
-const submitPassword = () => {
+const submitPassword = async () => {
   const { current, next, nextConfirm } = passwordForm.value
 
+  // 1. 유효성 검사
   if (!current || !next || !nextConfirm) {
     passwordHint.value = '모든 항목을 입력해주세요.'
     return
   }
 
+  // 2. 기존 비밀번호 확인 (authStore에 저장된 현재 비번과 대조)
+  if (current !== authStore.me.password) {
+    passwordHint.value = '기존 비밀번호가 일치하지 않습니다.'
+    return
+  }
+
   if (next !== nextConfirm) {
-    passwordHint.value = '새 비밀번호와 확인 값이 일치하지 않습니다.'
+    passwordHint.value = '새 비밀번호 확인이 일치하지 않습니다.'
     return
   }
 
   if (next.length < 8) {
-    passwordHint.value = '새 비밀번호는 8자 이상을 권장합니다.'
+    passwordHint.value = '새 비밀번호는 8자 이상으로 설정해주세요.'
     return
   }
 
-  // TODO: API 연결
-  passwordHint.value = '비밀번호가 수정되었습니다.'
-  setTimeout(() => {
-    isModalOpen.value = false
-  }, 700)
+  try {
+    const userId = authStore.me.id;
+    console.log('수정 요청 ID:', userId); // 콘솔에서 ID 확인
+
+    // 3. 실제 DB 수정 (포트 번호가 3001이 맞는지 꼭 확인하세요)
+    const response = await fetch(`http://localhost:3001/users/${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        password: next
+      }),
+    });
+
+    console.log('서버 응답 상태:', response.status);
+
+    if (response.ok) {
+      // 4. 성공 시 메모리 데이터 즉시 동기화
+      authStore.me.password = next;
+      passwordHint.value = '비밀번호가 성공적으로 변경되었습니다.';
+
+      setTimeout(() => {
+        isModalOpen.value = false;
+      }, 1000);
+    } else {
+      const errorText = await response.text();
+      console.error('서버 응답 에러:', errorText);
+      passwordHint.value = '서버에서 수정을 거부했습니다.';
+    }
+
+  } catch (e) {
+    console.error('네트워크 에러:', e);
+    passwordHint.value = '서버 연결에 실패했습니다. 포트와 서버 상태를 확인하세요.';
+  }
 }
 </script>
 
@@ -101,12 +134,12 @@ const submitPassword = () => {
         <p class="label">주소</p>
         <p class="value">{{ user.address }}</p>
       </article>
-      <article class="info-card">
+      <article v-if="authStore.currentRole !== ROLES.CLIENT" class="info-card">
         <p class="label">부서</p>
         <p class="value">{{ user.department }}</p>
       </article>
       <article class="info-card sm:col-span-2 xl:col-span-3">
-        <p class="label">최근 업데이트</p>
+        <p class="label">최근 로그인</p>
         <p class="value">{{ user.updatedAt }}</p>
       </article>
     </div>
@@ -121,20 +154,16 @@ const submitPassword = () => {
           기존 비밀번호
           <input v-model="passwordForm.current" type="password" class="input" autocomplete="current-password">
         </label>
-
         <label class="form-field">
           새 비밀번호
           <input v-model="passwordForm.next" type="password" class="input" autocomplete="new-password">
         </label>
-
         <label class="form-field">
           새 비밀번호 확인
           <input v-model="passwordForm.nextConfirm" type="password" class="input" autocomplete="new-password">
         </label>
-
         <p class="text-sm text-slate-500">{{ passwordHint }}</p>
       </div>
-
       <template #footer>
         <div class="flex justify-end gap-2">
           <button type="button" class="btn-sub" @click="isModalOpen = false">취소</button>
