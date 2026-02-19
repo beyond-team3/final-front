@@ -28,7 +28,7 @@ export const MENU_CONFIG = [
   {
     key: 'note', label: '노트', icon: 'note', roles: ['SALES_REP'],
     children: [
-      { key: 'note-main', label: '새 노트 작성', route: '/notes' },
+      { key: 'note-main', label: '노트 작성', route: '/notes' },
       { key: 'note-search', label: '노트 검색', route: '/notes/search' },
       { key: 'note-briefing', label: 'AI 영업 브리핑', route: '/notes/briefing' },
     ],
