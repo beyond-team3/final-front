@@ -648,11 +648,11 @@
             div.innerHTML = `
             <div class="cmt-header">
                 <div class="cmt-profile">👤</div>
-                <div class="cmt-author">${data.sender}</div>
+                <div class="cmt-author"></div> <!-- data.sender takes place here -->
                 ${badgeHTML}
                 <div class="cmt-time">${data.time}</div>
             </div>
-            <div class="cmt-body" id="body-${data.id}">${data.content}</div>
+            <div class="cmt-body" id="body-${data.id}"></div> <!-- data.content takes place here -->
             <div class="cmt-actions" id="actions-${data.id}">
                 <span class="cmt-action-btn" onclick="toggleReplyInput(${data.id})">답글</span>
                 ${actionsHTML}
@@ -662,6 +662,11 @@
                 <button class="btn-submit-reply" onclick="saveComment(document.getElementById('reply-input-${data.id}').value, ${topParentId})">등록</button>
             </div>
         `;
+
+            // Use textContent to safely inject user data
+            div.querySelector('.cmt-author').textContent = data.sender;
+            div.querySelector(`#body-${data.id}`).textContent = data.content;
+
             return div;
         }
 
@@ -710,17 +715,19 @@
 
         function enableEditMode(id) {
             const bodyEl = document.getElementById(`body-${id}`);
-            const currentText = bodyEl.innerText;
+            const currentText = bodyEl.textContent; // Use textContent for safety
 
             bodyEl.innerHTML = `
             <div class="edit-mode-box">
-                <textarea class="edit-textarea" id="edit-textarea-${id}">${currentText}</textarea>
+                <textarea class="edit-textarea" id="edit-textarea-${id}"></textarea>
                 <div class="edit-btn-group">
                     <button class="btn-edit-cancel" onclick="renderComments()">취소</button>
                     <button class="btn-edit-save" onclick="updateComment(${id})">저장</button>
                 </div>
             </div>
         `;
+            // Safely set textarea value
+            document.getElementById(`edit-textarea-${id}`).value = currentText;
             document.getElementById(`actions-${id}`).style.display = 'none';
         }
 

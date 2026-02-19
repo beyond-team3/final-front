@@ -142,7 +142,7 @@ const scrollToBottom = () => {
       </button>
     </header>
 
-    <div id="commentContainer" class="flex-1 p-5 overflow-y-auto flex flex-col gap-3">
+    <div ref="commentContainerRef" class="flex-1 p-5 overflow-y-auto flex flex-col gap-3">
       <template v-for="parent in nestedMessages" :key="parent.id">
         <article class="bg-white border border-[#e1e4e8] rounded-lg p-4 flex flex-col gap-2 transition-all duration-200"
                  :class="{ 'bg-[#f0f7ff] border-[#cce0ff] border-l-4 border-l-[#3498db]': parent.isMine }">
