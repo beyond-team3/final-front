@@ -1,9 +1,16 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useNoteStore } from '@/stores/note'
 
 const noteStore = useNoteStore()
+const route = useRoute()
+const router = useRouter()
+
+const isEditMode = ref(false)
+const editingNoteId = ref(null)
+const isLoading = ref(false)
 
 const form = ref({
   clientId: '',
@@ -12,101 +19,178 @@ const form = ref({
   content: '',
 })
 
-const latestSummary = ref([])
+const showAiSummary = ref(false)
+const aiSummaryContent = ref([])
 
 const contractOptions = computed(() => noteStore.getContractsByClient(form.value.clientId))
-const recentNotes = computed(() => noteStore.searchClientNotes({ sort: 'desc' }).slice(0, 5))
 
-watch(() => form.value.clientId, () => {
-  form.value.contract = ''
+watch(() => form.value.clientId, (newVal, oldVal) => {
+  if (oldVal !== undefined && newVal !== oldVal && !isEditMode.value) {
+    form.value.contract = ''
+  }
 })
 
-const saveNote = () => {
+const loadEditNote = (noteId) => {
+  const note = noteStore.notes.find(n => n.id === Number(noteId))
+  if (note) {
+    isEditMode.value = true
+    editingNoteId.value = Number(noteId)
+    form.value = {
+      clientId: note.clientId,
+      contract: note.contract,
+      date: note.date,
+      content: note.content,
+    }
+  }
+}
+
+watch(() => noteStore.notes, () => {
+  const noteId = route.query.editId
+  if (noteId && !isEditMode.value) {
+    loadEditNote(noteId)
+  }
+}, { immediate: true })
+
+const saveNote = async () => {
   if (!form.value.clientId || !form.value.date || !form.value.content.trim()) {
     window.alert('고객처, 활동 일자, 미팅 내용은 필수 입력입니다.')
     return
   }
 
-  const created = noteStore.createNote({
-    clientId: form.value.clientId,
-    contract: form.value.contract,
-    crop: '',
-    variety: '',
-    date: form.value.date,
-    content: form.value.content.trim(),
-  })
+  isLoading.value = true
+  try {
+    let result
+    if (isEditMode.value) {
+      result = await noteStore.updateNote(editingNoteId.value, {
+        ...form.value,
+        content: form.value.content.trim(),
+      })
+    } else {
+      result = await noteStore.createNote({
+        ...form.value,
+        content: form.value.content.trim(),
+      })
+    }
 
-  latestSummary.value = created.summary
-  form.value.content = ''
+    if (result) {
+      aiSummaryContent.value = result.summary ?? []
+      showAiSummary.value = true
+    } else {
+      window.alert('저장에 실패했습니다. 다시 시도해 주세요.')
+    }
+  } catch {
+    window.alert('저장 중 오류가 발생했습니다.')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const closeSummaryModal = () => {
+  showAiSummary.value = false
+  router.push({ name: 'note-search' })
 }
 </script>
 
 <template>
   <section>
-    <PageHeader title="영업 활동 기록" subtitle="screen_definition/note/notee.html 기반 노트 작성 화면" />
+    <PageHeader 
+      :title="isEditMode ? '영업 활동 수정' : '영업 활동 기록'" 
+      subtitle="고객과의 미팅 내용을 기록하고 AI 분석을 수행합니다." 
+    />
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <article class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-        <div class="grid gap-4 md:grid-cols-2">
-          <label class="text-sm font-medium text-slate-700">
-            고객처
-            <select v-model="form.clientId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+    <article class="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+      <div class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-bold text-slate-600 mb-2">고객처</label>
+            <select 
+              v-model="form.clientId" 
+              class="w-full border-slate-300 p-3 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500"
+            >
               <option value="">고객 선택</option>
-              <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">{{ client.name }}</option>
+              <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">
+                {{ client.name }}
+              </option>
             </select>
-          </label>
-
-          <label class="text-sm font-medium text-slate-700">
-            활동 일자
-            <input v-model="form.date" type="date" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-          </label>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-600 mb-2">활동 일자</label>
+            <input 
+              v-model="form.date" 
+              type="date" 
+              class="w-full border-slate-300 p-3 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500"
+            >
+          </div>
         </div>
-
-        <label class="mt-4 block text-sm font-medium text-slate-700">
-          계약 건
-          <select v-model="form.contract" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+        <div>
+          <label class="block text-sm font-bold text-slate-600 mb-2">계약 건</label>
+          <select 
+            v-model="form.contract" 
+            class="w-full border-slate-300 p-3 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500"
+          >
             <option value="">계약 선택</option>
-            <option v-for="contract in contractOptions" :key="contract" :value="contract">{{ contract }}</option>
+            <option v-for="contract in contractOptions" :key="contract" :value="contract">
+              {{ contract }}
+            </option>
           </select>
-        </label>
-
-        <label class="mt-4 block text-sm font-medium text-slate-700">
-          미팅 내용
-          <textarea
-            v-model="form.content"
-            rows="12"
-            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-            placeholder="고객과의 미팅, 통화 내용 등 상세한 활동 내용을 입력하세요"
-          />
-        </label>
-
-        <div class="mt-5 flex justify-end">
-          <button type="button" class="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-700" @click="saveNote">
-            저장 및 AI 분석
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-600 mb-2">미팅 내용</label>
+          <textarea 
+            v-model="form.content" 
+            rows="12" 
+            class="w-full border-slate-300 p-4 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 leading-relaxed" 
+            placeholder="고객과의 미팅, 통화 내용 등 상세한 활동 내용을 입력하세요..."
+          ></textarea>
+        </div>
+        <div class="flex justify-end">
+          <button 
+            @click="saveNote" 
+            :disabled="isLoading"
+            class="bg-sky-600 text-white px-8 py-3 rounded-md font-bold hover:bg-sky-700 transition-colors flex items-center justify-center"
+            :class="{ 'bg-amber-600 hover:bg-amber-700': isEditMode, 'opacity-50 cursor-not-allowed': isLoading }"
+          >
+            <template v-if="isLoading">
+              <span class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+              {{ isEditMode ? '수정' : '분석' }} 중...
+            </template>
+            <template v-else>
+              <i class="fas fa-save mr-2"></i> 
+              {{ isEditMode ? '수정 및 AI 재분석' : '저장 및 AI 분석' }}
+            </template>
           </button>
         </div>
-      </article>
+      </div>
+    </article>
 
-      <aside class="space-y-6">
-        <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 class="mb-3 font-semibold text-sky-700">AI 실시간 요약</h3>
-          <ul v-if="latestSummary.length > 0" class="list-disc space-y-1 pl-5 text-sm text-slate-700">
-            <li v-for="item in latestSummary" :key="item">{{ item }}</li>
-          </ul>
-          <p v-else class="text-sm text-slate-500">저장 시 AI가 핵심 내용을 요약합니다.</p>
-        </article>
-
-        <article class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 class="mb-3 font-semibold text-slate-800">최근 기록</h3>
-          <div class="space-y-3">
-            <div v-for="note in recentNotes" :key="note.id" class="rounded-md border border-slate-100 p-3">
-              <p class="text-sm font-semibold text-slate-800">{{ noteStore.getClientName(note.clientId) }}</p>
-              <p class="mt-1 text-xs text-slate-500">{{ note.date }} · {{ note.contract || '일반 메모' }}</p>
-              <p class="mt-2 text-xs text-slate-600">{{ note.summary[0] }}</p>
-            </div>
+    <!-- AI Summary Modal -->
+    <div v-if="showAiSummary" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeSummaryModal"></div>
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden z-10">
+        <div class="p-5 border-b bg-slate-50">
+          <h3 class="text-xl font-bold flex items-center">
+            <i class="fas fa-sparkles text-sky-500 mr-3"></i>AI 요약 분석 결과
+          </h3>
+        </div>
+        <div class="p-8">
+          <p class="text-sm text-slate-600 mb-4">
+            영업 활동 노트가 성공적으로 {{ isEditMode ? '수정' : '저장' }}되었으며, AI가 분석한 핵심 요약은 다음과 같습니다.
+          </p>
+          <div class="bg-sky-50 border border-sky-200 p-6 rounded-lg text-slate-700 space-y-2">
+            <ul class="space-y-3">
+              <li v-for="(s, idx) in aiSummaryContent" :key="idx" class="flex items-start">
+                <i class="fas fa-check-circle text-sky-500 mt-1 mr-3"></i>
+                <span class="font-medium text-slate-700">{{ s }}</span>
+              </li>
+            </ul>
           </div>
-        </article>
-      </aside>
+        </div>
+        <div class="p-4 bg-slate-50 border-t text-right">
+          <button @click="closeSummaryModal" class="bg-sky-600 text-white px-6 py-2 rounded-md font-bold hover:bg-sky-700">
+            확인
+          </button>
+        </div>
+      </div>
     </div>
   </section>
 </template>

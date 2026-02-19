@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { getClients } from '@/api/client'
 import {
+  updateNote as updateNoteApi,
   createNote as createNoteApi,
   getAIBriefing,
   getNotes,
@@ -135,52 +136,71 @@ export const useNoteStore = defineStore('note', () => {
     }
   }
 
-  const createNote = ({ clientId, contract, crop, variety, date, content }) => {
+  const createNote = async ({ clientId, contract, date, content }) => {
     const next = {
-      id: Date.now(),
       clientId,
-      contract: contract || '',
-      crop: crop || '',
-      variety: variety || '',
+      contract: contract || '일반 상담',
       date: date || today(),
       content,
       summary: generateSummary(content),
+      isEdited: false,
     }
 
-    notes.value.unshift(next)
-
-    if (clientId && contract) {
-      const nextContracts = new Set(contracts.value[clientId] || [])
-      nextContracts.add(contract)
-      contracts.value = {
-        ...contracts.value,
-        [clientId]: [...nextContracts],
+    try {
+      const created = await createNoteApi(next)
+      const noteWithSummary = {
+        ...created,
+        summary: Array.isArray(created.summary) ? created.summary : generateSummary(created.content),
       }
+      notes.value.unshift(noteWithSummary)
+
+      if (clientId && contract) {
+        const nextContracts = new Set(contracts.value[clientId] || [])
+        nextContracts.add(contract)
+        contracts.value = {
+          ...contracts.value,
+          [clientId]: [...nextContracts],
+        }
+      }
+      return noteWithSummary
+    } catch (e) {
+      error.value = getErrorMessage(e, '노트 저장에 실패했습니다.')
+      throw e
+    }
+  }
+
+  const updateNote = async (id, { clientId, contract, date, content }) => {
+    const next = {
+      clientId,
+      contract: contract || '일반 상담',
+      date: date || today(),
+      content,
+      summary: generateSummary(content),
+      isEdited: true,
+      updatedAt: new Date().toISOString(),
     }
 
-    createNoteApi(next)
-      .then((created) => {
-        if (!created) {
-          return
-        }
+    try {
+      const updated = await updateNoteApi(id, next)
+      const noteWithSummary = {
+        ...updated,
+        summary: Array.isArray(updated.summary) ? updated.summary : generateSummary(updated.content),
+      }
 
-        const idx = notes.value.findIndex((item) => item.id === next.id)
-        if (idx >= 0) {
-          notes.value[idx] = {
-            ...created,
-            summary: Array.isArray(created.summary) ? created.summary : generateSummary(created.content),
-          }
-        }
-      })
-      .catch((e) => {
-        error.value = getErrorMessage(e, '노트 저장에 실패했습니다.')
-      })
+      const idx = notes.value.findIndex((item) => item.id === id)
+      if (idx >= 0) {
+        notes.value[idx] = noteWithSummary
+      }
 
-    return next
+      return noteWithSummary
+    } catch (e) {
+      error.value = getErrorMessage(e, '노트 수정에 실패했습니다.')
+      throw e
+    }
   }
 
   const getNotesByClient = (clientId) => notes.value
-    .filter((note) => note.clientId === clientId)
+    .filter((note) => note.clientId === Number(clientId) || note.clientId === clientId)
     .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
 
   async function fetchBriefingByClient(clientId) {
@@ -188,42 +208,49 @@ export const useNoteStore = defineStore('note', () => {
       return null
     }
 
+    // Fallback logic extracted for reuse
+    const useFallback = () => {
+      const list = getNotesByClient(clientId)
+      // 최소 3개 미만이면 fallback 불가 -> null 반환 (View에서 처리)
+      if (list.length < 3) {
+        return null
+      }
+
+      const fallback = defaultBriefing(getClientName(clientId), list)
+      briefingByClient.value = {
+        ...briefingByClient.value,
+        [clientId]: fallback,
+      }
+      return fallback
+    }
+
     try {
       const briefing = await getAIBriefing(clientId)
+
+      // Validate API response structure
+      const isValid = briefing
+        && Array.isArray(briefing.statusChange)
+        && Array.isArray(briefing.pattern)
+        && briefing.strategy
+
+      if (!isValid) {
+        throw new Error('Valid briefing data missing, using fallback')
+      }
+
       briefingByClient.value = {
         ...briefingByClient.value,
         [clientId]: briefing,
       }
       return briefing
     } catch (e) {
-      error.value = getErrorMessage(e, '브리핑을 불러오지 못했습니다.')
-
-      const list = getNotesByClient(clientId)
-      if (list.length >= 3) {
-        const fallback = defaultBriefing(getClientName(clientId), list)
-        briefingByClient.value = {
-          ...briefingByClient.value,
-          [clientId]: fallback,
-        }
-        return fallback
-      }
-
-      return null
+      // API call failed or data is invalid -> use fallback
+      return useFallback()
     }
   }
 
   const getBriefingByClient = (clientId) => {
-    const list = getNotesByClient(clientId)
-    if (list.length < 3) {
-      return null
-    }
-
-    if (!briefingByClient.value[clientId]) {
-      void fetchBriefingByClient(clientId)
-      return defaultBriefing(getClientName(clientId), list)
-    }
-
-    return briefingByClient.value[clientId]
+    if (!clientId) return null
+    return briefingByClient.value[clientId] || null
   }
 
   const searchClientNotes = ({ clientId, contract, variety, keyword, dateFrom, dateTo, sort = 'desc' } = {}) => {
@@ -331,6 +358,7 @@ export const useNoteStore = defineStore('note', () => {
     getContractsByClient,
     generateSummary,
     createNote,
+    updateNote,
     getNotesByClient,
     getBriefingByClient,
     searchClientNotes,
