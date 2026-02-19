@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -38,31 +38,38 @@ const emit = defineEmits(['update:modelValue'])
 const showInfoPanel = computed(() => props.mode !== 'readonly')
 const showRemark = computed(() => showInfoPanel.value && !props.hideRemark && props.mode !== 'admin-rejected')
 const showRejectReason = computed(() => props.mode === 'sales-rejected' || props.mode === 'admin-rejected')
+const downloadLink = ref(null)
 
 const close = () => {
   emit('update:modelValue', false)
 }
 
 const downloadDocument = () => {
+  // TODO: Replace text export with real PDF generation and restore .pdf output.
   const content = [
     'MonSoon Document Preview',
     `document: ${props.title || 'document'}`,
     `generatedAt: ${new Date().toISOString()}`,
   ].join('\n')
-  const blob = new Blob([content], { type: 'application/pdf' })
+  const blob = new Blob([content], { type: 'text/plain' })
   const objectUrl = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = objectUrl
-  anchor.download = `${String(props.title || 'document').replace(/[\\/:*?"<>|]/g, '_')}.pdf`
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
+  const safeName = String(props.title || 'document').replace(/[\\/:*?"<>|]/g, '_')
+
+  if (!downloadLink.value) {
+    URL.revokeObjectURL(objectUrl)
+    return
+  }
+
+  downloadLink.value.href = objectUrl
+  downloadLink.value.download = `${safeName}.txt`
+  downloadLink.value.click()
   URL.revokeObjectURL(objectUrl)
 }
 </script>
 
 <template>
   <teleport to="body">
+    <a ref="downloadLink" class="hidden" aria-hidden="true" tabindex="-1" />
     <div
       v-if="modelValue"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
