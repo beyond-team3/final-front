@@ -548,8 +548,13 @@ export const useDocumentStore = defineStore('document', () => {
     }
   }
 
-    const pendingInvoices = computed(() => invoices.value.filter((item) => item.status === 'pending'))
-    const issuedInvoices = computed(() => invoices.value.filter((item) => item.status === 'issued'))
+    const pendingInvoices = computed(() =>
+        invoices.value.filter((d) => d.status === 'pending' || d.status === '발행대기')
+    )
+
+    const issuedInvoices = computed(() =>
+        invoices.value.filter((d) => d.status === 'issued' || d.status === '발행')
+    )
 
     void initialize()
 
