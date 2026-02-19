@@ -9,13 +9,7 @@ import { useProductStore } from '@/stores/product'
 const router = useRouter()
 const productStore = useProductStore()
 
-  router.push('/products/compare')
-}
-
-onMounted(() => {
-  productStore.fetchProducts()
-})
-</script>
+const filters = ref({
   category: '',
   env: '',
   keyword: '',
@@ -59,11 +53,11 @@ const visibleProducts = computed(() => filteredProducts.value.slice(0, visibleCo
 const hasMoreProducts = computed(() => filteredProducts.value.length > visibleCount.value)
 
 watch(filters, () => {
-  visibleCount.value = 6
+  visibleCount.value = 12
 }, { deep: true })
 
 const loadMore = () => {
-  visibleCount.value += 3
+  visibleCount.value += 6
 }
 
 const toggleCompare = (id) => {
@@ -81,6 +75,10 @@ const openCompare = () => {
 
   router.push('/products/compare')
 }
+
+onMounted(() => {
+  productStore.fetchProducts()
+})
 </script>
 
 <template>

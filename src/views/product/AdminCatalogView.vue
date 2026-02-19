@@ -9,13 +9,7 @@ import { useProductStore } from '@/stores/product'
 const router = useRouter()
 const productStore = useProductStore()
 
-  router.push('/products/compare')
-}
-
-onMounted(() => {
-  productStore.fetchProducts()
-})
-</script>
+const filters = ref({
   category: '',
   env: '',
   keyword: '',
@@ -85,6 +79,10 @@ const openCompare = () => {
 
   router.push('/products/compare')
 }
+
+onMounted(() => {
+  productStore.fetchProducts()
+})
 </script>
 
 <template>

@@ -5,6 +5,12 @@ import {
   getProducts,
   submitFeedback,
   updateProduct as updateProductApi,
+  getFavorites as getFavoritesApi,
+  addFavorite as addFavoriteApi,
+  removeFavorite as removeFavoriteApi,
+  getCompareList as getCompareListApi,
+  addToCompare as addToCompareApi,
+  removeFromCompare as removeFromCompareApi,
 } from '@/api/product'
 
 const DEFAULT_CRITERIA = {
@@ -31,16 +37,6 @@ function toId(item) {
   }
 
   return NaN
-}
-
-function normalizeIdList(list) {
-  if (!Array.isArray(list)) {
-    return []
-  }
-
-  return list
-    .map((item) => toId(item))
-    .filter((id) => !Number.isNaN(id))
 }
 
 export const useProductStore = defineStore('product', () => {
@@ -96,36 +92,39 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
-  function loadFromStorage(key) {
+  // API를 사용하여 즐겨찾기 목록 불러오기
+  async function fetchFavorites() {
     try {
-      const stored = localStorage.getItem(key)
-      return stored ? JSON.parse(stored) : []
+      const result = await getFavoritesApi()
+      // API 응답 구조에 따라 수정 필요 (여기선 ID 배열 또는 객체 배열 가정)
+      // 만약 객체 배열로 온다면 map으로 ID 추출 필요
+      const ids = Array.isArray(result) 
+        ? result.map(item => typeof item === 'object' ? item.productId : item)
+        : []
+      favoriteItems.value = ids.map(Number).filter(id => !isNaN(id))
+      return favoriteItems.value
     } catch (e) {
-      console.error(`Failed to load ${key} from localStorage`, e)
+      console.error('즐겨찾기 목록 로드 실패', e)
       return []
     }
   }
 
-  function saveToStorage(key, value) {
+  // API를 사용하여 비교함 목록 불러오기
+  async function fetchCompareList() {
     try {
-      localStorage.setItem(key, JSON.stringify(value))
+      const result = await getCompareListApi()
+      const ids = Array.isArray(result)
+        ? result.map(item => typeof item === 'object' ? item.productId : item)
+        : []
+      compareItems.value = ids.map(Number).filter(id => !isNaN(id))
+      return compareItems.value
     } catch (e) {
-      console.error(`Failed to save ${key} to localStorage`, e)
+      console.error('비교함 목록 로드 실패', e)
+      return []
     }
   }
 
-  // API 대신 localStorage 사용
-  function fetchFavorites() {
-    favoriteItems.value = loadFromStorage('myFavorites')
-    return favoriteItems.value
-  }
-
-  function fetchCompareList() {
-    compareItems.value = loadFromStorage('myCompare')
-    return compareItems.value
-  }
-
-  const addCompareItem = (id) => {
+  const addCompareItem = async (id) => {
     const productId = Number(id)
     if (compareItems.value.includes(productId)) {
       return { ok: true, reason: 'exists' }
@@ -135,15 +134,31 @@ export const useProductStore = defineStore('product', () => {
       return { ok: false, reason: 'limit' }
     }
 
+    // 낙관적 업데이트
     compareItems.value.push(productId)
-    saveToStorage('myCompare', compareItems.value)
-    return { ok: true, reason: 'added' }
+    
+    try {
+      await addToCompareApi(productId)
+      return { ok: true, reason: 'added' }
+    } catch (e) {
+      // 실패 시 롤백
+      compareItems.value = compareItems.value.filter(item => item !== productId)
+      error.value = getErrorMessage(e, '비교함 추가 실패')
+      return { ok: false, reason: 'error' }
+    }
   }
 
-  const removeCompareItem = (id) => {
+  const removeCompareItem = async (id) => {
     const productId = Number(id)
+    const previous = [...compareItems.value]
     compareItems.value = compareItems.value.filter((item) => item !== productId)
-    saveToStorage('myCompare', compareItems.value)
+    
+    try {
+      await removeFromCompareApi(productId)
+    } catch (e) {
+      compareItems.value = previous
+      error.value = getErrorMessage(e, '비교함 삭제 실패')
+    }
   }
 
   const toggleCompareItem = (id) => {
@@ -155,25 +170,46 @@ export const useProductStore = defineStore('product', () => {
     return addCompareItem(id)
   }
 
-  const clearCompareItems = () => {
+  const clearCompareItems = async () => {
+    const previous = [...compareItems.value]
     compareItems.value = []
-    saveToStorage('myCompare', [])
+    
+    try {
+      // 일괄 삭제 API가 없다면 개별 삭제 처리 (Promise.all 사용)
+      await Promise.all(previous.map(id => removeFromCompareApi(id)))
+    } catch (e) {
+      compareItems.value = previous
+      error.value = getErrorMessage(e, '비교함 초기화 실패')
+    }
   }
 
-  const addFavoriteItem = (id) => {
+  const addFavoriteItem = async (id) => {
     const productId = Number(id)
     if (favoriteItems.value.includes(productId)) {
       return
     }
 
     favoriteItems.value.push(productId)
-    saveToStorage('myFavorites', favoriteItems.value)
+    
+    try {
+      await addFavoriteApi(productId)
+    } catch (e) {
+      favoriteItems.value = favoriteItems.value.filter(item => item !== productId)
+      error.value = getErrorMessage(e, '즐겨찾기 추가 실패')
+    }
   }
 
-  const removeFavoriteItem = (id) => {
+  const removeFavoriteItem = async (id) => {
     const productId = Number(id)
+    const previous = [...favoriteItems.value]
     favoriteItems.value = favoriteItems.value.filter((item) => item !== productId)
-    saveToStorage('myFavorites', favoriteItems.value)
+    
+    try {
+      await removeFavoriteApi(productId)
+    } catch (e) {
+      favoriteItems.value = previous
+      error.value = getErrorMessage(e, '즐겨찾기 삭제 실패')
+    }
   }
 
   const toggleFavoriteItem = (id) => {
@@ -423,9 +459,24 @@ export const useProductStore = defineStore('product', () => {
 
   const deleteProduct = (id) => {
     const productId = Number(id)
+    
+    // 1. 상품 목록에서 제거
     products.value = products.value.filter((item) => Number(item.id) !== productId)
+    
+    // 2. 비교함/즐겨찾기에서 제거 (메모리 상태)
+    const wasInCompare = compareItems.value.includes(productId)
+    const wasFavorite = favoriteItems.value.includes(productId)
+    
     compareItems.value = compareItems.value.filter((item) => item !== productId)
     favoriteItems.value = favoriteItems.value.filter((item) => item !== productId)
+
+    // 3. 서버 API 동기화 (비교함/즐겨찾기 삭제)
+    if (wasInCompare) {
+      removeFromCompareApi(productId).catch(e => console.error('비교함 동기화 실패', e))
+    }
+    if (wasFavorite) {
+      removeFavoriteApi(productId).catch(e => console.error('즐겨찾기 동기화 실패', e))
+    }
 
     if (selectedBaseProductId.value === productId) {
       selectedBaseProductId.value = null
@@ -436,8 +487,8 @@ export const useProductStore = defineStore('product', () => {
   }
 
   async function initialize() {
+    // 중복 호출 방지: fetchProducts는 각 View에서 호출
     await Promise.all([
-      fetchProducts(),
       fetchFavorites(),
       fetchCompareList(),
     ])
