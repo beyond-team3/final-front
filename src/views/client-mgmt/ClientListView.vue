@@ -129,7 +129,7 @@ onMounted(fetchClients)
             <th class="px-6 py-4 text-left font-medium">사업자번호</th>
             <th class="px-6 py-4 text-left font-medium">유형</th>
             <th class="px-6 py-4 text-left font-medium">담당자</th>
-            <th class="px-6 py-4 text-left font-medium">주소</th>
+            <th class="px-6 py-4 text-left font-medium">지역</th>
             <th class="px-6 py-4 text-left font-medium">상태</th>
             <th class="px-6 py-4 text-left font-medium">액션</th>
           </tr>
