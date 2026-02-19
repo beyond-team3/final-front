@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
@@ -210,7 +210,11 @@ const goToRecommendationDetail = (item, index = null) => {
   if (index !== null) {
     recommendIdx.value = index
   }
-  router.push(`/products/${item.id}`)
+  try {
+    await router.push(`/products/${item.id}`)
+  } catch (err) {
+    // Ignore unexpected navigation errors.
+  }
 }
 
 const resetFilters = () => {
@@ -264,7 +268,9 @@ const startRecommendTimer = () => {
   }, 5000)
 }
 
-startRecommendTimer()
+onMounted(() => {
+  startRecommendTimer()
+})
 
 onBeforeUnmount(() => {
   if (carouselTimer) {
@@ -346,7 +352,7 @@ onBeforeUnmount(() => {
                 <div class="day-num">{{ cell.day }}</div>
                 <div class="badge-row">
                   <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id" class="badge" :class="ev.type">
-                    {{ ev.type === 'history' ? `${labelHistory(ev.historyCategory)} · ${ev.title}` : ev.title }}
+                    {{ ev.type === 'history' ? `${historyLabelWithOwner(ev)} · ${ev.title}` : ev.title }}
                   </div>
                   <div v-if="cell.events.length > 3" class="badge">+{{ cell.events.length - 3 }}</div>
                 </div>
@@ -363,11 +369,15 @@ onBeforeUnmount(() => {
             <span style="font-size:12px;color:#6b7a8c;">자동 슬라이드</span>
           </div>
 
-          <div class="carousel">
+          <div v-if="currentRecommendation" class="carousel">
             <div
               class="carousel-img"
+              role="button"
+              tabindex="0"
               :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
               @click="goToRecommendationDetail(currentRecommendation)"
+              @keydown.enter="goToRecommendationDetail(currentRecommendation)"
+              @keydown.space.prevent="goToRecommendationDetail(currentRecommendation)"
             >
               <div class="carousel-main-text">{{ currentRecommendation.name }}</div>
             </div>
@@ -379,7 +389,11 @@ onBeforeUnmount(() => {
               v-for="(item, index) in recommendations"
               :key="item.id"
               class="recommend-item"
+              role="button"
+              tabindex="0"
               @click="goToRecommendationDetail(item, index)"
+              @keydown.enter="goToRecommendationDetail(item, index)"
+              @keydown.space.prevent="goToRecommendationDetail(item, index)"
             >
               <div class="recommend-name">{{ item.name }}</div>
               <div class="recommend-tag">{{ item.tag }}</div>

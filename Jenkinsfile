@@ -47,7 +47,56 @@ pipeline {
 				}
 			}
 		}
-	}
+
+	    stage('Update Manifest (CD)') {
+            when { branch 'main' }
+            steps {
+                script {
+                    // 1. 설정 변수
+                    def manifestRepoUrl = "github.com/beyond-team3/monsoon-manifests.git"
+                    def targetFile = "frontend/deployment.yml"
+                    def imageName = "21monsoon/monsoon-frontend"
+                    def newTag = "${env.APP_VERSION_PREFIX}.${env.BUILD_ID}"
+
+                    withCredentials([usernamePassword(credentialsId: 'github-access-token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                        sh """
+                            set +x
+                            # 기존 폴더 정리
+                            rm -rf temp-manifests
+
+                            # Clone (이때는 비밀번호 사용)
+                            git clone https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} temp-manifests
+
+                            cd temp-manifests
+
+                            # 로컬 설정 파일(.git/config)에서 비밀번호가 포함된 URL을 즉시 삭제
+                            git remote set-url origin https://${manifestRepoUrl}
+
+                            # 젠킨스 봇 계정 설정
+                            git config user.email "jenkins-bot@monsoon.com"
+                            git config user.name "Jenkins-CI-Bot"
+
+                            # 파일 수정 (sed)
+                            sed -i "s|image: ${imageName}:.*|image: ${imageName}:${newTag}|g" ${targetFile}
+
+                            # Commit & Push
+                            git add "${targetFile}"
+                            # Push 할 때만 일회성으로 비밀번호를 다시 조합해서 사용
+                            git diff-index --quiet HEAD || (git commit -m "🚀 [CD] Update ${imageName} to ${newTag}" && git push https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} main)
+
+                            set -x
+                        """
+                    }
+                }
+            }
+            // 빌드가 성공하든 실패하든 무조건 임시 폴더 삭제
+            post {
+                always {
+                    sh 'rm -rf temp-manifests'
+                }
+            }
+        }
+    }
 
 	post {
 		success {
