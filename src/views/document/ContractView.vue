@@ -58,9 +58,10 @@ const startContract = (q) => {
   conInNo.value = q.id
 
   selectedItems.value = q.items?.map(item => ({
-    uid: Date.now() + Math.random(),
+    uid: item.id || `${Date.now()}-${Math.random()}`,
+    productId: item.productId || item.id, // 상품 식별자 저장
     name: item.name,
-    qty: Number(item.quantity) > 0 ? Number(item.quantity) : 1, // 수량 안전망
+    qty: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
     unit: item.unit || '팩',
     price: Number(item.unitPrice || 0)
   })) || []
@@ -87,12 +88,14 @@ const setCorp = (corp) => {
 }
 
 const addProduct = (p) => {
-  const existing = selectedItems.value.find(item => item.name === p.name)
+  // [수정 1] 상품 식별자(id) 기반 매칭 및 고유 UID 생성 로직 개선
+  const existing = selectedItems.value.find(item => item.productId === p.id)
   if (existing) {
     existing.qty++
   } else {
     selectedItems.value.push({
-      uid: Date.now(),
+      uid: p.id || `${Date.now()}-${Math.random()}`, // p.id 우선 사용, 없을 시 entropy 부여
+      productId: p.id,
       name: p.name,
       qty: 1,
       unit: p.unit || 'kg',
@@ -102,7 +105,7 @@ const addProduct = (p) => {
   showProductModal.value = false
 }
 
-// [필살기] 수량 음수 및 제로 방지 로직
+// 수량 음수 및 제로 방지 로직
 const updateQty = (item, val) => {
   let num = parseInt(val)
   if (isNaN(num) || num < 1) {
@@ -123,6 +126,15 @@ const totalSum = computed(() =>
 const filteredProducts = computed(() =>
     productStore.products?.filter(p => p.name?.includes(modalSearchInput.value)) || []
 )
+
+// [수정 3] 현재 날짜를 YYYY년 MM월 DD일 형식으로 반환하는 computed
+const todayFormatted = computed(() => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}년 ${month}월 ${day}일`
+})
 
 const showAlert = (msg) => window.alert(msg)
 
@@ -155,7 +167,7 @@ const submitContract = () => {
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div><label class="text-[10px] text-gray-400">거래처 코드</label><input v-model="conInCorpCode" readonly class="w-full p-2 border rounded bg-gray-50 text-sm font-semibold"></div>
-              <div class="col-span-1.5"><label class="text-[10px] text-gray-400">법인명</label><input v-model="conInCorp" readonly class="w-full p-2 border rounded bg-gray-50 text-sm font-semibold"></div>
+              <div class="col-span-2"><label class="text-[10px] text-gray-400">법인명</label><input v-model="conInCorp" readonly class="w-full p-2 border rounded bg-gray-50 text-sm font-semibold"></div>
               <div><label class="text-[10px] text-gray-400">담당자</label><input v-model="conInName" readonly class="w-full p-2 border rounded bg-gray-50 text-sm font-semibold"></div>
               <div><label class="text-[10px] text-gray-400">견적번호</label><input v-model="conInNo" readonly class="w-full p-2 border rounded bg-gray-50 text-sm font-semibold"></div>
             </div>
@@ -253,7 +265,7 @@ const submitContract = () => {
                 <p class="mt-2 min-h-[60px] italic whitespace-pre-wrap leading-relaxed text-slate-700">{{ conSpecialTerms || '-' }}</p>
               </div>
               <div class="absolute bottom-10 left-0 right-0 text-center">
-                <p class="mb-4 text-xs">2026년 02월 19일</p>
+                <p class="mb-4 text-xs">{{ todayFormatted }}</p>
                 <p class="mt-4 font-bold text-sm border-t pt-4 mx-8">위 계약의 내용을 증명하기 위해 기명 날인함</p>
               </div>
             </div>
@@ -282,7 +294,7 @@ const submitContract = () => {
                 <td class="p-3 text-right font-mono font-bold">{{ Number(q.totalAmount || 0).toLocaleString() }}</td>
                 <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs hover:bg-blue-600 shadow-sm">선택</button></td>
               </tr>
-              <tr v-if="!documentStore.quotations?.length"><td colspan="5" class="p-10 text-slate-400">승인된 견적서가 없슴돠.</td></tr>
+              <tr v-if="!documentStore.quotations?.length"><td colspan="5" class="p-10 text-slate-400">승인된 견적서가 없습니다.</td></tr>
               </tbody>
             </table>
           </div>
@@ -293,7 +305,7 @@ const submitContract = () => {
 
     <div v-if="showCorpModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50">
       <div class="bg-white w-[500px] rounded-lg shadow-xl overflow-hidden border">
-        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center"><h3 class="font-bold text-sm font-bold">거래처 조회</h3><button @click="showCorpModal = false">&times;</button></div>
+        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center"><h3 class="font-bold text-sm">거래처 조회</h3><button @click="showCorpModal = false">&times;</button></div>
         <div class="p-4 max-h-[400px] overflow-y-auto">
           <table class="w-full text-xs text-center border bg-white">
             <thead class="bg-gray-50 sticky top-0"><tr><th class="p-2 border text-slate-600">코드</th><th class="p-2 border text-slate-600">법인명</th><th class="p-2 border text-slate-600">선택</th></tr></thead>
@@ -310,7 +322,7 @@ const submitContract = () => {
 
     <div v-if="showProductModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50">
       <div class="bg-white w-[650px] rounded-lg shadow-xl overflow-hidden border">
-        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center"><h3 class="font-bold text-sm font-bold">상품 검색</h3><button @click="showProductModal = false">&times;</button></div>
+        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center"><h3 class="font-bold text-sm">상품 검색</h3><button @click="showProductModal = false">&times;</button></div>
         <div class="p-4">
           <input v-model="modalSearchInput" type="text" class="w-full border rounded p-3 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner" placeholder="상품명 입력">
           <div class="max-h-[300px] overflow-y-auto border rounded text-xs shadow-inner bg-white">
