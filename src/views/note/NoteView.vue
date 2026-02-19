@@ -72,10 +72,14 @@ const saveNote = async () => {
       })
     }
 
-    aiSummaryContent.value = result.summary
-    showAiSummary.value = true
-  } catch (e) {
-    console.error(e)
+    if (result) {
+      aiSummaryContent.value = result.summary ?? []
+      showAiSummary.value = true
+    } else {
+      window.alert('저장에 실패했습니다. 다시 시도해 주세요.')
+    }
+  } catch {
+    window.alert('저장 중 오류가 발생했습니다.')
   } finally {
     isLoading.value = false
   }
