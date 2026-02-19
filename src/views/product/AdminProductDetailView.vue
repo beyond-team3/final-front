@@ -11,18 +11,40 @@ const productStore = useProductStore()
 const productId = computed(() => Number(route.params.id))
 const product = computed(() => productStore.getProductById(productId.value))
 
+const formattedPrice = computed(() => {
+  if (!product.value?.priceData?.price) return ''
+  return Number(product.value.priceData.price).toLocaleString()
+})
+
+const formattedAmount = computed(() => {
+  if (!product.value?.priceData?.amount) return ''
+  return Number(product.value.priceData.amount).toLocaleString()
+})
+
 const tagRows = computed(() => {
   if (!product.value) {
     return []
   }
 
-  return [
+  const rows = []
+
+  // 판매 단가 (항상 표시)
+  if (product.value.priceData) {
+    rows.push({ key: 'price', label: '판매 단가' })
+  }
+
+  const tags = [
     { key: 'env', label: '재배환경' },
     { key: 'res', label: '내병성' },
     { key: 'growth', label: '생육/숙기' },
     { key: 'quality', label: '과실품질' },
     { key: 'conv', label: '재배편의성' },
-  ].filter((row) => (product.value.tags?.[row.key] || []).length > 0)
+  ]
+
+  return [
+    ...rows,
+    ...tags.filter((row) => (product.value.tags?.[row.key] || []).length > 0),
+  ]
 })
 
 const deleteProduct = () => {
@@ -106,17 +128,29 @@ const toggleCompare = () => {
 
         <p class="mt-4 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600">{{ product.desc }}</p>
 
-        <div class="mt-6 space-y-3">
-          <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-slate-100 pb-3 md:grid-cols-[100px_1fr]">
-            <p class="text-sm font-semibold text-slate-500">{{ row.label }}</p>
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="tag in product.tags[row.key]"
-                :key="`${row.key}-${tag}`"
-                class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-              >
-                {{ tag }}
-              </span>
+        <div class="mt-6">
+          <h4 class="mb-4 text-lg font-bold text-slate-800">상세 품종 특성</h4>
+          
+          <div class="space-y-3">
+            <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-slate-100 pb-3 md:grid-cols-[110px_1fr]">
+              <p class="text-sm font-semibold text-slate-500">{{ row.label }}</p>
+              
+              <!-- 판매 단가 -->
+              <div v-if="row.key === 'price'" class="flex items-baseline gap-1">
+                <span class="text-base font-bold text-slate-900">{{ formattedPrice }}원</span>
+                <span class="text-xs text-slate-500">/ {{ formattedAmount }}{{ product.priceData.unit }}</span>
+              </div>
+
+              <!-- 일반 태그 -->
+              <div v-else class="flex flex-wrap gap-2">
+                <span
+                  v-for="tag in product.tags[row.key]"
+                  :key="`${row.key}-${tag}`"
+                  class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                >
+                  {{ tag }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
