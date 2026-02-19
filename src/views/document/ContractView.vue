@@ -322,7 +322,7 @@ const submitContract = () => {
                   <button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold shadow-sm" @click="setCorp(corp)">선택</button>
                 </td>
               </tr>
-              <tr v-if="filteredClients.length === 0"><td colspan="4" class="p-10 text-gray-400 italic font-bold text-center">검색 결과가 없슴돠!</td></tr>
+              <tr v-if="filteredClients.length === 0"><td colspan="4" class="p-10 text-gray-400 italic font-bold text-center">검색 결과가 없습니다.</td></tr>
               </tbody>
             </table>
           </div>
