@@ -5,10 +5,13 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import HistoryModal from '@/components/history/HistoryModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
+import { ROLES } from '@/utils/constants'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const historyStore = useHistoryStore()
 
 const searchText = ref('')
@@ -122,7 +125,20 @@ const modalMode = computed(() => {
     return 'sales-clean'
   }
 
-  return selectedDoc.value.status.includes('반려') ? 'sales-rejected' : 'sales-clean'
+  if (selectedDoc.value.status.includes('반려')) {
+    return authStore.currentRole === ROLES.ADMIN ? 'admin-rejected' : 'sales-rejected'
+  }
+
+  return 'sales-clean'
+})
+
+const shouldHideRemark = computed(() => {
+  return authStore.currentRole === ROLES.ADMIN || authStore.currentRole === ROLES.CLIENT
+})
+const canDownload = computed(() => {
+  return authStore.currentRole === ROLES.SALES_REP
+    || authStore.currentRole === ROLES.ADMIN
+    || authStore.currentRole === ROLES.CLIENT
 })
 
 onMounted(() => {
@@ -227,6 +243,8 @@ onMounted(() => {
         v-model="isModalOpen"
         :title="selectedDoc ? selectedDoc.id : '문서번호'"
         :mode="modalMode"
+        :show-download="canDownload"
+        :hide-remark="shouldHideRemark"
         :remark="selectedDoc ? selectedDoc.remark : ''"
         :reject-reason="selectedDoc ? selectedDoc.rejectReason : ''"
       />

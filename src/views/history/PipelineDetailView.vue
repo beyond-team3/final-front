@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -9,8 +9,29 @@ import { useHistoryStore } from '@/stores/history'
 const route = useRoute()
 const router = useRouter()
 const historyStore = useHistoryStore()
+const isMoreVisible = ref(false)
 
 const pipeline = computed(() => historyStore.getPipelineById(route.params.id))
+const docsByStageNumber = computed(() => {
+  const grouped = new Map()
+  const docs = pipeline.value?.documents || []
+
+  docs.forEach((doc) => {
+    const stageNumber = Number(doc.stageNumber || 0)
+    if (!stageNumber) {
+      return
+    }
+
+    if (!grouped.has(stageNumber)) {
+      grouped.set(stageNumber, [])
+    }
+
+    grouped.get(stageNumber).push(doc)
+  })
+
+  return grouped
+})
+
 const stageSteps = computed(() => {
   if (!pipeline.value) {
     return []
@@ -20,12 +41,19 @@ const stageSteps = computed(() => {
   return names.map((name, index) => {
     const order = index + 1
     if (order < pipeline.value.stageNumber) {
-      return { name, statusText: '완료', state: 'completed' }
+      const hasDocument = (docsByStageNumber.value.get(order) || []).length > 0
+      return {
+        name,
+        statusText: '완료',
+        state: 'completed',
+        hasDocument,
+        warningText: hasDocument ? '' : '문서 미등록',
+      }
     }
     if (order === pipeline.value.stageNumber) {
-      return { name, statusText: '진행중', state: 'in-progress' }
+      return { name, statusText: '진행중', state: 'in-progress', hasDocument: true, warningText: '' }
     }
-    return { name, statusText: '대기중', state: 'waiting' }
+    return { name, statusText: '대기중', state: 'waiting', hasDocument: true, warningText: '' }
   })
 })
 
@@ -56,6 +84,10 @@ const openDocList = (stepName) => {
       pipelineId: String(route.params.id),
     },
   })
+}
+
+const showMoreSteps = () => {
+  isMoreVisible.value = true
 }
 
 onMounted(() => {
@@ -92,6 +124,14 @@ onMounted(() => {
             <p class="font-medium text-slate-900">{{ pipeline.clientName }}</p>
           </div>
           <div>
+            <p class="text-slate-500">담당자</p>
+            <p class="font-medium text-slate-900">{{ pipeline.salesRepName || '-' }}</p>
+          </div>
+          <div>
+            <p class="text-slate-500">연락처</p>
+            <p class="font-medium text-slate-900">{{ pipeline.salesRepPhone || '-' }}</p>
+          </div>
+          <div>
             <p class="text-slate-500">시작일</p>
             <p class="font-medium text-slate-900">{{ pipeline.startDate }}</p>
           </div>
@@ -120,10 +160,21 @@ onMounted(() => {
           >
             <p class="text-lg font-bold">{{ step.name }}</p>
             <p class="text-sm opacity-90">{{ step.statusText }}</p>
+            <p v-if="step.warningText" class="mt-1 text-xs font-semibold text-amber-100">{{ step.warningText }}</p>
           </button>
         </div>
 
-        <div class="mt-6">
+        <button
+          v-if="!isMoreVisible"
+          type="button"
+          class="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-700"
+          @click="showMoreSteps"
+        >
+          <span>주문서 단계부터 더보기</span>
+          <span>▼</span>
+        </button>
+
+        <div v-if="isMoreVisible" class="mt-6">
           <div class="mb-4 flex justify-center text-2xl text-slate-400">➜</div>
 
           <div class="grid gap-3 md:grid-cols-3">
@@ -137,6 +188,7 @@ onMounted(() => {
             >
               <p class="text-lg font-bold">{{ step.name }}</p>
               <p class="text-sm opacity-90">{{ step.statusText }}</p>
+              <p v-if="step.warningText" class="mt-1 text-xs font-semibold text-amber-100">{{ step.warningText }}</p>
             </button>
           </div>
         </div>

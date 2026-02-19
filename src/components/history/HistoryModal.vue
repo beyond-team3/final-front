@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -23,21 +23,53 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  showDownload: {
+    type: Boolean,
+    default: false,
+  },
+  hideRemark: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const showInfoPanel = computed(() => props.mode !== 'readonly')
-const showRemark = computed(() => props.mode !== 'admin-rejected')
+const showRemark = computed(() => showInfoPanel.value && !props.hideRemark && props.mode !== 'admin-rejected')
 const showRejectReason = computed(() => props.mode === 'sales-rejected' || props.mode === 'admin-rejected')
+const downloadLink = ref(null)
 
 const close = () => {
   emit('update:modelValue', false)
+}
+
+const downloadDocument = () => {
+  // TODO: Replace text export with real PDF generation and restore .pdf output.
+  const content = [
+    'MonSoon Document Preview',
+    `document: ${props.title || 'document'}`,
+    `generatedAt: ${new Date().toISOString()}`,
+  ].join('\n')
+  const blob = new Blob([content], { type: 'text/plain' })
+  const objectUrl = URL.createObjectURL(blob)
+  const safeName = String(props.title || 'document').replace(/[\\/:*?"<>|]/g, '_')
+
+  if (!downloadLink.value) {
+    URL.revokeObjectURL(objectUrl)
+    return
+  }
+
+  downloadLink.value.href = objectUrl
+  downloadLink.value.download = `${safeName}.txt`
+  downloadLink.value.click()
+  URL.revokeObjectURL(objectUrl)
 }
 </script>
 
 <template>
   <teleport to="body">
+    <a ref="downloadLink" class="hidden" aria-hidden="true" tabindex="-1" />
     <div
       v-if="modelValue"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -46,9 +78,19 @@ const close = () => {
       <section class="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         <header class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
           <h3 class="text-lg font-semibold text-slate-800">{{ title }}</h3>
-          <button type="button" class="rounded px-2 py-1 text-xl text-slate-500 hover:bg-slate-200" @click="close">
-            ×
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="showDownload"
+              type="button"
+              class="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+              @click="downloadDocument"
+            >
+              다운로드
+            </button>
+            <button type="button" class="rounded px-2 py-1 text-xl text-slate-500 hover:bg-slate-200" @click="close">
+              ×
+            </button>
+          </div>
         </header>
 
         <div class="flex min-h-0 flex-1 bg-slate-200">
