@@ -9,11 +9,13 @@ import { useProductStore } from '@/stores/product'
 const router = useRouter()
 const productStore = useProductStore()
 
+  router.push('/products/compare')
+}
+
 onMounted(() => {
   productStore.fetchProducts()
 })
-
-const filters = ref({
+</script>
   category: '',
   env: '',
   keyword: '',
