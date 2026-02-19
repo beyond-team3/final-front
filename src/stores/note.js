@@ -137,9 +137,15 @@ export const useNoteStore = defineStore('note', () => {
   }
 
   const createNote = async ({ clientId, contract, date, content }) => {
+    // Lazy load auth store to avoid circular dependency issues if any
+    const { useAuthStore } = await import('@/stores/auth')
+    const authStore = useAuthStore()
+    const currentUser = authStore.me
+
     const next = {
-      clientId,
-      contract: contract || '일반 상담',
+      authorId: currentUser?.id || 1, // Fallback to 1 (Kim Min-su) if no user logged in
+      clientId: Number(clientId),
+      contract: contract || undefined,
       date: date || today(),
       content,
       summary: generateSummary(content),
@@ -170,9 +176,13 @@ export const useNoteStore = defineStore('note', () => {
   }
 
   const updateNote = async (id, { clientId, contract, date, content }) => {
+    // Preserve existing author info, or default to 1 (Kim Min-su) if missing (e.g., repairing broken data)
+    const original = notes.value.find((n) => n.id === id) || {}
+
     const next = {
-      clientId,
-      contract: contract || '일반 상담',
+      authorId: original.authorId || 1,
+      clientId: Number(clientId),
+      contract: contract || undefined,
       date: date || today(),
       content,
       summary: generateSummary(content),
