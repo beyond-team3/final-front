@@ -22,16 +22,15 @@ const inCorpCode = ref('')
 const inCorp = ref('')
 const inName = ref('')
 const internalMemo = ref('')
+const customerRequirements = ref('') // [추가] 견적 요청서 요구사항 저장용
 const selectedItems = ref([])
 const modalSearchInput = ref('')
-const clientSearchInput = ref('') // [추가] 거래처 검색어
+const clientSearchInput = ref('')
 const varietyFilter = ref('전체')
 
 onMounted(async () => {
   try {
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
-    // 스토어 함수명이 fetchClientMaster일 수 있으니 확인이 필요함돠!
-    // 일단 행님 코드의 fetchClients를 존중했슴돠.
     if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
     else if (documentStore.fetchClients) await documentStore.fetchClients()
 
@@ -40,7 +39,7 @@ onMounted(async () => {
 
     showStartModal.value = true
   } catch (e) {
-    console.error("데이터 로딩 실패임돠 행님:", e)
+    console.error("데이터 로딩 실패:", e)
   }
 })
 
@@ -62,11 +61,14 @@ const startFromRequest = (req) => {
   inName.value = req.client?.contact || ''
   inCorpCode.value = req.client?.code || ''
 
+  customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
+
   selectedItems.value = req.items.map(i => ({
     uid: Date.now() + Math.random(),
     variety: i.variety || '일반',
     name: i.name,
-    count: i.quantity || 1,    unit: i.unit || '립',
+    count: i.quantity || 1,
+    unit: i.unit || '립',
     price: i.unitPrice || 0
   }))
 }
@@ -79,6 +81,7 @@ const startNewQuotation = () => {
   inCorpCode.value = ''
   inCorp.value = ''
   inName.value = ''
+  customerRequirements.value = '' // 신규는 요구사항 없음
   selectedItems.value = []
 }
 
@@ -128,7 +131,6 @@ const varietyOptions = computed(() => {
   return ['전체', ...new Set(varieties.filter(v => v))]
 })
 
-// [추가] 거래처 검색 필터
 const filteredClients = computed(() => {
   const master = documentStore.clientMaster || []
   return master.filter(c =>
@@ -152,8 +154,8 @@ const validityDate = computed(() => {
 })
 
 const submitDoc = () => {
-  if (!inCorp.value) return window.alert("거래처 정보를 완성해주십쇼 행님!")
-  if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가하셔야 함돠!")
+  if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
+  if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
 
   documentStore.createQuotation({
     client: { name: inCorp.value, code: inCorpCode.value, contact: inName.value },
@@ -162,7 +164,7 @@ const submitDoc = () => {
     memo: internalMemo.value
   })
 
-  window.alert("견적서가 정상적으로 발행되었슴돠!")
+  window.alert("견적서가 정상적으로 발행되었습니다.")
   router.push('/documents/all')
 }
 </script>
@@ -228,6 +230,16 @@ const submitDoc = () => {
               </table>
             </div>
             <div class="mt-4 text-right font-bold text-lg text-[#2c3e50]">총 합계: {{ totalSum.toLocaleString() }} 원</div>
+          </div>
+
+          <div v-if="!isNewMode && customerRequirements" class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+            <div class="flex items-center gap-2 mb-3">
+              <h3 class="text-base font-bold text-slate-800">견적 요청서 요구사항</h3>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 p-3 rounded text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[60px]">
+              {{ customerRequirements }}
+            </div>
+            <p class="text-[11px] text-gray-500 mt-2 font-medium">* 위 내용은 참고용이며, 발행되는 PDF 견적서에는 포함되지 않습니다.</p>
           </div>
 
           <div class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
@@ -328,7 +340,7 @@ const submitDoc = () => {
                 <td class="p-3 text-slate-600">{{ corp.contact }}</td>
                 <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="setCorp(corp)">선택</button></td>
               </tr>
-              <tr v-if="filteredClients.length === 0"><td colspan="4" class="p-10 text-gray-400 italic">검색 결과가 없슴돠!</td></tr>
+              <tr v-if="filteredClients.length === 0"><td colspan="4" class="p-10 text-gray-400 italic">검색 결과가 없습니다.</td></tr>
               </tbody>
             </table>
           </div>
