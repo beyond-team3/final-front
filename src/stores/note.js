@@ -225,7 +225,12 @@ export const useNoteStore = defineStore('note', () => {
     }
 
     try {
-      const briefing = await getAIBriefing(clientId)
+      // API call: mock server returns array for query
+      const response = await getAIBriefing(clientId)
+
+      // json-server returns array when querying by property. We take the first item.
+      // If it's a real API it might return the object directly. We handle both.
+      const briefing = Array.isArray(response) ? response[0] : response
 
       // Validate API response structure
       const isValid = briefing
