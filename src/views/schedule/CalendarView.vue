@@ -204,7 +204,11 @@ const openEditModal = (eventItem = null) => {
 }
 
 const goToRecommendationDetail = async (item, index = null) => {
+<<<<<<< HEAD
   if (!item?.id) {
+=======
+  if (item?.id == null) {
+>>>>>>> 0e131a1 (fix(calendar): async 없어서 생긴 에러 해결)
     return
   }
   if (index !== null) {
