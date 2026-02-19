@@ -1,28 +1,53 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import ModalBase from '@/components/common/ModalBase.vue'
 import UnifiedHistoryPanel from '@/components/history/UnifiedHistoryPanel.vue'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const activeTab = ref('info')
 
 const profile = reactive({
-  name: 'OO육묘장',
-  code: 'C-001',
-  summary: '육묘장 | 사용중 | 서울특별시 ○○구',
-  businessNumber: '123-45-67890',
-  ceo: '김사장',
-  phone: '02-123-4567',
-  address: '서울특별시 ○○구 ○○로 00',
-  type: '육묘장',
-  manager: '김철수 과장',
-  mobile: '010-1234-5678',
-  email: 'kim@farm.com',
-  crops: ['토마토', '파프리카', '오이', '고추', '상추'],
+  name: '',
+  code: '',
+  summary: '',
+  businessNumber: '',
+  ceo: '',
+  phone: '',
+  address: '',
+  type: '',
+  manager: '',
+  mobile: '',
+  email: '',
+  crops: [],
 })
 
+onMounted(() => {
+  if (authStore.me) {
+    const data = authStore.me
+    profile.name = data.name || ''
+    profile.code = data.code || ''
+    const region = data.address ? data.address.split(' ')[0] : '지역미정'
+    profile.summary = `${data.typeLabel || '거래처'} | ${data.isActive ? '사용중' : '중지'} | ${region}`
+
+    profile.businessNumber = data.bizNo || ''
+    profile.ceo = data.ceoName || ''
+    profile.phone = data.companyPhone || ''
+    profile.address = data.address || ''
+    profile.type = data.typeLabel || '거래처'
+    profile.manager = data.managerName || ''
+    profile.mobile = data.managerPhone || ''
+    profile.email = data.managerEmail || ''
+    profile.crops = data.crops || []
+  } else {
+    router.push('/login')
+  }
+})
+
+// 파이프라인 데이터 (생략 가능하나 유지함돠)
 const pipelines = ref([
   {
     id: 8,
@@ -58,7 +83,7 @@ const pipelines = ref([
       { name: '결제완료', state: 'completed', statusText: '완료' },
     ],
   },
-]) // TODO: API 연결
+])
 
 const isPwModalOpen = ref(false)
 const pwForm = ref({ current: '', next: '', nextConfirm: '' })
@@ -75,26 +100,47 @@ const closePwModal = () => {
   pwHint.value = ''
 }
 
-const submitPassword = () => {
+const submitPassword = async () => {
   const { current, next, nextConfirm } = pwForm.value
 
   if (!current || !next || !nextConfirm) {
     pwHint.value = '모든 항목을 입력해주세요.'
     return
   }
-
+  if (current !== authStore.me.password) {
+    pwHint.value = '기존 비밀번호가 일치하지 않습니다.'
+    return
+  }
   if (next !== nextConfirm) {
     pwHint.value = '새 비밀번호와 확인 값이 일치하지 않습니다.'
     return
   }
-
   if (next.length < 8) {
     pwHint.value = '새 비밀번호는 8자 이상을 권장합니다.'
     return
   }
 
-  pwHint.value = '비밀번호가 수정되었습니다.'
-  setTimeout(closePwModal, 700)
+  try {
+    const userId = authStore.me.id
+    const response = await fetch(`http://localhost:3001/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      // [오타 수정] passwordForm -> pwForm
+      body: JSON.stringify({ password: next }),
+    })
+
+    if (!response.ok) throw new Error('비밀번호 수정 실패')
+
+    authStore.me.password = next
+    pwHint.value = '비밀번호가 성공적으로 수정되었습니다.'
+
+    setTimeout(() => {
+      closePwModal()
+    }, 1000)
+  } catch (error) {
+    console.error('비밀번호 변경 오류:', error)
+    pwHint.value = '서버 통신 오류가 발생했습니다.'
+  }
 }
 
 const openPipelineDetail = (pipelineId) => {
@@ -175,11 +221,11 @@ const openPipelineDetail = (pipelineId) => {
 
       <section v-else class="tab-content">
         <UnifiedHistoryPanel
-          :title="`${profile.name}의 영업 파이프라인`"
-          :pipelines="pipelines"
-          :show-client-name="false"
-          :show-edit-button="false"
-          @detail="openPipelineDetail"
+            :title="`${profile.name}의 영업 파이프라인`"
+            :pipelines="pipelines"
+            :show-client-name="false"
+            :show-edit-button="false"
+            @detail="openPipelineDetail"
         />
       </section>
     </div>
@@ -212,38 +258,31 @@ const openPipelineDetail = (pipelineId) => {
 </template>
 
 <style scoped>
+/* 기존 스타일 그대로 유지함돠 행님 */
 .screen-content { background-color: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); min-height: 500px; }
 .detail-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .header-info { flex: 1; }
 .header-info h2 { font-size: 24px; font-weight: 700; color: #111827; }
 .header-info p { margin-top: 4px; color: #6b7280; font-size: 14px; }
 .muted { color: #95a5a6; font-size: 14px; font-weight: 400; }
-
 .tabs { margin-top: 20px; }
 .tab-buttons { display: flex; border-bottom: 1px solid #e5e7eb; margin-bottom: 25px; }
 .tab-btn { padding: 12px 24px; background: none; border: none; font-size: 15px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; }
 .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
-
 .info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .info-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; background-color: #fff; }
 .info-card h3 { font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 15px; }
 .info-item { margin-bottom: 12px; }
 .info-label { font-size: 13px; color: #7f8c8d; display: block; margin-bottom: 4px; }
 .info-value { font-weight: 500; color: #2c3e50; font-size: 15px; }
-
 .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
 .badge-blue { background-color: var(--color-primary-light); color: var(--color-primary-dark); }
-
 .crops-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .crop-badge { padding: 4px 12px; background-color: #f1f3f5; color: #495057; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; }
-
 .form-group { display: grid; gap: 6px; }
 .form-label { font-size: 13px; font-weight: 600; color: #2c3e50; }
 .form-input { height: 40px; border: 1px solid #dfe6e9; border-radius: 8px; padding: 0 12px; outline: none; font-size: 14px; }
 .form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.15); }
 .form-hint { min-height: 18px; font-size: 12px; color: #7f8c8d; }
-
-@media (max-width: 1024px) {
-  .info-grid { grid-template-columns: 1fr; }
-}
+@media (max-width: 1024px) { .info-grid { grid-template-columns: 1fr; } }
 </style>
