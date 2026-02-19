@@ -28,41 +28,79 @@
         .prod-text h3 { font-size: 16px; margin-bottom: 4px; color: #2c3e50; }
         .prod-text p { font-size: 13px; color: #7f8c8d; }
 
-        .chat-container { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .message-row { display: flex; align-items: flex-start; gap: 10px; max-width: 80%; }
-        .message-row.mine { align-self: flex-end; flex-direction: row-reverse; }
-        .profile-pic { width: 40px; height: 40px; border-radius: 50%; background-color: #ddd; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        /* 댓글 영역 (채팅 레이아웃 -> 댓글 스레드 레이아웃으로 변경) */
+        .comment-container { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
 
-        .message-content { display: flex; flex-direction: column; gap: 4px; position: relative; }
-        .sender-name { font-size: 12px; color: #555; margin-left: 4px; }
-        .message-row.mine .sender-name { text-align: right; margin-right: 4px; }
-
-        .bubble { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .message-row.other .bubble { background-color: white; color: #333; border-top-left-radius: 0; }
-        .message-row.mine .bubble { background-color: #3498db; color: white; border-top-right-radius: 0; }
-
-        .timestamp { font-size: 11px; color: #999; margin-top: 2px; }
-        .message-row.mine .timestamp { text-align: right; }
-
-        /* [핵심 수정] 수정/삭제 버튼이 확실히 보이도록 스타일 개선 */
-        .msg-actions {
-            font-size: 12px; color: #555; text-align: right; margin-top: 4px;
-            display: flex; gap: 8px; justify-content: flex-end;
-            background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;
+        .comment-item {
+            background: white; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px;
+            display: flex; flex-direction: column; gap: 8px; transition: 0.2s;
         }
-        .action-link { cursor: pointer; font-weight: bold; color: #333; text-decoration: none; }
-        .action-link:hover { text-decoration: underline; color: #000; }
 
-        /* 인라인 수정 모드 스타일 */
-        .edit-mode-box { display: flex; flex-direction: column; gap: 5px; min-width: 250px; background: white; padding: 5px; border-radius: 8px; }
-        .edit-textarea { width: 100%; height: 60px; padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; resize: none; font-family: inherit; color: #333; }
-        .edit-btn-group { display: flex; gap: 5px; justify-content: flex-end; }
-        .btn-edit-save { background: #2ecc71; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-        .btn-edit-cancel { background: #95a5a6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        /* 대댓글 (답글) 들여쓰기 스타일 */
+        .comment-item.reply {
+            margin-left: 45px; /* 들여쓰기 공간 확보 */
+            background-color: #f8f9fa; /* 부모와 구분되는 약간 어두운 배경 */
+            border-left: 4px solid #bdc3c7; /* 왼쪽 굵은 띠 추가 */
+            position: relative;
+            border-radius: 4px 8px 8px 4px; /* 왼쪽은 살짝 각지게, 오른쪽은 둥글게 */
+        }
 
-        .input-area { background: white; padding: 15px; border-top: 1px solid #ddd; display: flex; gap: 10px; }
-        .chat-input { flex: 1; height: 40px; padding: 0 15px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
-        .btn-send { width: 40px; height: 40px; border-radius: 50%; background: #3498db; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .comment-item.reply::before {
+            content: '↳'; /* 명확한 꺾인 화살표 아이콘 */
+            position: absolute;
+            left: -28px;
+            top: 14px;
+            color: #bdc3c7;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        /* 내가 작성한 댓글 강조 스타일 */
+        .comment-item.mine {
+            background-color: #f0f7ff;
+            border: 1px solid #cce0ff;
+            border-left: 4px solid #3498db; /* 내가 쓴 글 파란색 띠 */
+        }
+
+        /* 내가 쓴 글이면서 대댓글일 경우 화살표 색상도 파란색으로 통일 */
+        .comment-item.reply.mine::before {
+            color: #3498db;
+        }
+
+        .cmt-header { display: flex; align-items: center; gap: 8px; }
+        .cmt-profile { width: 32px; height: 32px; border-radius: 50%; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .cmt-author { font-size: 14px; font-weight: 700; color: #2c3e50; }
+        .cmt-time { font-size: 12px; color: #95a5a6; margin-left: auto; }
+
+        .badge-mine { background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+
+        .cmt-body { font-size: 14px; color: #333; line-height: 1.5; padding: 5px 0; white-space: pre-wrap; word-break: break-all; }
+
+        .cmt-actions { display: flex; gap: 12px; font-size: 12px; color: #7f8c8d; font-weight: 600; }
+        .cmt-action-btn { cursor: pointer; }
+        .cmt-action-btn:hover { color: #3498db; text-decoration: underline; }
+        .cmt-action-btn.delete:hover { color: #e74c3c; }
+
+        /* 대댓글 입력 폼 (기본 숨김) */
+        .reply-input-box { display: none; margin-top: 10px; display: flex; gap: 8px; }
+        .reply-input-box.active { display: flex; }
+        .reply-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
+        .reply-input:focus { border-color: #3498db; }
+        .btn-submit-reply { background: #2c3e50; color: white; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+
+        /* 수정 모드 폼 */
+        .edit-mode-box { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+        .edit-textarea { width: 100%; height: 60px; padding: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; resize: none; font-family: inherit; }
+        .edit-textarea:focus { border-color: #3498db; outline: none; }
+        .edit-btn-group { display: flex; gap: 8px; justify-content: flex-end; }
+        .btn-edit-save { background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .btn-edit-cancel { background: #95a5a6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+        /* 최하단 새 부모 댓글 입력 영역 */
+        .main-input-area { background: white; padding: 15px 20px; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        .main-input { flex: 1; height: 45px; padding: 0 15px; border: 1px solid #ddd; border-radius: 8px; outline: none; font-size: 14px; }
+        .main-input:focus { border-color: #3498db; }
+        .btn-main-send { width: 80px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
 
         @media (max-width: 768px) {
             .sidebar { width: 100%; max-width: 280px; }
@@ -99,11 +137,12 @@
         <button onclick="history.back()" style="padding: 6px 12px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px;">돌아가기</button>
     </div>
 
-    <div class="chat-container" id="chatContainer"></div>
+    <div class="comment-container" id="commentContainer">
+    </div>
 
-    <div class="input-area">
-        <input type="text" class="chat-input" id="chatInput" placeholder="추가 의견을 입력하세요...">
-        <button class="btn-send" onclick="sendMessage()">➤</button>
+    <div class="main-input-area">
+        <input type="text" class="main-input" id="mainInput" placeholder="이 상품에 대한 새로운 피드백을 남겨주세요...">
+        <button class="btn-main-send" onclick="sendMainComment()">등록</button>
     </div>
 </main>
 
@@ -237,15 +276,17 @@
         }
     ];
 
+    const baseTime = Date.now() - 3600000;
     const mockMessages = [
-        {sender: '김철수 대리', content: '이 품종은 작년 대비 수확량이 20% 늘었네요. 농가 만족도가 높습니다.', time: '오전 10:30', isMine: false},
-        {sender: '이영희 과장', content: '탄저병 저항성이 확실히 좋네요. 추천할만 합니다.', time: '오후 1:15', isMine: false},
-        {sender: '박민수 사원', content: '가격 경쟁력이 조금 아쉽다는 의견이 있습니다.', time: '오후 2:40', isMine: false}
+        {id: 101, sender: '김철수 대리', content: '이 품종은 작년 대비 수확량이 20% 늘었네요. 농가 만족도가 높습니다.', time: '오전 10:30', timestamp: baseTime, isMine: false, parentId: null},
+        {id: 102, sender: '이영희 과장', content: '탄저병 저항성이 확실히 좋네요. 추천할만 합니다.', time: '오후 1:15', timestamp: baseTime + 1000, isMine: false, parentId: null},
+        {id: 103, sender: '박민수 사원', content: '저희 거래처에서도 같은 의견이었습니다!', time: '오후 1:30', timestamp: baseTime + 2000, isMine: false, parentId: 102}, // 102번글의 대댓글
+        {id: 104, sender: '정다은 주임', content: '가격 경쟁력이 조금 아쉽다는 의견이 있습니다.', time: '오후 2:40', timestamp: baseTime + 3000, isMine: false, parentId: null}
     ];
 
     let currentId = 1;
 
-    function initChat() {
+    function initPage() {
         const urlParams = new URLSearchParams(window.location.search);
         currentId = parseInt(urlParams.get('id')) || 1;
 
@@ -255,125 +296,146 @@
             document.getElementById('prodImg').src = product.imageUrl || '';
         }
 
-        renderAllMessages();
+        renderComments();
     }
 
-    function renderAllMessages() {
-        const container = document.getElementById('chatContainer');
+    // 데이터 병합 및 렌더링 함수
+    function renderComments() {
+        const container = document.getElementById('commentContainer');
         container.innerHTML = '';
 
-        // 1. 타 영업사원 메시지
-        mockMessages.forEach(msg => appendMessage(msg.sender, msg.content, msg.time, false));
-
-        // 2. 내 피드백 목록 (localStorage)
-        // 기존에 문자열로 저장된 데이터가 있을 수 있으므로 배열로 변환 시도
-        let storedData = localStorage.getItem('feedback_list_' + currentId);
         let myFeedbacks = [];
-
         try {
-            myFeedbacks = JSON.parse(storedData);
-            if (!Array.isArray(myFeedbacks)) myFeedbacks = []; // 배열 아니면 초기화
+            myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
+            if (!Array.isArray(myFeedbacks)) myFeedbacks = [];
         } catch (e) {
-            // JSON 파싱 실패 시 (구버전 데이터 등) -> 빈 배열 처리하거나 단일 문자열 처리
-            if (storedData) {
-                // 구버전 단일 문자열 데이터 호환
-                myFeedbacks = [{ id: Date.now(), content: storedData, date: new Date().toISOString() }];
-                // 포맷 업데이트
-                localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
-            }
+            myFeedbacks = [];
         }
 
-        myFeedbacks.forEach(fb => {
-            const timeStr = new Date(fb.date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-            appendMessage('나', fb.content, timeStr, true, fb.id);
+        const myMappedFeedbacks = myFeedbacks.map(fb => ({
+            id: fb.id,
+            sender: '나',
+            content: fb.content,
+            time: new Date(fb.date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}),
+            timestamp: new Date(fb.date).getTime(),
+            isMine: true,
+            parentId: fb.parentId || null
+        }));
+
+        const allComments = [...mockMessages, ...myMappedFeedbacks];
+
+        const parents = allComments.filter(c => c.parentId === null).sort((a,b) => a.timestamp - b.timestamp);
+        const children = allComments.filter(c => c.parentId !== null);
+
+        parents.forEach(p => {
+            container.appendChild(createCommentHTML(p, false));
+
+            const replies = children.filter(c => c.parentId === p.id).sort((a,b) => a.timestamp - b.timestamp);
+            replies.forEach(r => {
+                container.appendChild(createCommentHTML(r, true));
+            });
         });
 
-        container.scrollTop = container.scrollHeight;
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
     }
 
-    function appendMessage(sender, text, time, isMine, msgId) {
-        const container = document.getElementById('chatContainer');
-        const row = document.createElement('div');
-        row.className = `message-row ${isMine ? 'mine' : 'other'}`;
+    // 개별 댓글 HTML 생성
+    function createCommentHTML(data, isReply) {
+        const div = document.createElement('div');
+        let classNames = 'comment-item';
+        if (isReply) classNames += ' reply';
+        if (data.isMine) classNames += ' mine';
+        div.className = classNames;
 
-        const profileHtml = isMine ? '' : `<div class="profile-pic">👤</div>`;
+        const badgeHTML = data.isMine ? `<span class="badge-mine">내 작성글</span>` : '';
+        const actionsHTML = data.isMine
+            ? `<span class="cmt-action-btn" onclick="enableEditMode(${data.id})">수정</span>
+               <span class="cmt-action-btn delete" onclick="deleteComment(${data.id})">삭제</span>`
+            : '';
 
-        // [수정] 수정/삭제 버튼 HTML 생성
-        const actionLinks = isMine ? `
-            <div class="msg-actions">
-                <span class="action-link" onclick="enableEditMode(${msgId})">수정</span> |
-                <span class="action-link" onclick="deleteMessage(${msgId})">삭제</span>
+        const topParentId = isReply ? data.parentId : data.id;
+
+        div.innerHTML = `
+            <div class="cmt-header">
+                <div class="cmt-profile">👤</div>
+                <div class="cmt-author">${data.sender}</div>
+                ${badgeHTML}
+                <div class="cmt-time">${data.time}</div>
             </div>
-        ` : '';
-
-        const bubbleId = isMine ? `bubble-${msgId}` : '';
-
-        row.innerHTML = `
-            ${profileHtml}
-            <div class="message-content">
-                <span class="sender-name">${sender}</span>
-                <div class="bubble" id="${bubbleId}">${text}</div>
-                <span class="timestamp">${time}</span>
-                ${actionLinks}
+            <div class="cmt-body" id="body-${data.id}">${data.content}</div>
+            <div class="cmt-actions" id="actions-${data.id}">
+                <span class="cmt-action-btn" onclick="toggleReplyInput(${data.id})">답글</span>
+                ${actionsHTML}
+            </div>
+            <div class="reply-input-box" id="reply-box-${data.id}">
+                <input type="text" class="reply-input" id="reply-input-${data.id}" placeholder="답글을 남겨주세요...">
+                <button class="btn-submit-reply" onclick="saveComment(document.getElementById('reply-input-${data.id}').value, ${topParentId})">등록</button>
             </div>
         `;
-        container.appendChild(row);
+        return div;
     }
 
-    function sendMessage() {
-        const input = document.getElementById('chatInput');
-        const text = input.value.trim();
-        if (!text) return;
+    function sendMainComment() {
+        const input = document.getElementById('mainInput');
+        const text = input.value;
+        if(saveComment(text, null)) {
+            input.value = '';
+        }
+    }
+
+    function saveComment(text, parentId) {
+        text = text.trim();
+        if (!text) return false;
 
         let myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
-        if (!Array.isArray(myFeedbacks)) myFeedbacks = []; // 안전 장치
-
-        const newMsg = {
+        myFeedbacks.push({
             id: Date.now(),
             content: text,
-            date: new Date().toISOString()
-        };
-        myFeedbacks.push(newMsg);
+            date: new Date().toISOString(),
+            parentId: parentId
+        });
         localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
-
-        input.value = '';
-        renderAllMessages();
+        renderComments();
+        return true;
     }
 
-    function deleteMessage(id) {
-        if(!confirm('삭제하시겠습니까?')) return;
-
+    function deleteComment(id) {
+        if(!confirm('해당 피드백을 삭제하시겠습니까?')) return;
         let myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
-        myFeedbacks = myFeedbacks.filter(fb => fb.id !== id);
-
+        myFeedbacks = myFeedbacks.filter(fb => fb.id !== id && fb.parentId !== id);
         localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
-        renderAllMessages();
+        renderComments();
+    }
+
+    function toggleReplyInput(id) {
+        document.querySelectorAll('.reply-input-box').forEach(box => {
+            if(box.id !== `reply-box-${id}`) box.classList.remove('active');
+        });
+        const box = document.getElementById(`reply-box-${id}`);
+        box.classList.toggle('active');
+        if(box.classList.contains('active')) {
+            document.getElementById(`reply-input-${id}`).focus();
+        }
     }
 
     function enableEditMode(id) {
-        const bubble = document.getElementById(`bubble-${id}`);
-        if (!bubble) return;
+        const bodyEl = document.getElementById(`body-${id}`);
+        const currentText = bodyEl.innerText;
 
-        const currentText = bubble.innerText;
-
-        // 인라인 수정 폼으로 교체
-        bubble.innerHTML = `
+        bodyEl.innerHTML = `
             <div class="edit-mode-box">
-                <textarea class="edit-textarea" id="edit-input-${id}">${currentText}</textarea>
+                <textarea class="edit-textarea" id="edit-textarea-${id}">${currentText}</textarea>
                 <div class="edit-btn-group">
-                    <button class="btn-edit-cancel" onclick="renderAllMessages()">취소</button>
-                    <button class="btn-edit-save" onclick="updateMessage(${id})">저장</button>
+                    <button class="btn-edit-cancel" onclick="renderComments()">취소</button>
+                    <button class="btn-edit-save" onclick="updateComment(${id})">저장</button>
                 </div>
             </div>
         `;
-
-        // 수정 모드 진입 시 하단 액션 버튼 숨김 (선택 사항)
-        const actions = bubble.parentElement.querySelector('.msg-actions');
-        if(actions) actions.style.display = 'none';
+        document.getElementById(`actions-${id}`).style.display = 'none';
     }
 
-    function updateMessage(id) {
-        const newText = document.getElementById(`edit-input-${id}`).value.trim();
+    function updateComment(id) {
+        const newText = document.getElementById(`edit-textarea-${id}`).value.trim();
         if(!newText) { alert('내용을 입력하세요.'); return; }
 
         let myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
@@ -381,14 +443,14 @@
 
         if (targetIndex !== -1) {
             myFeedbacks[targetIndex].content = newText;
-            // 수정 시간 업데이트 (선택 사항)
-            // myFeedbacks[targetIndex].date = new Date().toISOString();
             localStorage.setItem('feedback_list_' + currentId, JSON.stringify(myFeedbacks));
-            renderAllMessages();
+            renderComments();
         }
     }
 
-    document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('mainInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMainComment();
+    });
 
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
@@ -398,7 +460,7 @@
         mainContent.classList.toggle('expanded');
     });
 
-    initChat();
+    initPage();
 </script>
 </body>
 </html>
