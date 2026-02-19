@@ -227,10 +227,10 @@ const routes = [
       { path: 'documents/quotation', name: 'document-quotation', component: QuotationView, meta: { roles: [ROLES.SALES_REP], title: '견적서' } },
       { path: 'documents/contract', name: 'document-contract', component: ContractView, meta: { roles: [ROLES.SALES_REP], title: '계약서' } },
       { path: 'documents/order', name: 'document-order', component: OrderView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '주문서' } },
-      { path: 'documents/invoice', name: 'document-invoice', component: InvoiceView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '송장' } },
+      { path: 'documents/invoices', name: 'invoice-list', component: InvoiceListView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '청구서 관리' } },
+      { path: 'documents/invoice/new', name: 'document-invoice', component: InvoiceView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '청구서 작성' } },
       { path: 'documents/all', name: 'document-all', component: DocumentAllView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '모든 문서' } },
       { path: 'documents/history', name: 'document-history', component: SalesHistoryView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '문서 히스토리' } },
-      { path: 'documents/invoices', name: 'invoice-list', component: InvoiceListView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '송장 목록' } },
 
       { path: 'history/sales', name: 'sales-history', component: SalesHistoryView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '영업 히스토리' } },
       { path: 'history/pipeline/:id', name: 'pipeline-detail', component: PipelineDetailView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '파이프라인 상세' } },
