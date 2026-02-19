@@ -322,7 +322,7 @@ export const useProductStore = defineStore('product', () => {
     }
 
     const list = [...(feedbackByProduct.value[key] || [])]
-    const nextId = Date.now()
+    const nextId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
     const next = {
       id: nextId,
       sender,

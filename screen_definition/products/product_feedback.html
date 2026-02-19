@@ -684,7 +684,7 @@
 
             let myFeedbacks = JSON.parse(localStorage.getItem('feedback_list_' + currentId) || '[]');
             myFeedbacks.push({
-                id: Date.now(),
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                 content: text,
                 date: new Date().toISOString(),
                 parentId: parentId
@@ -745,8 +745,11 @@
             }
         }
 
-        document.getElementById('mainInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMainComment();
+        document.getElementById('mainInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent default behavior (e.g., form submission or newline)
+                sendMainComment();
+            }
         });
 
         const menuToggle = document.getElementById('menuToggle');
