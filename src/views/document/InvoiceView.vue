@@ -36,16 +36,22 @@ const selectedClientData = computed(() =>
 // ── 명세서(Statement) 목록 ───────────────────────────────
 // 계약에 연결된 주문서들의 명세서 항목
 const statementList = computed(() => {
-  if (!selectedContract.value) return []
-  // 계약에 연결된 orders에서 명세서 생성 (미청구 항목)
-  const orders = documentStore.orders?.filter((o) => o.contractId === contractId.value) || []
-  return orders.map((order) => ({
-    id: `INV-${order.id}`,
-    orderId: order.id,
-    supply: order.totalAmount || 0,
-    status: documentStore.invoices?.some((inv) => inv.orderId === order.id) ? 'completed' : 'available',
-    issueDate: order.createdAt || '',
-  }))
+  if (!selectedContract.value && !contractId.value) return []
+
+  // 현재 invoice의 orderId들 수집
+  const relatedOrderIds = documentStore.orders
+      ?.filter((o) => o.contractId === contractId.value)
+      .map((o) => o.id) || []
+
+  return documentStore.statements
+      ?.filter((s) => relatedOrderIds.includes(s.order_id))
+      .map((s) => ({
+        id: s.id,
+        orderId: s.order_id,
+        supply: s.supply_amount,
+        status: s.status === '확정' ? 'available' : 'completed',
+        issueDate: s.statement_date,
+      })) || []
 })
 
 // 선택된 명세서 set

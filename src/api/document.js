@@ -31,3 +31,7 @@ export function getDocuments(params) {
 export function getDocumentDetail(id) {
   return api.get(`/documents/${id}`)
 }
+
+export function getStatements(params) {
+    return api.get('/statements', { params })
+}

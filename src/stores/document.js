@@ -8,6 +8,7 @@ import {
   createQuotation as createQuotationApi,
   createQuotationRequest as createQuotationRequestApi,
   getDocuments,
+  getStatements
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts } from '@/api/product'
@@ -69,6 +70,7 @@ export const useDocumentStore = defineStore('document', () => {
   const contracts = ref([])
   const orders = ref([])
   const invoices = ref([])
+  const statements = ref([])
 
   const loading = ref(false)
   const error = ref(null)
@@ -123,7 +125,6 @@ export const useDocumentStore = defineStore('document', () => {
   async function fetchDocuments(params) {
     try {
       const docs = normalizeList(await getDocuments(params)).map(normalizeDocument)
-
       quotationRequests.value = docs.filter((doc) => doc.type === 'quotation-request' || doc.type === 'REQUEST')
       quotations.value = docs.filter((doc) => doc.type === 'quotation' || doc.type === 'QUOTATION')
       contracts.value = docs.filter((doc) => doc.type === 'contract' || doc.type === 'CONTRACT')
@@ -136,6 +137,17 @@ export const useDocumentStore = defineStore('document', () => {
       return []
     }
   }
+
+    async function fetchStatements(params) {
+        try {
+            const data = await getStatements(params)
+            statements.value = normalizeList(data)
+            return statements.value
+        } catch (e) {
+            error.value = getErrorMessage(e, '명세서 목록을 불러오지 못했습니다.')
+            return []
+        }
+    }
 
   const createQuotationRequest = ({ client, items, requirements }) => {
     const id = makeId('RQ')
@@ -406,6 +418,7 @@ export const useDocumentStore = defineStore('document', () => {
         fetchProductMaster(),
         fetchClientMaster(),
         fetchDocuments(),
+        fetchStatements(),
       ])
     } finally {
       loading.value = false
@@ -444,5 +457,7 @@ export const useDocumentStore = defineStore('document', () => {
     createOrder,
     createInvoice,
     markInvoiceIssued,
+    statements,
+    fetchStatements,
   }
 })
