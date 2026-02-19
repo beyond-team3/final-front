@@ -50,7 +50,7 @@ const cards = computed(() => {
       icon: '💵',
       title: '청구서 작성',
       description: '주문/계약 기반 청구서 작성',
-      route: '/documents/invoice',
+      route: '/documents/invoices',
     },
   ]
 })
