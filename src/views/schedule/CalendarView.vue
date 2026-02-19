@@ -207,13 +207,13 @@ const goToRecommendationDetail = async (item, index = null) => {
   if (!item?.id) {
     return
   }
+  if (index !== null) {
+    recommendIdx.value = index
+  }
   try {
     await router.push(`/products/${item.id}`)
-    if (index !== null) {
-      recommendIdx.value = index
-    }
   } catch (err) {
-    // Ignore navigation failures and preserve current carousel index.
+    // Ignore unexpected navigation errors.
   }
 }
 
@@ -372,8 +372,12 @@ onBeforeUnmount(() => {
           <div v-if="currentRecommendation" class="carousel">
             <div
               class="carousel-img"
+              role="button"
+              tabindex="0"
               :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
               @click="goToRecommendationDetail(currentRecommendation)"
+              @keydown.enter="goToRecommendationDetail(currentRecommendation)"
+              @keydown.space.prevent="goToRecommendationDetail(currentRecommendation)"
             >
               <div class="carousel-main-text">{{ currentRecommendation.name }}</div>
             </div>
@@ -385,7 +389,11 @@ onBeforeUnmount(() => {
               v-for="(item, index) in recommendations"
               :key="item.id"
               class="recommend-item"
+              role="button"
+              tabindex="0"
               @click="goToRecommendationDetail(item, index)"
+              @keydown.enter="goToRecommendationDetail(item, index)"
+              @keydown.space.prevent="goToRecommendationDetail(item, index)"
             >
               <div class="recommend-name">{{ item.name }}</div>
               <div class="recommend-tag">{{ item.tag }}</div>
