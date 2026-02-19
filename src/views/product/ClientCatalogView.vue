@@ -104,7 +104,7 @@ onMounted(() => {
 
     <SearchFilter v-model="filters" :fields="filterFields" search-label="검색" reset-label="초기화" />
 
-    <section class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))">
+    <section class="grid gap-6 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
       <ProductCatalogCard
         v-for="item in visibleProducts"
         :key="item.id"
