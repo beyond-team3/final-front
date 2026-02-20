@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
+import axios from 'axios' // 행님! 연장(axios) 챙겼슴돠!
 
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -22,7 +23,7 @@ const inCorpCode = ref('')
 const inCorp = ref('')
 const inName = ref('')
 const internalMemo = ref('')
-const customerRequirements = ref('') // [추가] 견적 요청서 요구사항 저장용
+const customerRequirements = ref('')
 const selectedItems = ref([])
 const modalSearchInput = ref('')
 const clientSearchInput = ref('')
@@ -81,7 +82,7 @@ const startNewQuotation = () => {
   inCorpCode.value = ''
   inCorp.value = ''
   inName.value = ''
-  customerRequirements.value = '' // 신규는 요구사항 없음
+  customerRequirements.value = ''
   selectedItems.value = []
 }
 
@@ -153,19 +154,74 @@ const validityDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
-const submitDoc = () => {
+// --- [행님! 여기가 저장 핵심 로직임돠] ---
+const submitDoc = async () => {
   if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
   if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
 
-  documentStore.createQuotation({
-    client: { name: inCorp.value, code: inCorpCode.value, contact: inName.value },
-    items: selectedItems.value,
-    totalAmount: totalSum.value,
-    memo: internalMemo.value
-  })
+  const currentUser = documentStore.currentUser || { id: 1, name: "김민수" }
 
-  window.alert("견적서가 정상적으로 발행되었습니다.")
-  router.push('/documents/all')
+  // 1. 견적서 번호 생성 (QT-YYYYMMDD-순번)
+  const now = new Date()
+  const datePart = now.getFullYear().toString() +
+      (now.getMonth() + 1).toString().padStart(2, '0') +
+      now.getDate().toString().padStart(2, '0')
+  const sequence = (documentStore.documents?.length || 0) + 1
+  const quotationId = `QT-${datePart}-${sequence.toString().padStart(3, '0')}`
+
+  const today = now.toISOString().split('T')[0]
+
+  // 2. documents 저장용 데이터 객체
+  const quotationData = {
+    id: quotationId,
+    type: "quotation",
+    clientId: inCorpCode.value,
+    client: {
+      id: inCorpCode.value,
+      code: inCorpCode.value,
+      name: inCorp.value,
+      contact: inName.value
+    },
+    authorId: currentUser.id,
+    authorName: currentUser.name,
+    status: "승인", // 발행 즉시 승인 상태로 세팅함돠
+    totalAmount: totalSum.value,
+    date: today,
+    items: selectedItems.value.map(item => ({
+      name: item.name,
+      quantity: item.count,
+      unit: item.unit,
+      unitPrice: item.price,
+      amount: item.count * item.price
+    })),
+    memo: internalMemo.value
+  }
+
+  // 3. history 저장용 데이터 객체
+  const historyData = {
+    id: `H-${Date.now()}`,
+    clientId: inCorpCode.value,
+    clientName: inCorp.value,
+    pipelineStage: "견적",
+    documentId: quotationId,
+    nextAction: "고객사 견적 검토 대기",
+    updatedAt: today
+  }
+
+  try {
+    // 4. 3001번 서버로 데이터 전송
+    await axios.post('http://localhost:3001/documents', quotationData);
+    await axios.post('http://localhost:3001/history', historyData);
+
+    // 5. 스토어 새로고침 (목록 갱신용)
+    if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
+
+    window.alert(`[${quotationId}] 견적서가 성공적으로 발행되어 저장되었슴돠!`);
+    router.push('/documents/all');
+  } catch (error) {
+    console.error("견적서 저장 에러:", error);
+    window.alert("3001번 서버 저장 중에 에러가 났슴돠!");
+  }
 }
 </script>
 

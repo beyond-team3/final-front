@@ -2,7 +2,7 @@
   "users": [
     {
       "id": 1,
-      "username": "kim_sr",
+      "loginId": "kim_sr",
       "password": "pass1234",
       "name": "김민수",
       "role": "SALES_REP",
@@ -14,7 +14,7 @@
     },
     {
       "id": 2,
-      "username": "lee_admin",
+      "loginId": "lee_admin",
       "password": "pass1234",
       "name": "이서연",
       "role": "ADMIN",
@@ -26,7 +26,7 @@
     },
     {
       "id": 3,
-      "username": "greenfarm_client",
+      "loginId": "greenfarm_client",
       "password": "pass1234",
       "name": "그린팜유통",
       "role": "CLIENT",
@@ -34,11 +34,12 @@
       "phone": "031-882-1190",
       "department": "구매팀",
       "region": "경기 여주",
-      "lastLoginAt": "2026-02-16T07:55:00"
+      "lastLoginAt": "2026-02-16T07:55:00",
+      "clientId": 1
     },
     {
       "id": 4,
-      "username": "park_sr",
+      "loginId": "park_sr",
       "password": "pass1234",
       "name": "박지훈",
       "role": "SALES_REP",
@@ -50,7 +51,7 @@
     },
     {
       "id": 5,
-      "username": "han_client",
+      "loginId": "han_client",
       "password": "pass1234",
       "name": "한빛농자재",
       "role": "CLIENT",
@@ -58,146 +59,108 @@
       "phone": "064-732-2201",
       "department": "자재구매",
       "region": "제주 서귀포",
-      "lastLoginAt": "2026-02-15T13:35:00"
+      "lastLoginAt": "2026-02-15T13:35:00",
+      "clientId": 2
     },
     {
       "loginId": "qwer",
       "password": "qwer",
       "role": "SALES_REP",
       "id": 6
-    },
-    {
-      "loginId": "ㅂㅈㄷㄱ",
-      "password": "qwer",
-      "role": "ADMIN",
-      "id": 7
-    },
-    {
-      "loginId": "ㅂㅈㄷㄱ",
-      "password": "qewr",
-      "role": "CLIENT",
-      "id": 8
-    },
-    {
-      "loginId": "ㅂㄷㅈㄱ",
-      "password": "qwer",
-      "role": "SALES_REP",
-      "id": 9
-    },
-    {
-      "loginId": "ㅂㄷㅈㄱ",
-      "password": "qewr",
-      "role": "ADMIN",
-      "id": 10
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "SALES_REP",
-      "id": 11
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "ADMIN",
-      "id": 12
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "CLIENT",
-      "id": 13
-    },
-    {
-      "loginId": "qwer",
-      "password": "qwer",
-      "role": "ADMIN",
-      "id": 14
     }
   ],
   "clients": [
     {
       "id": 1,
-      "name": "그린팜유통",
-      "region": "경기 여주",
-      "type": "도매상",
-      "contact": "031-882-1190",
-      "manager": "정호성",
-      "managerPhone": "010-3001-4412",
-      "varieties": [
-        "고추 PR-21",
-        "토마토 TY-9"
-      ],
-      "status": "활성"
+      "name": "OO육묘장",
+      "bizNo": "123-45-67890",
+      "ceoName": "김사장",
+      "companyPhone": "02-123-4567",
+      "address": "서울특별시 강남구 테헤란로 123",
+      "managerName": "김철수",
+      "managerPhone": "010-1234-5678",
+      "managerEmail": "kim@farm.com",
+      "type": "NURSERY",
+      "typeLabel": "육묘장",
+      "isActive": true,
+      "crops": ["토마토", "파프리카", "오이", "고추", "상추"]
     },
     {
       "id": 2,
+      "code": "C-002",
       "name": "청솔영농조합",
-      "region": "전남 나주",
-      "type": "영농조합",
-      "contact": "061-332-0081",
-      "manager": "오지은",
-      "managerPhone": "010-8452-5003",
-      "varieties": [
-        "배추 BS-10",
-        "무 MR-5"
-      ],
-      "status": "활성"
+      "bizNo": "220-81-12345",
+      "ceoName": "이청솔",
+      "companyPhone": "031-123-4567",
+      "address": "경기도 평택시 고덕면 평택항로 45",
+      "managerName": "박민재",
+      "managerPhone": "010-2222-3333",
+      "managerEmail": "park@cheongsol.com",
+      "type": "NURSERY",
+      "typeLabel": "육묘장",
+      "isActive": true,
+      "crops": ["참외", "배추"]
     },
     {
       "id": 3,
-      "name": "태양종묘공사",
-      "region": "충남 천안",
-      "type": "소매상",
-      "contact": "041-551-7800",
-      "manager": "김태양",
-      "managerPhone": "010-2233-9988",
-      "varieties": [
-        "양파 ON-3",
-        "마늘 GN-1"
-      ],
-      "status": "활성"
+      "code": "C-003",
+      "name": "그린팜유통",
+      "bizNo": "105-86-54321",
+      "ceoName": "정그린",
+      "companyPhone": "02-555-6666",
+      "address": "서울특별시 송파구 송파대로 678",
+      "managerName": "이영희",
+      "managerPhone": "010-4444-5555",
+      "managerEmail": "lee@greenfarm.co.kr",
+      "type": "DISTRIBUTOR",
+      "typeLabel": "대리점",
+      "isActive": false,
+      "crops": []
     },
     {
       "id": 4,
-      "name": "동해농업법인",
-      "region": "강원 강릉",
-      "type": "농업법인",
-      "contact": "033-641-2900",
-      "manager": "배수민",
-      "managerPhone": "010-9554-1120",
-      "varieties": [
-        "감자 PT-11",
-        "옥수수 CS-2"
-      ],
-      "status": "휴면"
+      "code": "C-004",
+      "name": "한빛농자재",
+      "bizNo": "602-12-98765",
+      "ceoName": "최한빛",
+      "companyPhone": "042-888-9999",
+      "address": "충청남도 논산시 가야곡면 한빛길 10",
+      "managerName": "최한빛",
+      "managerPhone": "010-7777-8888",
+      "managerEmail": "choi@hanbit.com",
+      "type": "DISTRIBUTOR",
+      "typeLabel": "대리점",
+      "isActive": true,
+      "crops": ["호박", "토마토", "수박", "양파", "파"]
     }
   ],
   "employees": [
     {
-      "isActive": false,
-      "status": "INACTIVE",
-      "id": 1
+      "id": 1,
+      "name": "김민수",
+      "email": "minsu.kim@seedcorp.co.kr",
+      "phone": "010-2211-3388",
+      "address": "전북 익산시 어딘가",
+      "isActive": true,
+      "createdAt": "2023-02-13T09:10:00"
     },
     {
       "id": 2,
       "name": "박지훈",
-      "department": "영업2팀",
-      "position": "과장",
-      "contact": "010-7733-5420",
       "email": "jihoon.park@seedcorp.co.kr",
-      "region": "경남 밀양",
-      "joinedAt": "2020-09-15"
+      "phone": "010-7733-5420",
+      "address": "경남 밀양시 어딘가",
+      "isActive": true,
+      "createdAt": "2023-02-13T09:10:00"
     },
     {
       "id": 3,
       "name": "최가은",
-      "department": "영업1팀",
-      "position": "사원",
-      "contact": "010-8110-4500",
       "email": "gaeun.choi@seedcorp.co.kr",
-      "region": "충남 논산",
-      "joinedAt": "2024-01-10"
+      "phone": "010-8110-4500",
+      "address": "충남 논산",
+      "isActive": true,
+      "createdAt": "2023-02-13T09:10:00"
     }
   ],
   "products": [
@@ -214,7 +177,30 @@
       ],
       "imageUrl": "https://images.example.com/products/pepper-pr21.jpg",
       "stock": 120,
-      "updatedAt": "2026-02-15"
+      "updatedAt": "2026-02-15",
+      "tags": {
+        "env": [
+          "노지",
+          "비닐하우스"
+        ],
+        "res": [
+          "탄저병",
+          "바이러스"
+        ],
+        "growth": [
+          "조생종",
+          "강세"
+        ],
+        "quality": [
+          "고수량",
+          "매운맛우수"
+        ],
+        "conv": [
+          "기계수확가능",
+          "장기수확"
+        ]
+      },
+      "desc": "탄저병·칼라병 복합 저항성을 갖춘 고수량 고추 품종. 초세가 강하고 노지·비닐하우스 모두 적합."
     },
     {
       "id": 2,
@@ -229,7 +215,30 @@
       ],
       "imageUrl": "https://images.example.com/products/tomato-ty9.jpg",
       "stock": 80,
-      "updatedAt": "2026-02-14"
+      "updatedAt": "2026-02-14",
+      "tags": {
+        "env": [
+          "비닐하우스",
+          "노지"
+        ],
+        "res": [
+          "바이러스",
+          "TYLCV"
+        ],
+        "growth": [
+          "조생종",
+          "강세"
+        ],
+        "quality": [
+          "고수량",
+          "당도우수"
+        ],
+        "conv": [
+          "기계수확가능",
+          "장기수확"
+        ]
+      },
+      "desc": "TYLCV 저항성을 갖춘 고품질 토마토. 당도가 우수하고 균일과율이 높아 상품성이 뛰어남."
     },
     {
       "id": 3,
@@ -244,7 +253,29 @@
       ],
       "imageUrl": "https://images.example.com/products/cabbage-bs10.jpg",
       "stock": 200,
-      "updatedAt": "2026-02-13"
+      "updatedAt": "2026-02-13",
+      "tags": {
+        "env": [
+          "노지",
+          "고랭지"
+        ],
+        "res": [
+          "노균병",
+          "무름병"
+        ],
+        "growth": [
+          "중생종",
+          "저온강"
+        ],
+        "quality": [
+          "결구력우수",
+          "저장성우수"
+        ],
+        "conv": [
+          "기계수확가능"
+        ]
+      },
+      "desc": "저온 신장성이 우수한 결구 배추. 수확 안정성이 높고 저장성이 좋아 유통에 유리."
     },
     {
       "id": 4,
@@ -259,7 +290,29 @@
       ],
       "imageUrl": "https://images.example.com/products/potato-pt11.jpg",
       "stock": 60,
-      "updatedAt": "2026-02-12"
+      "updatedAt": "2026-02-12",
+      "tags": {
+        "env": [
+          "노지",
+          "고랭지"
+        ],
+        "res": [
+          "역병",
+          "바이러스"
+        ],
+        "growth": [
+          "중생종",
+          "저온강"
+        ],
+        "quality": [
+          "상품률우수",
+          "저장성우수"
+        ],
+        "conv": [
+          "기계수확가능"
+        ]
+      },
+      "desc": "중생종 감자로 상품률이 우수하고 저장성이 양호. 역병 저항성으로 안정적 재배 가능."
     },
     {
       "id": 5,
@@ -274,7 +327,28 @@
       ],
       "imageUrl": "https://images.example.com/products/lettuce-ls8.jpg",
       "stock": 300,
-      "updatedAt": "2026-02-16"
+      "updatedAt": "2026-02-16",
+      "tags": {
+        "env": [
+          "비닐하우스",
+          "노지"
+        ],
+        "res": [
+          "노균병"
+        ],
+        "growth": [
+          "조생종",
+          "저온강"
+        ],
+        "quality": [
+          "고수량",
+          "저장성우수"
+        ],
+        "conv": [
+          "기계수확가능"
+        ]
+      },
+      "desc": "내서성이 강한 여름 상추. 엽색이 진하고 수량성이 높아 연중 재배에 적합."
     },
     {
       "name": "신규품종1",
@@ -288,7 +362,8 @@
       },
       "tags": {
         "env": [
-          "고랭지"
+          "고랭지",
+          "노지"
         ],
         "res": [
           "바이러스"
@@ -367,7 +442,7 @@
       "clientName": "그린팜유통",
       "authorId": 1,
       "authorName": "김민수",
-      "status": "발행",
+      "status": "issued",
       "amount": 810000,
       "date": "2026-02-11"
     },
@@ -380,7 +455,33 @@
       "authorName": "박지훈",
       "status": "체결",
       "amount": 1300000,
-      "date": "2026-02-08"
+      "date": "2026-02-08",
+      "startDate": "2026-02-08",
+      "endDate": "2026-12-31",
+      "billingCycle": "월 1회",
+      "salesRep": {
+        "name": "박지훈"
+      },
+      "items": [
+        {
+          "id": "P001",
+          "name": "배추 BS-10",
+          "variety": "배추",
+          "unit": "5,000립",
+          "unitPrice": 27000,
+          "quantity": 0,
+          "amount": 0
+        },
+        {
+          "id": "P002",
+          "name": "무 MR-5",
+          "variety": "무",
+          "unit": "3,000립",
+          "unitPrice": 22000,
+          "quantity": 0,
+          "amount": 0
+        }
+      ]
     },
     {
       "id": 4,
@@ -400,9 +501,58 @@
       "clientName": "청솔영농조합",
       "authorId": 1,
       "authorName": "김민수",
-      "status": "발행",
+      "status": "issued",
       "amount": 1300000,
       "date": "2026-02-12"
+    },
+    {
+      "id": 6,
+      "type": "invoice",
+      "clientId": 3,
+      "clientName": "그린팜유통",
+      "contractId": 7,
+      "authorId": 1,
+      "authorName": "김민수",
+      "status": "pending",
+      "amount": 540000,
+      "date": "2026-02-17"
+    },
+    {
+      "id": 7,
+      "type": "contract",
+      "clientId": 1,
+      "clientName": "그린팜유통",
+      "authorId": 1,
+      "authorName": "김민수",
+      "status": "ACTIVE",
+      "amount": 1140000,
+      "date": "2026-02-10",
+      "startDate": "2026-02-10",
+      "endDate": "2026-12-31",
+      "billingCycle": "월 1회",
+      "salesRep": {
+        "name": "김민수"
+      },
+      "items": [
+        {
+          "id": "P003",
+          "name": "고추 PR-21",
+          "variety": "고추",
+          "unit": "500립",
+          "unitPrice": 38000,
+          "quantity": 0,
+          "amount": 0
+        },
+        {
+          "id": "P004",
+          "name": "토마토 TY-9",
+          "variety": "토마토",
+          "unit": "1,000립",
+          "unitPrice": 42000,
+          "quantity": 0,
+          "amount": 0
+        }
+      ]
     }
   ],
   "history": [
@@ -665,7 +815,11 @@
         "매년 봄 시즌 단가 협의 반복"
       ],
       "strategy": "품질 보증 강화 및 경쟁사 대비 가격 차별화 전략 필요",
-      "recentNoteIds": [1, 2, 3]
+      "recentNoteIds": [
+        1,
+        2,
+        3
+      ]
     }
   ],
   "recommendations": [
@@ -1003,6 +1157,115 @@
         "무 MR-5"
       ],
       "lastDeliveryDate": "2026-02-12"
+    }
+  ],
+  "statements": [
+    {
+      "id": "ST-20260201-001",
+      "order_id": "OD-20260201-001",
+      "contractId": 7,
+      "clientId": 1,
+      "clientName": "그린팜유통",
+      "supply_amount": 380000,
+      "status": "확정",
+      "statement_date": "2026-02-01"
+    },
+    {
+      "id": "ST-20260210-002",
+      "order_id": "OD-20260210-002",
+      "contractId": 7,
+      "clientId": 1,
+      "clientName": "그린팜유통",
+      "supply_amount": 420000,
+      "status": "확정",
+      "statement_date": "2026-02-10"
+    },
+    {
+      "id": "ST-20260215-003",
+      "order_id": "OD-20260215-003",
+      "contractId": 7,
+      "clientId": 1,
+      "clientName": "그린팜유통",
+      "supply_amount": 340000,
+      "status": "청구완료",
+      "statement_date": "2026-02-15"
+    }
+  ],
+  "orders": [
+    {
+      "id": "OD-20260201-001",
+      "type": "order",
+      "contractId": 7,
+      "clientId": 1,
+      "clientName": "그린팜유통",
+      "status": "ORDERED",
+      "amount": 380000,
+      "date": "2026-02-01",
+      "deliveryDate": "2026-02-07",
+      "deliveryAddress": "경기 여주시 현암로 22",
+      "deliveryRecipient": "정호성",
+      "deliveryPhone": "010-3001-4412",
+      "items": [
+        {
+          "id": "P003",
+          "name": "고추 PR-21",
+          "variety": "고추",
+          "unit": "500립",
+          "unitPrice": 38000,
+          "quantity": 10,
+          "amount": 380000
+        }
+      ]
+    },
+    {
+      "id": "OD-20260210-002",
+      "type": "order",
+      "contractId": 7,
+      "clientId": 1,
+      "clientName": "그린팜유통",
+      "status": "ORDERED",
+      "amount": 420000,
+      "date": "2026-02-10",
+      "deliveryDate": "2026-02-17",
+      "deliveryAddress": "경기 여주시 현암로 22",
+      "deliveryRecipient": "정호성",
+      "deliveryPhone": "010-3001-4412",
+      "items": [
+        {
+          "id": "P004",
+          "name": "토마토 TY-9",
+          "variety": "토마토",
+          "unit": "1,000립",
+          "unitPrice": 42000,
+          "quantity": 10,
+          "amount": 420000
+        }
+      ]
+    },
+    {
+      "id": "OD-20260215-003",
+      "type": "order",
+      "contractId": 3,
+      "clientId": 5,
+      "clientName": "한빛농자재",
+      "status": "ORDERED",
+      "amount": 540000,
+      "date": "2026-02-15",
+      "deliveryDate": "2026-02-22",
+      "deliveryAddress": "제주 서귀포시 중정로 44",
+      "deliveryRecipient": "한빛농자재 담당",
+      "deliveryPhone": "064-732-2201",
+      "items": [
+        {
+          "id": "P001",
+          "name": "배추 BS-10",
+          "variety": "배추",
+          "unit": "5,000립",
+          "unitPrice": 27000,
+          "quantity": 20,
+          "amount": 540000
+        }
+      ]
     }
   ]
 }

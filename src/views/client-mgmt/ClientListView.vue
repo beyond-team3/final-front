@@ -75,14 +75,22 @@ onMounted(fetchClients)
           <h1 class="text-2xl font-bold text-slate-900">거래처 관리</h1>
           <p class="mt-1 text-sm text-slate-500">거래처 정보를 관리하세요</p>
         </div>
-        <button
-          v-if="isAdmin"
-          type="button"
-          class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
-          @click="router.push('/clients/register')"
-        >
-          + 거래처 등록
-        </button>
+        <div v-if="isAdmin" class="flex gap-2">
+          <button
+              type="button"
+              class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+              @click="router.push({ path: '/users/register', query: { role: 'CLIENT' } })"
+          >
+            + 계정 등록
+          </button>
+          <button
+              type="button"
+              class="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+              @click="router.push('/clients/register')"
+          >
+            + 거래처 등록
+          </button>
+        </div>
       </div>
     </header>
 
@@ -129,7 +137,7 @@ onMounted(fetchClients)
             <th class="px-6 py-4 text-left font-medium">사업자번호</th>
             <th class="px-6 py-4 text-left font-medium">유형</th>
             <th class="px-6 py-4 text-left font-medium">담당자</th>
-            <th class="px-6 py-4 text-left font-medium">주소</th>
+            <th class="px-6 py-4 text-left font-medium">지역</th>
             <th class="px-6 py-4 text-left font-medium">상태</th>
             <th class="px-6 py-4 text-left font-medium">액션</th>
           </tr>

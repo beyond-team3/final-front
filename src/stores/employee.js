@@ -1,194 +1,144 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
-  createEmployee,
-  getEmployeeDetail,
-  getEmployees,
-  updateEmployee as updateEmployeeApi,
+    createEmployee,
+    getEmployeeDetail,
+    getEmployees,
+    updateEmployee as updateEmployeeApi,
 } from '@/api/employee'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-  return error?.response?.data?.message || error?.message || fallback
+    return error?.response?.data?.message || error?.message || fallback
 }
 
-function getEmployeeActiveValue(employee = {}) {
-  if (typeof employee.isActive === 'boolean') {
-    return employee.isActive
-  }
+/**
+ * 데이터 정규화 함수
+ * DB 필드명을 화면 규격에 맞게 매핑하고 기본값을 설정합니다.
+ */
+function normalizeEmployee(raw = {}) {
+    // Axios 포장지(data) 제거 및 원본 데이터 유지
+    const data = raw.data || raw;
 
-  return String(employee.status || 'ACTIVE').toUpperCase() !== 'INACTIVE'
-}
+    const getIsActive = (item) => {
+        if (typeof item.isActive === 'boolean') return item.isActive
+        return String(item.status || 'ACTIVE').toUpperCase() !== 'INACTIVE'
+    }
 
-function normalizeEmployee(employee = {}) {
-  const isActive = getEmployeeActiveValue(employee)
-  return {
-    ...employee,
-    isActive,
-    status: isActive ? 'ACTIVE' : 'INACTIVE',
-  }
-}
+    const isActive = getIsActive(data)
 
-function makeTempEmployee(payload = {}) {
-  return normalizeEmployee({
-    id: `temp-${Date.now()}`,
-    name: payload.empName,
-    email: payload.empEmail,
-    phone: payload.empPhone || '-',
-    address: payload.empAddress || '-',
-    status: 'ACTIVE',
-    isActive: true,
-    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-  })
+    return {
+        ...data, // [중요] 원본의 모든 필드(contact, region 등)를 그대로 유지
+        id: data.id,
+        name: data.name || '이름 없음',
+        email: data.email || '-',
+        phone: data.phone || data.contact || '-',
+        address: data.address || data.region || '-',
+        createdAt: data.createdAt || data.joinedAt || '-',
+        isActive,
+        status: isActive ? 'ACTIVE' : 'INACTIVE',
+    }
 }
 
 export const useEmployeeStore = defineStore('employee', () => {
-  const employees = ref([])
-  const currentEmployee = ref(null)
-  const loading = ref(false)
-  const error = ref(null)
+    const employees = ref([])
+    const currentEmployee = ref(null)
+    const loading = ref(false)
+    const error = ref(null)
 
-  const getEmployeeById = (id) => employees.value.find((employee) => String(employee.id) === String(id))
+    const getEmployeeById = (id) => employees.value.find((emp) => String(emp.id) === String(id))
 
-  async function fetchEmployees(params) {
-    loading.value = true
-    error.value = null
+    async function fetchEmployeeDetail(id) {
+        loading.value = true
+        error.value = null
+        currentEmployee.value = null
 
-    try {
-      const result = await getEmployees(params)
-      employees.value = Array.isArray(result) ? result.map((employee) => normalizeEmployee(employee)) : []
-      return employees.value
-    } catch (e) {
-      error.value = getErrorMessage(e, '사원 목록을 불러오지 못했습니다.')
-      throw e
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function fetchEmployeeDetail(id) {
-    loading.value = true
-    error.value = null
-
-    try {
-      const result = await getEmployeeDetail(id)
-      currentEmployee.value = normalizeEmployee(result)
-      return currentEmployee.value
-    } catch (e) {
-      error.value = getErrorMessage(e, '사원 상세를 불러오지 못했습니다.')
-      throw e
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const addEmployee = (payload) => {
-    const optimistic = makeTempEmployee(payload)
-    employees.value.unshift(optimistic)
-
-    createEmployee(payload)
-      .then((created) => {
-        const idx = employees.value.findIndex((item) => item.id === optimistic.id)
-        if (idx >= 0 && created) {
-          employees.value[idx] = normalizeEmployee(created)
+        try {
+            const result = await getEmployeeDetail(id)
+            currentEmployee.value = normalizeEmployee(result)
+            return currentEmployee.value
+        } catch (e) {
+            error.value = getErrorMessage(e, '사원 상세를 불러오지 못했습니다.')
+            throw e
+        } finally {
+            loading.value = false
         }
-      })
-      .catch((e) => {
-        error.value = getErrorMessage(e, '사원 등록에 실패했습니다.')
-        employees.value = employees.value.filter((item) => item.id !== optimistic.id)
-      })
-
-    return optimistic.id
-  }
-
-  const updateEmployee = (id, patch) => {
-    const previous = employees.value.find((employee) => String(employee.id) === String(id))
-    const nextIsActive = typeof patch?.isActive === 'boolean' ? patch.isActive : null
-    const normalizedPatch = nextIsActive === null
-      ? patch
-      : {
-          ...patch,
-          isActive: nextIsActive,
-          status: nextIsActive ? 'ACTIVE' : 'INACTIVE',
-        }
-
-    employees.value = employees.value.map((employee) => {
-      if (String(employee.id) !== String(id)) {
-        return employee
-      }
-
-      return normalizeEmployee({
-        ...employee,
-        ...normalizedPatch,
-      })
-    })
-
-    if (String(currentEmployee.value?.id) === String(id)) {
-      currentEmployee.value = normalizeEmployee({
-        ...currentEmployee.value,
-        ...normalizedPatch,
-      })
     }
 
-    updateEmployeeApi(id, normalizedPatch)
-      .then((updated) => {
-        if (!updated) {
-          return
+    async function fetchEmployees(params) {
+        loading.value = true
+        error.value = null
+        try {
+            const result = await getEmployees(params)
+            const dataArray = Array.isArray(result) ? result : (result.data || [])
+            employees.value = dataArray.map(normalizeEmployee)
+            return employees.value
+        } catch (e) {
+            error.value = getErrorMessage(e, '목록 로딩 실패')
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
+    /**
+     * [데이터 유실 방지 최종 로직] 사원 정보 수정
+     */
+    const updateEmployee = async (id, patch) => {
+        // 1. 현재 메모리(스토어)에 있는 원본 정보를 확실히 챙김
+        const originData = (currentEmployee.value && String(currentEmployee.value.id) === String(id))
+            ? currentEmployee.value
+            : employees.value.find((emp) => String(emp.id) === String(id));
+
+        if (!originData) {
+            error.value = '수정할 사원 정보를 찾을 수 없습니다.';
+            return;
         }
 
-        employees.value = employees.value.map((employee) => {
-          if (String(employee.id) !== String(id)) {
-            return employee
-          }
+        // 2. [핵심] 기존의 모든 데이터와 변경사항(patch)을 하나로 합친 '완전체'를 만듬
+        // 반응형 Proxy 문제를 피하기 위해 일반 객체로 싹 복사해서 합치는 게 포인트
+        const fullDataToUpdate = {
+            ...JSON.parse(JSON.stringify(originData)),
+            ...patch
+        };
 
-          return normalizeEmployee({
-            ...employee,
-            ...updated,
-          })
-        })
-
-        if (String(currentEmployee.value?.id) === String(id)) {
-          currentEmployee.value = normalizeEmployee({
-            ...currentEmployee.value,
-            ...updated,
-          })
+        // 3. UI에 즉시 반영 (낙관적 업데이트)
+        const normalizedOptimistic = normalizeEmployee(fullDataToUpdate);
+        if (currentEmployee.value && String(currentEmployee.value.id) === String(id)) {
+            currentEmployee.value = normalizedOptimistic;
         }
-      })
-      .catch((e) => {
-        error.value = getErrorMessage(e, '사원 수정에 실패했습니다.')
 
-        if (previous) {
-          employees.value = employees.value.map((employee) => {
-            if (String(employee.id) !== String(id)) {
-              return employee
+        try {
+            // 4. [가장 중요] 서버에 보낼 때 patch가 아니라 'fullDataToUpdate(완전체)'를 보냄!
+            const updated = await updateEmployeeApi(id, fullDataToUpdate);
+
+            if (updated) {
+                const finalResult = normalizeEmployee(updated);
+                employees.value = employees.value.map((emp) =>
+                    String(emp.id) === String(id) ? finalResult : emp
+                );
             }
-            return normalizeEmployee(previous)
-          })
-
-          if (String(currentEmployee.value?.id) === String(id)) {
-            currentEmployee.value = normalizeEmployee(previous)
-          }
+        } catch (e) {
+            error.value = getErrorMessage(e, '사원 정보 수정에 실패');
+            // 실패 시 원본 데이터로 복원
+            if (currentEmployee.value && String(currentEmployee.value.id) === String(id)) {
+                currentEmployee.value = normalizeEmployee(originData);
+            }
         }
-      })
-  }
+    }
 
-  const toggleEmployeeActive = (id, isActive) => {
-    updateEmployee(id, {
-      isActive: Boolean(isActive),
-    })
-  }
+    const toggleEmployeeActive = (id, isActive) => {
+        updateEmployee(id, { isActive: Boolean(isActive) })
+    }
 
-  void fetchEmployees()
-
-  return {
-    employees,
-    currentEmployee,
-    loading,
-    error,
-    getEmployeeById,
-    fetchEmployees,
-    fetchEmployeeDetail,
-    addEmployee,
-    updateEmployee,
-    toggleEmployeeActive,
-  }
+    return {
+        employees,
+        currentEmployee,
+        loading,
+        error,
+        getEmployeeById,
+        fetchEmployees,
+        fetchEmployeeDetail,
+        updateEmployee,
+        toggleEmployeeActive,
+    }
 })

@@ -37,11 +37,9 @@ const columns = [
   { key: 'id', label: '사원 코드' },
   { key: 'name', label: '사원명' },
   { key: 'email', label: '이메일' },
-  { key: 'phone', label: '전화번호' },
-  { key: 'address', label: '주소' },
   { key: 'isActive', label: '상태' },
   { key: 'createdAt', label: '등록일시' },
-  { key: 'action', label: '액션' },
+  { key: 'action', label: ' ' },
 ]
 
 const rows = computed(() => {
@@ -81,6 +79,13 @@ onMounted(fetchEmployees)
   <section>
     <PageHeader title="사원 관리" subtitle="사원 정보를 조회하고 신규 등록합니다.">
       <template #actions>
+        <button
+            type="button"
+            class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            @click="router.push({ path: '/users/register', query: { role: 'SALES' } })"
+        >
+          + 계정등록
+        </button>
         <button
           type="button"
           class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"

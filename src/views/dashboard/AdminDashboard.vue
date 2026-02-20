@@ -230,14 +230,21 @@ const renderFallbackChart = (canvas) => {
   )
 }
 
+// ── 영업사원별 매출 랭킹 더미 데이터 ──────────────────────────────────────
+const rankings = [
+  { rank: 1, name: '김민수', amount: '₩45,600,000', width: 100 },
+  { rank: 2, name: '박지훈', amount: '₩38,900,000', width: 85 },
+  { rank: 3, name: '최가은', amount: '₩31,200,000', width: 68 },
+  { rank: 4, name: '이서연', amount: '₩28,700,000', width: 63 },
+  { rank: 5, name: '정태호', amount: '₩24,500,000', width: 54 },
+]
+
 // ── Dashboard 데이터 fetch ─────────────────────────────────────────────────
 const title = computed(() => dashboard.value?.title || '관리자 대시보드')
-const rankings = computed(() => dashboard.value?.rankings ?? [])
 const approvals = computed(() => dashboard.value?.approvals ?? [])
-const rankingPeriod = computed(() => dashboard.value?.rankingPeriod || '')
 const trendPeriod = computed(() => dashboard.value?.trendPeriod || '2025년 – 2026년 월별 매출 추이')
 const approvalCount = computed(() => dashboard.value?.approvalCount ?? approvals.value.length)
-const hasData = computed(() => prototypeKpis.length || rankings.value.length || approvals.value.length)
+const hasData = computed(() => prototypeKpis.length || rankings.length || approvals.value.length)
 
 const fetchDashboard = async () => {
   loading.value = true
@@ -309,7 +316,7 @@ onMounted(fetchDashboard)
         <div class="operation-card">
           <div class="operation-header">
             <h3 class="operation-title">영업사원별 매출 랭킹</h3>
-            <span class="chart-period">{{ rankingPeriod }}</span>
+            <span class="chart-period">이번 달</span>
           </div>
           <div class="ranking-list">
             <div v-for="item in rankings" :key="item.rank" class="ranking-item">
