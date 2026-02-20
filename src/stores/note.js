@@ -6,6 +6,7 @@ import {
   createNote as createNoteApi,
   getAIBriefing,
   getNotes,
+  deleteNote as deleteNoteApi,
 } from '@/api/note'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
@@ -79,7 +80,21 @@ export const useNoteStore = defineStore('note', () => {
   const varietyOptions = computed(() => [...new Set(notes.value.map((note) => note.variety).filter(Boolean))])
 
   const getClientName = (clientId) => clientMap.value[clientId]?.name || '-'
-  const getContractsByClient = (clientId) => (clientId ? contracts.value[clientId] || [] : [])
+  const DEFAULT_CONTRACTS = {
+    2: [
+      '2026년 봄무/배추 종자 공급 계약',
+      '신품종(TY-9) 시범 재배 확약서',
+      '2025년도 우수 농가 지원 협약',
+      '하반기 대파 위탁 영농 계약',
+    ],
+  }
+
+  const getContractsByClient = (clientId) => {
+    if (!clientId) return []
+    const derived = contracts.value[clientId] || []
+    const defaults = DEFAULT_CONTRACTS[Number(clientId)] || []
+    return [...new Set([...derived, ...defaults])]
+  }
 
   const generateSummary = (content) => {
     const normalized = String(content || '').trim()
@@ -137,9 +152,15 @@ export const useNoteStore = defineStore('note', () => {
   }
 
   const createNote = async ({ clientId, contract, date, content }) => {
+    // Lazy load auth store to avoid circular dependency issues if any
+    const { useAuthStore } = await import('@/stores/auth')
+    const authStore = useAuthStore()
+    const currentUser = authStore.me
+
     const next = {
-      clientId,
-      contract: contract || '일반 상담',
+      authorId: currentUser?.id || 1, // Fallback to 1 (Kim Min-su) if no user logged in
+      clientId: Number(clientId),
+      contract: contract || undefined,
       date: date || today(),
       content,
       summary: generateSummary(content),
@@ -170,9 +191,13 @@ export const useNoteStore = defineStore('note', () => {
   }
 
   const updateNote = async (id, { clientId, contract, date, content }) => {
+    // Preserve existing author info, or default to 1 (Kim Min-su) if missing (e.g., repairing broken data)
+    const original = notes.value.find((n) => n.id === id) || {}
+
     const next = {
-      clientId,
-      contract: contract || '일반 상담',
+      authorId: original.authorId || 1,
+      clientId: Number(clientId),
+      contract: contract || undefined,
       date: date || today(),
       content,
       summary: generateSummary(content),
@@ -195,6 +220,21 @@ export const useNoteStore = defineStore('note', () => {
       return noteWithSummary
     } catch (e) {
       error.value = getErrorMessage(e, '노트 수정에 실패했습니다.')
+      throw e
+    }
+  }
+
+  const deleteNote = async (id) => {
+    const targetId = Number(id)
+    try {
+      await deleteNoteApi(targetId)
+      const index = notes.value.findIndex((item) => item.id === targetId)
+      if (index !== -1) {
+        notes.value.splice(index, 1)
+      }
+    } catch (e) {
+      console.error('삭제 처리 중 오류:', e)
+      error.value = getErrorMessage(e, '노트 삭제에 실패했습니다.')
       throw e
     }
   }
@@ -364,6 +404,7 @@ export const useNoteStore = defineStore('note', () => {
     generateSummary,
     createNote,
     updateNote,
+    deleteNote,
     getNotesByClient,
     getBriefingByClient,
     searchClientNotes,

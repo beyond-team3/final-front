@@ -81,13 +81,13 @@ const clearCompare = () => {
 
           <div v-for="row in labelRows" :key="`${product.id}-${row.key}`" class="flex min-h-20 flex-wrap items-center gap-2 border-t border-slate-100 py-2">
             <span
-              v-for="tag in product.tags[row.key]"
+              v-for="tag in ((product.tags || {})[row.key] || [])"
               :key="`${product.id}-${row.key}-${tag}`"
               class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
             >
               {{ tag }}
             </span>
-            <span v-if="(product.tags[row.key] || []).length === 0" class="text-xs text-slate-300">-</span>
+            <span v-if="!((product.tags || {})[row.key] || []).length" class="text-xs text-slate-300">-</span>
           </div>
         </div>
 

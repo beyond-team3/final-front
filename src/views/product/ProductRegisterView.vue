@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
@@ -77,6 +77,7 @@ const toggleTag = (category, tag) => {
 const saveDraft = () => {
   window.localStorage.setItem('admin-product-draft', JSON.stringify(form))
   window.alert('임시저장이 완료되었습니다.')
+  router.push('/products/catalog')
 }
 
 const submitForm = () => {
@@ -126,6 +127,36 @@ const cancel = () => {
     router.push('/products/catalog')
   }
 }
+
+onMounted(() => {
+  if (!isEdit.value) {
+    const savedDraft = window.localStorage.getItem('admin-product-draft')
+    if (savedDraft) {
+      if (window.confirm('작성 중이던 임시저장 데이터가 있습니다. 불러오시겠습니까?')) {
+        const data = JSON.parse(savedDraft)
+        
+        form.name = data.name || ''
+        form.category = data.category || ''
+        form.desc = data.desc || ''
+        form.imageUrl = data.imageUrl || ''
+        
+        if (data.priceData) {
+          form.priceData.amount = data.priceData.amount ?? ''
+          form.priceData.unit = data.priceData.unit || '립'
+          form.priceData.price = data.priceData.price ?? ''
+        }
+
+        if (data.tags) {
+          form.tags.env = [...(data.tags.env || [])]
+          form.tags.res = [...(data.tags.res || [])]
+          form.tags.growth = [...(data.tags.growth || [])]
+          form.tags.quality = [...(data.tags.quality || [])]
+          form.tags.conv = [...(data.tags.conv || [])]
+        }
+      }
+    }
+  }
+})
 </script>
 
 <template>
