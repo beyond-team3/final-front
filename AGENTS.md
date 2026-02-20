@@ -147,7 +147,7 @@ export const MENU_CONFIG = [
       { key: 'doc-all', label: '모든 문서', route: '/documents/all' },
   ]},
   { key: 'note', label: '노트', roles: ['SALES_REP'], children: [
-      { key: 'note-main', label: '새 노트 작성', route: '/notes' },
+      { key: 'note-main', label: '노트 작성', route: '/notes' },
       { key: 'note-search', label: '노트 검색', route: '/notes/search' },
       { key: 'ai-briefing', label: 'AI 영업 브리핑', route: '/notes/ai-briefing' },
   ]},
