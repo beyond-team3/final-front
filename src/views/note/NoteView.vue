@@ -128,7 +128,7 @@ const closeSummaryModal = () => {
             v-model="form.contract" 
             class="w-full border-slate-300 p-3 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500"
           >
-            <option value="">계약 선택</option>
+            <option value="">{{ contractOptions.length > 0 ? '계약 선택' : '연결된 계약 없음' }}</option>
             <option v-for="contract in contractOptions" :key="contract" :value="contract">
               {{ contract }}
             </option>

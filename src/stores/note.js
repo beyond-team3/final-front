@@ -80,7 +80,21 @@ export const useNoteStore = defineStore('note', () => {
   const varietyOptions = computed(() => [...new Set(notes.value.map((note) => note.variety).filter(Boolean))])
 
   const getClientName = (clientId) => clientMap.value[clientId]?.name || '-'
-  const getContractsByClient = (clientId) => (clientId ? contracts.value[clientId] || [] : [])
+  const DEFAULT_CONTRACTS = {
+    2: [
+      '2026년 봄무/배추 종자 공급 계약',
+      '신품종(TY-9) 시범 재배 확약서',
+      '2025년도 우수 농가 지원 협약',
+      '하반기 대파 위탁 영농 계약',
+    ],
+  }
+
+  const getContractsByClient = (clientId) => {
+    if (!clientId) return []
+    const derived = contracts.value[clientId] || []
+    const defaults = DEFAULT_CONTRACTS[Number(clientId)] || []
+    return [...new Set([...derived, ...defaults])]
+  }
 
   const generateSummary = (content) => {
     const normalized = String(content || '').trim()
