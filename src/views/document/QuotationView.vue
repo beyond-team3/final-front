@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
-import axios from 'axios' // 행님! 연장(axios) 챙겼슴돠!
+import { useAuthStore } from '@/stores/auth' // 형님! 보안팀(authStore)도 불렀슴돠!
+import axios from 'axios'
 
 const router = useRouter()
 const documentStore = useDocumentStore()
 const productStore = useProductStore()
 const historyStore = useHistoryStore()
+const authStore = useAuthStore()
 
 // --- [상태 관리] ---
 const isProcessStarted = ref(false)
@@ -17,6 +19,10 @@ const isNewMode = ref(false)
 const showStartModal = ref(false)
 const showCorpModal = ref(false)
 const showProductModal = ref(false)
+
+// 원본 데이터 추적
+const sourceRequestId = ref(null)
+const sourceHistoryId = ref(null)
 
 // 폼 데이터
 const inCorpCode = ref('')
@@ -58,26 +64,38 @@ const startFromRequest = (req) => {
   isProcessStarted.value = true
   showStartModal.value = false
 
+  sourceRequestId.value = req.id
+  sourceHistoryId.value = req.historyId || null
+
   inCorp.value = req.client?.name || ''
   inName.value = req.client?.contact || ''
-  inCorpCode.value = req.client?.code || ''
+  inCorpCode.value = req.clientId || req.client?.id || ''
 
   customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
 
-  selectedItems.value = req.items.map(i => ({
-    uid: Date.now() + Math.random(),
-    variety: i.variety || '일반',
-    name: i.name,
-    count: i.quantity || 1,
-    unit: i.unit || '립',
-    price: i.unitPrice || 0
-  }))
+  selectedItems.value = req.items.map(i => {
+    // 상품 마스터에서 정보 검색 (id 또는 이름으로)
+    const masterProduct = productStore.products?.find(p => p.id === i.productId || p.name === i.name)
+
+    return {
+      uid: Date.now() + Math.random(),
+      productId: i.productId || masterProduct?.id,
+      variety: masterProduct?.variety || masterProduct?.category || i.variety || '일반',
+      name: i.name,
+      count: i.quantity || 1,
+      unit: masterProduct?.unit || i.unit || '립',
+      price: masterProduct?.price || masterProduct?.unitPrice || i.unitPrice || 0
+    }
+  })
 }
 
 const startNewQuotation = () => {
   isNewMode.value = true
   isProcessStarted.value = true
   showStartModal.value = false
+
+  sourceRequestId.value = null
+  sourceHistoryId.value = null
 
   inCorpCode.value = ''
   inCorp.value = ''
@@ -87,7 +105,7 @@ const startNewQuotation = () => {
 }
 
 const setCorp = (corp) => {
-  inCorpCode.value = corp.code
+  inCorpCode.value = corp.id // 코드가 아니라 numeric ID를 넣어야 함다!
   inCorp.value = corp.name
   inName.value = corp.contact
   showCorpModal.value = false
@@ -99,12 +117,12 @@ const addProduct = (p) => {
     existItem.count++
   } else {
     selectedItems.value.push({
-      uid: Date.now(),
+      uid: Date.now() + Math.random(),
       productId: p.id,
       variety: p.variety || p.category || '-',
       name: p.name,
       count: 1,
-      unit: p.unit?.includes('kg') ? 'kg' : '립',
+      unit: p.unit || (p.unit?.includes('kg') ? 'kg' : '립'),
       price: Number(p.price || p.unitPrice || 0)
     })
   }
@@ -159,15 +177,11 @@ const submitDoc = async () => {
   if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
   if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
 
-  const currentUser = documentStore.currentUser || { id: 1, name: "김민수" }
+  const currentUser = authStore.me || { id: 1, name: "김민수" }
 
-  // 1. 견적서 번호 생성 (QT-YYYYMMDD-순번)
+  // 1. 견적서 번호 생성 (고유 아이디를 위해 타임스탬프 기반으로 처리함돠)
   const now = new Date()
-  const datePart = now.getFullYear().toString() +
-      (now.getMonth() + 1).toString().padStart(2, '0') +
-      now.getDate().toString().padStart(2, '0')
-  const sequence = (documentStore.documents?.length || 0) + 1
-  const quotationId = `QT-${datePart}-${sequence.toString().padStart(3, '0')}`
+  const quotationId = `QT-${Date.now()}`
 
   const today = now.toISOString().split('T')[0]
 
@@ -184,7 +198,7 @@ const submitDoc = async () => {
     },
     authorId: currentUser.id,
     authorName: currentUser.name,
-    status: "승인", // 발행 즉시 승인 상태로 세팅함돠
+    status: "승인대기", // 발행 시 관리자 승인을 기다림돠
     totalAmount: totalSum.value,
     date: today,
     items: selectedItems.value.map(item => ({
@@ -203,18 +217,75 @@ const submitDoc = async () => {
     clientId: inCorpCode.value,
     clientName: inCorp.value,
     pipelineStage: "견적",
+    stageNumber: 2,
+    status: "대기중",
     documentId: quotationId,
+    documents: [{
+      id: quotationId,
+      type: "quotation",
+      typeLabel: "견적서",
+      stage: "견적",
+      stageNumber: 2,
+      status: "ISSUED",
+      date: today,
+      amount: totalSum.value
+    }],
+    amount: totalSum.value,
     nextAction: "고객사 견적 검토 대기",
-    updatedAt: today
+    updatedAt: today,
+    startDate: today
   }
 
   try {
-    // 4. 3001번 서버로 데이터 전송
+    // 4. 서버로 데이터 전송
     await axios.post('http://localhost:3001/documents', quotationData);
-    await axios.post('http://localhost:3001/history', historyData);
+
+    // 4-1. 히스토리 업데이트 (연결된 히스토리 아이디가 있으면 PUT, 없으면 POST)
+    if (sourceHistoryId.value) {
+      // 기존 히스토리 로드 후 업데이트
+      const hRes = await axios.get(`http://localhost:3001/history/${sourceHistoryId.value}`);
+      const history = hRes.data;
+
+      const updatedHistory = {
+        ...history,
+        pipelineStage: "견적",
+        stageNumber: 2,
+        status: "대기중", // 견적 단계의 대기 상태를 의미함돠
+        documentId: quotationId,
+        nextAction: "고객사 견적 검토 대기",
+        updatedAt: today,
+        amount: Math.max(Number(history.amount || 0), totalSum.value)
+      };
+
+      // 만약 documents 배열이 있으면 추가
+      if (Array.isArray(updatedHistory.documents)) {
+        updatedHistory.documents.push({
+          id: quotationId,
+          type: "quotation",
+          typeLabel: "견적서",
+          stage: "견적",
+          stageNumber: 2,
+          status: "ISSUED",
+          date: today,
+          amount: totalSum.value
+        });
+      }
+
+      await axios.put(`http://localhost:3001/history/${sourceHistoryId.value}`, updatedHistory);
+    } else {
+      await axios.post('http://localhost:3001/history', historyData);
+    }
+
+    // 4-2. 원본 견적 요청서가 있으면 상태 업데이트
+    if (sourceRequestId.value) {
+      await axios.patch(`http://localhost:3001/documents/${sourceRequestId.value}`, {
+        status: "QUOTED"
+      });
+    }
 
     // 5. 스토어 새로고침 (목록 갱신용)
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
+    if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
 
     window.alert(`[${quotationId}] 견적서가 성공적으로 발행되어 저장되었슴돠!`);
     router.push('/documents/all');
@@ -270,9 +341,7 @@ const submitDoc = async () => {
                     <input type="number" min="1" class="w-full border border-blue-300 rounded text-center p-1 font-bold text-blue-700" :value="item.count" @input="updateItem(item, 'count', $event.target.value)">
                   </td>
                   <td class="p-3 text-center">
-                    <select class="w-full border border-slate-200 rounded p-1 text-xs" v-model="item.unit">
-                      <option value="립">립</option><option value="kg">kg</option>
-                    </select>
+                    <input type="text" class="w-full border border-slate-200 rounded p-1 text-xs text-center" v-model="item.unit">
                   </td>
                   <td class="p-3">
                     <input type="number" min="0" class="w-full border border-emerald-300 rounded text-right p-1 font-mono" :value="item.price" @input="updateItem(item, 'price', $event.target.value)">
