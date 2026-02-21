@@ -54,8 +54,8 @@ const stepsData = computed(() => {
 const documents = computed(() => (pipeline.value?.documents || []).map((doc) => {
   const statusText = doc.status || '진행중'
   const statusClass = statusText.includes('완료') || statusText.includes('발행')
-    ? 'bg-emerald-100 text-emerald-800'
-    : 'bg-blue-100 text-blue-700'
+      ? 'bg-emerald-100 text-emerald-800'
+      : 'bg-blue-100 text-blue-700'
 
   return {
     id: doc.id,
@@ -137,8 +137,8 @@ const shouldHideRemark = computed(() => {
 })
 const canDownload = computed(() => {
   return authStore.currentRole === ROLES.SALES_REP
-    || authStore.currentRole === ROLES.ADMIN
-    || authStore.currentRole === ROLES.CLIENT
+      || authStore.currentRole === ROLES.ADMIN
+      || authStore.currentRole === ROLES.CLIENT
 })
 
 onMounted(() => {
@@ -153,9 +153,9 @@ onMounted(() => {
     <LoadingSpinner v-if="historyStore.loading" text="문서 목록을 불러오는 중입니다." />
     <ErrorMessage v-else-if="historyStore.error" :message="historyStore.error" @retry="historyStore.fetchPipelines" />
     <EmptyState
-      v-else-if="!pipeline"
-      title="파이프라인 문서를 찾을 수 없습니다."
-      description="히스토리 화면에서 파이프라인을 다시 선택해주세요."
+        v-else-if="!pipeline"
+        title="파이프라인 문서를 찾을 수 없습니다."
+        description="히스토리 화면에서 파이프라인을 다시 선택해주세요."
     />
     <template v-else>
       <header class="mb-6 flex items-center gap-4">
@@ -169,11 +169,11 @@ onMounted(() => {
       <section class="mb-6 overflow-x-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex min-w-[680px] items-start justify-between gap-2">
           <button
-            v-for="step in stepsData"
-            :key="step.name"
-            type="button"
-            class="group relative flex flex-1 flex-col items-center gap-2 px-1"
-            @click="setTab(step.name)"
+              v-for="step in stepsData"
+              :key="step.name"
+              type="button"
+              class="group relative flex flex-1 flex-col items-center gap-2 px-1"
+              @click="setTab(step.name)"
           >
             <span class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold" :class="stepClass(step.status)">
               {{ step.status === 'completed' ? '완' : step.status === 'active' ? '진' : '대' }}
@@ -187,15 +187,15 @@ onMounted(() => {
 
       <section class="mb-6 flex gap-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <input
-          v-model="searchText"
-          type="text"
-          class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          placeholder="문서번호로 검색해주세요"
+            v-model="searchText"
+            type="text"
+            class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder="문서번호로 검색해주세요"
         >
         <button
-          type="button"
-          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          @click="applySearch"
+            type="button"
+            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            @click="applySearch"
         >
           검색
         </button>
@@ -204,32 +204,32 @@ onMounted(() => {
       <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <table v-if="filteredDocs.length > 0" class="w-full border-collapse text-sm">
           <thead>
-            <tr class="bg-slate-50 text-left text-slate-700">
-              <th class="px-6 py-3 font-semibold">문서번호</th>
-              <th class="px-6 py-3 font-semibold">작성일</th>
-              <th class="px-6 py-3 font-semibold">금액</th>
-              <th class="px-6 py-3 font-semibold">상태</th>
-              <th class="px-6 py-3 font-semibold">액션</th>
-            </tr>
+          <tr class="bg-slate-50 text-left text-slate-700">
+            <th class="px-6 py-3 font-semibold">문서번호</th>
+            <th class="px-6 py-3 font-semibold">작성일</th>
+            <th class="px-6 py-3 font-semibold">금액</th>
+            <th class="px-6 py-3 font-semibold">상태</th>
+            <th class="px-6 py-3 font-semibold">액션</th>
+          </tr>
           </thead>
           <tbody>
-            <tr v-for="doc in filteredDocs" :key="doc.id" class="border-t border-slate-100">
-              <td class="px-6 py-4">{{ doc.id }}</td>
-              <td class="px-6 py-4">{{ doc.date }}</td>
-              <td class="px-6 py-4">{{ doc.amount }}</td>
-              <td class="px-6 py-4">
-                <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="doc.statusClass">{{ doc.status }}</span>
-              </td>
-              <td class="px-6 py-4">
-                <button
+          <tr v-for="doc in filteredDocs" :key="doc.id" class="border-t border-slate-100">
+            <td class="px-6 py-4">{{ doc.id }}</td>
+            <td class="px-6 py-4">{{ doc.date }}</td>
+            <td class="px-6 py-4">{{ doc.amount }}</td>
+            <td class="px-6 py-4">
+              <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="doc.statusClass">{{ doc.status }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <button
                   type="button"
                   class="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
                   @click="openDetail(doc)"
-                >
-                  보기
-                </button>
-              </td>
-            </tr>
+              >
+                보기
+              </button>
+            </td>
+          </tr>
           </tbody>
         </table>
 
@@ -240,13 +240,15 @@ onMounted(() => {
       </section>
 
       <HistoryModal
-        v-model="isModalOpen"
-        :title="selectedDoc ? selectedDoc.id : '문서번호'"
-        :mode="modalMode"
-        :show-download="canDownload"
-        :hide-remark="shouldHideRemark"
-        :remark="selectedDoc ? selectedDoc.remark : ''"
-        :reject-reason="selectedDoc ? selectedDoc.rejectReason : ''"
+          v-model="isModalOpen"
+          :title="selectedDoc ? selectedDoc.id : '문서번호'"
+          :doc-id="selectedDoc ? String(selectedDoc.id) : ''"
+          :doc-type="selectedDoc ? String(selectedDoc.type) : ''"
+          :mode="modalMode"
+          :show-download="canDownload"
+          :hide-remark="shouldHideRemark"
+          :remark="selectedDoc ? selectedDoc.remark : ''"
+          :reject-reason="selectedDoc ? selectedDoc.rejectReason : ''"
       />
     </template>
   </section>
