@@ -218,6 +218,8 @@ const openDetail = (row) => {
     <HistoryModal
         v-model="isModalOpen"
         :title="String(selectedDoc?.id || '문서 상세')"
+        :doc-id="String(selectedDoc?.id || '')"
+        :doc-type="String(selectedDoc?.type || '')"
         :remark="selectedDoc?.remark"
         :reject-reason="selectedDoc?.rejectReason"
     />
