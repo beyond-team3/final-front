@@ -55,6 +55,18 @@ const closeDetail = () => {
 const goEdit = (id) => {
   router.push({ name: 'notes', query: { editId: id } })
 }
+
+const handleDelete = async (id) => {
+  if (!window.confirm('정말 이 노트를 삭제하시겠습니까?')) {
+    return
+  }
+
+  try {
+    await noteStore.deleteNote(Number(id))
+  } catch (e) {
+    window.alert('삭제하지 못했습니다.')
+  }
+}
 </script>
 
 <template>
@@ -119,8 +131,20 @@ const goEdit = (id) => {
           <span class="text-xs text-slate-400 font-medium">{{ note.date }}</span>
         </div>
         <div class="bg-slate-50 p-4 rounded-md mb-4">
-          <p class="text-xs text-slate-500 font-bold mb-1.5">AI 요약</p>
-          <p class="text-sm text-slate-600 line-clamp-2">{{ note.summary?.join(', ') || '요약 분석 중...' }}</p>
+          <p class="text-xs text-slate-500 font-bold mb-2">AI 요약</p>
+
+          <div v-if="note.summary && note.summary.length > 0" class="space-y-1.5">
+            <div
+                v-for="(line, idx) in note.summary"
+                :key="idx"
+                class="text-sm text-slate-600 flex items-start"
+            >
+              <span class="text-sky-500 mr-2 leading-tight">•</span>
+              <span class="leading-relaxed">{{ line }}</span>
+            </div>
+          </div>
+
+          <p v-else class="text-sm text-slate-400 italic">요약 분석 중...</p>
         </div>
         <div class="flex justify-between items-center text-sm">
           <span class="text-slate-500 truncate max-w-[120px]">
@@ -129,6 +153,7 @@ const goEdit = (id) => {
           </span>
           <div class="space-x-3">
             <button @click="goEdit(note.id)" class="text-amber-500 font-bold hover:underline">수정</button>
+            <button @click="handleDelete(note.id)" class="text-red-500 font-bold hover:underline">삭제</button>
             <button @click="openDetail(note)" class="text-sky-500 font-bold hover:underline">원문 보기</button>
           </div>
         </div>

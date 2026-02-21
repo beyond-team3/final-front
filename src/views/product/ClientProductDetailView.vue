@@ -24,7 +24,12 @@ const tagRows = computed(() => {
     { key: 'growth', label: '생육/숙기' },
     { key: 'quality', label: '과실품질' },
     { key: 'conv', label: '재배편의성' },
-  ].filter((row) => (product.value.tags?.[row.key] || []).length > 0)
+  ]
+
+  return [
+    ...rows,
+    ...tags.filter((row) => (product.value.tags?.[row.key] || []).length > 0),
+  ]
 })
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)

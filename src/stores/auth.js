@@ -48,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
             }
 
             // 5. [성공] 스토어 상태 업데이트
-            const finalUser = { ...account, ...detailData }
+            const finalUser = { ...detailData, ...account  }
             me.value = finalUser
             setToken('fake-jwt-token-for-now') // 임시 토큰
             setRole(account.role)

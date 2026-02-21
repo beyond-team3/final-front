@@ -11,6 +11,16 @@ const productStore = useProductStore()
 const productId = computed(() => Number(route.params.id))
 const product = computed(() => productStore.getProductById(productId.value))
 
+const formattedPrice = computed(() => {
+  if (!product.value?.priceData?.price) return ''
+  return Number(product.value.priceData.price).toLocaleString()
+})
+
+const formattedAmount = computed(() => {
+  if (!product.value?.priceData?.amount) return ''
+  return Number(product.value.priceData.amount).toLocaleString()
+})
+
 const tagRows = computed(() => {
   if (!product.value) return []
   return [
@@ -19,7 +29,12 @@ const tagRows = computed(() => {
     { key: 'growth', label: '생육/숙기' },
     { key: 'quality', label: '과실품질' },
     { key: 'conv', label: '재배편의성' },
-  ].filter((row) => (product.value.tags?.[row.key] || []).length > 0)
+  ]
+
+  return [
+    ...rows,
+    ...tags.filter((row) => (product.value.tags?.[row.key] || []).length > 0),
+  ]
 })
 
 onMounted(() => {
