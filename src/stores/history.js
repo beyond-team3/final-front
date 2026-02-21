@@ -131,7 +131,7 @@ export const useHistoryStore = defineStore('history', () => {
 
     const getViewerClientIdentity = () => {
         const me = authStore.me || {}
-        // 유저 고유 ID가 아닌 거래처 ID(refId)를 우선 사용함돠!
+        // 유저 고유 ID가 아닌 거래처 ID(refId)를 우선 사용
         const byRefId = me.refId ?? me.clientId ?? null
         const byName = String(me.targetPerson || me.clientName || me.name || '').trim()
 
@@ -159,7 +159,7 @@ export const useHistoryStore = defineStore('history', () => {
         }
 
         if (role === ROLES.SALES_REP) {
-            // 영업사원의 경우, 인자로 받은 담당 거래처 ID 목록(managedClientIds)에 포함된 데이터만 반환함돠.
+            // 영업사원의 경우, 인자로 받은 담당 거래처 ID 목록(managedClientIds)에 포함된 데이터만 반환
             return list.filter((item) => {
                 const clientId = String(item.clientId || '')
                 return managedClientIds.includes(clientId)
@@ -194,14 +194,14 @@ export const useHistoryStore = defineStore('history', () => {
             let managedClientIds = []
             if (authStore.currentRole === ROLES.SALES_REP) {
                 const myRefId = String(authStore.me?.refId || '')
-                // 1단계: 전체 거래처를 조회함돠. (404 방지를 위해 파라미터 없이 {} 전달)
+                // 1단계: 전체 거래처를 조회 (404 방지를 위해 파라미터 없이 {} 전달)
                 const allClients = await getClients({})
                 const myClients = normalizeList(allClients).filter(c => String(c.managerId) === myRefId)
-                // 2단계: 해당 거래처들의 고유 ID 목록을 추출함돠.
+                // 2단계: 해당 거래처들의 고유 ID 목록을 추출
                 managedClientIds = myClients.map(c => String(c.id))
             }
 
-            // 3단계: 서버에서 전체 히스토리를 가져와 추출한 ID 목록으로 필터링함돠.
+            // 3단계: 서버에서 전체 히스토리를 가져와 추출한 ID 목록으로 필터링
             const response = await getSalesHistory({})
             const rawList = normalizeList(response)
 
@@ -210,7 +210,6 @@ export const useHistoryStore = defineStore('history', () => {
             loaded.value = true
             return list
         } catch (e) {
-            // 💡 에러 발생 시 콘솔에 더 자세히 찍히도록 했슴돠.
             console.error('❌ 히스토리 로드 실패 (주소 확인 요망):', e.config?.url, e.message)
             error.value = getErrorMessage(e, '히스토리 목록을 불러오지 못했습니다.')
             return pipelines.value

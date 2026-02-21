@@ -7,14 +7,13 @@ import { useClientStore } from '@/stores/client'
 const router = useRouter()
 const clientStore = useClientStore()
 
-// 행님이 말씀하신 규격에 맞춰 필드명을 조정했슴돠!
 const form = reactive({
-  name: '',           // clientName에서 name으로 변경
+  name: '',
   bizNo: '',
   ceoName: '',
   companyPhone: '',
   address: '',
-  type: '',           // clientType에서 type으로 변경
+  type: '',
   managerName: '',
   managerEmail: '',
   managerPhone: '',
@@ -22,7 +21,7 @@ const form = reactive({
 })
 
 const onSubmit = async () => {
-  // [핵심] type에 따라 typeLabel을 자동으로 생성함돠
+  // [핵심] type에 따라 typeLabel을 자동으로 생성
   const typeLabelMap = {
     DISTRIBUTOR: '대리점',
     NURSERY: '육묘장'
@@ -38,12 +37,12 @@ const onSubmit = async () => {
   }
 
   try {
-    // 스토어의 addClient 호출 (ID 생성은 스토어에서 처리하게 둠돠)
+    // 스토어의 addClient 호출
     await clientStore.addClient(payload)
-    alert('새 거래처가 등록되었슴돠, 행님!')
+    alert('새 거래처가 등록되었습니다.')
     router.push('/clients')
   } catch (error) {
-    alert('등록에 실패했슴돠. 데이터를 확인해 주십쇼!')
+    alert('등록에 실패했습니다. 데이터를 확인해 주세요')
   }
 }
 </script>

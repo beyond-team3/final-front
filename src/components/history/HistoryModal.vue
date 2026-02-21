@@ -56,7 +56,7 @@ const isLoading = ref(false)
 
 const showInfoPanel = computed(() => props.mode !== 'readonly')
 
-// 💡 유저 요청 3: 견적 요청서의 memo는 요구사항이므로 우측 비고란에서 제외함돠.
+// 💡 유저 요청 3: 견적 요청서의 memo는 요구사항이므로 우측 비고란에서 제외
 const isQuotationRequest = computed(() => {
   const type = String(props.docType || '').toLowerCase().replace(/\s+/g, '')
   const detailType = String(docDetail.value?.type || '').toLowerCase().replace(/\s+/g, '')
@@ -127,7 +127,7 @@ const loadDetail = async () => {
     return
   }
 
-  // 💡 0. 로딩 시작 시 이전 데이터를 밀어버리고 사원 목록도 미리 긁어옴돠.
+  // 💡 0. 로딩 시작 시 이전 데이터를 밀어버리고 사원 목록도 미리 긁어옴
   docDetail.value = null
   isLoading.value = true
 
@@ -136,7 +136,7 @@ const loadDetail = async () => {
       await employeeStore.fetchEmployees()
     }
 
-    // 💡 1. 타입 매핑 (최대한 넓게 잡슴돠)
+    // 💡 1. 타입 매핑
     const typeMap = {
       '견적': 'quotation',
       '견 적': 'quotation',
@@ -173,7 +173,7 @@ const loadDetail = async () => {
     else if (typeKey === 'invoice') detail = documentStore.getInvoiceById(currentId)
     else if (['quotation-request', 'rfq', '견적요청'].includes(typeKey)) detail = documentStore.getRequestById(currentId)
 
-    // 💡 3. 캐시에 없거나(summary만 있는 경우) 품목 정보가 없으면 서버에서 강제로 긁어옴돠.
+    // 💡 3. 캐시에 없거나(summary만 있는 경우) 품목 정보가 없으면 서버에서 강제로 가져옴
     if (!detail || !detail.items || detail.items.length === 0) {
       const fetched = await documentStore.fetchDocumentDetail(currentId)
       if (fetched) detail = fetched
@@ -187,7 +187,7 @@ const loadDetail = async () => {
   }
 }
 
-// 💡 modelValue가 true가 되거나 docId가 바뀔 때 로드함돠.
+// 💡 modelValue가 true가 되거나 docId가 바뀔 때 로드
 watch([() => props.modelValue, () => props.docId], ([show, id]) => {
   if (show && id) loadDetail()
 }, { immediate: true })
@@ -253,7 +253,7 @@ const downloadDocument = async () => {
           <div class="flex flex-1 items-start justify-center overflow-y-auto bg-slate-600 p-6 doc-preview-wrap">
             <div v-if="isLoading" class="flex flex-col items-center justify-center h-full text-white gap-3">
               <div class="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-              <p>문서 정보를 긁어오는 중임돠...</p>
+              <p>문서 정보를 가져오는 중입니다.</p>
             </div>
 
             <!-- 💡 유저 요청 1: 각 문서별 고유 디자인 적용 -->
@@ -499,7 +499,7 @@ const downloadDocument = async () => {
                       <td class="border border-slate-300 p-1.5">{{ item.unit }}</td>
                     </tr>
                     <tr v-if="!docDetail.items || docDetail.items.length === 0">
-                      <td colspan="4" class="border border-slate-300 p-10 text-slate-400">품목 정보가 없슴돠.</td>
+                      <td colspan="4" class="border border-slate-300 p-10 text-slate-400">품목 정보가 없습니다.</td>
                     </tr>
                     </tbody>
                   </table>
@@ -520,7 +520,7 @@ const downloadDocument = async () => {
             <div v-else class="flex h-full w-full items-center justify-center bg-gray-100 text-slate-400">
               <div class="flex flex-col items-center gap-3">
                 <svg v-if="isLoading" class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p>{{ isLoading ? '데이터를 불러오는 중임돠...' : '문서 데이터를 불러올 수 없슴돠.' }}</p>
+                <p>{{ isLoading ? '데이터를 불러오는 중입니다...' : '문서 데이터를 불러올 수 없습니다.' }}</p>
               </div>
             </div>
           </div>

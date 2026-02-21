@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
-import { useAuthStore } from '@/stores/auth' // 형님! 보안팀(authStore)도 불렀슴돠!
+import { useAuthStore } from '@/stores/auth'
 import axios from 'axios'
 
 const router = useRouter()
@@ -172,14 +172,14 @@ const validityDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
-// --- [행님! 여기가 저장 핵심 로직임돠] ---
+// --- [저장 핵심 로직] ---
 const submitDoc = async () => {
   if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
   if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
 
   const currentUser = authStore.me || { id: 1, name: "김민수" }
 
-  // 1. 견적서 번호 생성 (고유 아이디를 위해 타임스탬프 기반으로 처리함돠)
+  // 1. 견적서 번호 생성 (고유 아이디를 위해 타임스탬프 기반으로 처리)
   const now = new Date()
   const quotationId = `QT-${Date.now()}`
 
@@ -198,7 +198,7 @@ const submitDoc = async () => {
     },
     authorId: currentUser.id,
     authorName: currentUser.name,
-    status: "승인대기", // 발행 시 관리자 승인을 기다림돠
+    status: "승인대기", // 발행 시 관리자 승인 기다림
     totalAmount: totalSum.value,
     date: today,
     items: selectedItems.value.map(item => ({
@@ -250,7 +250,7 @@ const submitDoc = async () => {
         ...history,
         pipelineStage: "견적",
         stageNumber: 2,
-        status: "대기중", // 견적 단계의 대기 상태를 의미함돠
+        status: "대기중", // 견적 단계의 대기 상태를 의미
         documentId: quotationId,
         nextAction: "고객사 견적 검토 대기",
         updatedAt: today,
@@ -287,11 +287,11 @@ const submitDoc = async () => {
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
     if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
 
-    window.alert(`[${quotationId}] 견적서가 성공적으로 발행되어 저장되었슴돠!`);
+    window.alert(`[${quotationId}] 견적서가 성공적으로 발행되어 저장되었습니다.`);
     router.push('/documents/all');
   } catch (error) {
     console.error("견적서 저장 에러:", error);
-    window.alert("3001번 서버 저장 중에 에러가 났슴돠!");
+    window.alert("3001번 서버 저장 중에 에러가 났습니다.");
   }
 }
 </script>

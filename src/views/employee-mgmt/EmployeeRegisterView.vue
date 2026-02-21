@@ -42,9 +42,7 @@ const resetForm = (showMessage = true) => {
   }
 }
 
-// [수정] async 키워드를 반드시 붙여야 함돠!
 const onSubmit = async () => {
-  // 디버깅용: 콘솔에 addEmployee가 나오는지 확인용임돠.
   console.log('현재 스토어 객체:', employeeStore);
 
   if (!form.empName || !form.empEmail) {
@@ -53,7 +51,6 @@ const onSubmit = async () => {
   }
 
   try {
-    // [수정] await를 붙여서 비동기 처리가 끝날 때까지 기다림돠.
     const newEmployeeId = await employeeStore.addEmployee(form)
 
     showToast('등록이 완료되었습니다.', 'success')
