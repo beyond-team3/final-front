@@ -140,6 +140,7 @@ onMounted(async () => {
           v-for="item in visibleProducts"
           :key="item.id"
           :item="item"
+          :show-price="true"
           :compare-active="productStore.isInCompare(item.id)"
           :favorite-active="productStore.isFavorite(item.id)"
           @select="goDetail"

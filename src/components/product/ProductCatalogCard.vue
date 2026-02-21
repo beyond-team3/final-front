@@ -14,6 +14,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  showPrice: {
+    type: Boolean,
+    default: false,
+  },
   compareActive: {
     type: Boolean,
     default: false,
@@ -86,7 +90,8 @@ const onKeyActivate = (event, id) => {
     <div class="block w-full p-4 text-left">
       <div class="flex items-center justify-between">
         <p class="text-xs font-semibold text-blue-600">{{ item.category }}</p>
-        <p v-if="item.price" class="text-xs font-bold text-slate-700">
+        <!-- showPrice props가 true일 때만 노출 -->
+        <p v-if="showPrice && item.price" class="text-xs font-bold text-slate-700">
           ₩{{ item.price.toLocaleString() }} <span class="font-normal text-slate-400">/ {{ item.unit }}</span>
         </p>
       </div>

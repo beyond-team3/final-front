@@ -7,9 +7,14 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import ProductCatalogCard from '@/components/product/ProductCatalogCard.vue'
 import { useProductStore } from '@/stores/product'
+import { useAuthStore } from '@/stores/auth'
+import { ROLES } from '@/utils/constants'
 
 const router = useRouter()
 const productStore = useProductStore()
+const authStore = useAuthStore()
+
+const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
 
 const filters = ref({
   category: '',
@@ -128,6 +133,7 @@ onMounted(async () => {
           v-for="item in visibleProducts"
           :key="item.id"
           :item="item"
+          :show-price="!isClient"
           :compare-active="productStore.isInCompare(item.id)"
           :favorite-active="productStore.isFavorite(item.id)"
           @select="(id) => router.push(`/products/${id}`)"
