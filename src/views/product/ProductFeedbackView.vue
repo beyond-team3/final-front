@@ -1,11 +1,17 @@
 <script setup>
-import { computed, ref, nextTick } from 'vue'
+import { computed, ref, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/product'
 
 const route = useRoute()
 const router = useRouter()
 const productStore = useProductStore()
+
+onMounted(() => {
+  if (productStore.products.length === 0) {
+    productStore.fetchProducts()
+  }
+})
 
 const productId = computed(() => Number(route.query.id) || Number(route.params.id) || 0)
 const fallbackProduct = computed(() => productStore.products[0] || null)

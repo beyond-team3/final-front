@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
@@ -7,26 +7,35 @@ import { useProductStore } from '@/stores/product'
 const router = useRouter()
 const productStore = useProductStore()
 
-const favoriteProducts = computed(() => {
-  return productStore.favoriteItems
-    .map((id) => productStore.getProductById(id))
-    .filter(Boolean)
+onMounted(() => {
+  if (!productStore.products || productStore.products.length === 0) {
+    productStore.fetchProducts()
+  }
 })
 
+const favoriteProducts = computed(() => productStore.favoriteProducts || [])
+
 const openCompare = () => {
-  if (productStore.compareItems.length < 2) {
+  if (!productStore.compareItems || productStore.compareItems.length < 2) {
     window.alert('비교하려면 최소 2개 이상의 상품을 선택해주세요.')
     return
   }
-
   router.push('/products/compare')
 }
 
-const toggleCompare = (id) => {
-  const result = productStore.toggleCompareItem(id)
-  if (!result.ok && result.reason === 'limit') {
+const toggleCompare = async (id) => {
+  const result = await productStore.toggleCompareItem(id)
+  if (result && !result.ok && result.reason === 'limit') {
     window.alert('비교함에는 최대 3개까지만 담을 수 있습니다.')
   }
+}
+
+const toggleFavorite = async (id) => {
+  await productStore.toggleFavoriteItem(id)
+}
+
+const removeFavorite = async (id) => {
+  await productStore.removeFavoriteItem(id)
 }
 </script>
 
@@ -39,7 +48,7 @@ const toggleCompare = (id) => {
           class="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
           @click="openCompare"
         >
-          비교함 ({{ productStore.compareItems.length }}/3)
+          비교함 ({{ (productStore.compareItems || []).length }}/3)
         </button>
         <button
           type="button"
@@ -72,7 +81,7 @@ const toggleCompare = (id) => {
             <button
               type="button"
               class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-amber-600"
-              @click="productStore.removeFavoriteItem(item.id)"
+              @click="removeFavorite(item.id)"
             >
               ★
             </button>

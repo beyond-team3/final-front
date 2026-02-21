@@ -1,11 +1,17 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
 
 const route = useRoute()
 const productStore = useProductStore()
+
+onMounted(() => {
+  if (productStore.products.length === 0) {
+    productStore.fetchProducts()
+  }
+})
 
 const criteriaRows = [
   { key: 'env', label: '재배환경' },

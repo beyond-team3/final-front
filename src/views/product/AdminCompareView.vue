@@ -1,11 +1,17 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
 
 const router = useRouter()
 const productStore = useProductStore()
+
+onMounted(() => {
+  if (productStore.products.length === 0) {
+    productStore.fetchProducts()
+  }
+})
 
 const labelRows = [
   { key: 'env', label: '재배환경' },
@@ -15,19 +21,19 @@ const labelRows = [
   { key: 'conv', label: '재배 편의성' },
 ]
 
-const compareProducts = computed(() => {
-  return productStore.compareItems
-    .map((id) => productStore.getProductById(id))
-    .filter(Boolean)
-})
+const compareProducts = computed(() => productStore.compareProducts)
 
-const emptySlotCount = computed(() => Math.max(0, 3 - compareProducts.value.length))
+const emptySlotCount = computed(() => Math.max(0, 3 - productStore.compareProducts.length))
 
 const clearCompare = () => {
   if (window.confirm('비교함을 모두 비우시겠습니까?')) {
     productStore.clearCompareItems()
     router.push('/products/catalog')
   }
+}
+
+const removeCompare = async (id) => {
+  await productStore.removeCompareItem(id)
 }
 </script>
 
@@ -70,7 +76,7 @@ const clearCompare = () => {
             <button
               type="button"
               class="absolute right-2 top-2 rounded-full border border-slate-300 px-2 py-0.5 text-xs font-semibold text-slate-500 hover:bg-slate-100"
-              @click="productStore.removeCompareItem(product.id)"
+              @click="removeCompare(product.id)"
             >
               ×
             </button>

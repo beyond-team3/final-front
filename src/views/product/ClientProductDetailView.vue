@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
@@ -11,6 +11,12 @@ const router = useRouter()
 
 const productStore = useProductStore()
 const authStore = useAuthStore()
+
+onMounted(() => {
+  if (productStore.products.length === 0) {
+    productStore.fetchProducts()
+  }
+})
 
 const productId = computed(() => Number(route.params.id))
 const product = computed(() => productStore.getProductById(productId.value))

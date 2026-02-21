@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
@@ -19,6 +19,12 @@ const initialProduct = computed(() => {
   return productStore.getProductById(editId.value)
 })
 
+onMounted(async () => {
+  if (productStore.products.length === 0) {
+    await productStore.fetchProducts()
+  }
+})
+
 const tagTemplates = reactive({
   env: ['노지', '시설하우스', '고랭지', '가정원예'],
   res: ['탄저병', '바이러스', '시들음병', '역병', '무름병'],
@@ -28,23 +34,41 @@ const tagTemplates = reactive({
 })
 
 const form = reactive({
-  name: initialProduct.value?.name || '',
-  category: initialProduct.value?.category || '',
-  desc: initialProduct.value?.desc || '',
-  imageUrl: initialProduct.value?.imageUrl || '',
+  name: '',
+  category: '',
+  desc: '',
+  imageUrl: '',
   priceData: {
-    amount: initialProduct.value?.priceData?.amount ?? '',
-    unit: initialProduct.value?.priceData?.unit || '립',
-    price: initialProduct.value?.priceData?.price ?? '',
+    amount: '',
+    unit: '립',
+    price: '',
   },
   tags: {
-    env: [...(initialProduct.value?.tags?.env || [])],
-    res: [...(initialProduct.value?.tags?.res || [])],
-    growth: [...(initialProduct.value?.tags?.growth || [])],
-    quality: [...(initialProduct.value?.tags?.quality || [])],
-    conv: [...(initialProduct.value?.tags?.conv || [])],
+    env: [],
+    res: [],
+    growth: [],
+    quality: [],
+    conv: [],
   },
 })
+
+// 시점 문제 해결을 위한 watch 추가
+watch(initialProduct, (product) => {
+  if (product) {
+    form.name = product.name || ''
+    form.category = product.category || ''
+    form.desc = product.desc || ''
+    form.imageUrl = product.imageUrl || ''
+    form.priceData.amount = product.priceData?.amount ?? ''
+    form.priceData.unit = product.priceData?.unit || '립'
+    form.priceData.price = product.priceData?.price ?? ''
+    form.tags.env = [...(product.tags?.env || [])]
+    form.tags.res = [...(product.tags?.res || [])]
+    form.tags.growth = [...(product.tags?.growth || [])]
+    form.tags.quality = [...(product.tags?.quality || [])]
+    form.tags.conv = [...(product.tags?.conv || [])]
+  }
+}, { immediate: true })
 
 const categoryOptions = ['고추', '참외', '파', '수박', '오이', '토마토', '배추', '무', '옥수수']
 
