@@ -16,6 +16,8 @@
   "/api/products/compare": "/compares",
   "/api/documents": "/documents",
   "/api/documents/:id": "/documents/:id",
+  "/api/history": "/history",
+  "/api/history/:id/documents": "/history/:id",
   "/api/history/sales": "/history",
   "/api/history/pipeline/:id": "/history/:id",
   "/api/notes/search": "/notes",

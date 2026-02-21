@@ -1,7 +1,7 @@
 import api from './index'
 
 export function getSalesHistory(params) {
-  return api.get('/history/sales', { params })
+  return api.get('/history', { params })
 }
 
 export function getPipelineDetail(id) {
