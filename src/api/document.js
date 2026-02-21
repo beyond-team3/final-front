@@ -1,35 +1,35 @@
 import api from './index'
 
 export function createQuotationRequest(data) {
-  return api.post('/documents/quotation-request', data)
+    return api.post('/documents', data)
 }
 
 export function createQuotation(data) {
-  return api.post('/documents/quotation', data)
+    return api.post('/documents', data)
 }
 
 export function createContract(data) {
-  return api.post('/documents/contract', data)
+    return api.post('/documents', data)
 }
 
 export function createOrder(data) {
-  return api.post('/documents/order', data)
+    return api.post('/documents', data)
 }
 
 export function createStatement(data) {
-  return api.post('/documents/statement', data)
+    return api.post('/documents', data)
 }
 
 export function createInvoice(data) {
-  return api.post('/documents/invoice', data)
+    return api.post('/documents', data)
 }
 
 export function getDocuments(params) {
-  return api.get('/documents', { params })
+    return api.get('/documents', { params })
 }
 
 export function getDocumentDetail(id) {
-  return api.get(`/documents/${id}`)
+    return api.get(`/documents/${id}`)
 }
 
 export function getStatements(params) {
