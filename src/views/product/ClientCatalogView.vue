@@ -7,9 +7,14 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import ProductCatalogCard from '@/components/product/ProductCatalogCard.vue'
 import { useProductStore } from '@/stores/product'
+import { useAuthStore } from '@/stores/auth'
+import { ROLES } from '@/utils/constants'
 
 const router = useRouter()
 const productStore = useProductStore()
+const authStore = useAuthStore()
+
+const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
 
 const filters = ref({
   category: '',
@@ -23,13 +28,13 @@ const filterFields = computed(() => [
     key: 'category',
     label: '품목',
     type: 'select',
-    options: productStore.categoryOptions.map((item) => ({ label: item, value: item })),
+    options: (productStore.categoryOptions || []).map((item) => ({ label: item, value: item })),
   },
   {
     key: 'env',
     label: '재배환경',
     type: 'select',
-    options: productStore.envOptions.map((item) => ({ label: item, value: item })),
+    options: (productStore.envOptions || []).map((item) => ({ label: item, value: item })),
   },
   {
     key: 'keyword',
@@ -39,13 +44,15 @@ const filterFields = computed(() => [
 ])
 
 const filteredProducts = computed(() => {
-  const keyword = filters.value.keyword.trim().toLowerCase()
+  const keyword = (filters.value.keyword || '').trim().toLowerCase()
+  const allProducts = productStore.products || []
 
-  return productStore.products.filter((item) => {
+  return allProducts.filter((item) => {
+    if (!item) return false
     const matchCategory = !filters.value.category || item.category === filters.value.category
     const matchEnv = !filters.value.env || (item.tags?.env || []).includes(filters.value.env)
     const tags = Object.values(item.tags || {}).flat().join(' ').toLowerCase()
-    const matchKeyword = !keyword || item.name.toLowerCase().includes(keyword) || tags.includes(keyword)
+    const matchKeyword = !keyword || (item.name || '').toLowerCase().includes(keyword) || tags.includes(keyword)
 
     return matchCategory && matchEnv && matchKeyword
   })
@@ -62,33 +69,40 @@ const loadMore = () => {
   visibleCount.value += 6
 }
 
-const toggleCompare = (id) => {
-  const result = productStore.toggleCompareItem(id)
-  if (!result.ok && result.reason === 'limit') {
+const toggleCompare = async (id) => {
+  const result = await productStore.toggleCompareItem(id)
+  if (result && !result.ok && result.reason === 'limit') {
     window.alert('비교함에는 최대 3개까지만 담을 수 있습니다.')
   }
 }
 
+const toggleFavorite = async (id) => {
+  await productStore.toggleFavoriteItem(id)
+}
+
 const openCompare = () => {
-  if (productStore.compareItems.length < 2) {
+  if (!productStore.compareItems || productStore.compareItems.length < 2) {
     window.alert('비교하려면 최소 2개 이상의 상품을 선택해주세요.')
     return
   }
-
   router.push('/products/compare')
 }
 
 onMounted(async () => {
   try {
-    await productStore.fetchProducts()
+    await Promise.all([
+      productStore.fetchProducts(),
+      productStore.fetchFavorites(),
+      productStore.fetchCompareList(),
+    ])
   } catch (err) {
-    console.error('Failed to fetch products:', err)
+    console.error('Failed to fetch catalog data:', err)
   }
 })
 </script>
 
 <template>
-  <section>
+  <section v-if="productStore">
     <PageHeader title="전체 상품 목록" subtitle="거래처용 카탈로그입니다.">
       <template #actions>
         <button
@@ -96,7 +110,7 @@ onMounted(async () => {
           class="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
           @click="openCompare"
         >
-          비교함 ({{ productStore.compareItems.length }}/3)
+          비교함 ({{ (productStore.compareItems || []).length }}/3)
         </button>
         <button
           type="button"
@@ -119,11 +133,12 @@ onMounted(async () => {
           v-for="item in visibleProducts"
           :key="item.id"
           :item="item"
+          :show-price="!isClient"
           :compare-active="productStore.isInCompare(item.id)"
           :favorite-active="productStore.isFavorite(item.id)"
           @select="(id) => router.push(`/products/${id}`)"
           @toggle-compare="toggleCompare"
-          @toggle-favorite="productStore.toggleFavoriteItem"
+          @toggle-favorite="toggleFavorite"
         />
 
         <div

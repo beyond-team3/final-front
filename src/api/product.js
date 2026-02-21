@@ -24,24 +24,24 @@ export function getFavorites() {
   return api.get('/products/favorites')
 }
 
-export function addFavorite(productId) {
-  return api.post('/products/favorites', { productId })
+export function addFavorite(data) {
+  return api.post('/products/favorites', data)
 }
 
-export function removeFavorite(productId) {
-  return api.delete(`/products/favorites/${productId}`)
+export function removeFavorite(id) {
+  return api.delete(`/products/favorites/${id}`)
 }
 
 export function getCompareList() {
   return api.get('/products/compare')
 }
 
-export function addToCompare(productId) {
-  return api.post('/products/compare', { productId })
+export function addToCompare(data) {
+  return api.post('/products/compare', data)
 }
 
-export function removeFromCompare(productId) {
-  return api.delete(`/products/compare/${productId}`)
+export function removeFromCompare(id) {
+  return api.delete(`/products/compare/${id}`)
 }
 
 export function submitFeedback(productId, data) {

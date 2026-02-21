@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
@@ -17,18 +17,8 @@ const product = computed(() => productStore.getProductById(productId.value))
 const noteDraft = ref('')
 
 const tagRows = computed(() => {
-  if (!product.value) {
-    return []
-  }
-
-  const rows = []
-
-  // 판매 단가 (영업사원만 표시)
-  if (isSalesRep.value && product.value.priceData) {
-    rows.push({ key: 'price', label: '판매 단가' })
-  }
-
-  const tags = [
+  if (!product.value) return []
+  return [
     { key: 'env', label: '재배환경' },
     { key: 'res', label: '내병성' },
     { key: 'growth', label: '생육/숙기' },
@@ -45,32 +35,25 @@ const tagRows = computed(() => {
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
 
-const formattedPrice = computed(() => {
-  if (!product.value?.priceData?.price) return ''
-  return Number(product.value.priceData.price).toLocaleString()
-})
-
-const formattedAmount = computed(() => {
-  if (!product.value?.priceData?.amount) return ''
-  return Number(product.value.priceData.amount).toLocaleString()
+onMounted(() => {
+  if (!productStore.products || productStore.products.length === 0) {
+    productStore.fetchProducts()
+  }
 })
 
 watch(productId, (nextId) => {
   noteDraft.value = productStore.getProductNote(nextId)
 }, { immediate: true })
 
-const toggleCompare = () => {
-  const result = productStore.toggleCompareItem(productId.value)
-  if (!result.ok && result.reason === 'limit') {
+const toggleCompare = async () => {
+  const result = await productStore.toggleCompareItem(productId.value)
+  if (result && !result.ok && result.reason === 'limit') {
     window.alert('비교함에는 최대 3개까지만 담을 수 있습니다.')
   }
 }
 
 const saveNote = () => {
-  if (!product.value) {
-    return
-  }
-
+  if (!product.value) return
   productStore.setProductNote(product.value.id, noteDraft.value.trim())
   window.alert('피드백이 저장되었습니다.')
 }
@@ -106,22 +89,28 @@ const saveNote = () => {
     </PageHeader>
 
     <div class="grid gap-6 rounded-xl border border-slate-200 bg-white p-6 lg:grid-cols-[380px_1fr]">
-      <div class="overflow-hidden rounded-xl bg-slate-100">
+      <div class="overflow-hidden rounded-xl bg-slate-100 h-[380px]">
         <img :src="product.imageUrl" :alt="product.name" class="h-full w-full object-cover" />
       </div>
 
-      <div>
+      <div class="flex flex-col">
         <div class="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-blue-600">{{ product.category }}</p>
             <h3 class="mt-2 text-3xl font-bold text-slate-800">{{ product.name }}</h3>
+            
+            <!-- 단가 정보 (관리자/영업사원에게만 표시) -->
+            <div v-if="!isClient" class="mt-3 flex items-baseline gap-2">
+              <span class="text-2xl font-bold text-slate-900">₩{{ (product.price || 0).toLocaleString() }}</span>
+              <span class="text-sm text-slate-500">/ {{ product.unit || '단위 미정' }}</span>
+            </div>
           </div>
 
           <div class="flex gap-2">
             <button
               type="button"
               class="rounded-full border px-3 py-1 text-sm font-semibold"
-              :class="productStore.isInCompare(product.id) ? 'border-emerald-500 text-emerald-700' : 'border-slate-300 text-slate-600'"
+              :class="productStore.isInCompare(product.id) ? 'border-emerald-500 text-emerald-700 bg-emerald-50' : 'border-slate-300 text-slate-600'"
               @click="toggleCompare"
             >
               {{ productStore.isInCompare(product.id) ? '담기 완료' : '+ 비교담기' }}
@@ -129,7 +118,7 @@ const saveNote = () => {
             <button
               type="button"
               class="rounded-full border px-3 py-1 text-sm font-semibold"
-              :class="productStore.isFavorite(product.id) ? 'border-amber-500 text-amber-600' : 'border-slate-300 text-slate-600'"
+              :class="productStore.isFavorite(product.id) ? 'border-amber-500 text-amber-600 bg-amber-50' : 'border-slate-300 text-slate-600'"
               @click="productStore.toggleFavoriteItem(product.id)"
             >
               {{ productStore.isFavorite(product.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
@@ -137,31 +126,19 @@ const saveNote = () => {
           </div>
         </div>
 
-        <p class="mt-4 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600">{{ product.desc }}</p>
+        <p class="mt-4 flex-1 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600 whitespace-pre-wrap">{{ product.desc }}</p>
 
-        <div class="mt-6">
-          <h4 class="mb-4 text-lg font-bold text-slate-800">상세 품종 특성</h4>
-          
-          <div class="space-y-3">
-            <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-slate-100 pb-3 md:grid-cols-[110px_1fr]">
-              <p class="text-sm font-semibold text-slate-500">{{ row.label }}</p>
-
-              <!-- 판매 단가 -->
-              <div v-if="row.key === 'price'" class="flex items-baseline gap-1">
-                <span class="text-base font-bold text-slate-900">{{ formattedPrice }}원</span>
-                <span class="text-xs text-slate-500">/ {{ formattedAmount }}{{ product.priceData.unit }}</span>
-              </div>
-
-              <!-- 일반 태그 -->
-              <div v-else class="flex flex-wrap gap-2">
-                <span
-                  v-for="tag in product.tags[row.key]"
-                  :key="`${row.key}-${tag}`"
-                  class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
-                >
-                  {{ tag }}
-                </span>
-              </div>
+        <div class="mt-6 space-y-3">
+          <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-slate-100 pb-3 md:grid-cols-[110px_1fr]">
+            <p class="text-sm font-semibold text-slate-500">{{ row.label }}</p>
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="tag in product.tags[row.key]"
+                :key="`${row.key}-${tag}`"
+                class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+              >
+                {{ tag }}
+              </span>
             </div>
           </div>
         </div>
@@ -170,13 +147,13 @@ const saveNote = () => {
 
     <section
       v-if="isSalesRep"
-      class="mt-6 rounded-xl border border-slate-200 bg-white p-6"
+      class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
     >
       <div class="mb-3 flex items-center justify-between gap-2">
-        <h3 class="text-base font-bold text-slate-800">영업 피드백</h3>
+        <h3 class="text-base font-bold text-slate-800">나의 영업 피드백</h3>
         <button
           type="button"
-          class="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           @click="saveNote"
         >
           피드백 저장
@@ -184,13 +161,14 @@ const saveNote = () => {
       </div>
       <textarea
         v-model="noteDraft"
-        class="h-28 w-full rounded border border-slate-300 p-3 text-sm"
-        placeholder="상품별 영업 피드백을 기록하세요."
+        class="h-32 w-full rounded-lg border border-slate-300 p-4 text-sm focus:border-blue-500 focus:outline-none"
+        placeholder="해당 품종에 대한 영업 현장의 의견이나 고객 반응을 자유롭게 기록하세요."
       />
     </section>
   </section>
 
-  <section v-else class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-    상품 정보가 없습니다.
+  <section v-else class="rounded-xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">
+    <div class="mb-2 text-4xl">🔍</div>
+    상품 정보를 찾을 수 없습니다.
   </section>
 </template>

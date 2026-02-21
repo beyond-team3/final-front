@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
+import { getMyInfo } from '@/api/auth'
 import {
   createProduct as createProductApi,
   getProducts,
@@ -13,35 +15,16 @@ import {
   removeFromCompare as removeFromCompareApi,
 } from '@/api/product'
 
-const DEFAULT_CRITERIA = {
-  env: true,
-  res: true,
-  growth: true,
-  quality: true,
-  conv: true,
-}
-
+const DEFAULT_CRITERIA = { env: true, res: true, growth: true, quality: true, conv: true }
 const SIMILARITY_KEYS = ['env', 'res', 'growth', 'quality', 'conv']
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
   return error?.response?.data?.message || error?.message || fallback
 }
 
-function toId(item) {
-  if (typeof item === 'number' || typeof item === 'string') {
-    return Number(item)
-  }
-
-  if (item && typeof item === 'object') {
-    return Number(item.productId ?? item.id)
-  }
-
-  return NaN
-}
-
 export const useProductStore = defineStore('product', () => {
+  const authStore = useAuthStore()
   const products = ref([])
-  const currentProduct = ref(null)
   const compareItems = ref([])
   const favoriteItems = ref([])
   const loading = ref(false)
@@ -50,504 +33,233 @@ export const useProductStore = defineStore('product', () => {
   const selectedBaseProductId = ref(null)
   const similarityThreshold = ref(70)
   const similarityCriteria = ref({ ...DEFAULT_CRITERIA })
-
   const feedbackByProduct = ref({})
   const productNotes = ref({})
 
-  const categoryOptions = computed(() => [...new Set(products.value.map((item) => item.category).filter(Boolean))])
-
+  const categoryOptions = computed(() => [...new Set((products.value || []).map((item) => item.category).filter(Boolean))])
   const envOptions = computed(() => {
-    const all = products.value.flatMap((item) => item.tags?.env || [])
+    const all = (products.value || []).flatMap((item) => item.tags?.env || [])
     return [...new Set(all)]
   })
 
-  const compareProducts = computed(() => compareItems.value
-    .map((id) => getProductById(id))
+  const compareProducts = computed(() => (compareItems.value || [])
+    .map((item) => getProductById(item.productId))
     .filter(Boolean))
 
-  const favoriteProducts = computed(() => favoriteItems.value
-    .map((id) => getProductById(id))
+  const favoriteProducts = computed(() => (favoriteItems.value || [])
+    .map((item) => getProductById(item.productId))
     .filter(Boolean))
 
   const enabledSimilarityKeys = computed(() => SIMILARITY_KEYS.filter((key) => similarityCriteria.value[key]))
 
-  const getProductById = (id) => products.value.find((item) => Number(item.id) === Number(id))
+  const getProductById = (id) => (products.value || []).find((item) => Number(item.id) === Number(id))
+  const isInCompare = (id) => (compareItems.value || []).some((item) => Number(item.productId) === Number(id))
+  const isFavorite = (id) => (favoriteItems.value || []).some((item) => Number(item.productId) === Number(id))
 
-  const isInCompare = (id) => compareItems.value.includes(Number(id))
-  const isFavorite = (id) => favoriteItems.value.includes(Number(id))
+  async function ensureUser() {
+    if (authStore.me?.id) return authStore.me.id
+    try {
+      const myInfo = await getMyInfo()
+      if (myInfo?.id) {
+        authStore.me = myInfo
+        return myInfo.id
+      }
+    } catch (e) {}
+    return null
+  }
 
   async function fetchProducts(params) {
     loading.value = true
     error.value = null
-
     try {
       const result = await getProducts(params)
       products.value = Array.isArray(result) ? result : []
-      return products.value
     } catch (e) {
-      error.value = getErrorMessage(e, '상품 목록을 불러오지 못했습니다.')
-      throw e
+      error.value = getErrorMessage(e, '상품 목록 로드 실패')
     } finally {
       loading.value = false
     }
   }
 
-  // API를 사용하여 즐겨찾기 목록 불러오기
   async function fetchFavorites() {
+    const userId = await ensureUser()
+    if (!userId) return []
     try {
       const result = await getFavoritesApi()
-      // API 응답 구조에 따라 수정 필요 (여기선 ID 배열 또는 객체 배열 가정)
-      // 만약 객체 배열로 온다면 map으로 ID 추출 필요
-      const ids = Array.isArray(result) 
-        ? result.map(item => typeof item === 'object' ? item.productId : item)
+      favoriteItems.value = Array.isArray(result) 
+        ? result.filter(item => Number(item.userId) === Number(userId))
+            .map(item => ({ id: item.id, productId: Number(item.productId), userId: Number(item.userId) }))
         : []
-      favoriteItems.value = ids.map(Number).filter(id => !isNaN(id))
       return favoriteItems.value
-    } catch (e) {
-      console.error('즐겨찾기 목록 로드 실패', e)
-      return []
-    }
+    } catch (e) { return [] }
   }
 
-  // API를 사용하여 비교함 목록 불러오기
   async function fetchCompareList() {
+    const userId = await ensureUser()
+    if (!userId) return []
     try {
       const result = await getCompareListApi()
-      const ids = Array.isArray(result)
-        ? result.map(item => typeof item === 'object' ? item.productId : item)
+      compareItems.value = Array.isArray(result)
+        ? result.filter(item => Number(item.userId) === Number(userId))
+            .map(item => ({ id: item.id, productId: Number(item.productId), userId: Number(item.userId) }))
         : []
-      compareItems.value = ids.map(Number).filter(id => !isNaN(id))
       return compareItems.value
-    } catch (e) {
-      console.error('비교함 목록 로드 실패', e)
-      return []
-    }
+    } catch (e) { return [] }
   }
 
   const addCompareItem = async (id) => {
     const productId = Number(id)
-    if (compareItems.value.includes(productId)) {
-      return { ok: true, reason: 'exists' }
-    }
+    const userId = await ensureUser()
+    if (!userId) return { ok: false, reason: 'unauthorized' }
+    if (isInCompare(productId)) return { ok: true, reason: 'exists' }
+    if (compareItems.value.length >= 3) return { ok: false, reason: 'limit' }
 
-    if (compareItems.value.length >= 3) {
-      return { ok: false, reason: 'limit' }
-    }
-
-    // 낙관적 업데이트
-    compareItems.value.push(productId)
-    
     try {
-      await addToCompareApi(productId)
+      const response = await addToCompareApi({ productId, userId: Number(userId) })
+      if (response) {
+        compareItems.value.push({ id: response.id, productId: Number(response.productId), userId: Number(response.userId) })
+      }
       return { ok: true, reason: 'added' }
-    } catch (e) {
-      // 실패 시 롤백
-      compareItems.value = compareItems.value.filter(item => item !== productId)
-      error.value = getErrorMessage(e, '비교함 추가 실패')
-      return { ok: false, reason: 'error' }
-    }
+    } catch (e) { return { ok: false, reason: 'error' } }
   }
 
   const removeCompareItem = async (id) => {
     const productId = Number(id)
-    const previous = [...compareItems.value]
-    compareItems.value = compareItems.value.filter((item) => item !== productId)
+    const record = compareItems.value.find(item => Number(item.productId) === productId)
     
-    try {
-      await removeFromCompareApi(productId)
-    } catch (e) {
-      compareItems.value = previous
-      error.value = getErrorMessage(e, '비교함 삭제 실패')
+    // 낙관적 업데이트: UI에서 먼저 제거
+    compareItems.value = compareItems.value.filter((item) => Number(item.productId) !== productId)
+    
+    if (record?.id) {
+      try {
+        await removeFromCompareApi(record.id)
+      } catch (e) {
+        console.error('서버 동기화 실패(비교함):', e)
+        // 실패하더라도 UI는 이미 지워진 상태 유지 (사용자 편의)
+      }
     }
+    return { ok: true }
   }
 
-  const toggleCompareItem = (id) => {
-    if (isInCompare(id)) {
-      removeCompareItem(id)
-      return { ok: true, reason: 'removed' }
-    }
-
-    return addCompareItem(id)
+  const toggleCompareItem = async (id) => {
+    if (isInCompare(id)) return await removeCompareItem(id)
+    return await addCompareItem(id)
   }
 
   const clearCompareItems = async () => {
     const previous = [...compareItems.value]
     compareItems.value = []
-    
     try {
-      const results = await Promise.allSettled(previous.map(id => removeFromCompareApi(id)))
-      
-      const failed = results
-        .map((result, index) => result.status === 'rejected' ? previous[index] : null)
-        .filter(id => id !== null)
-
-      if (failed.length > 0) {
-        compareItems.value = failed
-        error.value = '일부 항목을 비교함에서 삭제하지 못했습니다.'
-      }
-    } catch (e) {
-      compareItems.value = previous
-      error.value = getErrorMessage(e, '비교함 초기화 실패')
-    }
+      await Promise.all(previous.map(item => removeFromCompareApi(item.id)))
+    } catch (e) {}
   }
 
   const addFavoriteItem = async (id) => {
     const productId = Number(id)
-    if (favoriteItems.value.includes(productId)) {
-      return
-    }
-
-    favoriteItems.value.push(productId)
-    
+    const userId = await ensureUser()
+    if (!userId || isFavorite(productId)) return
     try {
-      await addFavoriteApi(productId)
-    } catch (e) {
-      favoriteItems.value = favoriteItems.value.filter(item => item !== productId)
-      error.value = getErrorMessage(e, '즐겨찾기 추가 실패')
-    }
+      const response = await addFavoriteApi({ productId, userId: Number(userId) })
+      if (response) {
+        favoriteItems.value.push({ id: response.id, productId: Number(response.productId), userId: Number(response.userId) })
+      }
+    } catch (e) {}
   }
 
   const removeFavoriteItem = async (id) => {
     const productId = Number(id)
-    const previous = [...favoriteItems.value]
-    favoriteItems.value = favoriteItems.value.filter((item) => item !== productId)
+    const record = favoriteItems.value.find(item => Number(item.productId) === productId)
     
-    try {
-      await removeFavoriteApi(productId)
-    } catch (e) {
-      favoriteItems.value = previous
-      error.value = getErrorMessage(e, '즐겨찾기 삭제 실패')
+    // 낙관적 업데이트: UI에서 먼저 제거
+    favoriteItems.value = favoriteItems.value.filter((item) => Number(item.productId) !== productId)
+    
+    if (record?.id) {
+      try {
+        await removeFavoriteApi(record.id)
+      } catch (e) {
+        console.error('서버 동기화 실패(즐겨찾기):', e)
+      }
     }
   }
 
-  const toggleFavoriteItem = (id) => {
-    if (isFavorite(id)) {
-      removeFavoriteItem(id)
-      return
-    }
-
-    addFavoriteItem(id)
+  const toggleFavoriteItem = async (id) => {
+    if (isFavorite(id)) await removeFavoriteItem(id)
+    else await addFavoriteItem(id)
   }
 
-  const setSelectedBaseProduct = (id) => {
-    selectedBaseProductId.value = id ? Number(id) : null
+  const setSelectedBaseProduct = (id) => { selectedBaseProductId.value = id ? Number(id) : null }
+  const setSimilarityThreshold = (val) => { similarityThreshold.value = Number(val) }
+  const setSimilarityCriterion = (key, val) => { similarityCriteria.value[key] = val }
+
+  const getSimilarityScore = (baseId, targetId) => {
+    const base = getProductById(baseId)
+    const target = getProductById(targetId)
+    if (!base || !target) return 0
+    const keys = enabledSimilarityKeys.value
+    if (!keys.length) return 0
+    const scores = keys.map(k => {
+      const bTags = base.tags?.[k] || [], tTags = target.tags?.[k] || []
+      if (!bTags.length && !tTags.length) return 100
+      const intersection = bTags.filter(t => tTags.includes(t)).length
+      const union = new Set([...bTags, ...tTags]).size
+      return union === 0 ? 0 : Math.round((intersection / union) * 100)
+    })
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
   }
 
-  const clearSelectedBaseProduct = () => {
-    selectedBaseProductId.value = null
-  }
-
-  const setSimilarityThreshold = (value) => {
-    const next = Number(value)
-    if (Number.isNaN(next)) {
-      return
-    }
-
-    similarityThreshold.value = Math.min(100, Math.max(0, next))
-  }
-
-  const setSimilarityCriterion = (key, checked) => {
-    if (!Object.prototype.hasOwnProperty.call(similarityCriteria.value, key)) {
-      return
-    }
-
-    similarityCriteria.value = {
-      ...similarityCriteria.value,
-      [key]: Boolean(checked),
-    }
-  }
-
-  const resetSimilarityOptions = () => {
-    similarityThreshold.value = 70
-    similarityCriteria.value = { ...DEFAULT_CRITERIA }
-  }
-
-  const calcTagScore = (baseTags = [], targetTags = []) => {
-    if (!baseTags.length && !targetTags.length) {
-      return 100
-    }
-
-    const baseSet = new Set(baseTags)
-    const targetSet = new Set(targetTags)
-    const union = new Set([...baseSet, ...targetSet])
-    if (union.size === 0) {
-      return 0
-    }
-
-    const intersectionCount = [...baseSet].filter((item) => targetSet.has(item)).length
-    return Math.round((intersectionCount / union.size) * 100)
-  }
-
-  const getSimilarityScore = (baseId, targetId, customKeys = null) => {
-    const baseProduct = getProductById(baseId)
-    const targetProduct = getProductById(targetId)
-    if (!baseProduct || !targetProduct) {
-      return 0
-    }
-
-    const keys = (customKeys && customKeys.length ? customKeys : enabledSimilarityKeys.value)
-    if (!keys.length) {
-      return 0
-    }
-
-    const scores = keys.map((key) => calcTagScore(baseProduct.tags?.[key] || [], targetProduct.tags?.[key] || []))
-    return Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
-  }
-
-  const getSimilarProducts = (baseId, options = {}) => {
-    const baseProduct = getProductById(baseId)
-    if (!baseProduct) {
-      return []
-    }
-
-    const threshold = Number(options.threshold ?? similarityThreshold.value)
-    const keys = options.criteriaKeys || enabledSimilarityKeys.value
-
-    return products.value
-      .filter((item) => Number(item.id) !== Number(baseProduct.id))
-      .map((item) => ({
-        ...item,
-        similarity: getSimilarityScore(baseProduct.id, item.id, keys),
-      }))
-      .filter((item) => item.similarity >= threshold)
+  const getSimilarProducts = (baseId, opts = {}) => {
+    const base = getProductById(baseId)
+    if (!base) return []
+    const threshold = opts.threshold ?? similarityThreshold.value
+    return (products.value || [])
+      .filter(p => Number(p.id) !== Number(base.id))
+      .map(p => ({ ...p, similarity: getSimilarityScore(base.id, p.id) }))
+      .filter(p => p.similarity >= threshold)
       .sort((a, b) => b.similarity - a.similarity)
   }
 
-  const getFeedbackMessages = (productId) => feedbackByProduct.value[Number(productId)] || []
-
-  const addFeedbackMessage = (productId, content, sender = '나', parentId = null) => {
-    const key = Number(productId)
-    if (!key || !content?.trim()) {
-      return
-    }
-
-    const list = [...(feedbackByProduct.value[key] || [])]
-    const nextId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
-    const next = {
-      id: nextId,
-      sender,
-      content: content.trim(),
-      isMine: true,
-      parentId,
-      createdAt: new Date().toISOString(),
-    }
-
-    feedbackByProduct.value = {
-      ...feedbackByProduct.value,
-      [key]: [...list, next],
-    }
-
-    submitFeedback(key, next).catch((e) => {
-      error.value = getErrorMessage(e, '피드백 등록에 실패했습니다.')
-    })
+  const getFeedbackMessages = (pid) => feedbackByProduct.value[pid] || []
+  const addFeedbackMessage = (pid, content) => {
+    const msg = { id: Date.now(), content, sender: '나', isMine: true, createdAt: new Date().toISOString() }
+    feedbackByProduct.value[pid] = [...getFeedbackMessages(pid), msg]
+    submitFeedback(pid, msg).catch(() => {})
   }
-
-  const updateFeedbackMessage = (productId, messageId, content) => {
-    const key = Number(productId)
-    if (!key || !content?.trim()) {
-      return false
-    }
-
-    const list = [...(feedbackByProduct.value[key] || [])]
-    const index = list.findIndex((item) => item.id === Number(messageId) && item.isMine)
-    if (index < 0) {
-      return false
-    }
-
-    list[index] = {
-      ...list[index],
-      content: content.trim(),
-    }
-
-    feedbackByProduct.value = {
-      ...feedbackByProduct.value,
-      [key]: list,
-    }
-
+  const updateFeedbackMessage = (pid, mid, content) => {
+    const msgs = getFeedbackMessages(pid)
+    const idx = msgs.findIndex(m => m.id === mid && m.isMine)
+    if (idx < 0) return false
+    msgs[idx].content = content
     return true
   }
-
-  const deleteFeedbackMessage = (productId, messageId) => {
-    const key = Number(productId)
-    if (!key) {
-      return false
-    }
-
-    const list = [...(feedbackByProduct.value[key] || [])]
-    const next = list.filter((item) => !(item.id === Number(messageId) && item.isMine))
-    const changed = next.length !== list.length
-
-    if (changed) {
-      feedbackByProduct.value = {
-        ...feedbackByProduct.value,
-        [key]: next,
-      }
-    }
-
-    return changed
+  const deleteFeedbackMessage = (pid, mid) => {
+    feedbackByProduct.value[pid] = getFeedbackMessages(pid).filter(m => !(m.id === mid && m.isMine))
   }
 
-  const getProductNote = (productId) => productNotes.value[Number(productId)] || ''
-
-  const setProductNote = (productId, text) => {
-    productNotes.value = {
-      ...productNotes.value,
-      [Number(productId)]: text,
-    }
-  }
+  const getProductNote = (pid) => productNotes.value[pid] || ''
+  const setProductNote = (pid, text) => { productNotes.value[pid] = text }
 
   const createProduct = (payload) => {
-    const optimistic = {
-      id: `temp-${Date.now()}`,
-      ...payload,
-    }
-
-    products.value.unshift(optimistic)
-
-    createProductApi(payload)
-      .then((created) => {
-        if (!created) {
-          return
-        }
-
-        const index = products.value.findIndex((item) => String(item.id) === String(optimistic.id))
-        if (index >= 0) {
-          products.value[index] = created
-        }
-      })
-      .catch((e) => {
-        error.value = getErrorMessage(e, '상품 등록에 실패했습니다.')
-        products.value = products.value.filter((item) => String(item.id) !== String(optimistic.id))
-      })
+    createProductApi(payload).then(res => { if (res) products.value.unshift(res) })
   }
-
   const updateProduct = (id, payload) => {
-    const productId = Number(id)
-    const previous = getProductById(productId)
-
-    products.value = products.value.map((item) => {
-      if (Number(item.id) !== productId) {
-        return item
-      }
-
-      return {
-        ...item,
-        ...payload,
-      }
+    updateProductApi(id, payload).then(res => {
+      if (res) products.value = products.value.map(p => Number(p.id) === Number(id) ? res : p)
     })
-
-    updateProductApi(productId, payload)
-      .then((updated) => {
-        if (!updated) {
-          return
-        }
-
-        products.value = products.value.map((item) => {
-          if (Number(item.id) !== productId) {
-            return item
-          }
-          return {
-            ...item,
-            ...updated,
-          }
-        })
-      })
-      .catch((e) => {
-        error.value = getErrorMessage(e, '상품 수정에 실패했습니다.')
-
-        if (previous) {
-          products.value = products.value.map((item) => {
-            if (Number(item.id) !== productId) {
-              return item
-            }
-            return previous
-          })
-        }
-      })
   }
-
   const deleteProduct = (id) => {
-    const productId = Number(id)
-    
-    // 1. 상품 목록에서 제거
-    products.value = products.value.filter((item) => Number(item.id) !== productId)
-    
-    // 2. 비교함/즐겨찾기에서 제거 (메모리 상태)
-    const wasInCompare = compareItems.value.includes(productId)
-    const wasFavorite = favoriteItems.value.includes(productId)
-    
-    compareItems.value = compareItems.value.filter((item) => item !== productId)
-    favoriteItems.value = favoriteItems.value.filter((item) => item !== productId)
-
-    // 3. 서버 API 동기화 (비교함/즐겨찾기 삭제)
-    if (wasInCompare) {
-      removeFromCompareApi(productId).catch(e => console.error('비교함 동기화 실패', e))
-    }
-    if (wasFavorite) {
-      removeFavoriteApi(productId).catch(e => console.error('즐겨찾기 동기화 실패', e))
-    }
-
-    if (selectedBaseProductId.value === productId) {
-      selectedBaseProductId.value = null
-    }
-
-    delete feedbackByProduct.value[productId]
-    delete productNotes.value[productId]
+    products.value = (products.value || []).filter(p => Number(p.id) !== Number(id))
   }
-
-  async function initialize() {
-    // 중복 호출 방지: fetchProducts는 각 View에서 호출
-    await Promise.all([
-      fetchFavorites(),
-      fetchCompareList(),
-    ])
-  }
-
-  void initialize()
 
   return {
-    products,
-    currentProduct,
-    compareItems,
-    favoriteItems,
-    compareProducts,
-    favoriteProducts,
-    categoryOptions,
-    envOptions,
-    selectedBaseProductId,
-    similarityThreshold,
-    similarityCriteria,
-    enabledSimilarityKeys,
-    loading,
-    error,
-    fetchProducts,
-    fetchFavorites,
-    fetchCompareList,
-    getProductById,
-    isInCompare,
-    isFavorite,
-    addCompareItem,
-    removeCompareItem,
-    toggleCompareItem,
-    clearCompareItems,
-    addFavoriteItem,
-    removeFavoriteItem,
-    toggleFavoriteItem,
-    setSelectedBaseProduct,
-    clearSelectedBaseProduct,
-    setSimilarityThreshold,
-    setSimilarityCriterion,
-    resetSimilarityOptions,
-    getSimilarityScore,
-    getSimilarProducts,
-    getFeedbackMessages,
-    addFeedbackMessage,
-    updateFeedbackMessage,
-    deleteFeedbackMessage,
-    getProductNote,
-    setProductNote,
-    createProduct,
-    updateProduct,
-    deleteProduct,
+    products, compareItems, favoriteItems, loading, error,
+    compareProducts, favoriteProducts, categoryOptions, envOptions,
+    selectedBaseProductId, similarityThreshold, similarityCriteria, enabledSimilarityKeys,
+    fetchProducts, fetchFavorites, fetchCompareList, getProductById,
+    isInCompare, isFavorite, toggleCompareItem, toggleFavoriteItem,
+    removeCompareItem, removeFavoriteItem, clearCompareItems,
+    setSelectedBaseProduct, setSimilarityThreshold, setSimilarityCriterion,
+    getSimilarityScore, getSimilarProducts, getFeedbackMessages, addFeedbackMessage,
+    updateFeedbackMessage, deleteFeedbackMessage, getProductNote, setProductNote,
+    createProduct, updateProduct, deleteProduct
   }
 })
