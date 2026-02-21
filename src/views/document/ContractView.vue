@@ -3,12 +3,16 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
+import { useHistoryStore } from '@/stores/history'
+import { useAuthStore } from '@/stores/auth'
 import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
 const productStore = useProductStore()
+const historyStore = useHistoryStore()
+const authStore = useAuthStore()
 
 // --- 상태 관리 ---
 const isProcessStarted = ref(false)
@@ -16,6 +20,10 @@ const isNewMode = ref(false)
 const showStartModal = ref(true)
 const showCorpModal = ref(false)
 const showProductModal = ref(false)
+
+// 원본 데이터 추적
+const sourceQuotationId = ref(null)
+const sourceHistoryId = ref(null)
 
 const conInCorpCode = ref('')
 const conInCorp = ref('')
@@ -35,7 +43,7 @@ const varietyFilter = ref('전체')
 onMounted(async () => {
   try {
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
-    if (documentStore.fetchClients) await documentStore.fetchClients()
+    if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
     if (productStore.fetchProducts) await productStore.fetchProducts()
   } catch (e) {
     console.error("데이터 로딩 중 에러 발생:", e)
@@ -52,7 +60,16 @@ const startContract = (q) => {
   isNewMode.value = false
   isProcessStarted.value = true
   showStartModal.value = false
-  conInCorpCode.value = q.client?.code || ''
+
+  sourceQuotationId.value = q.id
+
+  // 히스토리가 직접 연결되어 있지 않으면 전체 히스토리에서 해당 견적서가 포함된 건을 찾슴돠!
+  const existingPipeline = historyStore.pipelines?.find(h =>
+      h.documents?.some(d => String(d.id) === String(q.id))
+  )
+  sourceHistoryId.value = q.historyId || existingPipeline?.id || null
+
+  conInCorpCode.value = q.clientId || q.client?.id || ''
   conInCorp.value = q.client?.name || ''
   conInName.value = q.client?.contact || ''
   conInNo.value = q.id
@@ -70,6 +87,10 @@ const startNewContract = () => {
   isNewMode.value = true
   isProcessStarted.value = true
   showStartModal.value = false
+
+  sourceQuotationId.value = null
+  sourceHistoryId.value = null
+
   conInCorpCode.value = ""
   conInCorp.value = ""
   conInName.value = ""
@@ -78,7 +99,7 @@ const startNewContract = () => {
 }
 
 const setCorp = (corp) => {
-  conInCorpCode.value = corp.code || corp.id
+  conInCorpCode.value = corp.id // 코드가 아니라 numeric ID
   conInCorp.value = corp.name
   conInName.value = corp.managerName || corp.contact
   showCorpModal.value = false
@@ -137,6 +158,10 @@ const totalSum = computed(() =>
     selectedItems.value.reduce((sum, item) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
 )
 
+const availableQuotations = computed(() => {
+  return documentStore.quotations?.filter(q => q.status !== 'CONTRACTED') || []
+})
+
 const todayFormatted = computed(() => {
   const now = new Date()
   return `${now.getFullYear()}년 ${String(now.getMonth() + 1).padStart(2, '0')}월 ${String(now.getDate()).padStart(2, '0')}일`
@@ -148,15 +173,10 @@ const submitContract = async () => {
   if (selectedItems.value.length === 0) return window.alert("계약할 상품을 하나라도 추가해주세요")
 
   // 로그인 유저 정보
-  const currentUser = documentStore.currentUser || { id: 1, name: "김민수" }
-  const now = new Date()
-  const datePart = now.getFullYear().toString() +
-      (now.getMonth() + 1).toString().padStart(2, '0') +
-      now.getDate().toString().padStart(2, '0') // YYYYMMDD 형식
-
-  const sequence = (documentStore.documents?.length || 0) + 1 // 현재 문서 개수 + 1
-  const contractId = `CT-${datePart}-${sequence.toString().padStart(3, '0')}` // 예: CT-20260220-001
+  const currentUser = authStore.me || { id: 1, name: "김민수" }
+  const contractId = `CT-${Date.now()}`
   const today = new Date().toISOString().split('T')[0]
+  const usedHistoryId = sourceHistoryId.value || `H-${Date.now()}`
 
   // [JSON 서버 전송용 데이터 구성]
   const contractData = {
@@ -167,7 +187,8 @@ const submitContract = async () => {
     clientName: conInCorp.value,
     authorId: currentUser.id,
     authorName: currentUser.name,
-    status: "대기",
+    historyId: usedHistoryId, // 히스토리 아이디 명시적 저장!
+    status: "체결",
     amount: totalSum.value,
     date: today,
     startDate: conStartDate.value,
@@ -181,17 +202,32 @@ const submitContract = async () => {
       unit: item.unit,
       unitPrice: item.price,
       amount: item.qty * item.price
-    }))
+    })),
+    historyId: usedHistoryId
   }
 
   const historyData = {
-    id: `H-${Date.now()}`,
+    id: usedHistoryId,
     clientId: conInCorpCode.value,
     clientName: conInCorp.value,
     pipelineStage: "계약",
+    stageNumber: 3,
+    status: "완료",
     documentId: contractId,
-    nextAction: "물품 출고 확인",
-    updatedAt: today
+    documents: [{
+      id: contractId,
+      type: "contract",
+      typeLabel: "계약서",
+      stage: "계약",
+      stageNumber: 3,
+      status: "SIGNED",
+      date: today,
+      amount: totalSum.value
+    }],
+    amount: totalSum.value,
+    nextAction: "승인 대기",
+    updatedAt: today,
+    startDate: today
   }
 
   try {
@@ -199,11 +235,50 @@ const submitContract = async () => {
     // 1. documents 엔드포인트로 저장
     await axios.post('http://localhost:3001/documents', contractData);
 
-    // 2. history 엔드포인트로 저장
-    await axios.post('http://localhost:3001/history', historyData);
+    // 2. 히스토리 업데이트
+    if (sourceHistoryId.value) {
+      const hRes = await axios.get(`http://localhost:3001/history/${sourceHistoryId.value}`);
+      const history = hRes.data;
 
-    // 3. 스토어 상태도 동기화 (화면 갱신용)
+      const updatedHistory = {
+        ...history,
+        pipelineStage: "계약",
+        stageNumber: 3,
+        status: "완료",
+        documentId: contractId,
+        nextAction: "승인 대기",
+        updatedAt: today,
+        amount: Math.max(Number(history.amount || 0), totalSum.value)
+      };
+
+      if (Array.isArray(updatedHistory.documents)) {
+        updatedHistory.documents.push({
+          id: contractId,
+          type: "contract",
+          typeLabel: "계약서",
+          stage: "계약",
+          stageNumber: 3,
+          status: "SIGNED",
+          date: today,
+          amount: totalSum.value
+        });
+      }
+      await axios.put(`http://localhost:3001/history/${sourceHistoryId.value}`, updatedHistory);
+    } else {
+      await axios.post('http://localhost:3001/history', historyData);
+    }
+
+    // 3. 원본 견적서 업데이트 (상태 + 히스토리 아이디 보강)
+    if (sourceQuotationId.value) {
+      await axios.patch(`http://localhost:3001/documents/${sourceQuotationId.value}`, {
+        status: "CONTRACTED",
+        historyId: usedHistoryId // 견적서에도 히스토리 아이디를 박아줘야 링크가 안깨짐돠!
+      });
+    }
+
+    // 4. 스토어 상태도 동기화 (화면 갱신용)
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
+    if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
 
     window.alert(`계약서 생성 완료`);
     router.push('/documents/all');
@@ -354,7 +429,7 @@ const submitContract = async () => {
               <tr><th class="p-3">견적번호</th><th class="p-3 text-left">법인명</th><th class="p-3">담당자</th><th class="p-3">선택</th></tr>
               </thead>
               <tbody>
-              <tr v-for="q in documentStore.quotations" :key="q.id" class="border-b hover:bg-blue-50 cursor-pointer" @click="startContract(q)">
+              <tr v-for="q in availableQuotations" :key="q.id" class="border-b hover:bg-blue-50 cursor-pointer" @click="startContract(q)">
                 <td class="p-3 font-mono text-blue-600 font-bold">{{ q.id }}</td>
                 <td class="p-3 text-left font-bold text-slate-800">{{ q.client?.name }}</td>
                 <td class="p-3">{{ q.client?.contact }}</td>

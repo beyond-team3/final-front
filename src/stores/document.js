@@ -69,12 +69,29 @@ export const useDocumentStore = defineStore('document', () => {
     const productMaster = ref([])
     const clientMaster = ref([])
 
-    const quotationRequests = ref([])
-    const quotations = ref([])
-    const contracts = ref([])
-    const orders = ref([])
-    const invoices = ref([])
+    const allRawDocuments = ref([])
     const statements = ref([])
+
+    const quotationRequests = computed(() => {
+        const filtered = filterDocsForViewer(allRawDocuments.value)
+        return filtered.filter(d => ['quotation-request', 'rfq'].includes(d.type.toLowerCase()))
+    })
+    const quotations = computed(() => {
+        const filtered = filterDocsForViewer(allRawDocuments.value)
+        return filtered.filter(d => d.type.toLowerCase() === 'quotation')
+    })
+    const contracts = computed(() => {
+        const filtered = filterDocsForViewer(allRawDocuments.value)
+        return filtered.filter(d => d.type.toLowerCase() === 'contract')
+    })
+    const orders = computed(() => {
+        const filtered = filterDocsForViewer(allRawDocuments.value)
+        return filtered.filter(d => d.type.toLowerCase() === 'order')
+    })
+    const invoices = computed(() => {
+        const filtered = filterDocsForViewer(allRawDocuments.value)
+        return filtered.filter(d => d.type.toLowerCase() === 'invoice')
+    })
 
     const loading = ref(false)
     const error = ref(null)
@@ -131,15 +148,18 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         if (role === ROLES.SALES_REP) {
-            // 1단계: 내 refId(영업사원 고유 번호) 확인
             const myRefId = String(authStore.me?.refId || '')
-
-            // 2단계: 담당 거래처 목록(clientMaster)에서 managerId가 내 refId와 일치하는 것들의 ID만 추출
             const managedClientIds = clientMaster.value
                 .filter(c => String(c.managerId) === myRefId)
                 .map(c => String(c.id))
 
-            // 3단계: 문서의 clientId가 담당 거래처 목록에 포함되는지 확인
+            if (managedClientIds.length === 0) {
+                // clientMaster가 아직 로드 전일 수 있으므로, 임시로 빈 배열 반환 대신
+                // 모든 문서를 보여줄지(X), 혹은 clientMaster 로딩을 기다릴지 결정해야 함돠.
+                // 여기서는 computed 특성상 clientMaster가 차면 자동으로 재평가되므로 안전함돠.
+                return []
+            }
+
             return list.filter((item) => {
                 const docClientId = String(item.clientId || item.client?.id || '')
                 return managedClientIds.includes(docClientId)
@@ -199,19 +219,9 @@ export const useDocumentStore = defineStore('document', () => {
     async function fetchDocuments(params) {
         loading.value = true
         try {
-            // 💡 [수정] 서버에 clientId 던지지 말고 다 가져오십쇼!
             const rawList = normalizeList(await getDocuments({}))
-
-            // 💡 [핵심] 스토어 내부의 filterDocsForViewer가 행님의 refId(6)를 찾아낼 것임돠.
-            const docs = filterDocsForViewer(rawList).map(normalizeDocument)
-
-            quotationRequests.value = docs.filter(d => ['quotation-request', 'rfq'].includes(d.type.toLowerCase()))
-            quotations.value = docs.filter(d => d.type.toLowerCase() === 'quotation')
-            contracts.value = docs.filter(d => d.type.toLowerCase() === 'contract')
-            orders.value = docs.filter(d => d.type.toLowerCase() === 'order')
-            invoices.value = docs.filter(d => d.type.toLowerCase() === 'invoice')
-
-            return docs
+            allRawDocuments.value = rawList.map(normalizeDocument)
+            return allRawDocuments.value
         } catch (e) {
             console.error('문서 로드 실패:', e)
             return []
@@ -262,15 +272,15 @@ export const useDocumentStore = defineStore('document', () => {
             totalAmount: totalAmountOf(lineItems),
             historyId: null,
         })
-        quotationRequests.value.unshift(next)
+        allRawDocuments.value.unshift(next)
         const createdPipeline = historyStore.createPipeline(client, next)
         if (createdPipeline) next.historyId = createdPipeline.id
         emitDocumentCreated('quotation-request', id)
         createQuotationRequestApi(next).then((created) => {
             if (!created) return
-            const idx = quotationRequests.value.findIndex((item) => item.id === id)
+            const idx = allRawDocuments.value.findIndex((item) => item.id === id)
             if (idx >= 0) {
-                quotationRequests.value[idx] = normalizeDocument({
+                allRawDocuments.value[idx] = normalizeDocument({
                     ...created,
                     historyId: created?.historyId || next.historyId,
                 })
@@ -301,7 +311,7 @@ export const useDocumentStore = defineStore('document', () => {
             totalAmount: totalAmountOf(lineItems),
             historyId: linkedHistoryId,
         })
-        quotations.value.unshift(next)
+        allRawDocuments.value.unshift(next)
         const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
         if (targetPipeline) next.historyId = targetPipeline.id
         emitDocumentCreated('quotation', id)
@@ -311,9 +321,9 @@ export const useDocumentStore = defineStore('document', () => {
         }
         createQuotationApi(next).then((created) => {
             if (!created) return
-            const idx = quotations.value.findIndex((item) => item.id === id)
+            const idx = allRawDocuments.value.findIndex((item) => item.id === id)
             if (idx >= 0) {
-                quotations.value[idx] = normalizeDocument({
+                allRawDocuments.value[idx] = normalizeDocument({
                     ...created,
                     historyId: created?.historyId || next.historyId,
                 })
@@ -347,7 +357,7 @@ export const useDocumentStore = defineStore('document', () => {
             totalAmount: totalAmountOf(lineItems),
             historyId: linkedHistoryId,
         })
-        contracts.value.unshift(next)
+        allRawDocuments.value.unshift(next)
         const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
         if (targetPipeline) next.historyId = targetPipeline.id
         emitDocumentCreated('contract', id)
@@ -357,9 +367,9 @@ export const useDocumentStore = defineStore('document', () => {
         }
         createContractApi(next).then((created) => {
             if (!created) return
-            const idx = contracts.value.findIndex((item) => item.id === id)
+            const idx = allRawDocuments.value.findIndex((item) => item.id === id)
             if (idx >= 0) {
-                contracts.value[idx] = normalizeDocument({
+                allRawDocuments.value[idx] = normalizeDocument({
                     ...created,
                     historyId: created?.historyId || next.historyId,
                 })
@@ -391,16 +401,16 @@ export const useDocumentStore = defineStore('document', () => {
             totalAmount: totalAmountOf(lineItems),
             historyId: linkedHistoryId,
         })
-        orders.value.unshift(next)
+        allRawDocuments.value.unshift(next)
         const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
         if (targetPipeline) next.historyId = targetPipeline.id
         if (contract) contract.historyId = next.historyId || contract.historyId || null
         emitDocumentCreated('order', id)
         createOrderApi(next).then((created) => {
             if (!created) return
-            const idx = orders.value.findIndex((item) => item.id === id)
+            const idx = allRawDocuments.value.findIndex((item) => item.id === id)
             if (idx >= 0) {
-                orders.value[idx] = normalizeDocument({
+                allRawDocuments.value[idx] = normalizeDocument({
                     ...created,
                     historyId: created?.historyId || next.historyId,
                 })
@@ -436,16 +446,16 @@ export const useDocumentStore = defineStore('document', () => {
             totalAmount: supplyAmount + taxAmount,
             historyId: linkedHistoryId,
         })
-        invoices.value.unshift(next)
+        allRawDocuments.value.unshift(next)
         const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
         if (targetPipeline) next.historyId = targetPipeline.id
         if (order) order.historyId = next.historyId || order.historyId || null
         emitDocumentCreated('invoice', id)
         createInvoiceApi(next).then((created) => {
             if (!created) return
-            const idx = invoices.value.findIndex((item) => item.id === id)
+            const idx = allRawDocuments.value.findIndex((item) => item.id === id)
             if (idx >= 0) {
-                invoices.value[idx] = normalizeDocument({
+                allRawDocuments.value[idx] = normalizeDocument({
                     ...created,
                     historyId: created?.historyId || next.historyId,
                 })
