@@ -35,18 +35,15 @@ const filteredClients = computed(() => {
   let baseClients = clients.value
 
   if (!isAdmin.value) {
-    // 행님, 여기 me를 사용해야 함돠!
     const myId = authStore.me?.refId
 
-    // 디버깅 로그 (이제 제대로 찍힐 것임돠)
+    // 디버깅 로그
     console.log('현재 로그인 유저(me)의 refId:', myId);
 
     if (myId !== undefined && myId !== null) {
       baseClients = clients.value.filter((client) => Number(client.managerId) === Number(myId))
     } else {
-      // 만약 me가 null이면(새로고침 등) 일단 빈 목록을 보여주거나
-      // 추가적인 유저 정보 로딩 로직이 필요함돠.
-      console.warn('유저 정보(me)를 찾을 수 없슴돠!');
+      console.warn('유저 정보를 찾을 수 없습니다.');
       return []
     }
   }

@@ -82,7 +82,7 @@ const submitEdit = async () => {
     // 스토어의 updateEmployee를 호출해 서버(db.json)를 업데이트함돠
     await employeeStore.updateEmployee(employeeId.value, { ...editForm.value })
     isEditModalOpen.value = false
-    alert('사원 정보가 수정되었슴돠, 행님!')
+    alert('사원 정보가 수정되었습니다.')
   } catch (e) {
     alert('수정 중 오류가 발생했슴돠.')
   }

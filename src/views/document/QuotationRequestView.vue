@@ -219,7 +219,7 @@ const submit = () => {
 
           <div class="mt-8 text-right">
             <p>작성일: {{ todayText }}</p>
-            <p class="mt-2">요청자: (주) 그린상사</p>
+            <p class="mt-2">요청자: (주) 몬순</p>
           </div>
         </div>
       </section>

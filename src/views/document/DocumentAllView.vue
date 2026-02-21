@@ -18,12 +18,11 @@ const selectedDoc = ref(null)
 
 /**
  * 💡 [디버깅 & 초기화]
- * 페이지 진입 시 데이터가 없으면 스토어에 요청을 보냄돠.
+ * 페이지 진입 시 데이터가 없으면 스토어에 요청
  */
 onMounted(async () => {
-  // 스토어가 비어있을 때만 데이터를 호출함돠.
+  // 스토어가 비어있을 때만 데이터를 호출
   if (!documentStore.loading) {
-    console.log('[DEBUG] 데이터 로드 시작함돠, 행님!')
     await Promise.all([
       documentStore.fetchDocuments(),
       documentStore.fetchClientMaster(),
@@ -62,7 +61,7 @@ const sourceRows = computed(() => {
           .map(c => String(c.id))
       : []
 
-  // 2. 권한 필터 함수 (스토어 필터링을 보완하는 안전장치임돠!)
+  // 2. 권한 필터 함수
   const finalFilter = (doc) => {
     if (role === ROLES.ADMIN) return true
     if (role === ROLES.CLIENT) return String(doc.clientId) === String(myRefId)
@@ -72,7 +71,7 @@ const sourceRows = computed(() => {
 
   const formatAmount = (v) => (Number(v || 0) > 0 ? `${Number(v).toLocaleString()}원` : '-')
 
-  // 3. [History 데이터 통합] 히스토리 배열 내부의 documents까지 긁어옴돠.
+  // 3. [History 데이터 통합] 히스토리 배열 내부의 documents까지
   let historyDocs = []
   if (historyStore.pipelines) {
     historyDocs = historyStore.pipelines
@@ -80,7 +79,7 @@ const sourceRows = computed(() => {
         .flatMap(h => (h.documents || []).map(d => ({ ...d, clientId: h.clientId })))
   }
 
-  // 4. 모든 소스 통합 (히스토리 데이터를 기초로 깔고, 상세 스토어 데이터로 덮어씀돠!)
+  // 4. 모든 소스 통합 (히스토리 데이터를 기초로 깔고, 상세 스토어 데이터로 덮어씀)
   const allRawDocs = [
     ...historyDocs.map(d => ({ ...d, fromHistory: true })),
     ...documentStore.quotationRequests.map(d => ({ ...d, typeLabel: '견적요청서' })),
@@ -90,7 +89,7 @@ const sourceRows = computed(() => {
     ...documentStore.invoices.map(d => ({ ...d, typeLabel: d.status === 'issued' ? '명세서' : '청구서' }))
   ]
 
-  // [중복 제거] 동일한 ID를 가진 문서가 여러 소스에서 올 경우 하나만 남김돠.
+  // [중복 제거] 동일한 ID를 가진 문서가 여러 소스에서 올 경우 하나만 남김
   const uniqueDocs = Array.from(new Map(allRawDocs.map(doc => [doc.id, doc])).values())
 
   // 5. 최종 필터링 및 정규화
@@ -144,7 +143,7 @@ const openDetail = (row) => {
     <header class="mb-6">
       <h1 class="text-2xl font-bold text-slate-900">모든 문서</h1>
       <p class="mt-1 text-sm text-slate-500">
-        {{ authStore.me?.name }} 행님, 실제 데이터베이스에서 총 {{ sourceRows.length }}건을 찾았슴돠!
+        {{ authStore.me?.name }}님, 총 {{ sourceRows.length }}건을 찾았습니다.
       </p>
     </header>
 
@@ -206,11 +205,9 @@ const openDetail = (row) => {
       <div v-else class="p-20 text-center">
         <div v-if="documentStore.loading" class="flex flex-col items-center gap-3">
           <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p class="text-slate-400 font-medium">데이터 긁어오는 중임돠, 잠시만요!</p>
         </div>
         <div v-else class="text-slate-400">
-          <p class="text-lg font-bold">문서가 하나도 없슴돠!</p>
-          <p class="text-sm mt-2">db.json의 데이터와 행님의 refId(거래처ID)가 맞는지 확인이 필요함돠.</p>
+          <p class="text-lg font-bold">작성된 문서가 없습니다.</p>
         </div>
       </div>
     </div>
@@ -218,6 +215,8 @@ const openDetail = (row) => {
     <HistoryModal
         v-model="isModalOpen"
         :title="String(selectedDoc?.id || '문서 상세')"
+        :doc-id="String(selectedDoc?.id || '')"
+        :doc-type="String(selectedDoc?.type || '')"
         :remark="selectedDoc?.remark"
         :reject-reason="selectedDoc?.rejectReason"
     />

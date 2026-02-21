@@ -63,7 +63,7 @@ const startContract = (q) => {
 
   sourceQuotationId.value = q.id
 
-  // 히스토리가 직접 연결되어 있지 않으면 전체 히스토리에서 해당 견적서가 포함된 건을 찾슴돠!
+  // 히스토리가 직접 연결되어 있지 않으면 전체 히스토리에서 해당 견적서가 포함된 건을 찾음
   const existingPipeline = historyStore.pipelines?.find(h =>
       h.documents?.some(d => String(d.id) === String(q.id))
   )
@@ -272,7 +272,7 @@ const submitContract = async () => {
     if (sourceQuotationId.value) {
       await axios.patch(`http://localhost:3001/documents/${sourceQuotationId.value}`, {
         status: "CONTRACTED",
-        historyId: usedHistoryId // 견적서에도 히스토리 아이디를 박아줘야 링크가 안깨짐돠!
+        historyId: usedHistoryId
       });
     }
 

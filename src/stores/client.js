@@ -35,8 +35,7 @@ function normalizeClient(client = {}) {
 }
 
 /**
- * [수정] 새 거래처 임시 객체 생성
- * 행님 요청대로 isActive를 false로, status를 inactive로 시작함돠!
+ * 새 거래처 임시 객체 생성
  */
 function makeTempClient(payload = {}) {
     return normalizeClient({
@@ -122,7 +121,7 @@ export const useClientStore = defineStore('client', () => {
 
     /**
      * [핵심 수정] 거래처 정보 업데이트
-     * 덮어쓰기를 방지하기 위해 기존 데이터와 병합하여 전송함돠!
+     * 덮어쓰기를 방지하기 위해 기존 데이터와 병합하여 전송
      */
     const updateClient = async (id, patch) => {
         // 1. 기존 데이터 확보 (현재 상세 페이지 데이터 또는 목록에서 찾기)
@@ -140,7 +139,7 @@ export const useClientStore = defineStore('client', () => {
             status: nextIsActive ? 'active' : 'inactive',
         }
 
-        // 3. [가장 중요] 기존 데이터와 바꿀 내용을 합친 '전체 데이터'를 만듦돠
+        // 3. [가장 중요] 기존 데이터와 바꿀 내용을 합친 '전체 데이터'를 만듬
         const fullDataToUpdate = normalizeClient({
             ...JSON.parse(JSON.stringify(previous)), // 깊은 복사로 기존 정보 유지
             ...normalizedPatch,
@@ -153,7 +152,7 @@ export const useClientStore = defineStore('client', () => {
         clients.value = clients.value.map(c => String(c.id) === String(id) ? fullDataToUpdate : c)
 
         try {
-            // 5. 서버에 합쳐진 전체 데이터를 보냄돠 (덮어쓰기 방지)
+            // 5. 서버에 합쳐진 전체 데이터를 보냄 (덮어쓰기 방지)
             const updated = await updateClientApi(id, fullDataToUpdate)
             if (updated) {
                 const final = normalizeClient(updated)

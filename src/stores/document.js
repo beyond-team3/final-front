@@ -99,7 +99,6 @@ export const useDocumentStore = defineStore('document', () => {
 
     const getViewerClientIdentity = () => {
         const me = authStore.me || {}
-        // me.id 대신 me.refId(6)를 타겟으로 잡슴돠!
         const byRefId = me.refId ?? me.clientId ?? null
         const byName = String(me.targetPerson || me.clientName || me.name || '').trim()
 
@@ -124,7 +123,7 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         if (role === ROLES.SALES_REP) {
-            // 영업사원은 managerId 필드를 기준으로 매칭함돠.
+            // 영업사원은 managerId 필드를 기준으로 매칭
             const myRefId = String(authStore.me?.refId || '')
             return list.filter((item) => String(item?.managerId ?? '') === myRefId)
         }
@@ -154,9 +153,6 @@ export const useDocumentStore = defineStore('document', () => {
                 .map(c => String(c.id))
 
             if (managedClientIds.length === 0) {
-                // clientMaster가 아직 로드 전일 수 있으므로, 임시로 빈 배열 반환 대신
-                // 모든 문서를 보여줄지(X), 혹은 clientMaster 로딩을 기다릴지 결정해야 함돠.
-                // 여기서는 computed 특성상 clientMaster가 차면 자동으로 재평가되므로 안전함돠.
                 return []
             }
 
