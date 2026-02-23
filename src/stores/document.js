@@ -8,7 +8,9 @@ import {
     createQuotation as createQuotationApi,
     createQuotationRequest as createQuotationRequestApi,
     getDocuments,
-    getStatements
+    getStatements,
+    updateDocumentStatus as updateDocumentStatusApi,
+    deleteDocument as deleteDocumentApi
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts } from '@/api/product'
@@ -465,6 +467,27 @@ export const useDocumentStore = defineStore('document', () => {
         if (invoice) invoice.status = 'issued'
     }
 
+    const cancelQuotationRequest = async (id) => {
+        try {
+            const doc = allRawDocuments.value.find(d => String(d.id) === String(id))
+            const historyId = doc?.historyId
+
+            // 1. 문서 삭제
+            await deleteDocumentApi(id)
+            allRawDocuments.value = allRawDocuments.value.filter(d => String(d.id) !== String(id))
+
+            // 2. 히스토리 삭제 (있는 경우)
+            if (historyId) {
+                await historyStore.deletePipeline(historyId)
+            }
+
+            return true
+        } catch (e) {
+            error.value = getErrorMessage(e, '견적 요청서 삭제에 실패했습니다.')
+            return false
+        }
+    }
+
     async function initialize() {
         loading.value = true
         error.value = null
@@ -513,6 +536,7 @@ export const useDocumentStore = defineStore('document', () => {
         createOrder,
         createInvoice,
         markInvoiceIssued,
+        cancelQuotationRequest,
         statements,
         fetchStatements,
         initialize,

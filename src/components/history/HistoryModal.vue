@@ -72,6 +72,17 @@ const showRemark = computed(() => {
   return authStore.currentRole === ROLES.SALES_REP && showInfoPanel.value && !props.hideRemark && props.mode !== 'admin-rejected'
 })
 
+// 💡 유저 요청: 거래처(CLIENT)만 견적 요청 취소 가능 (견적서 작성 전까지만)
+const canCancel = computed(() => {
+  if (authStore.currentRole !== ROLES.CLIENT) return false
+  if (!isQuotationRequest.value) return false
+  if (!docDetail.value) return false
+
+  // 상태가 'QUOTED'가 아니고 'CANCELLED'가 아닐 때만 취소 가능
+  const status = String(docDetail.value.status).toUpperCase()
+  return status !== 'QUOTED' && status !== 'CANCELLED'
+})
+
 const showRejectReason = computed(() => props.mode === 'sales-rejected' || props.mode === 'admin-rejected')
 const downloadLink = ref(null)
 
@@ -220,6 +231,18 @@ const downloadDocument = async () => {
   }
 }
 
+const handleCancel = async () => {
+  if (!confirm('정말로 이 견적 요청을 삭제하시겠습니까?')) return
+
+  const success = await documentStore.cancelQuotationRequest(props.docId)
+  if (success) {
+    alert('견적 요청과 히스토리가 삭제되었습니다.')
+    close()
+  } else {
+    alert('삭제 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+  }
+}
+
 </script>
 
 <template>
@@ -234,6 +257,14 @@ const downloadDocument = async () => {
         <header class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
           <h3 class="text-lg font-semibold text-slate-800">{{ title }}</h3>
           <div class="flex items-center gap-2">
+            <button
+                v-if="canCancel"
+                type="button"
+                class="rounded bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600 transition-colors"
+                @click="handleCancel"
+            >
+              취소
+            </button>
             <button
                 v-if="showDownload"
                 type="button"

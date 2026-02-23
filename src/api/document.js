@@ -35,3 +35,11 @@ export function getDocumentDetail(id) {
 export function getStatements(params) {
     return api.get('/statements', { params })
 }
+
+export function updateDocumentStatus(id, data) {
+    return api.patch(`/documents/${id}`, data)
+}
+
+export function deleteDocument(id) {
+    return api.delete(`/documents/${id}`)
+}
