@@ -4,6 +4,7 @@ import {
     createPipeline as createPipelineApi,
     getSalesHistory,
     updatePipeline as updatePipelineApi,
+    deletePipeline as deletePipelineApi,
 } from '@/api/history'
 import { getClients } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
@@ -273,8 +274,20 @@ export const useHistoryStore = defineStore('history', () => {
         return pipeline
     }
 
+    async function deletePipeline(id) {
+        try {
+            await deletePipelineApi(id)
+            pipelines.value = pipelines.value.filter(p => String(p.id) !== String(id))
+            return true
+        } catch (e) {
+            error.value = getErrorMessage(e, '파이프라인 삭제에 실패했습니다.')
+            return false
+        }
+    }
+
     return {
         pipelines, loading, error, pipelinesForView, fetchPipelines, ensureLoaded,
         getPipelineById, getPipelinesByClient, getDocumentsByPipeline, createPipeline, addDocumentToPipeline,
+        deletePipeline,
     }
 })
