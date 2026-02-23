@@ -19,3 +19,7 @@ export function createPipeline(data) {
 export function updatePipeline(id, data) {
   return api.patch(`/history/pipeline/${id}`, data)
 }
+
+export function deletePipeline(id) {
+    return api.delete(`/history/pipeline/${id}`)
+}
