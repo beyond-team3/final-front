@@ -14,6 +14,13 @@ const loginPw = ref('')
 const errorMessage = ref('')
 const isSubmitting = computed(() => loading.value)
 
+// Animation State
+const isFormVisible = ref(false)
+
+const showForm = () => {
+  isFormVisible.value = true
+}
+
 const onSubmit = async () => {
   if (!loginId.value.trim() || !loginPw.value.trim()) {
     errorMessage.value = 'ID와 PW를 확인해주세요'
@@ -23,13 +30,11 @@ const onSubmit = async () => {
   errorMessage.value = ''
 
   try {
-    // 1. 아이디/비번만 던져서 로그인 시도.
     const user = await authStore.login({
       loginId: loginId.value.trim(),
       password: loginPw.value.trim(),
     })
 
-    // 2. 로그인 성공 후 user.role에 따라 목적지 이동
     const role = user.role
 
     if (role === ROLES.ADMIN) {
@@ -40,56 +45,177 @@ const onSubmit = async () => {
       router.push('/dashboard')
     }
   } catch (e) {
-    // 에러 발생 시 authStore.error가 업데이트.
     console.error('로그인 실패:', e)
   }
 }
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-    <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="mb-5 text-xl font-semibold text-slate-800">종자 ERP 로그인</h2>
+  <div class="login-theme min-h-screen flex items-center justify-center relative overflow-hidden bg-[var(--color-bg)] font-sans">
+    
+    <!-- State 1: Seed Clicker -->
+    <transition name="fade-scale">
+      <div v-if="!isFormVisible" class="absolute flex flex-col items-center justify-center cursor-pointer group z-10" @click="showForm">
+        <!-- Seed Icon Background -->
+        <div class="w-20 h-20 rounded-full bg-[var(--color-olive-light)] flex items-center justify-center mb-4 shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+           <!-- Seed SVG -->
+           <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--color-olive)" xmlns="http://www.w3.org/2000/svg" class="group-hover:-rotate-12 transition-transform duration-300">
+              <path d="M12 2C12 2 4 9.5 4 15C4 19.4183 7.58172 23 12 23C16.4183 23 20 19.4183 20 15C20 9.5 12 2 12 2Z" />
+           </svg>
+        </div>
+        <span class="text-sm font-bold tracking-[0.3em] text-[var(--color-text)] transition-colors opacity-80 group-hover:opacity-100 uppercase">Login</span>
+      </div>
+    </transition>
 
-      <form class="space-y-4" @submit.prevent="onSubmit">
-        <div>
-          <label class="mb-2 block text-sm font-medium text-slate-700" for="loginId">아이디</label>
-          <input
-              id="loginId"
-              v-model="loginId"
-              type="text"
-              class="h-11 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
-              placeholder="아이디를 입력하세요"
-              required
-          />
+    <!-- State 2: Login Form with Sprout -->
+    <transition name="form-reveal">
+      <div v-if="isFormVisible" class="relative w-full max-w-md px-6 z-20" style="margin-top: 50px;">
+        
+        <!-- Sprout animated logo (Placed top of the card) -->
+        <!-- Note: Ensure 'monsoon_logo-sprout.png' is located in src/assets/images/ -->
+        <div class="absolute -top-16 left-0 right-0 flex justify-center z-30 pointer-events-none sprout-anim">
+          <img src="@/assets/images/monsoon_logo-sprout.png" alt="Sprout Logo" class="h-24 w-auto object-contain drop-shadow-md" />
         </div>
 
-        <div>
-          <label class="mb-2 block text-sm font-medium text-slate-700" for="loginPw">비밀번호</label>
-          <input
-              id="loginPw"
-              v-model="loginPw"
-              type="password"
-              class="h-11 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-500"
-              placeholder="비밀번호를 입력하세요"
-              required
-          />
-        </div>
+        <!-- Form Card Area -->
+        <div class="bg-[var(--color-surface)] rounded-3xl p-8 pt-10 card-shadow border border-[var(--color-border)] relative z-20 form-anim">
+          <div class="text-center mb-8">
+            <h2 class="text-2xl font-bold text-[var(--color-text)] tracking-tight">반갑습니다!</h2>
+            <p class="text-sm text-[var(--color-muted)] mt-2">MonSoon 시스템에 오신 것을 환영합니다.</p>
+          </div>
 
-        <button
-            type="submit"
-            :disabled="isSubmitting"
-            class="h-11 w-full rounded bg-slate-800 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
-        >
-          {{ isSubmitting ? '로그인 중...' : '로그인' }}
-        </button>
+          <form class="space-y-5" @submit.prevent="onSubmit">
+            <div>
+              <label class="mb-1.5 block text-sm font-medium text-[var(--color-text)]" for="loginId">아이디</label>
+              <input
+                  id="loginId"
+                  v-model="loginId"
+                  type="text"
+                  class="h-12 w-full rounded-xl border border-[var(--color-border)] bg-[#FAF9F6] px-4 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-border-focus)] focus:bg-white focus:ring-2 focus:ring-[var(--color-olive-light)] transition-all placeholder-[var(--color-faint)]"
+                  placeholder="아이디를 입력하세요"
+                  required
+              />
+            </div>
 
-        <div v-if="errorMessage || error" class="mt-4 rounded-lg bg-red-50 p-3 border border-red-100">
-          <p class="text-sm font-bold text-red-600 flex items-center justify-center">
-            <span class="mr-1"></span> {{ errorMessage || error }}
-          </p>
+            <div>
+              <label class="mb-1.5 block text-sm font-medium text-[var(--color-text)]" for="loginPw">비밀번호</label>
+              <input
+                  id="loginPw"
+                  v-model="loginPw"
+                  type="password"
+                  class="h-12 w-full rounded-xl border border-[var(--color-border)] bg-[#FAF9F6] px-4 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-border-focus)] focus:bg-white focus:ring-2 focus:ring-[var(--color-olive-light)] transition-all placeholder-[var(--color-faint)]"
+                  placeholder="비밀번호를 입력하세요"
+                  required
+              />
+            </div>
+
+            <div class="pt-3">
+              <button
+                  type="submit"
+                  :disabled="isSubmitting"
+                  class="h-12 w-full rounded-xl bg-[var(--color-accent)] text-sm font-bold text-white shadow-md hover:bg-[var(--color-accent-hover)] hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:shadow-sm disabled:opacity-50 disabled:pointer-events-none transition-all duration-200"
+              >
+                {{ isSubmitting ? '로그인 중...' : '로그인' }}
+              </button>
+            </div>
+
+            <!-- Error message area with fade animation -->
+            <transition name="fade">
+              <div v-if="errorMessage || error" class="mt-4 rounded-xl bg-red-50 p-3 border border-red-100 flex items-center justify-center">
+                <span class="mr-2 text-red-500">
+                  <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                </span>
+                <p class="text-sm font-medium text-red-600">{{ errorMessage || error }}</p>
+              </div>
+            </transition>
+          </form>
         </div>
-      </form>
-    </div>
+      </div>
+    </transition>
   </div>
 </template>
+
+<style scoped>
+/* 1) Theme Color Setup */
+.login-theme {
+  --color-bg: #FAF9F6;
+  --color-surface: #FFFFFF;
+  --color-sidebar: #FAF9F6;
+  --color-sidebar-hover: #EDEAE5;
+  --color-accent: #D97757;
+  --color-accent-hover: #C4633F;
+  --color-olive: #6B7C45;
+  --color-olive-light: #ECF3E5;
+  --color-text: #292524;
+  --color-muted: #78716C;
+  --color-faint: #A8A29E;
+  --color-border: rgba(41, 37, 36, 0.08);
+  --color-border-focus: #6B7C45;
+  --color-overlay: rgba(41, 37, 36, 0.40);
+}
+
+/* 2) 3D Card Shadow Effect */
+.card-shadow {
+  box-shadow: 
+    0 24px 50px -12px rgba(41, 37, 36, 0.1), 
+    0 12px 24px -10px rgba(41, 37, 36, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8); /* Top highlight for 3D effect */
+}
+
+/* 3) Custom Animations */
+
+/* Seed Click Fade Out */
+.fade-scale-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.6) translateY(20px);
+}
+
+/* Sprout Growing Bounce */
+.sprout-anim {
+  animation: sproutGrowBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: 0.1s;
+  opacity: 0;
+  transform-origin: bottom center;
+}
+@keyframes sproutGrowBounce {
+  0% {
+    transform: scale(0) translateY(50px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1) translateY(-10px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Form Area Reveal */
+.form-anim {
+  animation: formSlideUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation-delay: 0.3s;
+  opacity: 0;
+  transform: translateY(40px);
+}
+@keyframes formSlideUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Utilities */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
