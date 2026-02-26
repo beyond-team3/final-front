@@ -14,7 +14,6 @@ const loginPw = ref('')
 const errorMessage = ref('')
 const isSubmitting = computed(() => loading.value)
 
-// Animation State
 const isFormVisible = ref(false)
 
 const showForm = () => {
@@ -52,32 +51,25 @@ const onSubmit = async () => {
 
 <template>
   <div class="login-theme min-h-screen flex items-center justify-center relative overflow-hidden bg-[var(--color-bg)] font-sans">
-    
-    <!-- State 1: Seed Clicker -->
+
     <transition name="fade-scale">
       <div v-if="!isFormVisible" class="absolute flex flex-col items-center justify-center cursor-pointer group z-10" @click="showForm">
-        <!-- Seed Icon Background -->
-        <div class="w-20 h-20 rounded-full bg-[var(--color-olive-light)] flex items-center justify-center mb-4 shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
-           <!-- Seed SVG -->
-           <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--color-olive)" xmlns="http://www.w3.org/2000/svg" class="group-hover:-rotate-12 transition-transform duration-300">
-              <path d="M12 2C12 2 4 9.5 4 15C4 19.4183 7.58172 23 12 23C16.4183 23 20 19.4183 20 15C20 9.5 12 2 12 2Z" />
-           </svg>
+        <!-- 아이콘 배경 -->
+        <div class="w-[80px] h-[80px] rounded-full bg-[var(--color-olive-light)] flex items-center justify-center mb-4 shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
+           <!-- 씨앗 이미지 -->
+           <img src="@/assets/images/Seed_logo.png" alt="Seed Logo" class="h-[50px] w-[50px] object-contain group-hover:-rotate-12 transition-transform duration-300" />
         </div>
         <span class="text-sm font-bold tracking-[0.3em] text-[var(--color-text)] transition-colors opacity-80 group-hover:opacity-100 uppercase">Login</span>
       </div>
     </transition>
 
-    <!-- State 2: Login Form with Sprout -->
     <transition name="form-reveal">
       <div v-if="isFormVisible" class="relative w-full max-w-md px-6 z-20" style="margin-top: 50px;">
-        
-        <!-- Sprout animated logo (Placed top of the card) -->
-        <!-- Note: Ensure 'monsoon_logo-sprout.png' is located in src/assets/images/ -->
+
         <div class="absolute -top-16 left-0 right-0 flex justify-center z-30 pointer-events-none sprout-anim">
-          <img src="@/assets/images/monsoon_logo-sprout.png" alt="Sprout Logo" class="h-24 w-auto object-contain drop-shadow-md" />
+          <img src="@/assets/images/monsoon_logo-sprout.png" alt="Sprout Logo" class="h-56 w-auto object-contain drop-shadow-md" />
         </div>
 
-        <!-- Form Card Area -->
         <div class="bg-[var(--color-surface)] rounded-3xl p-8 pt-10 card-shadow border border-[var(--color-border)] relative z-20 form-anim">
           <div class="text-center mb-8">
             <h2 class="text-2xl font-bold text-[var(--color-text)] tracking-tight">반갑습니다!</h2>
@@ -119,7 +111,6 @@ const onSubmit = async () => {
               </button>
             </div>
 
-            <!-- Error message area with fade animation -->
             <transition name="fade">
               <div v-if="errorMessage || error" class="mt-4 rounded-xl bg-red-50 p-3 border border-red-100 flex items-center justify-center">
                 <span class="mr-2 text-red-500">
@@ -136,7 +127,6 @@ const onSubmit = async () => {
 </template>
 
 <style scoped>
-/* 1) Theme Color Setup */
 .login-theme {
   --color-bg: #FAF9F6;
   --color-surface: #FFFFFF;
@@ -154,7 +144,7 @@ const onSubmit = async () => {
   --color-overlay: rgba(41, 37, 36, 0.40);
 }
 
-/* 2) 3D Card Shadow Effect */
+/* 정보 입력카드 입체감  */
 .card-shadow {
   box-shadow: 
     0 24px 50px -12px rgba(41, 37, 36, 0.1), 
@@ -162,9 +152,7 @@ const onSubmit = async () => {
     inset 0 1px 0 rgba(255, 255, 255, 0.8); /* Top highlight for 3D effect */
 }
 
-/* 3) Custom Animations */
-
-/* Seed Click Fade Out */
+/* 씨앗 페이드 아웃 */
 .fade-scale-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -173,9 +161,9 @@ const onSubmit = async () => {
   transform: scale(0.6) translateY(20px);
 }
 
-/* Sprout Growing Bounce */
+/* 씨앗 바운스 */
 .sprout-anim {
-  animation: sproutGrowBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: sproutGrowBounce 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   animation-delay: 0.1s;
   opacity: 0;
   transform-origin: bottom center;
@@ -195,7 +183,7 @@ const onSubmit = async () => {
   }
 }
 
-/* Form Area Reveal */
+/* 로그인 폼 슬라이드 */
 .form-anim {
   animation: formSlideUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   animation-delay: 0.3s;
@@ -209,7 +197,7 @@ const onSubmit = async () => {
   }
 }
 
-/* Utilities */
+/* 효과 */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
