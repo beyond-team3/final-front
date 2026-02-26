@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notification'
+import { syncHarvestSchedulesForSalesRep } from '@/services/GrowingSeasonService'
 import { ROLES } from '@/utils/constants'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -9,9 +11,11 @@ const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDat
 const ym = (d) => `${d.getFullYear()}.${pad2(d.getMonth() + 1)}`
 
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const router = useRouter()
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
-const filterState = ref({ sales: 'ALL', client: 'ALL', employee: 'ALL' })
+const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
+const filterState = ref({ sales: 'ALL', client: 'ALL', employee: 'ALL', scheduleType: 'ALL' })
 
 const viewDate = ref(new Date(2026, 1, 1))
 const selectedDate = ref('2026-02-10')
@@ -115,6 +119,8 @@ const editTime = ref('09:00')
 const editTitle = ref('')
 const editDesc = ref('')
 const editingId = ref(null)
+const harvestAlerts = ref([])
+const generatedEvents = ref([])
 
 const labelHistory = (cat) => ({
   RFQ: '견적요청',
@@ -132,6 +138,32 @@ const historyLabelWithOwner = (ev) => {
   return baseLabel
 }
 
+const eventTypeLabel = (eventItem) => {
+  if (eventItem?.type === 'history') {
+    return historyLabelWithOwner(eventItem)
+  }
+  if (eventItem?.type === 'harvest') {
+    return '수확 일정'
+  }
+  if (eventItem?.type === 'growing-season') {
+    return '재배적기'
+  }
+  return '개인 일정'
+}
+
+const eventTypeDetailLabel = (eventItem) => {
+  if (eventItem?.type === 'history') {
+    return `영업 문서 일정 (${historyLabelWithOwner(eventItem)})`
+  }
+  if (eventItem?.type === 'harvest') {
+    return '수확 일정'
+  }
+  if (eventItem?.type === 'growing-season') {
+    return '재배적기 일정'
+  }
+  return '개인 일정'
+}
+
 const passHistoryFilter = (ev) => {
   if (ev.type !== 'history') return true
   if (filterState.value.sales !== 'ALL' && ev.historyCategory !== filterState.value.sales) return false
@@ -140,9 +172,44 @@ const passHistoryFilter = (ev) => {
   return true
 }
 
-const eventsByDate = (dateStr) => events.value
+const passScheduleTypeFilter = (ev) => {
+  if (!isSalesRep.value || filterState.value.scheduleType === 'ALL') {
+    return true
+  }
+
+  if (filterState.value.scheduleType === 'DOCUMENT') {
+    return ev.type === 'history'
+  }
+  if (filterState.value.scheduleType === 'PERSONAL') {
+    return ev.type === 'personal'
+  }
+  if (filterState.value.scheduleType === 'GROWING_SEASON') {
+    return ev.type === 'growing-season'
+  }
+  if (filterState.value.scheduleType === 'HARVEST') {
+    return ev.type === 'harvest'
+  }
+  return true
+}
+
+const growingSeasonEvents = computed(() => harvestAlerts.value.map((item) => ({
+  id: `GS-${item.sourceKey}`,
+  type: 'growing-season',
+  title: `재배적기 점검: ${item.varietyName}`,
+  desc: `${item.clientName} · 생육 상태 점검 및 수확 준비를 진행하세요.`,
+  date: `${viewDate.value.getFullYear()}-${pad2(item.expectedHarvestMonth)}-01`,
+  time: '08:30',
+  clientId: item.clientId,
+  clientName: item.clientName,
+  varietyName: item.varietyName,
+})))
+
+const allEvents = computed(() => [...events.value, ...generatedEvents.value, ...growingSeasonEvents.value])
+
+const eventsByDate = (dateStr) => allEvents.value
   .filter((ev) => ev.date === dateStr)
   .filter(passHistoryFilter)
+  .filter(passScheduleTypeFilter)
   .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
 
 const monthTitle = computed(() => ym(viewDate.value))
@@ -217,8 +284,19 @@ const goToRecommendationDetail = async (item, index = null) => {
   }
 }
 
+const goToClientDetail = async (clientId) => {
+  if (!clientId) {
+    return
+  }
+  try {
+    await router.push(`/clients/${clientId}`)
+  } catch (err) {
+    // Ignore unexpected navigation errors.
+  }
+}
+
 const resetFilters = () => {
-  filterState.value = { sales: 'ALL', client: 'ALL', employee: 'ALL' }
+  filterState.value = { sales: 'ALL', client: 'ALL', employee: 'ALL', scheduleType: 'ALL' }
 }
 
 const saveEdit = () => {
@@ -254,12 +332,14 @@ const deletePersonal = (id) => {
   detailModalOpen.value = false
 }
 
-const prevMonth = () => {
+const prevMonth = async () => {
   viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() - 1, 1)
+  await loadHarvestSchedules()
 }
 
-const nextMonth = () => {
+const nextMonth = async () => {
   viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 1)
+  await loadHarvestSchedules()
 }
 
 const startRecommendTimer = () => {
@@ -268,8 +348,38 @@ const startRecommendTimer = () => {
   }, 5000)
 }
 
-onMounted(() => {
+const loadHarvestSchedules = async () => {
+  if (!isSalesRep.value) {
+    return
+  }
+
+  const salesRepUserId = authStore.me?.id
+  const salesRepEmployeeId = authStore.me?.refId
+
+  if (!salesRepUserId || !salesRepEmployeeId) {
+    return
+  }
+
+  try {
+    const result = await syncHarvestSchedulesForSalesRep({
+      salesRepUserId,
+      salesRepEmployeeId,
+      salesRepName: authStore.me?.name || '',
+      currentDate: viewDate.value,
+    })
+
+    generatedEvents.value = result.scheduleEvents || []
+    harvestAlerts.value = result.harvestAlerts || []
+    notificationStore.mergeNotifications(ROLES.SALES_REP, result.notifications || [])
+  } catch (error) {
+    generatedEvents.value = []
+    harvestAlerts.value = []
+  }
+}
+
+onMounted(async () => {
   startRecommendTimer()
+  await loadHarvestSchedules()
 })
 
 onBeforeUnmount(() => {
@@ -306,6 +416,17 @@ onBeforeUnmount(() => {
                 <option value="C001">대상팜</option>
                 <option value="C002">그린농원</option>
                 <option value="C003">해오름농장</option>
+              </select>
+            </div>
+
+            <div v-if="isSalesRep" class="select">
+              <label for="scheduleTypeSelector">일정 구분</label>
+              <select id="scheduleTypeSelector" v-model="filterState.scheduleType">
+                <option value="ALL">전체</option>
+                <option value="DOCUMENT">문서 일정</option>
+                <option value="PERSONAL">개인 일정</option>
+                <option value="GROWING_SEASON">재배적기</option>
+                <option value="HARVEST">수확 일정</option>
               </select>
             </div>
 
@@ -352,7 +473,7 @@ onBeforeUnmount(() => {
                 <div class="day-num">{{ cell.day }}</div>
                 <div class="badge-row">
                   <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id" class="badge" :class="ev.type">
-                    {{ ev.type === 'history' ? `${historyLabelWithOwner(ev)} · ${ev.title}` : ev.title }}
+                    {{ ev.type === 'history' ? `${historyLabelWithOwner(ev)} · ${ev.title}` : `${eventTypeLabel(ev)} · ${ev.title}` }}
                   </div>
                   <div v-if="cell.events.length > 3" class="badge">+{{ cell.events.length - 3 }}</div>
                 </div>
@@ -363,6 +484,23 @@ onBeforeUnmount(() => {
       </div>
 
       <aside class="calendar-right">
+        <div v-if="isSalesRep" class="harvest-card">
+          <div class="harvest-card-header">
+            <div class="harvest-card-title">수확 시즌 알림</div>
+            <div class="harvest-card-subtitle">수확월 도달 품종</div>
+          </div>
+          <div v-if="harvestAlerts.length === 0" class="harvest-empty">이번 달 수확 예정 품종이 없습니다.</div>
+          <div v-else class="harvest-list">
+            <div v-for="item in harvestAlerts" :key="item.sourceKey" class="harvest-item">
+              <div class="harvest-item-main">
+                <div class="harvest-variety">{{ item.varietyName }}</div>
+                <div class="harvest-month">예상 수확월: {{ item.expectedHarvestMonth }}월</div>
+              </div>
+              <button class="btn btn-primary harvest-cta" type="button" @click="goToClientDetail(item.clientId)">거래처 이동</button>
+            </div>
+          </div>
+        </div>
+
         <div class="side-card">
           <div class="side-header">
             <div class="side-title">이번달 판매 추천</div>
@@ -415,7 +553,7 @@ onBeforeUnmount(() => {
             <div v-for="ev in selectedDayEvents" :key="ev.id" class="modal-item" @click="openDetail(ev)">
               <div class="modal-item-top">
                 <div class="modal-item-title">{{ ev.time ? `${ev.time} · ` : '' }}{{ ev.title }}</div>
-                <div class="pill" :class="ev.type">{{ ev.type === 'history' ? historyLabelWithOwner(ev) : '개인' }}</div>
+                <div class="pill" :class="ev.type">{{ eventTypeLabel(ev) }}</div>
               </div>
               <div class="modal-item-desc">{{ ev.desc }}</div>
             </div>
@@ -434,7 +572,7 @@ onBeforeUnmount(() => {
         <div class="modal-body" style="display: grid; gap: 10px;">
           <div class="info-box"><div class="k">제목</div><div class="v">{{ detailEvent?.title }}</div></div>
           <div class="info-box"><div class="k">시간</div><div class="v">{{ detailEvent?.time || '-' }}</div></div>
-          <div class="info-box"><div class="k">구분</div><div class="v">{{ detailEvent?.type === 'history' ? `영업 문서 일정 (${historyLabelWithOwner(detailEvent)})` : '개인 일정' }}</div></div>
+          <div class="info-box"><div class="k">구분</div><div class="v">{{ eventTypeDetailLabel(detailEvent) }}</div></div>
           <div class="info-box"><div class="k">설명</div><div class="v">{{ detailEvent?.desc || '-' }}</div></div>
 
           <div class="modal-actions">
@@ -442,7 +580,7 @@ onBeforeUnmount(() => {
               <button class="btn" type="button" @click="openEditModal(detailEvent)">수정</button>
               <button class="btn" type="button" @click="deletePersonal(detailEvent.id)">삭제</button>
             </template>
-            <div v-else style="color:#6b7a8c;font-size:12px;font-weight:700;">※ 영업 문서 일정은 문서 히스토리에 의해 자동 생성됩니다.</div>
+            <div v-else style="color:#6b7a8c;font-size:12px;font-weight:700;">※ 문서/재배적기/수확 일정은 자동 생성 일정입니다.</div>
           </div>
         </div>
       </div>
@@ -485,9 +623,7 @@ onBeforeUnmount(() => {
   </section>
 </template>
 
-<style scoped>
-.screen-content { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
-.screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
+<style scoped>.screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
 .calendar-page { display: flex; gap: 20px; align-items: stretch; }
 .calendar-left { flex: 1 1 auto; min-width: 640px; }
 .calendar-right { width: 360px; flex: 0 0 360px; }
@@ -496,8 +632,7 @@ onBeforeUnmount(() => {
 .select { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid #e3e7ee; border-radius: 10px; background: #fff; font-size: 13px; color: #2c3e50; }
 .select label { color: #6b7a8c; font-weight: 600; font-size: 12px; }
 .select select { border: none; outline: none; background: transparent; font-size: 13px; color: #2c3e50; cursor: pointer; }
-.btn { border: 1px solid #dfe6ef; background: #fff; color: #2c3e50; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; }
-.btn-primary { border-color: #2d89ef33; background: #2d89ef; color: #fff; }
+.btn { border: 1px solid var(--color-border); background: #fff; color: var(--color-text); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; }
 .btn-ghost { background: #f7f9fc; }
 .calendar-card { border: 1px solid #e9edf2; border-radius: 12px; background: #fff; overflow: hidden; }
 .calendar-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eef2f6; background: #fff; }
@@ -513,6 +648,18 @@ onBeforeUnmount(() => {
 .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid #e3e7ee; background: #f7f9fc; color: #425b76; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge.history { background: #fff7e8; border-color: #ffe2b7; color: #8a5a00; }
 .badge.personal { background: #e8f7ee; border-color: #bfe9ce; color: #0f5a2a; }
+.badge.growing-season { background: #edf4ff; border-color: #c8dcff; color: #244f96; }
+.badge.harvest { background: #fff3e3; border-color: #ffd7a5; color: #9b5a00; }
+.harvest-card { border: 1px solid #ffddaf; border-radius: 12px; background: linear-gradient(155deg, #fff8ef, #fff2df); margin-bottom: 14px; }
+.harvest-card-header { padding: 14px 16px 10px; border-bottom: 1px solid #ffe3be; }
+.harvest-card-title { font-size: 15px; font-weight: 800; color: #7a4300; }
+.harvest-card-subtitle { font-size: 12px; color: #9b6b33; margin-top: 4px; }
+.harvest-list { padding: 10px; display: grid; gap: 8px; }
+.harvest-item { border: 1px solid #ffd7a5; background: #fff; border-radius: 10px; padding: 10px; display: grid; gap: 8px; }
+.harvest-variety { font-size: 13px; font-weight: 800; color: #2c3e50; }
+.harvest-month { font-size: 12px; color: #6b7a8c; }
+.harvest-empty { padding: 12px 14px; color: #9b6b33; font-size: 12px; }
+.harvest-cta { width: 100%; }
 .side-card { border: 1px solid #e9edf2; border-radius: 12px; background: #fff; overflow: hidden; }
 .side-header { padding: 14px 16px; border-bottom: 1px solid #eef2f6; display: flex; align-items: center; justify-content: space-between; }
 .side-title { font-size: 15px; font-weight: 800; color: #2c3e50; }
@@ -541,6 +688,8 @@ onBeforeUnmount(() => {
 .pill { font-size: 11px; padding: 4px 8px; border-radius: 999px; border: 1px solid #e3e7ee; background: #fff; color: #425b76; }
 .pill.history { background: #fff7e8; border-color: #ffe2b7; color: #8a5a00; }
 .pill.personal { background: #e8f7ee; border-color: #bfe9ce; color: #0f5a2a; }
+.pill.growing-season { background: #edf4ff; border-color: #c8dcff; color: #244f96; }
+.pill.harvest { background: #fff3e3; border-color: #ffd7a5; color: #9b5a00; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form-grid .full { grid-column: 1 / -1; }
 .field { display: grid; gap: 6px; }

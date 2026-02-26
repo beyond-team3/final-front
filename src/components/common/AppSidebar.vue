@@ -50,7 +50,7 @@ const isExactPath = (path) => {
     return false
   }
 
-  return route.path === path
+  return route.path === path || route.path.startsWith(`${path}/`)
 }
 
 const toggleMenu = (menuKey) => {
@@ -82,18 +82,20 @@ watch(
 </script>
 
 <template>
-  <aside v-show="visible" class="h-[calc(100vh-56px)] w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-white">
+  <aside
+    v-show="visible"
+    class="sidebar h-[calc(100vh-56px)] w-64 shrink-0 overflow-y-auto"
+  >
     <nav class="p-3">
       <template v-for="menu in visibleMenus" :key="menu.key">
         <template v-if="menu.children">
           <button
             type="button"
-            class="mb-1 flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm font-medium"
-            :class="expandedMenus[menu.key] ? 'bg-slate-100 text-slate-900' : 'text-slate-700 hover:bg-slate-100'"
+            class="sidebar-item has-children mb-1 flex w-full items-center px-3 py-2 text-left text-sm font-medium"
+            :class="{ active: expandedMenus[menu.key], open: expandedMenus[menu.key] }"
             @click="toggleMenu(menu.key)"
           >
             <span>{{ menu.label }}</span>
-            <span class="text-xs">{{ expandedMenus[menu.key] ? '▲' : '▼' }}</span>
           </button>
 
           <div v-if="expandedMenus[menu.key]" class="mb-2 ml-2">
@@ -101,8 +103,8 @@ watch(
               v-for="child in menu.children"
               :key="child.key"
               type="button"
-              class="mb-1 block w-full rounded px-3 py-2 text-left text-sm"
-              :class="isExactPath(child.route) ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'"
+              class="sidebar-item sidebar-sub-item mb-1 block w-full px-3 py-2 text-left text-sm"
+              :class="{ active: isExactPath(child.route), 'font-bold': isExactPath(child.route) }"
               @click="navigateTo(child.route)"
             >
               {{ child.label }}
@@ -113,8 +115,8 @@ watch(
         <button
           v-else
           type="button"
-          class="mb-1 block w-full rounded px-3 py-2 text-left text-sm font-medium"
-          :class="isActivePath(menu.route) ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-100'"
+          class="sidebar-item mb-1 block w-full px-3 py-2 text-left text-sm font-medium"
+          :class="{ active: isActivePath(menu.route), 'font-bold': isActivePath(menu.route) }"
           @click="navigateTo(menu.route)"
         >
           {{ menu.label }}

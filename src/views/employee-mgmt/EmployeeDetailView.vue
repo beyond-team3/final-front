@@ -37,6 +37,14 @@ const editForm = ref({
 const employeeId = computed(() => route.params.id)
 const isEmployeeActive = computed(() => Boolean(employee.value?.isActive))
 const employeeStatusText = computed(() => (isEmployeeActive.value ? '활성' : '비활성'))
+const assignedClients = computed(() => Array.isArray(employee.value?.assignedClients) ? employee.value.assignedClients : [])
+const assignedClientCount = computed(() => assignedClients.value.length)
+const roleLabel = computed(() => {
+  const role = String(employee.value?.role || '').toUpperCase()
+  if (role === ROLES.ADMIN) return '관리자'
+  if (role === ROLES.SALES_REP) return '영업사원'
+  return employee.value?.role || '영업사원'
+})
 
 /**
  * 사원 및 계정 정보 호출
@@ -107,6 +115,11 @@ const applyStatus = async () => {
   }
 }
 
+const openClientDetail = (clientId) => {
+  if (clientId == null) return
+  router.push(`/clients/${clientId}`)
+}
+
 onMounted(fetchEmployeeDetail)
 </script>
 
@@ -143,30 +156,59 @@ onMounted(fetchEmployeeDetail)
     <LoadingSpinner v-if="loading" text="사원 상세를 불러오는 중입니다." />
     <ErrorMessage v-else-if="error" :message="error" @retry="fetchEmployeeDetail" />
 
-    <article v-else-if="employee" class="rounded-lg border border-slate-200 bg-white p-5">
-      <div class="mb-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-slate-800">기본 정보</h3>
-        <div
-            class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold"
-            :class="isEmployeeActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'"
-        >
-          <span class="h-2 w-2 rounded-full" :class="isEmployeeActive ? 'bg-emerald-500' : 'bg-rose-500'" />
-          <span>{{ employeeStatusText }}</span>
+    <article v-else-if="employee" class="grid gap-4 xl:grid-cols-[1.15fr_1fr]">
+      <section class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-slate-800">사원 프로필</h3>
+          <div
+              class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold"
+              :class="isEmployeeActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'"
+          >
+            <span class="h-2 w-2 rounded-full" :class="isEmployeeActive ? 'bg-emerald-500' : 'bg-rose-500'" />
+            <span>{{ employeeStatusText }}</span>
+          </div>
         </div>
-      </div>
 
-      <dl class="grid gap-3 text-sm md:grid-cols-2">
-        <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">사원 코드</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.id }}</dd></div>
-        <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">사원명</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.name }}</dd></div>
-        <div class="rounded bg-slate-50 p-3">
-          <dt class="text-slate-500">로그인Id</dt>
-          <dd class="mt-1 font-semibold text-slate-900" :class="{ 'text-slate-400 font-normal': userLoginId === '계정 미등록' }">{{ userLoginId }}</dd>
+        <dl class="grid gap-3 text-sm md:grid-cols-2">
+          <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">사원 코드</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.id }}</dd></div>
+          <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">사원명</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.name }}</dd></div>
+          <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">역할</dt><dd class="mt-1 font-semibold text-slate-900">{{ roleLabel }}</dd></div>
+          <div class="rounded bg-slate-50 p-3">
+            <dt class="text-slate-500">로그인Id</dt>
+            <dd class="mt-1 font-semibold text-slate-900" :class="{ 'text-slate-400 font-normal': userLoginId === '계정 미등록' }">{{ userLoginId }}</dd>
+          </div>
+          <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">이메일</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.email }}</dd></div>
+          <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">전화번호</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.phone }}</dd></div>
+          <div class="rounded bg-slate-50 p-3 md:col-span-2"><dt class="text-slate-500">주소</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.address }}</dd></div>
+          <div class="rounded bg-slate-50 p-3 md:col-span-2"><dt class="text-slate-500">등록일시</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.createdAt }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="rounded-lg border border-slate-200 bg-white p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-slate-800">담당 거래처</h3>
+          <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+            {{ assignedClientCount }}개
+          </span>
         </div>
-        <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">이메일</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.email }}</dd></div>
-        <div class="rounded bg-slate-50 p-3"><dt class="text-slate-500">전화번호</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.phone }}</dd></div>
-        <div class="rounded bg-slate-50 p-3 md:col-span-2"><dt class="text-slate-500">주소</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.address }}</dd></div>
-        <div class="rounded bg-slate-50 p-3 md:col-span-2"><dt class="text-slate-500">등록일시</dt><dd class="mt-1 font-semibold text-slate-900">{{ employee.createdAt }}</dd></div>
-      </dl>
+
+        <div v-if="assignedClientCount === 0" class="rounded border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+          배정된 거래처가 없습니다.
+        </div>
+
+        <div v-else class="grid gap-3">
+          <button
+            v-for="client in assignedClients"
+            :key="client.id"
+            type="button"
+            class="rounded-lg border border-slate-200 bg-white p-4 text-left transition hover:border-blue-300 hover:bg-blue-50"
+            @click="openClientDetail(client.id)"
+          >
+            <div class="text-sm font-bold text-slate-900">{{ client.name }}</div>
+            <p class="mt-2 text-xs text-slate-500">최근 활동: {{ client.recentActivity || '-' }}</p>
+          </button>
+        </div>
+      </section>
     </article>
 
     <EmptyState v-else title="해당 사원을 찾을 수 없습니다." />

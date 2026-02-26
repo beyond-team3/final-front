@@ -1,0 +1,510 @@
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useDocumentStore } from '@/stores/document'
+import { useProductStore } from '@/stores/product'
+import { useHistoryStore } from '@/stores/history'
+import { useAuthStore } from '@/stores/auth'
+import axios from 'axios'
+
+const router = useRouter()
+const documentStore = useDocumentStore()
+const productStore = useProductStore()
+const historyStore = useHistoryStore()
+const authStore = useAuthStore()
+
+// --- [상태 관리] ---
+const isProcessStarted = ref(false)
+const isNewMode = ref(false)
+const showStartModal = ref(false)
+const showCorpModal = ref(false)
+const showProductModal = ref(false)
+
+// 원본 데이터 추적
+const sourceRequestId = ref(null)
+const sourceHistoryId = ref(null)
+
+// 폼 데이터
+const inCorpCode = ref('')
+const inCorp = ref('')
+const inName = ref('')
+const internalMemo = ref('')
+const customerRequirements = ref('')
+const selectedItems = ref([])
+const modalSearchInput = ref('')
+const clientSearchInput = ref('')
+const varietyFilter = ref('전체')
+
+onMounted(async () => {
+  try {
+    if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
+    if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
+    else if (documentStore.fetchClients) await documentStore.fetchClients()
+
+    if (productStore.fetchProducts) await productStore.fetchProducts()
+    if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
+
+    showStartModal.value = true
+  } catch (e) {
+    console.error("데이터 로딩 실패:", e)
+  }
+})
+
+// --- [핵심 로직] ---
+
+const handleCloseModal = () => {
+  showStartModal.value = false
+  if (!isProcessStarted.value) {
+    router.push('/documents/create')
+  }
+}
+
+const startFromRequest = (req) => {
+  isNewMode.value = false
+  isProcessStarted.value = true
+  showStartModal.value = false
+
+  sourceRequestId.value = req.id
+  sourceHistoryId.value = req.historyId || null
+
+  inCorp.value = req.client?.name || ''
+  inName.value = req.client?.contact || ''
+  inCorpCode.value = req.clientId || req.client?.id || ''
+
+  customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
+
+  selectedItems.value = req.items.map(i => {
+    // 상품 마스터에서 정보 검색 (id 또는 이름으로)
+    const masterProduct = productStore.products?.find(p => p.id === i.productId || p.name === i.name)
+
+    return {
+      uid: Date.now() + Math.random(),
+      productId: i.productId || masterProduct?.id,
+      variety: masterProduct?.variety || masterProduct?.category || i.variety || '일반',
+      name: i.name,
+      count: i.quantity || 1,
+      unit: masterProduct?.unit || i.unit || '립',
+      price: masterProduct?.price || masterProduct?.unitPrice || i.unitPrice || 0
+    }
+  })
+}
+
+const startNewQuotation = () => {
+  isNewMode.value = true
+  isProcessStarted.value = true
+  showStartModal.value = false
+
+  sourceRequestId.value = null
+  sourceHistoryId.value = null
+
+  inCorpCode.value = ''
+  inCorp.value = ''
+  inName.value = ''
+  customerRequirements.value = ''
+  selectedItems.value = []
+}
+
+const setCorp = (corp) => {
+  inCorpCode.value = corp.id // 코드가 아니라 numeric ID를 넣어야 함다!
+  inCorp.value = corp.name
+  inName.value = corp.contact
+  showCorpModal.value = false
+}
+
+const addProduct = (p) => {
+  const existItem = selectedItems.value.find(item => item.name === p.name)
+  if (existItem) {
+    existItem.count++
+  } else {
+    selectedItems.value.push({
+      uid: Date.now() + Math.random(),
+      productId: p.id,
+      variety: p.variety || p.category || '-',
+      name: p.name,
+      count: 1,
+      unit: p.unit || (p.unit?.includes('kg') ? 'kg' : '립'),
+      price: Number(p.price || p.unitPrice || 0)
+    })
+  }
+  showProductModal.value = false
+}
+
+const updateItem = (item, field, val) => {
+  let num = parseInt(val)
+  if (field === 'count' && (isNaN(num) || num < 1)) num = 1
+  if (field === 'price' && (isNaN(num) || num < 0)) num = 0
+  item[field] = num
+}
+
+const removeItem = (uid) => {
+  selectedItems.value = selectedItems.value.filter(i => i.uid !== uid)
+}
+
+// --- [계산 속성] ---
+const totalSum = computed(() =>
+    selectedItems.value.reduce((sum, item) => sum + (item.count * item.price), 0)
+)
+
+const varietyOptions = computed(() => {
+  const varieties = productStore.products?.map(p => p.variety || p.category) || []
+  return ['전체', ...new Set(varieties.filter(v => v))]
+})
+
+const filteredClients = computed(() => {
+  const master = documentStore.clientMaster || []
+  return master.filter(c =>
+      c.name.toLowerCase().includes(clientSearchInput.value.toLowerCase()) ||
+      c.code.toLowerCase().includes(clientSearchInput.value.toLowerCase())
+  )
+})
+
+const filteredProducts = computed(() => {
+  return productStore.products?.filter(p => {
+    const matchVariety = varietyFilter.value === '전체' || (p.variety || p.category) === varietyFilter.value
+    const matchKeyword = p.name.toLowerCase().includes(modalSearchInput.value.toLowerCase())
+    return matchVariety && matchKeyword
+  }) || []
+})
+
+const validityDate = computed(() => {
+  const today = new Date()
+  today.setDate(today.getDate() + 30)
+  return today.toISOString().split('T')[0]
+})
+
+// --- [저장 핵심 로직] ---
+const submitDoc = async () => {
+  if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
+  if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
+
+  const currentUser = authStore.me || { id: 1, name: "김민수" }
+
+  // 1. 견적서 번호 생성 (고유 아이디를 위해 타임스탬프 기반으로 처리)
+  const now = new Date()
+  const quotationId = `QT-${Date.now()}`
+
+  const today = now.toISOString().split('T')[0]
+
+  // 2. documents 저장용 데이터 객체
+  const quotationData = {
+    id: quotationId,
+    type: "quotation",
+    clientId: inCorpCode.value,
+    client: {
+      id: inCorpCode.value,
+      code: inCorpCode.value,
+      name: inCorp.value,
+      contact: inName.value
+    },
+    authorId: currentUser.id,
+    authorName: currentUser.name,
+    status: "승인대기", // 발행 시 관리자 승인 기다림
+    totalAmount: totalSum.value,
+    date: today,
+    items: selectedItems.value.map(item => ({
+      name: item.name,
+      quantity: item.count,
+      unit: item.unit,
+      unitPrice: item.price,
+      amount: item.count * item.price
+    })),
+    memo: internalMemo.value
+  }
+
+  // 3. history 저장용 데이터 객체
+  const historyData = {
+    id: `H-${Date.now()}`,
+    clientId: inCorpCode.value,
+    clientName: inCorp.value,
+    pipelineStage: "견적",
+    stageNumber: 2,
+    status: "대기중",
+    documentId: quotationId,
+    documents: [{
+      id: quotationId,
+      type: "quotation",
+      typeLabel: "견적서",
+      stage: "견적",
+      stageNumber: 2,
+      status: "ISSUED",
+      date: today,
+      amount: totalSum.value
+    }],
+    amount: totalSum.value,
+    nextAction: "고객사 견적 검토 대기",
+    updatedAt: today,
+    startDate: today
+  }
+
+  try {
+    // 4. 서버로 데이터 전송
+    await axios.post('http://localhost:3001/documents', quotationData);
+
+    // 4-1. 히스토리 업데이트 (연결된 히스토리 아이디가 있으면 PUT, 없으면 POST)
+    if (sourceHistoryId.value) {
+      // 기존 히스토리 로드 후 업데이트
+      const hRes = await axios.get(`http://localhost:3001/history/${sourceHistoryId.value}`);
+      const history = hRes.data;
+
+      const updatedHistory = {
+        ...history,
+        pipelineStage: "견적",
+        stageNumber: 2,
+        status: "대기중", // 견적 단계의 대기 상태를 의미
+        documentId: quotationId,
+        nextAction: "고객사 견적 검토 대기",
+        updatedAt: today,
+        amount: Math.max(Number(history.amount || 0), totalSum.value)
+      };
+
+      // 만약 documents 배열이 있으면 추가
+      if (Array.isArray(updatedHistory.documents)) {
+        updatedHistory.documents.push({
+          id: quotationId,
+          type: "quotation",
+          typeLabel: "견적서",
+          stage: "견적",
+          stageNumber: 2,
+          status: "ISSUED",
+          date: today,
+          amount: totalSum.value
+        });
+      }
+
+      await axios.put(`http://localhost:3001/history/${sourceHistoryId.value}`, updatedHistory);
+    } else {
+      await axios.post('http://localhost:3001/history', historyData);
+    }
+
+    // 4-2. 원본 견적 요청서가 있으면 상태 업데이트
+    if (sourceRequestId.value) {
+      await axios.patch(`http://localhost:3001/documents/${sourceRequestId.value}`, {
+        status: "QUOTED"
+      });
+    }
+
+    // 5. 스토어 새로고침 (목록 갱신용)
+    if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
+    if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
+
+    window.alert(`[${quotationId}] 견적서가 성공적으로 발행되어 저장되었습니다.`);
+    router.push('/documents/all');
+  } catch (error) {
+    console.error("견적서 저장 에러:", error);
+    window.alert("3001번 서버 저장 중에 에러가 났습니다.");
+  }
+}
+</script>
+
+<template>
+  <div class="content-wrapper p-6">
+    <div class="screen-content bg-white rounded-lg p-6 shadow-sm min-h-[500px]">
+
+      <div class="flex justify-between items-center mb-5">
+        <h2 class="text-2xl font-bold text-[#2c3e50]">{{ isProcessStarted ? '견적서 작성' : '문서 작성' }}</h2>
+        <button v-if="isProcessStarted" class="bg-[#95a5a6] text-white px-4 py-2 rounded text-sm font-bold" @click="isProcessStarted = false; showStartModal = true">뒤로가기</button>
+      </div>
+
+      <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in fade-in duration-300">
+        <div class="flex-1 space-y-5 w-full">
+          <div class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-base font-bold text-slate-800">거래처 정보</h3>
+              <button v-if="isNewMode" class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="showCorpModal = true">거래처 선택</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <input v-model="inCorpCode" readonly class="p-2 border rounded bg-gray-50 text-sm font-semibold" placeholder="거래처 코드">
+              <input v-model="inCorp" readonly class="p-2 border rounded bg-gray-50 text-sm font-semibold" placeholder="법인명">
+              <input v-model="inName" readonly class="p-2 border rounded bg-gray-50 text-sm font-semibold" placeholder="담당자">
+            </div>
+          </div>
+
+          <div class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-base font-bold text-slate-800">작성 품목</h3>
+              <button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="showProductModal = true">+ 상품 검색</button>
+            </div>
+            <div class="max-h-[350px] overflow-y-auto border rounded bg-white">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-gray-50 sticky top-0 z-10 border-b">
+                <tr>
+                  <th class="p-3 w-[15%]">품종명</th><th class="p-3 w-[25%]">상품명</th>
+                  <th class="p-3 w-[15%] text-center">수량</th><th class="p-3 w-[15%] text-center">단위</th>
+                  <th class="p-3 w-[20%] text-right">단가</th><th class="p-3 w-[10%] text-center">작업</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="item in selectedItems" :key="item.uid" class="border-b hover:bg-slate-50 transition-colors">
+                  <td class="p-3 text-slate-500 text-xs">{{ item.variety }}</td>
+                  <td class="p-3 font-bold text-slate-800">{{ item.name }}</td>
+                  <td class="p-3 text-center">
+                    <input type="number" min="1" class="w-full border border-blue-300 rounded text-center p-1 font-bold text-blue-700" :value="item.count" @input="updateItem(item, 'count', $event.target.value)">
+                  </td>
+                  <td class="p-3 text-center">
+                    <input type="text" class="w-full border border-slate-200 rounded p-1 text-xs text-center" v-model="item.unit">
+                  </td>
+                  <td class="p-3">
+                    <input type="number" min="0" class="w-full border border-emerald-300 rounded text-right p-1 font-mono" :value="item.price" @input="updateItem(item, 'price', $event.target.value)">
+                  </td>
+                  <td class="p-3 text-center">
+                    <button class="bg-[#e74c3c] text-white px-2 py-1 rounded text-[10px] font-bold" @click="removeItem(item.uid)">삭제</button>
+                  </td>
+                </tr>
+                <tr v-if="selectedItems.length === 0"><td colspan="6" class="p-10 text-center text-gray-400 italic">상품 정보를 입력해 주세요.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-4 text-right font-bold text-lg text-[#2c3e50]">총 합계: {{ totalSum.toLocaleString() }} 원</div>
+          </div>
+
+          <div v-if="!isNewMode && customerRequirements" class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+            <div class="flex items-center gap-2 mb-3">
+              <h3 class="text-base font-bold text-slate-800">견적 요청서 요구사항</h3>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 p-3 rounded text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[60px]">
+              {{ customerRequirements }}
+            </div>
+            <p class="text-[11px] text-gray-500 mt-2 font-medium">* 위 내용은 참고용이며, 발행되는 PDF 견적서에는 포함되지 않습니다.</p>
+          </div>
+
+          <div class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+            <h3 class="text-base font-bold text-slate-800">내부 비고</h3>
+            <textarea v-model="internalMemo" rows="3" class="w-full border border-slate-200 rounded p-3 mt-3 text-sm resize-none focus:ring-2 focus:ring-blue-100 outline-none" placeholder="비고는 PDF에 표시되지 않습니다."></textarea>
+          </div>
+
+          <button class="w-full bg-[#2ecc71] text-white py-4 rounded-lg font-bold text-lg hover:bg-emerald-600 shadow-md transition-all" @click="submitDoc">견적서 발행 완료</button>
+        </div>
+
+        <div class="w-full xl:w-[500px] sticky top-5">
+          <div class="bg-[#525659] p-4 rounded-lg shadow-inner">
+            <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black [font-family:serif]">
+              <div class="text-center border-b-2 border-black pb-3 mb-5">
+                <h1 class="text-2xl font-bold tracking-widest">견 적 서</h1>
+              </div>
+              <div class="flex justify-between items-start mb-6 text-[12px]">
+                <div class="space-y-1">
+                  <p>수신: <span class="border-b border-black font-bold px-2 text-[14px]">{{ inCorp || '(빈값)' }}</span> 귀하</p>
+                  <p>담당: <span class="px-2">{{ inName || '(빈값)' }}</span></p>
+                  <p>견적 유효기간: <span class="font-bold text-blue-700 underline">{{ validityDate }}</span> (30일)</p>
+                </div>
+                <div class="w-14 h-14 border border-black flex items-center justify-center font-bold text-xs">인</div>
+              </div>
+              <table class="w-full border-collapse border border-gray-400 text-center mb-5 text-[10px]">
+                <thead class="bg-gray-100">
+                <tr><th class="border border-gray-400 p-1">품종</th><th class="border border-gray-400 p-1">상품명</th><th class="border border-gray-400 p-1">수량</th><th class="border border-gray-400 p-1">단위</th><th class="border border-gray-400 p-1">단가</th><th class="border border-gray-400 p-1">금액</th></tr>
+                </thead>
+                <tbody>
+                <tr v-for="item in selectedItems" :key="'pdf-'+item.uid">
+                  <td class="border border-gray-400 p-1">{{ item.variety }}</td>
+                  <td class="border border-gray-400 p-1 text-left font-bold">{{ item.name }}</td>
+                  <td class="border border-gray-400 p-1">{{ item.count }}</td>
+                  <td class="border border-gray-400 p-1">{{ item.unit }}</td>
+                  <td class="border border-gray-400 p-1 text-right">{{ item.price.toLocaleString() }}</td>
+                  <td class="border border-gray-400 p-1 text-right font-bold">{{ (item.count * item.price).toLocaleString() }}</td>
+                </tr>
+                </tbody>
+                <tfoot class="bg-gray-50 font-bold">
+                <tr><td colspan="5" class="border border-gray-400 p-1 text-sm text-right">합 계</td><td class="border border-gray-400 p-1 text-right font-mono">{{ totalSum.toLocaleString() }}</td></tr>
+                </tfoot>
+              </table>
+              <div class="absolute bottom-10 left-0 right-0 text-center space-y-4">
+                <p>2026년 02월 19일</p>
+                <p class="text-sm font-bold tracking-widest border-t-2 border-slate-100 pt-4 mx-10">위와 같이 견적함 ( (주) 몬순 )</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showStartModal" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white w-[750px] rounded-lg shadow-2xl overflow-hidden border">
+        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center font-bold">
+          <h3>기존 견적 요청 건 선택</h3>
+          <button @click="handleCloseModal" class="text-2xl hover:text-gray-300 transition-colors">&times;</button>
+        </div>
+        <div class="p-6">
+          <div class="max-h-[300px] overflow-y-auto border rounded bg-white mb-5">
+            <table class="w-full text-sm text-center">
+              <thead class="bg-gray-100 border-b sticky top-0">
+              <tr><th>법인명</th><th>담당자</th><th>요청 날짜</th><th>상태</th><th>선택</th></tr>
+              </thead>
+              <tbody>
+              <tr v-for="req in documentStore.quotationRequests" :key="req.id" class="border-b hover:bg-blue-50 transition-colors cursor-pointer" @click="startFromRequest(req)">
+                <td class="p-3 font-bold text-slate-800">{{ req.client?.name }}</td>
+                <td class="p-3">{{ req.client?.contact }}</td>
+                <td class="p-3 text-slate-500">{{ req.date }}</td>
+                <td class="p-3 text-orange-500 font-bold">{{ req.status }}</td>
+                <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs shadow-sm">선택</button></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="w-full bg-[#2ecc71] text-white py-3 rounded-lg font-bold shadow-lg hover:bg-emerald-600 transition-all" @click="startNewQuotation">+ 견적서 신규 생성</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showCorpModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white w-[600px] rounded-lg shadow-2xl overflow-hidden border">
+        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center font-bold">
+          <h3>거래처 선택</h3>
+          <button @click="showCorpModal = false" class="text-2xl hover:text-gray-200 transition-colors">&times;</button>
+        </div>
+        <div class="p-5">
+          <input v-model="clientSearchInput" type="text" placeholder="거래처명 또는 코드 검색..." class="w-full border p-2 rounded mb-4 text-sm outline-none focus:ring-2 focus:ring-blue-300">
+          <div class="max-h-[400px] overflow-y-auto border rounded">
+            <table class="w-full text-sm text-center">
+              <thead class="bg-gray-100 sticky top-0">
+              <tr><th class="p-2">코드</th><th class="p-2">법인명</th><th class="p-2">담당자</th><th class="p-2">선택</th></tr>
+              </thead>
+              <tbody>
+              <tr v-for="corp in filteredClients" :key="corp.id" class="border-b hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-slate-500 font-mono text-xs">{{ corp.code }}</td>
+                <td class="p-3 font-bold text-slate-800">{{ corp.name }}</td>
+                <td class="p-3 text-slate-600">{{ corp.contact }}</td>
+                <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="setCorp(corp)">선택</button></td>
+              </tr>
+              <tr v-if="filteredClients.length === 0"><td colspan="4" class="p-10 text-gray-400 italic">검색 결과가 없습니다.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showProductModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white w-[850px] rounded-lg shadow-2xl overflow-hidden border">
+        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center font-bold">
+          <h3>상품 검색</h3>
+          <button @click="showProductModal = false" class="text-2xl hover:text-gray-200 transition-colors">&times;</button>
+        </div>
+        <div class="p-5">
+          <div class="flex gap-3 mb-4">
+            <select v-model="varietyFilter" class="border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-300">
+              <option v-for="opt in varietyOptions" :key="opt" :value="opt">{{ opt }}</option>
+            </select>
+            <input v-model="modalSearchInput" type="text" placeholder="상품명으로 검색" class="flex-1 border p-2 rounded text-sm outline-none focus:ring-2 focus:ring-blue-300">
+          </div>
+          <div class="max-h-[450px] overflow-y-auto border rounded">
+            <table class="w-full text-sm text-center">
+              <thead class="bg-gray-100 sticky top-0">
+              <tr><th class="p-2">품종</th><th class="p-2">상품명</th><th class="p-2">단위</th><th class="p-2 text-right">표준 단가</th><th class="p-2">선택</th></tr>
+              </thead>
+              <tbody>
+              <tr v-for="p in filteredProducts" :key="p.id" class="border-b hover:bg-slate-50 transition-colors">
+                <td class="p-3 text-xs text-slate-500">{{ p.variety || p.category }}</td>
+                <td class="p-3 font-bold text-slate-800 text-left">{{ p.name }}</td>
+                <td class="p-3 text-slate-600">{{ p.unit }}</td>
+                <td class="p-3 text-right font-mono text-emerald-600 pr-4">{{ (p.price || p.unitPrice || 0).toLocaleString() }}원</td>
+                <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold hover:bg-blue-600" @click="addProduct(p)">추가</button></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</template>

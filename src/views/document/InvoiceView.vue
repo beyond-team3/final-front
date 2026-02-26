@@ -5,6 +5,9 @@ import { useDocumentStore } from '@/stores/document'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import ModalBase from '@/components/common/ModalBase.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,8 +24,20 @@ const pageMode = ref(route.query.mode || 'new')
 const invoiceId = ref(route.query.id || null)
 const contractId = ref(route.query.contractId || null)
 const clientId = ref(route.query.clientId || null)
+const showCancelModal = ref(false)
+const cancelErrorMessage = ref('')
+
+const normalizeInvoiceStatus = (status) => {
+  const raw = String(status || '').trim().toUpperCase()
+  if (['ISSUED', '발행', '발행완료'].includes(raw)) return 'ISSUED'
+  if (['CANCELED', 'CANCELLED', 'CANCEL', '취소'].includes(raw)) return 'CANCELED'
+  return 'DRAFT'
+}
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
+const currentInvoice = computed(() =>
+    invoiceId.value ? documentStore.getInvoiceById(String(invoiceId.value)) || null : null
+)
 
 // ── 선택된 계약 정보 ─────────────────────────────────────
 const selectedContract = computed(() =>
@@ -65,16 +80,24 @@ const filteredStatements = computed(() => {
   return list.filter((s) => s.status === currentFilter.value)
 })
 
+const availableFilteredStatements = computed(() =>
+    filteredStatements.value.filter((s) => s.status === 'available')
+)
+
 // 전체 선택
 const allAvailableSelected = computed(() => {
-  const available = filteredStatements.value.filter((s) => s.status === 'available')
-  if (available.length === 0) return false
-  return available.every((s) => selectedIds.value.has(s.id))
+  if (availableFilteredStatements.value.length === 0) return false
+  return availableFilteredStatements.value.every((s) => selectedIds.value.has(s.id))
+})
+
+const isAllIndeterminate = computed(() => {
+  if (availableFilteredStatements.value.length === 0) return false
+  const selectedCount = availableFilteredStatements.value.filter((s) => selectedIds.value.has(s.id)).length
+  return selectedCount > 0 && selectedCount < availableFilteredStatements.value.length
 })
 
 function toggleAll(checked) {
-  const available = filteredStatements.value.filter((s) => s.status === 'available')
-  available.forEach((s) => {
+  availableFilteredStatements.value.forEach((s) => {
     if (checked) selectedIds.value.add(s.id)
     else selectedIds.value.delete(s.id)
   })
@@ -98,6 +121,17 @@ const taxAmount = computed(() => Math.round(supplyAmount.value * 0.1))
 const totalAmount = computed(() => supplyAmount.value + taxAmount.value)
 
 const canCreate = computed(() => selectedStatements.value.length > 0)
+const currentInvoiceStatus = computed(() => {
+  if (currentInvoice.value) return normalizeInvoiceStatus(currentInvoice.value.status)
+  if (pageMode.value === 'issued') return 'ISSUED'
+  return 'DRAFT'
+})
+const canCancelInvoice = computed(() =>
+    isSalesRep.value && Boolean(invoiceId.value) && currentInvoiceStatus.value !== 'CANCELED'
+)
+const invoiceStatusHistory = computed(() =>
+    Array.isArray(currentInvoice.value?.statusHistory) ? currentInvoice.value.statusHistory : []
+)
 
 // pending 모드에서는 available 명세서 자동 선택
 watch(
@@ -106,6 +140,19 @@ watch(
       if (pageMode.value === 'pending') {
         const ids = new Set(list.filter((s) => s.status === 'available').map((s) => s.id))
         selectedIds.value = ids
+      }
+    },
+    { immediate: true }
+)
+
+watch(
+    () => currentInvoice.value,
+    (invoice) => {
+      if (!invoice) return
+      remarks.value = invoice.remarks || ''
+      const selected = (invoice.items || []).map((item) => item.id).filter(Boolean)
+      if (selected.length > 0) {
+        selectedIds.value = new Set(selected)
       }
     },
     { immediate: true }
@@ -127,18 +174,33 @@ const invNo = computed(() =>
 
 // ── 모드별 UI 텍스트 ─────────────────────────────────────
 const modeLabel = computed(() => {
-  if (pageMode.value === 'pending') return '발행 대기'
-  if (pageMode.value === 'issued') return '발행 완료'
+  if (currentInvoiceStatus.value === 'CANCELED') return '취소된 청구서'
+  if (currentInvoiceStatus.value === 'ISSUED') return '발행 완료'
+  if (invoiceId.value) return '발행 대기'
   return '신규 청구서 발행'
 })
 
 const modeBannerClass = computed(() => {
-  if (pageMode.value === 'pending') return 'bg-yellow-50 border-yellow-200 text-yellow-700'
-  if (pageMode.value === 'issued') return 'bg-green-50 border-green-200 text-green-700'
+  if (currentInvoiceStatus.value === 'CANCELED') return 'bg-slate-100 border-slate-300 text-slate-600'
+  if (currentInvoiceStatus.value === 'ISSUED') return 'bg-green-50 border-green-200 text-green-700'
+  if (invoiceId.value) return 'bg-yellow-50 border-yellow-200 text-yellow-700'
   return 'bg-blue-50 border-blue-200 text-blue-700'
 })
 
-const isReadOnly = computed(() => pageMode.value === 'issued')
+const isReadOnly = computed(() => currentInvoiceStatus.value !== 'DRAFT')
+
+const invoiceCardStatus = computed(() => {
+  if (currentInvoiceStatus.value === 'CANCELED') return 'CANCELED'
+  if (currentInvoiceStatus.value === 'ISSUED') return 'APPROVED'
+  return 'DRAFT'
+})
+
+const statementCardStatus = computed(() => {
+  if (currentInvoiceStatus.value === 'CANCELED') return 'CANCELED'
+  if (currentInvoiceStatus.value === 'ISSUED') return 'APPROVED'
+  if (invoiceId.value || selectedStatements.value.length > 0) return 'REQUESTED'
+  return 'DRAFT'
+})
 
 // ── 청구서 생성 ──────────────────────────────────────────
 const showSuccess = ref(false)
@@ -155,10 +217,23 @@ function createInvoice() {
     client: selectedClientData.value,
     items: selectedStatements.value,
     remarks: remarks.value,
-    mode: pageMode.value === 'pending' ? 'issued' : 'pending',
+    mode: pageMode.value === 'pending' ? 'ISSUED' : 'DRAFT',
   })
 
   showSuccess.value = true
+}
+
+async function confirmInvoiceCancel() {
+  cancelErrorMessage.value = ''
+  if (!invoiceId.value) return
+
+  const result = await documentStore.cancelInvoice(invoiceId.value)
+  if (!result.success) {
+    cancelErrorMessage.value = result.message || '청구서 취소에 실패했습니다.'
+    return
+  }
+
+  showCancelModal.value = false
 }
 
 function onSuccessConfirm() {
@@ -188,8 +263,9 @@ function onSuccessConfirm() {
 
     <!-- 모드 배너 -->
     <div class="mb-5 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold" :class="modeBannerClass">
-      <span v-if="pageMode === 'pending'">🕐 <strong>발행 대기</strong> — 명세서를 확인하고 청구서를 발행 확정하세요.</span>
-      <span v-else-if="pageMode === 'issued'">✅ <strong>발행 완료</strong> — 발행 완료된 청구서입니다. 수정할 수 없습니다.</span>
+      <span v-if="currentInvoiceStatus === 'CANCELED'">⛔ <strong>취소 완료</strong> — 취소된 청구서입니다.</span>
+      <span v-else-if="currentInvoiceStatus === 'ISSUED'">✅ <strong>발행 완료</strong> — 발행 완료된 청구서입니다. 수정할 수 없습니다.</span>
+      <span v-else-if="invoiceId">🕐 <strong>발행 대기</strong> — 명세서를 확인하고 청구서를 발행 확정하세요.</span>
       <span v-else>✨ <strong>신규 청구서 발행</strong> — 발행할 명세서를 선택하고 청구서를 생성하세요.</span>
     </div>
 
@@ -200,7 +276,8 @@ function onSuccessConfirm() {
       <section class="space-y-5">
 
         <!-- 주문 요약 카드 (선택된 계약/거래처 정보) -->
-        <article class="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-6 py-4">
+        <article class="relative flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-6 py-4">
+          <StatusBadge class="absolute right-4 top-3" :status="invoiceCardStatus" :label="currentInvoiceStatus" />
           <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xl">📦</div>
           <div class="flex flex-wrap gap-x-8 gap-y-1">
             <div>
@@ -219,12 +296,13 @@ function onSuccessConfirm() {
         </article>
 
         <!-- 명세서 목록 -->
-        <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <article class="relative overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <StatusBadge class="absolute right-4 top-3 z-10" :status="statementCardStatus" />
           <div class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
             <span>📄</span>
             <span class="text-sm font-bold text-slate-800">명세서 목록</span>
             <span v-if="isReadOnly" class="ml-auto rounded border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">🔒 읽기 전용</span>
-            <span v-else-if="pageMode === 'pending'" class="ml-auto rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-600">✓ 자동 선택됨</span>
+            <span v-else-if="invoiceId" class="ml-auto rounded bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-600">✓ 자동 선택됨</span>
           </div>
 
           <!-- 필터 -->
@@ -253,12 +331,12 @@ function onSuccessConfirm() {
               <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th class="w-10 px-4 py-2.5">
-                  <input
-                      type="checkbox"
-                      :disabled="isReadOnly"
-                      :checked="allAvailableSelected"
-                      class="rounded"
-                      @change="e => toggleAll(e.target.checked)"
+                  <CedarCheckbox
+                    aria-label="명세서 전체 선택"
+                    :disabled="isReadOnly"
+                    :model-value="allAvailableSelected"
+                    :indeterminate="isAllIndeterminate"
+                    @update:model-value="toggleAll"
                   />
                 </th>
                 <th class="px-4 py-2.5">명세서 번호</th>
@@ -277,12 +355,11 @@ function onSuccessConfirm() {
                   :class="stmt.status === 'completed' ? 'opacity-50' : ''"
               >
                 <td class="px-4 py-3">
-                  <input
-                      type="checkbox"
-                      :disabled="isReadOnly || stmt.status === 'completed'"
-                      :checked="selectedIds.has(stmt.id)"
-                      class="rounded"
-                      @change="e => toggleStatement(stmt.id, e.target.checked)"
+                  <CedarCheckbox
+                    :aria-label="`${stmt.id} 선택`"
+                    :disabled="isReadOnly || stmt.status === 'completed'"
+                    :model-value="selectedIds.has(stmt.id)"
+                    @update:model-value="(checked) => toggleStatement(stmt.id, checked)"
                   />
                 </td>
                 <td class="px-4 py-3">
@@ -311,6 +388,25 @@ function onSuccessConfirm() {
               </tr>
               </tbody>
             </table>
+          </div>
+        </article>
+
+        <article v-if="invoiceId" class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
+            <span>🕒</span>
+            <span class="text-sm font-bold text-slate-800">상태 변경 이력</span>
+          </div>
+          <div class="p-5">
+            <ul v-if="invoiceStatusHistory.length > 0" class="space-y-2 text-sm text-slate-600">
+              <li
+                  v-for="entry in invoiceStatusHistory"
+                  :key="`${entry.timestamp}-${entry.actor}-${entry.previousStatus}`"
+                  class="rounded border border-slate-100 bg-slate-50 px-3 py-2"
+              >
+                {{ new Date(entry.timestamp).toLocaleString('ko-KR') }} · {{ entry.actor }} · 이전 상태 {{ entry.previousStatus }}
+              </li>
+            </ul>
+            <p v-else class="text-sm text-slate-400">기록된 상태 변경 이력이 없습니다.</p>
           </div>
         </article>
 
@@ -381,6 +477,15 @@ function onSuccessConfirm() {
               취소
             </button>
             <button
+                v-if="canCancelInvoice"
+                type="button"
+                class="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                style="background-color: #C44536"
+                @click="showCancelModal = true"
+            >
+              청구서 취소
+            </button>
+            <button
                 type="button"
                 class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 :disabled="!canCreate"
@@ -392,8 +497,17 @@ function onSuccessConfirm() {
         </div>
 
         <!-- 발행 완료 안내 -->
-        <div v-if="isReadOnly" class="flex items-center justify-end rounded-xl border border-slate-200 bg-white px-6 py-4 text-sm text-slate-400">
-          🔒 발행 완료된 청구서입니다. 수정 및 재발행이 불가합니다.
+        <div v-if="isReadOnly" class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-6 py-4 text-sm text-slate-400">
+          <span>🔒 {{ currentInvoiceStatus === 'CANCELED' ? '취소된 청구서입니다.' : '발행 완료된 청구서입니다. 수정 및 재발행이 불가합니다.' }}</span>
+          <button
+              v-if="canCancelInvoice"
+              type="button"
+              class="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+              style="background-color: #C44536"
+              @click="showCancelModal = true"
+          >
+            청구서 취소
+          </button>
         </div>
 
       </section>
@@ -520,6 +634,36 @@ function onSuccessConfirm() {
         </div>
       </div>
     </Teleport>
+
+    <ModalBase
+        v-model="showCancelModal"
+        title="청구서 취소 확인"
+        width-class="max-w-md"
+    >
+      <p class="text-sm text-slate-700">이 청구서를 취소하시겠습니까?</p>
+      <p v-if="cancelErrorMessage" class="mt-2 text-xs font-semibold text-[#C44536]">
+        {{ cancelErrorMessage }}
+      </p>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <button
+              type="button"
+              class="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              @click="showCancelModal = false"
+          >
+            닫기
+          </button>
+          <button
+              type="button"
+              class="rounded px-3 py-1.5 text-sm font-semibold text-white"
+              style="background-color: #C44536"
+              @click="confirmInvoiceCancel"
+          >
+            취소 확정
+          </button>
+        </div>
+      </template>
+    </ModalBase>
 
   </section>
 </template>

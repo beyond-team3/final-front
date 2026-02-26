@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">재배적기 품종 추천</h2>
+
+                <!-- 화면 전용 스타일 (템플릿 공통 스타일 변경 없음) -->
+                <style>
+                  .cultivate-wrap { display: flex; flex-direction: column; gap: 18px; }
+
+                  /* 상단: 월 선택 바 */
+                  .month-bar {
+                    display: flex; gap: 10px; align-items: center;
+                    padding: 12px; border: 1px solid #ecf0f1; border-radius: 10px;
+                    background: #fafbfc;
+                    overflow-x: auto;
+                  }
+                  .month-chip {
+                    flex: 0 0 auto;
+                    padding: 10px 14px;
+                    border: 1px solid #dfe6e9;
+                    background: #fff;
+                    border-radius: 999px;
+                    font-size: 14px;
+                    cursor: pointer;
+                    transition: transform .06s ease, background-color .15s ease, border-color .15s ease;
+                    user-select: none;
+                  }
+                  .month-chip:hover { transform: translateY(-1px); }
+                  .month-chip.active {
+                    border-color: #3498db;
+                    background: rgba(52, 152, 219, 0.10);
+                    font-weight: 600;
+                  }
+
+                  /* 안내 텍스트 */
+                  .hint {
+                    margin-top: 6px;
+                    color: #7f8c8d;
+                    font-size: 13px;
+                    line-height: 1.5;
+                  }
+
+                  /* 월별 추천 상품 영역 */
+                  .product-panel {
+                    border: 1px solid #ecf0f1;
+                    border-radius: 12px;
+                    background: #fff;
+                    padding: 16px;
+                  }
+                  .product-panel-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
+                    margin-bottom: 12px;
+                  }
+                  .product-panel-title {
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #2c3e50;
+                  }
+                  .month-feature {
+                    border: 1px solid #ecf0f1;
+                    border-radius: 12px;
+                    background: #f8fbff;
+                    padding: 14px 16px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                  }
+                  .month-feature-title {
+                    font-weight: 700;
+                    color: #2c3e50;
+                    font-size: 15px;
+                  }
+                  .month-feature-desc {
+                    color: #51606d;
+                    font-size: 13px;
+                    line-height: 1.6;
+                  }
+                  .month-feature-tags {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                  }
+                  .month-feature-tag {
+                    padding: 4px 8px;
+                    border-radius: 999px;
+                    background: #ffffff;
+                    border: 1px solid #dfe6e9;
+                    font-size: 12px;
+                    color: #3b4a57;
+                  }
+                  .product-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, minmax(0, 1fr));
+                    gap: 12px;
+                  }
+                  .product-item {
+                    border: 1px solid #ecf0f1;
+                    border-radius: 12px;
+                    padding: 12px;
+                    cursor: pointer;
+                    transition: transform .06s ease, box-shadow .15s ease, border-color .15s ease;
+                    background: #fff;
+                  }
+                  .product-item:hover {
+                    transform: translateY(-1px);
+                    border-color: #d7dee3;
+                    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+                  }
+                  .product-thumb {
+                    height: 86px;
+                    border-radius: 10px;
+                    border: 1px solid #ecf0f1;
+                    background: #f7f9fb;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #7f8c8d;
+                    font-size: 12px;
+                    margin-bottom: 10px;
+                  }
+                  .product-name {
+                    font-weight: 700;
+                    color: #2c3e50;
+                    margin-bottom: 6px;
+                    font-size: 14px;
+                  }
+                  .product-desc {
+                    color: #657786;
+                    font-size: 12px;
+                    line-height: 1.45;
+                  }
+
+                  @media (max-width: 920px) {
+                    .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                  }
+                  @media (max-width: 560px) {
+                    .product-grid { grid-template-columns: 1fr; }
+                  }
+                </style>
+
+                <div class="cultivate-wrap">
+                  <!-- 상단: 월 선택 클릭 바 -->
+                  <div class="month-bar" id="monthBar" aria-label="월 선택 바"></div>
+
+                  <div class="hint">
+                    • 상단에서 달을 선택하면 해당 달의 추천 상품 리스트가 아래에 표시됩니다.
+                  </div>
+
+                  <!-- 월별 농사 특징 요약 -->
+                  <div class="month-feature" aria-live="polite">
+                    <div class="month-feature-title" id="monthFeatureTitle">이달의 농사 특징</div>
+                    <div class="month-feature-desc" id="monthFeatureDesc"></div>
+                    <div class="month-feature-tags" id="monthFeatureTags"></div>
+                  </div>
+
+                  <!-- 월별 추천 상품 리스트 -->
+                  <div class="product-panel" aria-live="polite">
+                    <div class="product-panel-header">
+                      <div class="product-panel-title" id="productTitle">추천 상품 리스트</div>
+                    </div>
+                    <div class="product-grid" id="productGrid"></div>
+                    <div class="hint" style="margin-top:12px;">
+                      • 상품 클릭 시: 상품 상세 조회 페이지로 이동(현재 화면에서는 구현 X)
+                    </div>
+                  </div>
+                </div>
+
+                <script>
+                  (function () {
+                    // ====== 데모 데이터 (실서비스에서는 API 연동) ======
+                    const monthData = [
+                      { month: 1,  title: "1월 재배 적기 추천",  summary: "저온기 관리에 강한 품종 중심으로 추천합니다.", tags: ["저온기", "초세안정", "하우스"], products: demoProducts(1) },
+                      { month: 2,  title: "2월 재배 적기 추천",  summary: "정식 준비 시즌, 생육 밸런스가 좋은 품종을 추천합니다.", tags: ["정식준비", "활착", "생육균형"], products: demoProducts(2) },
+                      { month: 3,  title: "3월 재배 적기 추천",  summary: "본격 파종/정식 시작, 수량성과 균일도가 좋은 품종을 추천합니다.", tags: ["파종", "정식", "균일도"], products: demoProducts(3) },
+                      { month: 4,  title: "4월 재배 적기 추천",  summary: "기온 상승기, 병해 리스크를 고려한 품종을 추천합니다.", tags: ["병해", "내병성", "환기"], products: demoProducts(4) },
+                      { month: 5,  title: "5월 재배 적기 추천",  summary: "생육이 빠른 시기, 관리 편의성이 높은 품종을 추천합니다.", tags: ["관리", "생육속도", "하우스"], products: demoProducts(5) },
+                      { month: 6,  title: "6월 재배 적기 추천",  summary: "고온기 초입, 스트레스 대응 품종을 추천합니다.", tags: ["고온기", "스트레스", "활착"], products: demoProducts(6) },
+                      { month: 7,  title: "7월 재배 적기 추천",  summary: "고온다습, 병해 저항성을 우선한 품종을 추천합니다.", tags: ["고온다습", "병해저항", "환기"], products: demoProducts(7) },
+                      { month: 8,  title: "8월 재배 적기 추천",  summary: "작기 전환기, 회복력이 좋은 품종을 추천합니다.", tags: ["작기전환", "회복력", "균일도"], products: demoProducts(8) },
+                      { month: 9,  title: "9월 재배 적기 추천",  summary: "가을작기 진입, 수량성과 상품성이 좋은 품종을 추천합니다.", tags: ["가을작기", "상품성", "수량성"], products: demoProducts(9) },
+                      { month: 10, title: "10월 재배 적기 추천", summary: "일교차 확대, 내한성과 생육 안정 품종을 추천합니다.", tags: ["일교차", "내한성", "안정"], products: demoProducts(10) },
+                      { month: 11, title: "11월 재배 적기 추천", summary: "저온기 시작, 초기 생육이 안정적인 품종을 추천합니다.", tags: ["저온기", "초기생육", "하우스"], products: demoProducts(11) },
+                      { month: 12, title: "12월 재배 적기 추천", summary: "연중 최저온, 관리 난이도가 낮은 품종을 추천합니다.", tags: ["최저온", "관리용이", "안정"], products: demoProducts(12) },
+                    ];
+
+                    function demoProducts(m) {
+                      // 월별로 살짝 다른 더미 목록
+                      return Array.from({ length: 9 }, (_, i) => {
+                        const idx = i + 1;
+                        return {
+                          id: `M${m}-P${idx}`,
+                          name: `추천 품종 ${idx}`,
+                          desc: `월 ${m} 기준 추천 포인트를 반영한 품종 예시입니다. (데모 데이터)`,
+                          link: `product-detail.html?month=${m}&id=${idx}` // 실제 페이지는 미구현
+                        };
+                      });
+                    }
+
+                    // ====== 요소 참조 ======
+                    const monthBar = document.getElementById('monthBar');
+
+                    const monthFeatureTitle = document.getElementById('monthFeatureTitle');
+                    const monthFeatureDesc = document.getElementById('monthFeatureDesc');
+                    const monthFeatureTags = document.getElementById('monthFeatureTags');
+                    const productTitle = document.getElementById('productTitle');
+                    const productGrid = document.getElementById('productGrid');
+
+                    // ====== 상태 ======
+                    let activeIndex = new Date().getMonth(); // 0~11, 현재 월을 기본 선택
+                    if (activeIndex < 0 || activeIndex > 11) activeIndex = 0;
+
+                    // ====== 렌더: 월 칩 ======
+                    function renderMonthBar() {
+                      monthBar.innerHTML = '';
+                      monthData.forEach((item, idx) => {
+                        const chip = document.createElement('button');
+                        chip.type = 'button';
+                        chip.className = 'month-chip' + (idx === activeIndex ? ' active' : '');
+                        chip.textContent = `${item.month}월`;
+                        chip.addEventListener('click', () => {
+                          activeIndex = idx;
+                          syncUI();
+                        });
+                        monthBar.appendChild(chip);
+                      });
+                    }
+
+                    function updateActiveChip() {
+                      const chips = monthBar.querySelectorAll('.month-chip');
+                      chips.forEach((c, i) => c.classList.toggle('active', i === activeIndex));
+                    }
+
+                    function syncUI() {
+                      updateActiveChip();
+                      renderMonthFeature(activeIndex);
+                      renderProducts(activeIndex);
+                    }
+
+                    function renderMonthFeature(idx) {
+                      const item = monthData[idx];
+                      monthFeatureTitle.textContent = `${item.month}월 농사 특징`;
+                      monthFeatureDesc.textContent = item.summary;
+                      monthFeatureTags.innerHTML = '';
+
+                      item.tags.forEach(tag => {
+                        const el = document.createElement('span');
+                        el.className = 'month-feature-tag';
+                        el.textContent = `#${tag}`;
+                        monthFeatureTags.appendChild(el);
+                      });
+                    }
+
+                    // ====== 월별 추천 상품 렌더 ======
+                    function renderProducts(idx) {
+                      const item = monthData[idx];
+                      productTitle.textContent = `${item.month}월 추천 상품 리스트`;
+                      productGrid.innerHTML = '';
+
+                      item.products.forEach(p => {
+                        const el = document.createElement('div');
+                        el.className = 'product-item';
+                        el.innerHTML = `
+                          <div class="product-thumb">이미지</div>
+                          <div class="product-name">${p.name}</div>
+                          <div class="product-desc">${p.desc}</div>
+                        `;
+                        el.addEventListener('click', () => {
+                          // 상품 상세 조회 페이지(미구현)로 이동
+                          window.location.href = p.link;
+                        });
+                        productGrid.appendChild(el);
+                      });
+                    }
+
+                    // ====== 이벤트 바인딩 ======
+                    document.addEventListener('keydown', (e) => {
+                      // 갤러리 키보드 이동(선택)
+                      if (e.key === 'ArrowLeft' && activeIndex > 0) { activeIndex -= 1; syncUI(); }
+                      if (e.key === 'ArrowRight' && activeIndex < 11) { activeIndex += 1; syncUI(); }
+                    });
+
+                    // ====== 초기화 ======
+                    renderMonthBar();
+                    syncUI();
+                  })();
+                </script>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>

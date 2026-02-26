@@ -38,8 +38,8 @@ const setPage = (page) => {
 </template>
 
 <style scoped>
-.pager { display: flex; gap: 6px; }
-.page-btn { border: 1px solid #dbe1e9; border-radius: 8px; padding: 7px 10px; background: #fff; font-size: 12px; }
-.page-btn.active { background: #1e293b; border-color: #1e293b; color: #fff; }
-.page-btn:disabled { opacity: .45; }
+.pager {
+  display: flex;
+  gap: 6px;
+}
 </style>

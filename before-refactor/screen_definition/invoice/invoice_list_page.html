@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>청구서 관리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #f0f2f5;
+        }
+
+        /* ───── 공통 헤더 ───── */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #1a2636;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 16px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .menu-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .header-badge {
+            margin-left: 12px;
+            background: #3b82f6;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* ───── 사이드바 ───── */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 240px;
+            height: calc(100vh - 60px);
+            background: #1e2d3d;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 16px 0;
+        }
+
+        .nav-category {
+            padding: 16px 20px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 1px;
+        }
+
+        .nav-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border-left-color: #3b82f6;
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: white;
+            border-left-color: #3b82f6;
+            font-weight: 600;
+        }
+
+        /* ───── 메인 컨텐츠 영역 ───── */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 240px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background: #f0f2f5;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .screen-content {
+            margin: 24px;
+        }
+
+        /* ───── 페이지 헤더 ───── */
+        .page-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .page-header-left .breadcrumb {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .page-header-left .breadcrumb span {
+            color: #3b82f6;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        /* ───── 신규 발행 버튼 ───── */
+        .btn-new-invoice {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 20px;
+            height: 42px;
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn-new-invoice:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+
+        /* ───── 탭 컨테이너 ───── */
+        .tab-container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        /* ───── 탭 헤더 ───── */
+        .tab-header {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fafbfc;
+            padding: 0 20px;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 14px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            margin-bottom: -1px;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: #2563eb;
+        }
+
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        /* 탭 카운트 뱃지 */
+        .tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #e2e8f0;
+            color: #64748b;
+        }
+
+        .tab-btn.active .tab-count {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        /* ───── 테이블 툴바 ───── */
+        .table-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            gap: 12px;
+        }
+
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .search-wrap {
+            position: relative;
+        }
+
+        .search-input {
+            width: 220px;
+            height: 34px;
+            padding: 0 12px 0 34px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            font-size: 13px;
+            color: #1e293b;
+            background: #fafbfc;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        .toolbar-right {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        /* ───── 청구서 목록 테이블 ───── */
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .invoice-table thead tr {
+            background: #f8fafc;
+        }
+
+        .invoice-table th {
+            padding: 10px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .invoice-table th.center,
+        .invoice-table td.center {
+            text-align: center;
+        }
+
+        .invoice-table tbody tr {
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+
+        .invoice-table tbody tr:hover {
+            background: #f0f7ff;
+        }
+
+        .invoice-table td {
+            padding: 13px 16px;
+            font-size: 13px;
+            color: #334155;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        .invoice-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 청구서 번호 셀 */
+        .inv-number {
+            font-weight: 700;
+            color: #2563eb;
+            font-size: 13px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+
+        /* 거래처명 셀 */
+        .client-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* 계약명 셀 */
+        .contract-name {
+            color: #475569;
+            font-size: 13px;
+        }
+
+        /* 청구 주기 셀 */
+        .billing-cycle {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 3px 9px;
+            border-radius: 5px;
+        }
+
+        /* 기준일 셀 */
+        .basis-date {
+            font-size: 13px;
+            color: #475569;
+        }
+
+        /* ───── 상태 뱃지 ───── */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        .status-badge::before {
+            content: "●";
+            font-size: 7px;
+        }
+
+        /* 발행 대기 상태 */
+        .status-badge.pending {
+            background: #fef9c3;
+            color: #a16207;
+        }
+
+        /* 발행 완료 상태 */
+        .status-badge.issued {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        /* 발행일 셀 */
+        .issue-date {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        /* 발행일 없음 (대기) */
+        .issue-date.empty {
+            color: #cbd5e1;
+        }
+
+        /* ───── 행 화살표 아이콘 ───── */
+        .row-arrow {
+            color: #cbd5e1;
+            font-size: 14px;
+            transition: color 0.15s, transform 0.15s;
+        }
+
+        .invoice-table tbody tr:hover .row-arrow {
+            color: #2563eb;
+            transform: translateX(3px);
+        }
+
+        /* ───── 빈 상태 ───── */
+        .empty-state {
+            padding: 60px 40px;
+            text-align: center;
+            color: #94a3b8;
+        }
+
+        .empty-state .empty-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .empty-state .empty-text {
+            font-size: 15px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .empty-state .empty-sub {
+            font-size: 13px;
+        }
+
+        /* ───── 모달 오버레이 ───── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        /* ───── 모달 본체 ───── */
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 600px;
+            max-width: calc(100vw - 40px);
+            max-height: calc(100vh - 80px);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+            animation: modal-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+
+        @keyframes modal-in {
+            from {
+                opacity: 0;
+                transform: scale(0.92) translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* ───── 모달 헤더 ───── */
+        .modal-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .modal-title-block .modal-title {
+            font-size: 17px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+        }
+
+        .modal-title-block .modal-subtitle {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 3px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: all 0.15s;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        /* ───── 스텝 인디케이터 ───── */
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 14px 24px;
+            border-bottom: 1px solid #f1f5f9;
+            background: #fafbfc;
+            flex-shrink: 0;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            background: #e2e8f0;
+            color: #94a3b8;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .step-item.active .step-num {
+            background: #2563eb;
+            color: white;
+        }
+
+        .step-item.done .step-num {
+            background: #16a34a;
+            color: white;
+        }
+
+        .step-item.done .step-num::after {
+            content: "✓";
+        }
+
+        .step-item.done .step-num-inner {
+            display: none;
+        }
+
+        .step-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            transition: color 0.2s;
+        }
+
+        .step-item.active .step-label {
+            color: #2563eb;
+        }
+
+        .step-item.done .step-label {
+            color: #16a34a;
+        }
+
+        .step-divider {
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+            margin: 0 12px;
+        }
+
+        /* ───── 모달 바디 ───── */
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+
+        /* ───── [STEP 1] 거래처 검색 섹션 ───── */
+        #step1 {
+            display: block;
+        }
+
+        #step2 {
+            display: none;
+        }
+
+        .modal-section-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        /* 거래처 검색 입력 */
+        .client-search-wrap {
+            position: relative;
+            margin-bottom: 14px;
+        }
+
+        .client-search-input {
+            width: 100%;
+            height: 40px;
+            padding: 0 14px 0 38px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #1e293b;
+            background: white;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .client-search-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .client-search-input::placeholder {
+            color: #cbd5e1;
+        }
+
+        .client-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 15px;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        /* 거래처 목록 */
+        .client-list {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .client-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .client-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .client-list-item:hover {
+            background: #f0f7ff;
+        }
+
+        .client-list-item.selected {
+            background: #eff6ff;
+        }
+
+        .client-info .client-name-modal {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .client-info .client-detail {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .client-select-arrow {
+            font-size: 16px;
+            color: #cbd5e1;
+            transition: color 0.15s, transform 0.15s;
+        }
+
+        .client-list-item:hover .client-select-arrow {
+            color: #2563eb;
+            transform: translateX(3px);
+        }
+
+        /* ───── [STEP 2] 계약 선택 섹션 ───── */
+        /* 선택된 거래처 요약 배너 */
+        .selected-client-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .selected-client-banner .sc-icon {
+            font-size: 18px;
+        }
+
+        .selected-client-banner .sc-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1d4ed8;
+            flex: 1;
+        }
+
+        .sc-change-btn {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2563eb;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            padding: 3px 8px;
+            border-radius: 5px;
+            transition: background 0.15s;
+        }
+
+        .sc-change-btn:hover {
+            background: #dbeafe;
+        }
+
+        /* 계약 목록 */
+        .contract-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .contract-card {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: all 0.18s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .contract-card:hover:not(.disabled) {
+            border-color: #93c5fd;
+            background: #f8fbff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+        }
+
+        /* 발행 불가 계약 카드 */
+        .contract-card.disabled {
+            background: #fafafa;
+            cursor: not-allowed;
+            opacity: 0.75;
+        }
+
+        .contract-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 8px;
+        }
+
+        .contract-card-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.3;
+        }
+
+        /* 계약 카드 상태 뱃지 */
+        .contract-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 20px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .contract-status-badge.available {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .contract-status-badge.already-issued {
+            background: #f1f5f9;
+            color: #94a3b8;
+        }
+
+        .contract-card-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .contract-meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .contract-meta-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .contract-meta-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        /* 이미 발행됨 경고 메시지 */
+        .already-issued-msg {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #c2410c;
+            font-weight: 500;
+        }
+
+        /* ───── 모달 푸터 ───── */
+        .modal-footer {
+            padding: 14px 24px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-shrink: 0;
+            background: #fafbfc;
+        }
+
+        .btn-modal-cancel {
+            height: 38px;
+            padding: 0 18px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 7px;
+            background: white;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .btn-modal-cancel:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        /* ───── 토스트 ───── */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 4000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ───── 반응형 ───── */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .invoice-table th:nth-child(4),
+            .invoice-table td:nth-child(4),
+            .invoice-table th:nth-child(7),
+            .invoice-table td:nth-child(7) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ===================================================
+         헤더 영역
+    =================================================== -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+        <span class="header-badge">B2B</span>
+    </header>
+
+    <!-- ===================================================
+         사이드바 영역
+    =================================================== -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">영업</div>
+            <div class="nav-item">📋&nbsp; 영업 대시보드</div>
+            <div class="nav-item">📝&nbsp; 주문서 작성</div>
+            <div class="nav-item active">🧾&nbsp; 청구서 관리</div>
+            <div class="nav-item">📜&nbsp; 계약 관리</div>
+            <div class="nav-item">🏢&nbsp; 거래처 관리</div>
+            <div class="nav-category">이력</div>
+            <div class="nav-item">🕒&nbsp; 영업 히스토리</div>
+            <div class="nav-item">📦&nbsp; 주문 이력</div>
+            <div class="nav-category">설정</div>
+            <div class="nav-item">⚙️&nbsp; 설정</div>
+            <div class="nav-item">👤&nbsp; 프로필</div>
+        </nav>
+    </aside>
+
+    <!-- ===================================================
+         메인 컨텐츠 영역
+    =================================================== -->
+    <main class="main-content" id="mainContent">
+        <div class="screen-content">
+
+            <!-- ── 페이지 헤더: 타이틀 + 신규 발행 버튼 ── -->
+            <div class="page-header">
+                <div class="page-header-left">
+                    <div class="breadcrumb">영업 &rsaquo; <span>청구서 관리</span></div>
+                    <div class="page-title">청구서 관리</div>
+                    <div class="page-subtitle">청구서를 조회하고 신규 청구서를 발행합니다.</div>
+                </div>
+                <!-- 신규 청구서 발행 버튼: 클릭 시 모달 오픈 -->
+                <button class="btn-new-invoice" onclick="openModal()">
+                    ＋ 신규 청구서 발행
+                </button>
+            </div>
+
+            <!-- ── 탭 + 테이블 컨테이너 ── -->
+            <div class="tab-container">
+
+                <!-- ── 탭 헤더 ── -->
+                <div class="tab-header">
+                    <!-- 발행 대기 탭 -->
+                    <button class="tab-btn active" id="tab-pending" onclick="switchTab('pending')">
+                        🕐 발행 대기
+                        <span class="tab-count" id="count-pending">0</span>
+                    </button>
+                    <!-- 발행 완료 탭 -->
+                    <button class="tab-btn" id="tab-issued" onclick="switchTab('issued')">
+                        ✅ 발행 완료
+                        <span class="tab-count" id="count-issued">0</span>
+                    </button>
+                </div>
+
+                <!-- ── 테이블 툴바: 검색 ── -->
+                <div class="table-toolbar">
+                    <div class="toolbar-left">
+                        <div class="search-wrap">
+                            <span class="search-icon">🔍</span>
+                            <input
+                                type="text"
+                                class="search-input"
+                                id="searchInput"
+                                placeholder="거래처명 또는 계약명 검색"
+                                oninput="renderTable()"
+                            >
+                        </div>
+                    </div>
+                    <div class="toolbar-right" id="resultCount"></div>
+                </div>
+
+                <!-- ── 청구서 목록 테이블 ── -->
+                <div style="overflow-x: auto;">
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>청구서 번호</th>
+                                <th>거래처명</th>
+                                <th>계약명</th>
+                                <th>청구 주기</th>
+                                <th>청구 기준일</th>
+                                <th class="center">상태</th>
+                                <th>발행일</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoiceTableBody">
+                            <!-- JS 렌더링 -->
+                        </tbody>
+                    </table>
+                    <!-- 빈 상태 표시 -->
+                    <div id="emptyState" class="empty-state" style="display: none;">
+                        <div class="empty-icon">🔍</div>
+                        <div class="empty-text">검색 결과가 없습니다.</div>
+                        <div class="empty-sub">다른 검색어를 입력하거나 탭을 변경해 보세요.</div>
+                    </div>
+                </div>
+
+            </div><!-- /tab-container -->
+
+        </div><!-- /screen-content -->
+    </main>
+
+    <!-- ===================================================
+         신규 청구서 발행 모달
+    =================================================== -->
+    <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitleText">
+
+            <!-- ── 모달 헤더 ── -->
+            <div class="modal-header">
+                <div class="modal-title-block">
+                    <div class="modal-title" id="modalTitleText">신규 청구서 발행</div>
+                    <div class="modal-subtitle" id="modalSubtitle">거래처를 선택한 후 계약을 선택하세요.</div>
+                </div>
+                <button class="modal-close" onclick="closeModal()" aria-label="닫기">✕</button>
+            </div>
+
+            <!-- ── 스텝 인디케이터 ── -->
+            <div class="step-indicator">
+                <!-- Step 1: 거래처 검색 -->
+                <div class="step-item active" id="stepIndicator1">
+                    <div class="step-num"><span class="step-num-inner">1</span></div>
+                    <div class="step-label">거래처 검색</div>
+                </div>
+                <div class="step-divider"></div>
+                <!-- Step 2: 계약 선택 -->
+                <div class="step-item" id="stepIndicator2">
+                    <div class="step-num"><span class="step-num-inner">2</span></div>
+                    <div class="step-label">계약 선택</div>
+                </div>
+            </div>
+
+            <!-- ── 모달 바디 ── -->
+            <div class="modal-body">
+
+                <!-- ┌─────────────────────────────────────────┐
+                     │  STEP 1: 거래처 검색 및 선택            │
+                     └─────────────────────────────────────────┘ -->
+                <div id="step1">
+                    <div class="modal-section-label">거래처 검색</div>
+
+                    <!-- 거래처 검색 입력 -->
+                    <div class="client-search-wrap">
+                        <span class="client-search-icon">🔍</span>
+                        <input
+                            type="text"
+                            class="client-search-input"
+                            id="clientSearchInput"
+                            placeholder="거래처명을 입력하세요"
+                            oninput="filterClients()"
+                        >
+                    </div>
+
+                    <!-- 거래처 리스트 -->
+                    <div class="client-list" id="clientList">
+                        <!-- JS 렌더링 -->
+                    </div>
+                </div>
+
+                <!-- ┌─────────────────────────────────────────┐
+                     │  STEP 2: 계약 선택                      │
+                     └─────────────────────────────────────────┘ -->
+                <div id="step2">
+                    <!-- 선택된 거래처 배너 -->
+                    <div class="selected-client-banner">
+                        <span class="sc-icon">🏢</span>
+                        <span class="sc-name" id="selectedClientName">—</span>
+                        <button class="sc-change-btn" onclick="goToStep1()">← 변경</button>
+                    </div>
+
+                    <div class="modal-section-label">계약 선택</div>
+
+                    <!-- 계약 카드 목록 -->
+                    <div class="contract-list" id="contractList">
+                        <!-- JS 렌더링 -->
+                    </div>
+                </div>
+
+            </div><!-- /modal-body -->
+
+            <!-- ── 모달 푸터 ── -->
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeModal()">취소</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 토스트 알림 -->
+    <div class="toast" id="toast"></div>
+
+    <!-- ===================================================
+         JavaScript
+    =================================================== -->
+    <script>
+
+        // ─── 더미 데이터: 청구서 목록 ───
+        const invoices = [
+            {
+                id: 'CINV-20250410-0012',
+                clientName: '㈜한국농업',
+                contractName: '2025 상반기 종자 공급 계약',
+                billingCycle: '월정기',
+                basisDate: '매월 10일',
+                status: 'pending',
+                issueDate: null
+            },
+            {
+                id: 'CINV-20250401-0011',
+                clientName: '농업법인 그린팜',
+                contractName: '그린팜 연간 공급 계약',
+                billingCycle: '월정기',
+                basisDate: '매월 1일',
+                status: 'pending',
+                issueDate: null
+            },
+            {
+                id: 'CINV-20250328-0010',
+                clientName: '㈜서울종묘',
+                contractName: '서울종묘 2025 분기 공급',
+                billingCycle: '분기',
+                basisDate: '분기 말일',
+                status: 'issued',
+                issueDate: '2025.03.28'
+            },
+            {
+                id: 'CINV-20250315-0009',
+                clientName: '㈜한국농업',
+                contractName: '2025 상반기 종자 공급 계약',
+                billingCycle: '월정기',
+                basisDate: '매월 15일',
+                status: 'issued',
+                issueDate: '2025.03.15'
+            },
+            {
+                id: 'CINV-20250301-0008',
+                clientName: '농업법인 그린팜',
+                contractName: '그린팜 연간 공급 계약',
+                billingCycle: '월정기',
+                basisDate: '매월 1일',
+                status: 'issued',
+                issueDate: '2025.03.01'
+            },
+            {
+                id: 'CINV-20250210-0007',
+                clientName: '㈜대한씨드',
+                contractName: '대한씨드 공급 계약 2025',
+                billingCycle: '반기',
+                basisDate: '상반기 말일',
+                status: 'issued',
+                issueDate: '2025.02.10'
+            }
+        ];
+
+        // ─── 더미 데이터: 거래처 목록 ───
+        const clients = [
+            { id: 'C001', name: '㈜한국농업', region: '서울', contractCount: 2 },
+            { id: 'C002', name: '농업법인 그린팜', region: '경기', contractCount: 1 },
+            { id: 'C003', name: '㈜서울종묘', region: '서울', contractCount: 3 },
+            { id: 'C004', name: '㈜대한씨드', region: '부산', contractCount: 2 },
+            { id: 'C005', name: '하나농업㈜', region: '충남', contractCount: 1 },
+            { id: 'C006', name: '㈜미래농산', region: '전북', contractCount: 2 }
+        ];
+
+        // ─── 더미 데이터: 거래처별 계약 목록 ───
+        const contractsByClient = {
+            'C001': [
+                {
+                    id: 'CTR-2025-04-00183',
+                    name: '2025 상반기 종자 공급 계약',
+                    billingCycle: '월정기',
+                    basisDate: '매월 10일',
+                    nextBillingDate: '2025.05.10',
+                    issuable: true
+                },
+                {
+                    id: 'CTR-2025-01-00142',
+                    name: '2025 하반기 프리미엄 종자 계약',
+                    billingCycle: '분기',
+                    basisDate: '분기 말일',
+                    nextBillingDate: '2025.06.30',
+                    issuable: false
+                }
+            ],
+            'C002': [
+                {
+                    id: 'CTR-2025-03-00175',
+                    name: '그린팜 연간 공급 계약',
+                    billingCycle: '월정기',
+                    basisDate: '매월 1일',
+                    nextBillingDate: '2025.05.01',
+                    issuable: true
+                }
+            ],
+            'C003': [
+                {
+                    id: 'CTR-2025-02-00160',
+                    name: '서울종묘 2025 분기 공급',
+                    billingCycle: '분기',
+                    basisDate: '분기 말일',
+                    nextBillingDate: '2025.06.30',
+                    issuable: false
+                },
+                {
+                    id: 'CTR-2025-04-00188',
+                    name: '서울종묘 하반기 신규 계약',
+                    billingCycle: '월정기',
+                    basisDate: '매월 20일',
+                    nextBillingDate: '2025.05.20',
+                    issuable: true
+                }
+            ],
+            'C004': [
+                {
+                    id: 'CTR-2024-12-00120',
+                    name: '대한씨드 공급 계약 2025',
+                    billingCycle: '반기',
+                    basisDate: '상반기 말일',
+                    nextBillingDate: '2025.06.30',
+                    issuable: false
+                }
+            ],
+            'C005': [
+                {
+                    id: 'CTR-2025-04-00190',
+                    name: '하나농업 연간 공급 계약',
+                    billingCycle: '월정기',
+                    basisDate: '매월 5일',
+                    nextBillingDate: '2025.05.05',
+                    issuable: true
+                }
+            ],
+            'C006': [
+                {
+                    id: 'CTR-2025-03-00178',
+                    name: '미래농산 분기 공급 계약',
+                    billingCycle: '분기',
+                    basisDate: '분기 초일',
+                    nextBillingDate: '2025.07.01',
+                    issuable: true
+                }
+            ]
+        };
+
+        // ─── 상태 변수 ───
+        let currentTab = 'pending';
+        let selectedClientId = null;
+
+        // ─── 탭 전환 ───
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('searchInput').value = '';
+            renderTable();
+        }
+
+        // ─── 현재 탭에 맞는 데이터 필터링 ───
+        function getFilteredData() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            return invoices.filter(inv => {
+                const tabMatch = inv.status === currentTab;
+                const searchMatch = !keyword
+                    || inv.clientName.toLowerCase().includes(keyword)
+                    || inv.contractName.toLowerCase().includes(keyword);
+                return tabMatch && searchMatch;
+            });
+        }
+
+        // ─── 테이블 렌더링 ───
+        function renderTable() {
+            const tbody = document.getElementById('invoiceTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const list = getFilteredData();
+
+            // 탭 카운트 업데이트
+            document.getElementById('count-pending').textContent =
+                invoices.filter(i => i.status === 'pending').length;
+            document.getElementById('count-issued').textContent =
+                invoices.filter(i => i.status === 'issued').length;
+
+            // 검색 결과 건수
+            document.getElementById('resultCount').textContent =
+                list.length + '건';
+
+            if (list.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            tbody.innerHTML = list.map(inv => {
+                const statusBadge = inv.status === 'pending'
+                    ? '<span class="status-badge pending">발행 대기</span>'
+                    : '<span class="status-badge issued">발행 완료</span>';
+
+                const issueDateCell = inv.issueDate
+                    ? `<span class="issue-date">${inv.issueDate}</span>`
+                    : `<span class="issue-date empty">—</span>`;
+
+                // 탭에 따라 navigate mode 결정
+                const mode = inv.status === 'pending' ? 'pending' : 'issued';
+
+                return `
+                    <tr onclick="navigateToInvoice('${mode}', '${inv.id}')">
+                        <td><span class="inv-number">${inv.id}</span></td>
+                        <td><span class="client-name">${inv.clientName}</span></td>
+                        <td><span class="contract-name">${inv.contractName}</span></td>
+                        <td><span class="billing-cycle">${inv.billingCycle}</span></td>
+                        <td><span class="basis-date">${inv.basisDate}</span></td>
+                        <td class="center">${statusBadge}</td>
+                        <td>${issueDateCell}</td>
+                        <td><span class="row-arrow">›</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ─── 청구서 상세 페이지로 이동 ───
+        function navigateToInvoice(mode, invoiceId) {
+            // URL 쿼리 파라미터로 모드 전달
+            window.location.href = `invoice.html?mode=${mode}&id=${invoiceId}`;
+        }
+
+        // ─── 모달 열기 ───
+        function openModal() {
+            document.getElementById('modalOverlay').classList.add('active');
+            goToStep1();
+        }
+
+        // ─── 모달 닫기 ───
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            document.getElementById('clientSearchInput').value = '';
+            selectedClientId = null;
+        }
+
+        // ─── 모달 오버레이 클릭 시 닫기 ───
+        function handleOverlayClick(e) {
+            if (e.target === document.getElementById('modalOverlay')) {
+                closeModal();
+            }
+        }
+
+        // ─── STEP 1으로 이동 ───
+        function goToStep1() {
+            selectedClientId = null;
+            document.getElementById('step1').style.display = 'block';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('modalSubtitle').textContent = '거래처를 선택한 후 계약을 선택하세요.';
+            document.getElementById('clientSearchInput').value = '';
+
+            // 스텝 인디케이터 업데이트
+            document.getElementById('stepIndicator1').className = 'step-item active';
+            document.getElementById('stepIndicator2').className = 'step-item';
+
+            renderClientList();
+        }
+
+        // ─── STEP 2로 이동 ───
+        function goToStep2(clientId) {
+            selectedClientId = clientId;
+            const client = clients.find(c => c.id === clientId);
+
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+            document.getElementById('selectedClientName').textContent = client.name;
+            document.getElementById('modalSubtitle').textContent = '발행할 계약을 선택하세요.';
+
+            // 스텝 인디케이터 업데이트
+            document.getElementById('stepIndicator1').className = 'step-item done';
+            document.getElementById('stepIndicator2').className = 'step-item active';
+
+            renderContractList(clientId);
+        }
+
+        // ─── 거래처 리스트 렌더링 ───
+        function renderClientList(keyword = '') {
+            const list = document.getElementById('clientList');
+            const filtered = clients.filter(c =>
+                !keyword || c.name.toLowerCase().includes(keyword.toLowerCase())
+            );
+
+            if (filtered.length === 0) {
+                list.innerHTML = `
+                    <div style="padding:28px; text-align:center; color:#94a3b8;">
+                        <div style="font-size:28px; margin-bottom:8px;">🔍</div>
+                        <div style="font-size:13px; font-weight:600;">검색 결과가 없습니다.</div>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(client => `
+                <div class="client-list-item" onclick="goToStep2('${client.id}')">
+                    <div class="client-info">
+                        <div class="client-name-modal">${client.name}</div>
+                        <div class="client-detail">${client.region} · 계약 ${client.contractCount}건</div>
+                    </div>
+                    <span class="client-select-arrow">›</span>
+                </div>
+            `).join('');
+        }
+
+        // ─── 거래처 검색 필터링 ───
+        function filterClients() {
+            const keyword = document.getElementById('clientSearchInput').value.trim();
+            renderClientList(keyword);
+        }
+
+        // ─── 계약 카드 목록 렌더링 ───
+        function renderContractList(clientId) {
+            const contractList = document.getElementById('contractList');
+            const contracts = contractsByClient[clientId] || [];
+
+            if (contracts.length === 0) {
+                contractList.innerHTML = `
+                    <div style="padding:28px; text-align:center; color:#94a3b8;">
+                        <div style="font-size:28px; margin-bottom:8px;">📋</div>
+                        <div style="font-size:13px; font-weight:600;">등록된 계약이 없습니다.</div>
+                    </div>`;
+                return;
+            }
+
+            contractList.innerHTML = contracts.map(contract => {
+                const isDisabled = !contract.issuable;
+                const statusBadge = contract.issuable
+                    ? '<span class="contract-status-badge available">● 발행 가능</span>'
+                    : '<span class="contract-status-badge already-issued">● 이미 발행됨</span>';
+
+                const alreadyIssuedMsg = isDisabled ? `
+                    <div class="already-issued-msg">
+                        ⚠️ 해당 청구 주기에 이미 청구서가 발행되었습니다.
+                    </div>
+                ` : '';
+
+                const clickAttr = contract.issuable
+                    ? `onclick="navigateToNewInvoice('${contract.id}')"`
+                    : '';
+
+                return `
+                    <div class="contract-card ${isDisabled ? 'disabled' : ''}" ${clickAttr}>
+                        <div class="contract-card-header">
+                            <div class="contract-card-name">${contract.name}</div>
+                            ${statusBadge}
+                        </div>
+                        <div class="contract-card-meta">
+                            <div class="contract-meta-item">
+                                <span class="contract-meta-label">청구 주기</span>
+                                <span class="contract-meta-value">${contract.billingCycle}</span>
+                            </div>
+                            <div class="contract-meta-item">
+                                <span class="contract-meta-label">청구 기준일</span>
+                                <span class="contract-meta-value">${contract.basisDate}</span>
+                            </div>
+                            <div class="contract-meta-item">
+                                <span class="contract-meta-label">다음 청구 예정일</span>
+                                <span class="contract-meta-value">${contract.nextBillingDate}</span>
+                            </div>
+                        </div>
+                        ${alreadyIssuedMsg}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ─── 신규 청구서 모드로 invoice.html 이동 ───
+        function navigateToNewInvoice(contractId) {
+            // URL 쿼리 파라미터로 신규 청구서 모드 및 계약 ID 전달
+            window.location.href = `invoice.html?mode=new&contractId=${contractId}&clientId=${selectedClientId}`;
+        }
+
+        // ─── 토스트 알림 ───
+        function showToast(msg, bg = '#1e293b') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.background = bg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3500);
+        }
+
+        // ─── 사이드바 토글 ───
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('hidden');
+            document.getElementById('mainContent').classList.toggle('expanded');
+        });
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                item.classList.add('active');
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.add('hidden');
+                    document.getElementById('mainContent').classList.add('expanded');
+                }
+            });
+        });
+
+        // ─── 초기 렌더링 ───
+        renderTable();
+
+    </script>
+</body>
+
+</html>

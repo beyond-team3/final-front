@@ -6,6 +6,7 @@ import { useDocumentStore } from '@/stores/document'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -173,6 +174,17 @@ const orderNoPreview = computed(() => {
 
 const pdfItems = computed(() => lineItems.value.filter((i) => Number(i.quantity) > 0))
 
+const orderCardStatus = computed(() => {
+  if (!selectedContract.value) return 'DRAFT'
+
+  const raw = String(selectedContract.value.status || '').toUpperCase()
+  if (raw.includes('REJECT') || raw.includes('반려')) return 'REJECTED'
+  if (raw.includes('CANCEL') || raw.includes('취소')) return 'CANCELED'
+  if (raw.includes('REQUEST') || raw.includes('PENDING') || raw.includes('대기')) return 'REQUESTED'
+  if (raw.includes('ACTIVE') || raw.includes('APPROV') || raw.includes('SIGNED') || raw.includes('체결')) return 'APPROVED'
+  return 'DRAFT'
+})
+
 // 계약서 선택 모달
 const showContractModal = ref(false)
 
@@ -201,14 +213,12 @@ const onSelectContract = (contract) => {
       <div class="left-panel">
 
         <!-- 계약서 요약 카드 -->
-        <div class="contract-card">
+        <div class="contract-card relative">
+          <StatusBadge class="absolute right-6 top-4" :status="orderCardStatus" />
           <div class="contract-card-header">
             <div class="contract-card-icon">📄</div>
             <div>
               <div class="contract-card-label">선택된 계약서</div>
-            </div>
-            <div v-if="selectedContract" style="margin-left:auto">
-              <span class="contract-status-badge">승인 완료</span>
             </div>
             <!-- 계약서 선택 버튼 (영업사원용) -->
             <button v-if="isSalesRep" class="btn btn-cancel" style="margin-left:auto" @click="showContractModal = true">
@@ -521,13 +531,13 @@ const onSelectContract = (contract) => {
 .action-bar-right { display: flex; align-items: center; gap: 10px; }
 .autosave-hint { font-size: 13px; color: #94a3b8; }
 .autosave-hint strong { color: #64748b; }
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 18px; height: 40px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 0 18px; height: 40px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
 .btn-icon { font-size: 14px; }
-.btn-cancel { background: white; border: 1.5px solid #e2e8f0; color: #64748b; }
+.btn-cancel { background: white; border: 1px solid var(--color-border); color: var(--color-muted); }
 .btn-cancel:hover { background: #f8fafc; border-color: #cbd5e1; color: #475569; }
-.btn-save { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
-.btn-save:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
-.btn-save:disabled { background: linear-gradient(135deg, #94a3b8, #94a3b8); box-shadow: none; cursor: not-allowed; opacity: 0.7; transform: none; }
+.btn-save { background: var(--color-accent); border-color: var(--color-accent); color: white; box-shadow: 0 2px 8px rgba(217,119,87,0.28); }
+.btn-save:hover:not(:disabled) { background: var(--color-accent-hover); border-color: var(--color-accent-hover); transform: translateY(-1px); }
+.btn-save:disabled { background: #94a3b8; border-color: #94a3b8; box-shadow: none; cursor: not-allowed; opacity: 0.7; transform: none; }
 
 /* ───── PDF 미리보기 ───── */
 .pdf-wrap { background: #525659; padding: 16px; border-radius: 12px; box-shadow: inset 0 2px 8px rgba(0,0,0,0.2); }

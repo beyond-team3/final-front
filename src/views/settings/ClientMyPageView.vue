@@ -258,8 +258,6 @@ const openPipelineDetail = (pipelineId) => {
 </template>
 
 <style scoped>
-/* 기존 스타일 그대로 유지함돠 행님 */
-.screen-content { background-color: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); min-height: 500px; }
 .detail-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .header-info { flex: 1; }
 .header-info h2 { font-size: 24px; font-weight: 700; color: #111827; }
@@ -268,7 +266,7 @@ const openPipelineDetail = (pipelineId) => {
 .tabs { margin-top: 20px; }
 .tab-buttons { display: flex; border-bottom: 1px solid #e5e7eb; margin-bottom: 25px; }
 .tab-btn { padding: 12px 24px; background: none; border: none; font-size: 15px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; }
-.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.tab-btn.active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
 .info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .info-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; background-color: #fff; }
 .info-card h3 { font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 15px; }
@@ -276,13 +274,13 @@ const openPipelineDetail = (pipelineId) => {
 .info-label { font-size: 13px; color: #7f8c8d; display: block; margin-bottom: 4px; }
 .info-value { font-weight: 500; color: #2c3e50; font-size: 15px; }
 .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
-.badge-blue { background-color: var(--color-primary-light); color: var(--color-primary-dark); }
+.badge-blue { background-color: #fdf0ea; color: var(--color-accent); }
 .crops-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .crop-badge { padding: 4px 12px; background-color: #f1f3f5; color: #495057; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; }
 .form-group { display: grid; gap: 6px; }
 .form-label { font-size: 13px; font-weight: 600; color: #2c3e50; }
 .form-input { height: 40px; border: 1px solid #dfe6e9; border-radius: 8px; padding: 0 12px; outline: none; font-size: 14px; }
-.form-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.15); }
+.form-input:focus { border-color: var(--color-border-focus); box-shadow: 0 0 0 3px rgba(107, 124, 69, 0.15); }
 .form-hint { min-height: 18px; font-size: 12px; color: #7f8c8d; }
 @media (max-width: 1024px) { .info-grid { grid-template-columns: 1fr; } }
 </style>

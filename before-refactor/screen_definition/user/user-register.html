@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>종자 영업 관리 시스템 - 프로토타입</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #ecf0f1;
+        }
+
+        /* 헤더 & 사이드바 */
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background-color: #2c3e50; color: white; display: flex;
+            align-items: center; padding: 0 20px; z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .menu-button {
+            background: none; border: none; color: white; font-size: 24px;
+            cursor: pointer; padding: 8px 12px; margin-right: 20px;
+            border-radius: 4px; transition: 0.3s;
+        }
+        .menu-button:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .header-title { font-size: 20px; font-weight: 600; }
+
+        .sidebar {
+            position: fixed; top: 60px; left: 0; width: 250px;
+            height: calc(100vh - 60px); background-color: #34495e;
+            color: white; transition: 0.3s ease; z-index: 999; overflow-y: auto;
+        }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .sidebar-nav { padding: 20px 0; }
+        .nav-item {
+            padding: 12px 20px; cursor: pointer; transition: 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover { background-color: rgba(255, 255, 255, 0.1); border-left-color: #3498db; }
+        .nav-item.active { background-color: rgba(52, 152, 219, 0.3); border-left-color: #3498db; }
+        .nav-category {
+            padding: 20px 20px 10px; font-size: 12px; font-weight: 600;
+            text-transform: uppercase; color: #95a5a6; letter-spacing: 0.5px;
+        }
+
+        /* 메인 영역 */
+        .main-content {
+            position: fixed; top: 60px; left: 250px; right: 0;
+            height: calc(100vh - 60px); transition: 0.3s ease;
+            overflow-y: auto;
+        }
+        .main-content.expanded { left: 0; }
+        .content-wrapper { padding: 30px; max-width: 1400px; margin: 0 auto; }
+        .screen-content {
+            background-color: white; border-radius: 8px; padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); min-height: 500px;
+        }
+        .screen-title {
+            font-size: 24px; font-weight: 600; color: #2c3e50;
+            margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 폼 스타일 */
+        .form-container {
+            width: 100%; max-width: 500px; margin: 0 auto;
+            padding: 30px; background: #ffffff; border: 1px solid #e0e0e0;
+            border-radius: 12px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block; margin-bottom: 8px; font-weight: 600;
+            color: #34495e; font-size: 14px;
+        }
+        .form-control {
+            width: 100%; padding: 12px; border: 1px solid #dcdcdc;
+            border-radius: 6px; font-size: 15px; transition: border-color 0.2s;
+        }
+        .form-control:focus {
+            outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        /* 애니메이션 영역 */
+        #targetPersonArea, #salesPersonArea {
+            display: none;
+            overflow: hidden;
+            background-color: #f8fbfe;
+            border: 1px solid #d6eaf8;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-submit {
+            width: 100%; padding: 14px; border: none; border-radius: 6px;
+            background-color: #2c3e50; color: white; font-size: 16px;
+            font-weight: 600; cursor: pointer; transition: background 0.2s;
+            margin-top: 10px;
+        }
+        .btn-submit:hover { background-color: #1a252f; }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; max-width: 280px; }
+            .main-content { left: 0; }
+        }
+    </style>
+</head>
+<body>
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">메뉴</div>
+        <div class="nav-item active">계정 관리</div>
+        <div class="nav-item">영업 현황</div>
+        <div class="nav-item">거래처 목록</div>
+        <div class="nav-category">설정</div>
+        <div class="nav-item">사용자 설정</div>
+    </nav>
+</aside>
+
+<main class="main-content" id="mainContent">
+    <div class="content-wrapper">
+        <div class="screen-content">
+            <h2 class="screen-title">계정 등록</h2>
+
+            <div class="form-container">
+                <form id="accountRegisterForm">
+                    <div class="form-group">
+                        <label for="accountType">계정 역할</label>
+                        <select id="accountType" class="form-control" required>
+                            <option value="" selected disabled>역할을 선택하세요</option>
+                            <option value="CLIENT">거래처 (Client)</option>
+                            <option value="SALES">영업사원 (Sales)</option>
+                            <option value="ADMIN">관리자 (Admin)</option>
+                        </select>
+                    </div>
+
+                    <div id="targetPersonArea">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="targetPerson" style="color: #e67e22;">📝 미등록 대상자 선택</label>
+                            <select id="targetPerson" class="form-control" style="border-color: #e67e22;">
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="salesPersonArea">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="salesPerson" style="color: #2980b9;">👤 담당 영업사원 매칭</label>
+                            <select id="salesPerson" class="form-control" style="border-color: #3498db;">
+                                <option value="" selected disabled>영업사원 선택</option>
+                                <option value="영업1팀_강백호">영업1팀 강백호</option>
+                                <option value="영업2팀_서태웅">영업2팀 서태웅</option>
+                                <option value="지원팀_송태섭">지원팀 송태섭</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loginId">로그인 ID</label>
+                        <input id="loginId" class="form-control" type="text" placeholder="아이디를 입력하세요" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loginPw">로그인 PW</label>
+                        <input id="loginPw" class="form-control" type="password" placeholder="비밀번호를 입력하세요" required />
+                    </div>
+
+                    <button type="submit" class="btn-submit">등록 완료</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // 미등록 데이터 관리 객체
+    let unassignedData = {
+        CLIENT: ["(주)가나종묘", "대한농산", "우리종자"],
+        SALES: ["채치수 (신규사원)", "권준호 (신규사원)"],
+        ADMIN: ["이운영 (본사관리)"]
+    };
+
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const accountTypeSelect = document.getElementById('accountType');
+    const targetPersonArea = document.getElementById('targetPersonArea');
+    const targetPersonSelect = document.getElementById('targetPerson');
+    const salesPersonArea = document.getElementById('salesPersonArea');
+    const salesPersonSelect = document.getElementById('salesPerson');
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('expanded');
+    });
+
+    // 리스트 업데이트 함수
+    function updateTargetList(type) {
+        const list = unassignedData[type];
+        if (list.length === 0) {
+            targetPersonSelect.innerHTML = `<option value="" disabled selected>모든 대상의 계정이 등록되었습니다.</option>`;
+        } else {
+            targetPersonSelect.innerHTML = `<option value="" disabled selected>${type} 목록에서 선택하세요</option>` +
+                list.map(name => `<option value="${name}">${name}</option>`).join('');
+        }
+    }
+
+    accountTypeSelect.addEventListener('change', function() {
+        const type = this.value;
+        updateTargetList(type);
+
+        targetPersonArea.style.display = 'block';
+        targetPersonSelect.setAttribute('required', 'required');
+
+        if (type === 'CLIENT') {
+            salesPersonArea.style.display = 'block';
+            salesPersonSelect.setAttribute('required', 'required');
+        } else {
+            salesPersonArea.style.display = 'none';
+            salesPersonSelect.removeAttribute('required');
+            salesPersonSelect.value = '';
+        }
+    });
+
+    const form = document.getElementById('accountRegisterForm');
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const type = accountTypeSelect.value;
+        const selectedName = targetPersonSelect.value;
+
+        // 1. 목록에서 제거하는 핵심 로직
+        unassignedData[type] = unassignedData[type].filter(name => name !== selectedName);
+
+        alert(`[계정 생성 완료]\n대상: ${selectedName}`);
+
+        // 2. 입력창 초기화 및 영역 숨기기
+        form.reset();
+        targetPersonArea.style.display = 'none';
+        salesPersonArea.style.display = 'none';
+    });
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
+import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
 import { useProductStore } from '@/stores/product'
 
 const route = useRoute()
@@ -20,6 +21,42 @@ const criteriaRows = [
   { key: 'quality', label: '과실 품질' },
   { key: 'conv', label: '재배 편의성' },
 ]
+const criteriaKeys = criteriaRows.map((row) => row.key)
+
+const selectedKeys = computed({
+  get() {
+    return new Set(criteriaKeys.filter((key) => productStore.similarityCriteria[key]))
+  },
+  set(nextSet) {
+    criteriaKeys.forEach((key) => {
+      productStore.setSimilarityCriterion(key, nextSet.has(key))
+    })
+  },
+})
+
+const allChecked = computed({
+  get() {
+    return selectedKeys.value.size === criteriaKeys.length
+  },
+  set(checked) {
+    selectedKeys.value = checked ? new Set(criteriaKeys) : new Set()
+  },
+})
+
+const isIndeterminate = computed(() =>
+  selectedKeys.value.size > 0 && selectedKeys.value.size < criteriaKeys.length
+)
+
+function onCriterionChange(key, checked) {
+  const next = new Set(selectedKeys.value)
+  if (checked) next.add(key)
+  else next.delete(key)
+  selectedKeys.value = next
+}
+
+function onToggleAllCriteria(checked) {
+  allChecked.value = checked
+}
 
 watch(
     () => route.query.base,
@@ -124,14 +161,22 @@ const similarityText = (product) => {
       <article class="rounded-xl border border-slate-200 bg-white p-4">
         <h3 class="mb-4 text-base font-bold text-slate-800">유사도 분석 기준 설정</h3>
         <div class="space-y-2">
-          <label v-for="row in criteriaRows" :key="row.key" class="flex items-center gap-2 text-sm text-slate-700">
-            <input
-                :checked="productStore.similarityCriteria[row.key]"
-                type="checkbox"
-                @change="productStore.setSimilarityCriterion(row.key, $event.target.checked)"
-            >
-            {{ row.label }}
-          </label>
+          <CedarCheckbox
+            id="criteria-all"
+            label="전체 선택"
+            :model-value="allChecked"
+            :indeterminate="isIndeterminate"
+            @update:model-value="onToggleAllCriteria"
+          />
+
+          <CedarCheckbox
+            v-for="row in criteriaRows"
+            :id="`criteria-${row.key}`"
+            :key="row.key"
+            :label="row.label"
+            :model-value="selectedKeys.has(row.key)"
+            @update:model-value="(checked) => onCriterionChange(row.key, checked)"
+          />
         </div>
 
         <div class="mt-5">

@@ -147,12 +147,11 @@ const closeSuccess = () => {
 </template>
 
 <style scoped>
-.screen-content { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
 .layout { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
-.card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
-.card h3 { font-size: 15px; color: #1f2937; font-weight: 700; margin-bottom: 10px; }
+.card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 14px; }
+.card h3 { font-size: 15px; color: var(--color-text); font-weight: 700; margin-bottom: 10px; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th { text-align: left; color: #64748b; font-weight: 700; border-bottom: 1px solid #e2e8f0; padding: 8px; }
+.table th { text-align: left; color: var(--color-muted); font-weight: 700; border-bottom: 1px solid var(--color-border); padding: 8px; }
 .table td { padding: 10px 8px; border-bottom: 1px solid #eef2f7; color: #334155; }
 .table .right { text-align: right; }
 .table tr { cursor: pointer; }
@@ -162,18 +161,15 @@ const closeSuccess = () => {
 .status.unpaid { background: #fef3c7; color: #92400e; }
 .status.paid { background: #dcfce7; color: #166534; }
 .empty { color: #94a3b8; padding: 30px 8px; text-align: center; }
-.rows { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; }
+.rows { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 10px; }
 .rows p { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13px; color: #334155; }
 .rows p span { color: #64748b; font-weight: 700; }
-.rows p.total { border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 10px; font-size: 14px; font-weight: 800; }
+.rows p.total { border-top: 1px solid var(--color-border); margin-top: 4px; padding-top: 10px; font-size: 14px; font-weight: 800; }
 .method-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.method { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 8px; background: #fff; font-size: 12px; font-weight: 700; color: #334155; }
-.method.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+.method { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px 8px; background: #fff; font-size: 12px; font-weight: 700; color: #334155; }
+.method.active { border-color: var(--color-accent); background: #fdf0ea; color: var(--color-accent); }
 .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.btn-primary { border: none; border-radius: 9px; padding: 10px 14px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 700; }
-.btn-primary:disabled { opacity: .45; }
-.btn-sub { border: none; border-radius: 9px; padding: 10px 14px; background: #e2e8f0; color: #334155; font-size: 13px; font-weight: 700; }
-.success-text { font-size: 15px; color: #1f2937; font-weight: 700; }
+.success-text { font-size: 15px; color: var(--color-text); font-weight: 700; }
 .success-message { margin-top: 8px; font-size: 13px; color: #475569; }
 @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
 </style>

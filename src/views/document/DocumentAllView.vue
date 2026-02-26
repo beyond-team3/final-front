@@ -86,7 +86,7 @@ const sourceRows = computed(() => {
     ...documentStore.quotations.map(d => ({ ...d, typeLabel: '견적서' })),
     ...documentStore.contracts.map(d => ({ ...d, typeLabel: '계약서' })),
     ...documentStore.orders.map(d => ({ ...d, typeLabel: '주문서' })),
-    ...documentStore.invoices.map(d => ({ ...d, typeLabel: d.status === 'issued' ? '명세서' : '청구서' }))
+    ...documentStore.invoices.map(d => ({ ...d, typeLabel: String(d.status).toUpperCase() === 'ISSUED' ? '명세서' : '청구서' }))
   ]
 
   // [중복 제거] 동일한 ID를 가진 문서가 여러 소스에서 올 경우 하나만 남김
@@ -126,10 +126,10 @@ const filteredRows = computed(() => {
 })
 
 const statusClass = (s) => {
-  if (s.includes('완료') || s.includes('승인') || s.includes('체결')) return 'bg-emerald-100 text-emerald-800'
-  if (s.includes('반려')) return 'bg-red-100 text-red-700'
-  if (s.includes('진행') || s.includes('처리')) return 'bg-blue-100 text-blue-700'
-  return 'bg-slate-100 text-slate-700'
+  if (s.includes('완료') || s.includes('승인') || s.includes('체결')) return 'bg-[var(--color-success-bg)] text-[var(--color-success)]'
+  if (s.includes('반려')) return 'bg-[var(--color-error-bg)] text-[var(--color-error)]'
+  if (s.includes('진행') || s.includes('처리')) return 'bg-[var(--color-olive-light)] text-[var(--color-olive)]'
+  return 'bg-[var(--color-sidebar-hover)] text-[var(--color-muted)]'
 }
 
 const openDetail = (row) => {
@@ -164,27 +164,27 @@ const openDetail = (row) => {
 
     <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
       <table v-if="filteredRows.length > 0" class="w-full text-left text-sm border-collapse">
-        <thead class="bg-slate-50 border-b border-slate-200">
+        <thead class="bg-[var(--color-sidebar-hover)] border-b border-slate-200">
         <tr>
-          <th class="p-4 font-semibold text-slate-700">문서번호</th>
-          <th class="p-4 font-semibold text-slate-700">문서유형</th>
-          <th class="p-4 font-semibold text-slate-700">작성일</th>
-          <th class="p-4 font-semibold text-slate-700">금액</th>
-          <th class="p-4 font-semibold text-slate-700">상태</th>
-          <th class="p-4 font-semibold text-slate-700 text-center">작업</th>
+          <th class="p-4 font-semibold text-[var(--color-text)]">문서번호</th>
+          <th class="p-4 font-semibold text-[var(--color-text)]">문서유형</th>
+          <th class="p-4 font-semibold text-[var(--color-text)]">작성일</th>
+          <th class="p-4 font-semibold text-[var(--color-text)]">금액</th>
+          <th class="p-4 font-semibold text-[var(--color-text)]">상태</th>
+          <th class="p-4 font-semibold text-[var(--color-text)] text-center">작업</th>
         </tr>
         </thead>
         <tbody>
         <tr
             v-for="row in filteredRows"
             :key="`${row.type}-${row.id}`"
-            class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors"
+            class="border-b border-slate-100 hover:bg-[var(--color-sidebar-hover)] cursor-pointer transition-colors"
             @click="openDetail(row)"
         >
-          <td class="p-4 font-medium text-blue-700">{{ row.id }}</td>
-          <td class="p-4 text-slate-600">{{ row.type }}</td>
-          <td class="p-4 text-slate-600">{{ row.date }}</td>
-          <td class="p-4 font-mono text-slate-800">{{ row.amount }}</td>
+          <td class="p-4 font-medium text-[var(--color-olive)]">{{ row.id }}</td>
+          <td class="p-4 text-[var(--color-muted)]">{{ row.type }}</td>
+          <td class="p-4 text-[var(--color-muted)]">{{ row.date }}</td>
+          <td class="p-4 font-mono text-[var(--color-text)]">{{ row.amount }}</td>
           <td class="p-4">
               <span :class="statusClass(row.status)" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">
                 {{ row.status }}
@@ -192,7 +192,7 @@ const openDetail = (row) => {
           </td>
           <td class="p-4 text-center">
             <button
-                class="bg-white border border-slate-300 px-3 py-1 rounded-md text-slate-600 hover:bg-slate-100 transition-colors"
+                class="bg-white border border-[var(--color-olive)] px-3 py-1 rounded-md text-[var(--color-olive)] hover:bg-[var(--color-olive-light)] transition-colors"
                 @click.stop="openDetail(row)"
             >
               상세보기

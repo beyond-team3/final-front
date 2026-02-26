@@ -1,0 +1,395 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>종자 영업 관리 시스템 - 통합 관리 도구</title>
+
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    
+
+/* Page Specific Styles */
+
+        /* 기본 레이아웃 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; height: 100vh; overflow: hidden; background-color: #ecf0f1; }
+
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 60px; background-color: #2c3e50; color: white; display: flex; align-items: center; padding: 0 20px; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .menu-button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 8px 12px; margin-right: 20px; border-radius: 4px; }
+
+        .sidebar { position: fixed; top: 60px; left: 0; width: 250px; height: calc(100vh - 60px); background-color: #34495e; color: white; transition: transform 0.3s ease; z-index: 999; }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .main-content { position: fixed; top: 60px; left: 250px; right: 0; height: calc(100vh - 60px); transition: left 0.3s ease; overflow-y: auto; background-color: #ecf0f1; }
+        .main-content.expanded { left: 0; }
+        .content-wrapper { padding: 25px; height: 100%; max-width: 1600px; margin: 0 auto; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 280px 1fr 320px; gap: 20px; height: 100%; min-height: 0; }
+        .panel { background: white; border-radius: 8px; border: 1px solid #dee2e6; display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
+        .panel-title { background: #f8f9fa; padding: 15px; font-size: 14px; font-weight: bold; border-bottom: 1px solid #dee2e6; color: #2c3e50; }
+        .panel-body { padding: 20px; overflow-y: auto; }
+
+        /* 필터 폼 스타일 */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 6px; font-weight: 600; }
+        .form-control { width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 13px; }
+
+        /* 지도 및 마커 */
+        .map-container { position: relative; width: 100%; height: 100%; background: #fff; border-radius: 8px; border: 1px solid #dee2e6; overflow: hidden; }
+        .map-image { width: 100%; height: 100%; object-fit: contain; }
+        .marker { position: absolute; width: 24px; height: 24px; background-color: #3498db; border: 3px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); cursor: pointer; box-shadow: -1px 1px 4px rgba(0,0,0,0.3); transition: all 0.2s; }
+        .marker.urgent { background-color: #e74c3c; animation: pulse 1.5s infinite; z-index: 10; }
+        .marker.selected { background-color: #2ecc71 !important; transform: rotate(-45deg) scale(1.3); z-index: 20; border-color: #fff; }
+        @keyframes pulse { 0% { transform: rotate(-45deg) scale(1); } 70% { transform: rotate(-45deg) scale(1.2); } 100% { transform: rotate(-45deg) scale(1); } }
+
+        /* 팝업 카드 */
+        .info-card { position: absolute; display: none; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 220px; z-index: 100; border-top: 4px solid #3498db; }
+        .info-card.urgent-card { border-top-color: #e74c3c; }
+        .info-header { font-weight: bold; font-size: 15px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #2c3e50; }
+        .tag { display: inline-block; background: #f1f3f5; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-right: 3px; color: #34495e; margin-bottom: 2px; }
+
+        /* 추천 상품 카드 */
+        .rec-item { border: 1px solid #eef2f7; border-radius: 6px; padding: 12px; margin-bottom: 10px; border-left: 4px solid #3498db; background: #fbfcfd; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .rec-item-name { font-weight: bold; font-size: 14px; color: #2c3e50; }
+        .rec-item-desc { font-size: 11px; color: #7f8c8d; margin-top: 4px; }
+    
+</style>
+</head>
+<body>
+<header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+<aside class="sidebar" id="sidebar">
+    <div style="padding: 20px; font-size: 12px; color: #95a5a6; font-weight: 600;">영업 지원</div>
+    <div style="padding: 12px 20px; background: rgba(52, 152, 219, 0.3); border-left: 3px solid #3498db;">영업형 병해충 지도</div>
+</aside>
+
+<main class="main-content" id="mainContent">
+    <div class="content-wrapper">
+        <div class="dashboard-grid">
+
+            <div class="panel">
+                <div class="panel-title">분석 조건 및 지역</div>
+                <div class="panel-body">
+                    <div class="form-group">
+                        <label>분석 기준일</label>
+                        <input type="date" class="form-control" value="2025-08-01">
+                    </div>
+                    <div class="form-group">
+                        <label>지역 선택</label>
+                        <select class="form-control">
+                            <option value="전국" selected>전국</option>
+                            <option>경기도</option>
+                            <option>전라남도</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>작물 선택</label>
+                        <select class="form-control"><option>고추</option><option>감자</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>대상 병해충</label>
+                        <select class="form-control"><option>탄저병</option><option>역병</option></select>
+                    </div>
+                    <button style="width:100%; padding:10px; background:#2c3e50; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">분석 실행</button>
+                </div>
+            </div>
+
+            <div class="map-container" id="mapWrapper">
+                <img src="mapimg2.png" alt="영업지도" class="map-image">
+
+                <div class="marker" style="top: 40%; left: 45%;" onclick="showDetail(this, '흥타령농산', '고추(탄저무력), 배추(불암3호)', '85점')"></div>
+                <div class="marker urgent" style="top: 72%; left: 38%;" onclick="showDetail(this, '영산종묘', '고추(칼라강탄), 양파(조생진)', '98점 (방문권고)')"></div>
+                <div class="marker" style="top: 55%; left: 70%;" onclick="showDetail(this, '안동농약사', '고추(PR계열), 수박(꿀수박)', '72점')"></div>
+
+                <div id="infoCard" class="info-card">
+                    <div class="info-header" id="infoTitle">영업처명</div>
+                    <div style="font-size: 12px; line-height: 1.6; color: #555;">
+                        <strong>계약 품종:</strong> <span id="infoItems"></span><br>
+                        <strong>영업 지수:</strong> <span id="infoScore"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">내병성 상품 추천</div>
+                <div class="panel-body" id="recommendPanel">
+                    <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">지도의 영업처를 클릭하세요.</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<script>
+
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    
+
+// Page Specific Scripts
+
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('expanded');
+    });
+
+    function showDetail(markerEl, title, items, score) {
+        const card = document.getElementById('infoCard');
+        const infoTitle = document.getElementById('infoTitle');
+        const infoItems = document.getElementById('infoItems');
+        const infoScore = document.getElementById('infoScore');
+        const recPanel = document.getElementById('recommendPanel');
+
+        // 1. 마커 강조
+        document.querySelectorAll('.marker').forEach(m => m.classList.remove('selected'));
+        markerEl.classList.add('selected');
+
+        // 2. 팝업 업데이트
+        infoTitle.innerText = title;
+        infoItems.innerHTML = items.split(',').map(item => `<span class="tag">${item.trim()}</span>`).join('');
+        infoScore.innerText = score;
+        card.className = score.includes('98') ? 'info-card urgent-card' : 'info-card';
+
+        // 3. 팝업 위치
+        card.style.display = 'block';
+        card.style.left = markerEl.style.left;
+        card.style.top = (parseFloat(markerEl.style.top) - 20) + "%";
+
+        // 4. 오른쪽 패널 상품 추천 (색상 강조 로직)
+        let recHtml = `<div style="margin-bottom:15px; font-size:13.5px; font-weight:bold; color:#3498db;">[${title}] 추천 리스트</div>`;
+
+        items.split(',').forEach(item => {
+            const name = item.trim();
+            let tip = "안정적인 수확이 가능한 주력 품종입니다.";
+            let color = "#3498db";
+
+            if(name.includes("탄저") || name.includes("칼라")) {
+                tip = "현재 지역 병해충 위험도가 높으므로 우선 제안하십시오.";
+                color = "#e74c3c";
+            }
+
+            recHtml += `
+                    <div class="rec-item" style="border-left-color: ${color}">
+                        <div class="rec-item-name">${name}</div>
+                        <div class="rec-item-desc">${tip}</div>
+                    </div>`;
+        });
+
+        recPanel.innerHTML = recHtml;
+        window.event.stopPropagation();
+    }
+
+    document.getElementById('mapWrapper').onclick = function() {
+        document.getElementById('infoCard').style.display = 'none';
+        document.querySelectorAll('.marker').forEach(m => m.classList.remove('selected'));
+        document.getElementById('recommendPanel').innerHTML = '<div style="text-align:center; font-size:12px; color:#999; margin-top:20px;">지도의 영업처를 클릭하세요.</div>';
+    };
+
+</script>
+</body>
+</html>

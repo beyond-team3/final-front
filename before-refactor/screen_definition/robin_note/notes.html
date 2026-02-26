@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+
+            <div class="screen-header">
+                <h2 class="screen-title">노트</h2>
+                <button class="primary-btn" id="openCreate">+ 노트 추가</button>
+            </div>
+
+            <!-- Notes Page (only inside .screen-content) -->
+            <style>
+                /* Scope to this screen only */
+                .notes-wrap { display:flex; flex-direction:column; gap:16px; }
+                .screen-header{
+                    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+                    margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #ecf0f1;
+                }
+                .screen-header .screen-title{ margin:0; padding:0; border:0; }
+                .notes-toolbar{
+                    display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+                    padding:14px; border:1px solid #ecf0f1; border-radius:8px; background:#fafbfc;
+                }
+                .notes-toolbar .group{ display:flex; gap:8px; align-items:center; }
+                .notes-toolbar label{ font-size:12px; color:#566; font-weight:600; }
+                .notes-toolbar select, .notes-toolbar input[type="text"], .notes-toolbar input[type="date"]{
+                    height:36px; padding:0 10px; border:1px solid #dfe6e9; border-radius:6px; background:white; color:#2c3e50;
+                    outline:none;
+                }
+                .notes-toolbar input[type="text"]{ width:280px; }
+                .notes-toolbar .spacer{ flex:1; min-width:16px; }
+                .primary-btn{
+                    height:36px; padding:0 14px; border:none; border-radius:8px; cursor:pointer;
+                    background:#3498db; color:white; font-weight:700;
+                    box-shadow: 0 2px 6px rgba(52,152,219,0.25);
+                }
+                .primary-btn:hover{ filter:brightness(0.95); }
+                .notes-list{
+                    border:1px solid #ecf0f1; border-radius:8px; overflow:hidden; background:white;
+                }
+                .notes-table{ width:100%; border-collapse:collapse; table-layout:fixed; }
+                .notes-table th, .notes-table td{
+                    padding:12px 14px; border-bottom:1px solid #ecf0f1; text-align:left; font-size:14px; color:#2c3e50;
+                    vertical-align:top;
+                }
+                .notes-table th{ background:#f6f8f9; font-size:12px; color:#566; letter-spacing:0.2px; }
+                .notes-table th.col-date, .notes-table td.col-date{ width:110px; }
+                .notes-table th.col-category, .notes-table td.col-category{ width:320px; }
+                .category-cell{
+                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;
+                }
+                .category-cell .badge{ margin-right:6px; }
+                .notes-table tr.note-row{ cursor:pointer; }
+                .notes-table tr.note-row:hover{ background:#f8fbff; }
+                .badge{
+                    display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; font-weight:700;
+                    background:#eef2f7; color:#34495e; margin-right:6px;
+                }
+                .notes-meta{ font-size:12px; color:#7f8c8d; margin-top:6px; }
+                .pagination{
+                    display:flex; justify-content:center; align-items:center; gap:6px; padding:14px 0;
+                }
+                .page-btn{
+                    min-width:34px; height:34px; border:1px solid #dfe6e9; background:white; border-radius:8px; cursor:pointer;
+                    color:#2c3e50; font-weight:600;
+                }
+                .page-btn.active{ background:#2c3e50; color:white; border-color:#2c3e50; }
+                .page-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+                /* Modal */
+                .modal-overlay{
+                    position:fixed; inset:0; background:rgba(0,0,0,0.45);
+                    display:none; align-items:center; justify-content:center;
+                    z-index: 5000; /* above header(1000) */
+                    padding:18px;
+                }
+                .modal{
+                    width:min(820px, 100%); background:white; border-radius:12px; overflow:hidden;
+                    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+                }
+                .modal.modal-wide{ width:min(980px, 100%); }
+                .modal-header{
+                    display:flex; align-items:center; justify-content:space-between;
+                    padding:14px 16px; background:#2c3e50; color:white;
+                }
+                .modal-title{ font-size:16px; font-weight:800; }
+                .modal-close{
+                    background:transparent; border:none; color:white; font-size:22px; cursor:pointer; padding:6px 10px; border-radius:8px;
+                }
+                .modal-close:hover{ background:rgba(255,255,255,0.12); }
+                .modal-body{ padding:16px; max-height:70vh; overflow:auto; }
+                .modal-footer{ padding:14px 16px; border-top:1px solid #ecf0f1; display:flex; justify-content:flex-end; gap:8px; }
+                .btn{
+                    height:36px; padding:0 12px; border-radius:8px; border:1px solid #dfe6e9; cursor:pointer; font-weight:700;
+                    background:white; color:#2c3e50;
+                }
+                .btn.primary{ background:#3498db; border-color:#3498db; color:white; }
+                .btn.danger{ background:#e74c3c; border-color:#e74c3c; color:white; }
+                .btn.ai{ background:#8e44ad; border-color:#8e44ad; color:white; }
+                .form-grid{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
+                .form-grid .field{ display:flex; flex-direction:column; gap:6px; }
+                .field label{ font-size:12px; color:#566; font-weight:700; }
+                .field select, .field input, .field textarea{
+                    border:1px solid #dfe6e9; border-radius:8px; padding:10px; font-size:14px; outline:none; background:white;
+                    width:100%;
+                }
+                .field textarea{ min-height:280px; resize:vertical; overflow:hidden; }
+                .hint{ font-size:12px; color:#7f8c8d; margin-top:6px; }
+                .row{ display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+                .left-actions{ display:flex; gap:8px; align-items:center; }
+                .right-actions{ display:flex; gap:8px; align-items:center; }
+                @media (max-width: 720px){
+                    .notes-toolbar input[type="text"]{ width: 100%; }
+                    .form-grid{ grid-template-columns:1fr; }
+                }
+            </style>
+
+            <div class="notes-wrap" id="notesApp">
+                <!-- Top toolbar -->
+                <div class="notes-toolbar" aria-label="노트 필터/검색">
+                    <div class="group">
+                        <label for="filterClient">거래처</label>
+                        <select id="filterClient">
+                            <option value="">전체</option>
+                            <option>한농상사</option>
+                            <option>그린팜</option>
+                            <option>농협유통</option>
+                        </select>
+                    </div>
+
+                    <div class="group">
+                        <label for="filterVariety">품종</label>
+                        <select id="filterVariety">
+                            <option value="">전체</option>
+                            <option>마라톤 수박 대목</option>
+                            <option>한라토마토</option>
+                            <option>백설배추</option>
+                        </select>
+                    </div>
+
+                    <div class="group">
+                        <label for="filterDoc">문서</label>
+                        <select id="filterDoc">
+                            <option value="">전체</option>
+                            <option value="견적요청">견적요청</option>
+                            <option value="견적">견적</option>
+                            <option value="계약">계약</option>
+                            <option value="주문">주문</option>
+                            <option value="청구">청구</option>
+                        </select>
+                    </div>
+
+                    <div class="group">
+                        <label for="searchInput">검색</label>
+                        <input id="searchInput" type="text" placeholder="제목/내용/해시태그 검색" />
+                    </div>
+
+                    <div class="spacer"></div>
+
+                    <div class="group">
+                        <label for="dateFrom">기간</label>
+                        <input id="dateFrom" type="date" />
+                        <span style="color:#7f8c8d; font-size:12px;">~</span>
+                        <input id="dateTo" type="date" />
+                    </div>
+
+                </div>
+
+                <!-- List -->
+                <div class="notes-list" aria-label="노트 리스트">
+                    <table class="notes-table">
+                        <thead>
+                            <tr>
+                                <th class="col-date">작성일</th>
+                                <th>노트</th>
+                                <th class="col-category">카테고리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notesTbody">
+                            <!-- rows injected -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination"></div>
+            </div>
+
+            <!-- Detail Modal -->
+            <div class="modal-overlay" id="detailModal" role="dialog" aria-modal="true" aria-label="노트 상세">
+                <div class="modal">
+                    <div class="modal-header">
+                        <div class="modal-title" id="detailTitle">노트 상세</div>
+                        <button class="modal-close" data-close="detailModal" aria-label="닫기">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;" id="detailBadges"></div>
+                        <div class="notes-meta" id="detailMeta"></div>
+                        <hr style="border:none; border-top:1px solid #ecf0f1; margin:12px 0;">
+                        <div style="white-space:pre-wrap; line-height:1.7; color:#2c3e50;" id="detailBody"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" data-close="detailModal">닫기</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Modal -->
+            <div class="modal-overlay" id="createModal" role="dialog" aria-modal="true" aria-label="노트 추가">
+                <div class="modal modal-wide">
+                    <div class="modal-header">
+                        <div class="modal-title">노트 추가</div>
+                        <button class="modal-close" data-close="createModal" aria-label="닫기">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="createClient">거래처</label>
+                                <select id="createClient">
+                                    <option value="">선택 안함</option>
+                                    <option>한농상사</option>
+                                    <option>그린팜</option>
+                                    <option>농협유통</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="createVariety">품종</label>
+                                <select id="createVariety">
+                                    <option value="">선택 안함</option>
+                                    <option>마라톤 수박 대목</option>
+                                    <option>한라토마토</option>
+                                    <option>백설배추</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="createDoc">문서</label>
+                                <select id="createDoc">
+                                    <option value="">선택 안함</option>
+                                    <option value="견적요청">견적요청</option>
+                                    <option value="견적">견적</option>
+                                    <option value="계약">계약</option>
+                                    <option value="주문">주문</option>
+                                    <option value="청구">청구</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field" style="margin-top:12px;">
+                            <label for="createTitle">제목</label>
+                            <input id="createTitle" type="text" placeholder="예) 한농상사 - 3월 계약 조건 정리" />
+                        </div>
+
+                        <div class="field" style="margin-top:12px;">
+                            <label for="createBody">내용</label>
+                            <textarea id="createBody" placeholder="노트 내용을 입력하세요.&#10;예) 단가 협상 포인트, 다음 미팅 일정, 고객 요청사항..."></textarea>
+                            <div class="hint">작성 후 좌측 하단 AI 버튼으로 카테고리를 자동 추천할 수 있습니다.</div>
+                        </div>
+
+                        <div class="row" style="margin-top:10px;">
+                            <div class="left-actions">
+                                <button class="btn ai" id="aiAssign">AI로 카테고리 자동 선택</button>
+                            </div>
+                            <div class="right-actions">
+                                <span class="hint" id="aiHint" style="margin:0;"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" data-close="createModal">취소</button>
+                        <button class="btn primary" id="createSave">등록</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Confirm Modal -->
+            <div class="modal-overlay" id="aiConfirmModal" role="dialog" aria-modal="true" aria-label="AI 카테고리 확인">
+                <div class="modal" style="max-width:520px;">
+                    <div class="modal-header">
+                        <div class="modal-title">AI 카테고리 적용 확인</div>
+                        <button class="modal-close" data-close="aiConfirmModal" aria-label="닫기">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="line-height:1.7; color:#2c3e50;">
+                            AI가 아래 카테고리를 추천했습니다. 적용할까요?
+                        </div>
+                        <div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:6px;" id="aiPreviewBadges"></div>
+                        <div class="hint" style="margin-top:10px;">(실제 서비스에서는 모델/룰 기반으로 추천하고, 사용자가 수정할 수 있습니다.)</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" data-close="aiConfirmModal">아니오</button>
+                        <button class="btn primary" id="aiConfirmYes">예, 적용</button>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                (function(){
+                    // ---- Mock data (replace with API) ----
+                    const notes = [
+                        { id: 1, date: '2026-02-10', title: '한농상사 - 계약 조건 메모', body: '• 3월 물량 20% 증량 요청\\n• 단가: 작년 대비 +3%까지 허용\\n• 다음 미팅: 2/14(금) 15:00', client:'한농상사', variety:'백설배추', doc:'계약' },
+                        { id: 2, date: '2026-02-09', title: '그린팜 - 견적요청 대응', body: '파종 시기: 3월 초\\n선호 특성: 내병성, 균일도\\n확인사항: 재고 LOT 유효기간 체크 필요', client:'그린팜', variety:'한라토마토', doc:'견적요청' },
+                        { id: 3, date: '2026-02-07', title: '농협유통 - 주문 협의사항', body: '납기: 2주 내 1차\\n배송지: 물류센터 2곳 분리\\n반품 조건: 시즌 종료 후 일괄 정산', client:'농협유통', variety:'마라톤 수박 대목', doc:'주문' },
+                        { id: 4, date: '2026-02-06', title: '한농상사 - 품종 반응 정리', body: '#재배환경 #병해저항\\n작년 대비 생육 안정적. 후기까지 초세 유지되는 편.', client:'한농상사', variety:'마라톤 수박 대목', doc:'' },
+                        { id: 5, date: '2026-02-05', title: '견적 - 단가 산정 근거', body: '원가 + 물류 + 시즌성 프리미엄\\n경쟁사 가격대: 1,200~1,350원', client:'', variety:'', doc:'견적' },
+                        { id: 6, date: '2026-02-04', title: '품종 - 한라토마토 판매 포인트', body: '• 균일도 우수\\n• 초세 안정\\n• 과형 선호도 높음', client:'', variety:'한라토마토', doc:'' },
+                        { id: 7, date: '2026-02-03', title: '청구 - 입금 지연 케이스', body: '농협유통: 세금계산서 확인 지연\\n대응: 담당자에게 재전송 + 유선 안내', client:'농협유통', variety:'', doc:'청구' },
+                        { id: 8, date: '2026-02-02', title: '그린팜 - 미팅 요약', body: '요구사항: 내열성 강조\\n샘플 요청: 2종\\n결정권자: 대표 직접', client:'그린팜', variety:'', doc:'' },
+                        { id: 9, date: '2026-02-01', title: '한농상사 - 계약서 문구 체크', body: '반품 조항 문구 수정 필요(대량 반품 프로세스 반영).', client:'한농상사', variety:'', doc:'계약' },
+                        { id: 10, date: '2026-01-31', title: '농협유통 - 품종 선호 조사', body: '시장 반응: 조기출하형 선호\\n가격 민감도 높음', client:'농협유통', variety:'백설배추', doc:'' },
+                        { id: 11, date: '2026-01-30', title: '주문 - 납기 리스크', body: '파종기 집중으로 출하 지연 가능성\\n예방: LOT 선점 + 대체 품종 제안', client:'', variety:'', doc:'주문' },
+                    ];
+
+                    // ---- DOM ----
+                    const $ = (id) => document.getElementById(id);
+                    const tbody = $('notesTbody');
+                    const pagination = $('pagination');
+
+                    const filters = {
+                        client: $('filterClient'),
+                        variety: $('filterVariety'),
+                        doc: $('filterDoc'),
+                        q: $('searchInput'),
+                        from: $('dateFrom'),
+                        to: $('dateTo'),
+                    };
+
+                    // ---- Pagination state ----
+                    const PAGE_SIZE = 10;
+                    let page = 1;
+                    let filtered = [];
+
+                    function openModal(id){ $(id).style.display='flex'; document.body.style.overflow='hidden'; }
+                    function closeModal(id){ $(id).style.display='none'; document.body.style.overflow=''; }
+
+                    // Close handlers
+                    document.querySelectorAll('[data-close]').forEach(btn=>{
+                        btn.addEventListener('click', (e)=> closeModal(e.currentTarget.getAttribute('data-close')));
+                    });
+                    document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+                        overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeModal(overlay.id); });
+                    });
+
+                    function badge(text){
+                        const span = document.createElement('span');
+                        span.className = 'badge';
+                        span.textContent = text;
+                        return span;
+                    }
+
+                    function applyFilters(){
+                        const client = filters.client.value.trim();
+                        const variety = filters.variety.value.trim();
+                        const doc = filters.doc.value.trim();
+                        const q = filters.q.value.trim().toLowerCase();
+                        const from = filters.from.value ? new Date(filters.from.value) : null;
+                        const to = filters.to.value ? new Date(filters.to.value) : null;
+
+                        filtered = notes.filter(n=>{
+                            if(client && n.client !== client) return false;
+                            if(variety && n.variety !== variety) return false;
+                            if(doc && n.doc !== doc) return false;
+
+                            if(from || to){
+                                const d = new Date(n.date);
+                                if(from && d < from) return false;
+                                if(to){
+                                    // include end date
+                                    const end = new Date(to);
+                                    end.setHours(23,59,59,999);
+                                    if(d > end) return false;
+                                }
+                            }
+
+                            if(q){
+                                const hay = (n.title + ' ' + n.body + ' ' + (n.client||'') + ' ' + (n.variety||'') + ' ' + (n.doc||'')).toLowerCase();
+                                if(!hay.includes(q)) return false;
+                            }
+                            return true;
+                        });
+
+                        page = 1;
+                        render();
+                    }
+
+                    function render(){
+                        // rows
+                        tbody.innerHTML = '';
+                        const total = filtered.length;
+                        const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                        const start = (page-1)*PAGE_SIZE;
+                        const pageItems = filtered.slice(start, start+PAGE_SIZE);
+
+                        if(pageItems.length === 0){
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = '<td colspan="3" style="padding:24px; text-align:center; color:#7f8c8d;">조회 결과가 없습니다.</td>';
+                            tbody.appendChild(tr);
+                        } else {
+                            pageItems.forEach(n=>{
+                                const tr = document.createElement('tr');
+                                tr.className = 'note-row';
+                                tr.dataset.id = n.id;
+                                tr.innerHTML = `
+                                    <td class="col-date">${n.date}</td>
+                                    <td>
+                                        <div style="font-weight:800;">${escapeHtml(n.title)}</div>
+                                    </td>
+                                    <td class="col-category">
+                                        <div class="category-cell">
+                                            ${n.client ? `<span class="badge">거래처: ${escapeHtml(n.client)}</span>` : ''}
+                                            ${n.variety ? `<span class="badge">품종: ${escapeHtml(n.variety)}</span>` : ''}
+                                            ${n.doc ? `<span class="badge">문서: ${escapeHtml(n.doc)}</span>` : ''}
+                                        </div>
+                                    </td>
+                                `;
+                                tr.addEventListener('click', ()=> openDetail(n.id));
+                                tbody.appendChild(tr);
+                            });
+                        }
+
+                        // pagination
+                        pagination.innerHTML = '';
+                        const prev = document.createElement('button');
+                        prev.className='page-btn';
+                        prev.textContent='‹';
+                        prev.disabled = (page<=1);
+                        prev.addEventListener('click', ()=>{ page=Math.max(1,page-1); render(); });
+                        pagination.appendChild(prev);
+
+                        // show up to 5 pages around current
+                        const windowSize = 5;
+                        let s = Math.max(1, page - Math.floor(windowSize/2));
+                        let e = Math.min(pageCount, s + windowSize - 1);
+                        s = Math.max(1, e - windowSize + 1);
+
+                        for(let p=s; p<=e; p++){
+                            const b = document.createElement('button');
+                            b.className='page-btn' + (p===page ? ' active' : '');
+                            b.textContent = p;
+                            b.addEventListener('click', ()=>{ page=p; render(); });
+                            pagination.appendChild(b);
+                        }
+
+                        const next = document.createElement('button');
+                        next.className='page-btn';
+                        next.textContent='›';
+                        next.disabled = (page>=pageCount);
+                        next.addEventListener('click', ()=>{ page=Math.min(pageCount,page+1); render(); });
+                        pagination.appendChild(next);
+                    }
+
+                    function openDetail(id){
+                        const n = notes.find(x=>x.id===id);
+                        if(!n) return;
+
+                        $('detailTitle').textContent = n.title || '노트 상세';
+                        const badges = $('detailBadges');
+                        badges.innerHTML = '';
+                        if(n.client) badges.appendChild(badge('거래처: ' + n.client));
+                        if(n.variety) badges.appendChild(badge('품종: ' + n.variety));
+                        if(n.doc) badges.appendChild(badge('문서: ' + n.doc));
+                        $('detailMeta').textContent = `작성일: ${n.date}`;
+                        $('detailBody').textContent = n.body;
+
+                        openModal('detailModal');
+                    }
+
+                    // Create flow
+                    $('openCreate').addEventListener('click', ()=>{
+                        // reset
+                        $('createClient').value = '';
+                        $('createVariety').value = '';
+                        $('createDoc').value = '';
+                        $('createTitle').value = '';
+                        $('createBody').value = '';
+                        $('aiHint').textContent = '';
+                        openModal('createModal');
+                    });
+
+                    // AI assign -> preview confirm modal
+                    $('aiAssign').addEventListener('click', ()=>{
+                        const title = $('createTitle').value || '';
+                        const body = $('createBody').value || '';
+                        const text = (title + ' ' + body).toLowerCase();
+
+                        // Simple rule-based demo (replace with AI)
+                        const suggest = { client:'', variety:'', doc:'' };
+                        if(text.includes('한농') || text.includes('한농상사')) suggest.client = '한농상사';
+                        if(text.includes('그린팜')) suggest.client = '그린팜';
+                        if(text.includes('농협')) suggest.client = '농협유통';
+
+                        if(text.includes('토마토')) suggest.variety = '한라토마토';
+                        if(text.includes('배추')) suggest.variety = '백설배추';
+                        if(text.includes('수박')) suggest.variety = '마라톤 수박 대목';
+
+                        if(text.includes('견적요청')) suggest.doc = '견적요청';
+                        else if(text.includes('견적')) suggest.doc = '견적';
+                        else if(text.includes('계약')) suggest.doc = '계약';
+                        else if(text.includes('주문')) suggest.doc = '주문';
+                        else if(text.includes('청구') || text.includes('세금')) suggest.doc = '청구';
+
+                        // preview badges
+                        const preview = $('aiPreviewBadges');
+                        preview.innerHTML = '';
+                        if(suggest.client) preview.appendChild(badge('거래처: ' + suggest.client));
+                        if(suggest.variety) preview.appendChild(badge('품종: ' + suggest.variety));
+                        if(suggest.doc) preview.appendChild(badge('문서: ' + suggest.doc));
+                        if(!suggest.client && !suggest.variety && !suggest.doc){
+                            preview.innerHTML = '<span class="hint">추천할 카테고리를 찾지 못했습니다. 수동으로 선택하거나 내용을 더 입력해 주세요.</span>';
+                        }
+
+                        // stash suggested values
+                        $('aiConfirmYes').dataset.client = suggest.client;
+                        $('aiConfirmYes').dataset.variety = suggest.variety;
+                        $('aiConfirmYes').dataset.doc = suggest.doc;
+
+                        openModal('aiConfirmModal');
+                    });
+
+                    $('aiConfirmYes').addEventListener('click', (e)=>{
+                        const t = e.currentTarget.dataset;
+                        if(t.client) $('createClient').value = t.client;
+                        if(t.variety) $('createVariety').value = t.variety;
+                        if(t.doc) $('createDoc').value = t.doc;
+
+                        $('aiHint').textContent = 'AI 추천 카테고리가 적용되었습니다. (필요 시 수정 가능)';
+                        closeModal('aiConfirmModal');
+                    });
+
+                    $('createSave').addEventListener('click', ()=>{
+                        const title = $('createTitle').value.trim();
+                        const body = $('createBody').value.trim();
+                        if(!title || !body){
+                            alert('제목과 내용을 입력해 주세요.');
+                            return;
+                        }
+
+                        const newNote = {
+                            id: Math.max(...notes.map(n=>n.id)) + 1,
+                            date: new Date().toISOString().slice(0,10),
+                            title,
+                            body,
+                            client: $('createClient').value,
+                            variety: $('createVariety').value,
+                            doc: $('createDoc').value
+                        };
+                        notes.unshift(newNote);
+                        closeModal('createModal');
+                        applyFilters();
+                        openDetail(newNote.id);
+                    });
+
+                    // filter events
+                    Object.values(filters).forEach(el=>{
+                        el.addEventListener('change', applyFilters);
+                        el.addEventListener('input', ()=>{ if(el === filters.q) applyFilters(); });
+                    });
+
+                    function shorten(str, max){
+                        const s = (str || '').replace(/\s+/g,' ').trim();
+                        return s.length > max ? s.slice(0, max-1) + '…' : s;
+                    }
+                    function escapeHtml(s){
+                        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                    }
+
+                    // init
+                    filtered = notes.slice();
+                    render();
+                })();
+            </script>
+
+        </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>

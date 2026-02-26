@@ -5,6 +5,7 @@ import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import axios from 'axios'
 
 const router = useRouter()
@@ -172,6 +173,12 @@ const validityDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
+const quoteCardStatus = computed(() => {
+  if (!isProcessStarted.value) return 'DRAFT'
+  if (!isNewMode.value && sourceRequestId.value) return 'REQUESTED'
+  return 'DRAFT'
+})
+
 // --- [저장 핵심 로직] ---
 const submitDoc = async () => {
   if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
@@ -298,7 +305,7 @@ const submitDoc = async () => {
 
 <template>
   <div class="content-wrapper p-6">
-    <div class="screen-content bg-white rounded-lg p-6 shadow-sm min-h-[500px]">
+    <div class="screen-content">
 
       <div class="flex justify-between items-center mb-5">
         <h2 class="text-2xl font-bold text-[#2c3e50]">{{ isProcessStarted ? '견적서 작성' : '문서 작성' }}</h2>
@@ -307,7 +314,8 @@ const submitDoc = async () => {
 
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in fade-in duration-300">
         <div class="flex-1 space-y-5 w-full">
-          <div class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+          <div class="card relative bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+            <StatusBadge class="absolute right-4 top-4" :status="quoteCardStatus" />
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-base font-bold text-slate-800">거래처 정보</h3>
               <button v-if="isNewMode" class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="showCorpModal = true">거래처 선택</button>
@@ -417,16 +425,16 @@ const submitDoc = async () => {
       </div>
     </div>
 
-    <div v-if="showStartModal" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div class="bg-white w-[750px] rounded-lg shadow-2xl overflow-hidden border">
-        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center font-bold">
-          <h3>기존 견적 요청 건 선택</h3>
-          <button @click="handleCloseModal" class="text-2xl hover:text-gray-300 transition-colors">&times;</button>
+    <div v-if="showStartModal" class="modal-overlay z-[2000] p-4">
+      <div class="modal w-[750px] max-w-[95vw] overflow-hidden">
+        <div class="modal-header">
+          <h3 class="modal-title text-base">기존 견적 요청 건 선택</h3>
+          <button type="button" class="modal-close" aria-label="닫기" @click="handleCloseModal" />
         </div>
-        <div class="p-6">
+        <div class="modal-body">
           <div class="max-h-[300px] overflow-y-auto border rounded bg-white mb-5">
             <table class="w-full text-sm text-center">
-              <thead class="bg-gray-100 border-b sticky top-0">
+              <thead class="bg-[var(--color-sidebar-hover)] border-b border-slate-200 sticky top-0">
               <tr><th>법인명</th><th>담당자</th><th>요청 날짜</th><th>상태</th><th>선택</th></tr>
               </thead>
               <tbody>
@@ -445,13 +453,13 @@ const submitDoc = async () => {
       </div>
     </div>
 
-    <div v-if="showCorpModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div class="bg-white w-[600px] rounded-lg shadow-2xl overflow-hidden border">
-        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center font-bold">
-          <h3>거래처 선택</h3>
-          <button @click="showCorpModal = false" class="text-2xl hover:text-gray-200 transition-colors">&times;</button>
+    <div v-if="showCorpModal" class="modal-overlay z-[2100] p-4">
+      <div class="modal w-[600px] max-w-[95vw] overflow-hidden">
+        <div class="modal-header">
+          <h3 class="modal-title text-base">거래처 선택</h3>
+          <button type="button" class="modal-close" aria-label="닫기" @click="showCorpModal = false" />
         </div>
-        <div class="p-5">
+        <div class="modal-body">
           <input v-model="clientSearchInput" type="text" placeholder="거래처명 또는 코드 검색..." class="w-full border p-2 rounded mb-4 text-sm outline-none focus:ring-2 focus:ring-blue-300">
           <div class="max-h-[400px] overflow-y-auto border rounded">
             <table class="w-full text-sm text-center">
@@ -473,13 +481,13 @@ const submitDoc = async () => {
       </div>
     </div>
 
-    <div v-if="showProductModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div class="bg-white w-[850px] rounded-lg shadow-2xl overflow-hidden border">
-        <div class="bg-[#2c3e50] text-white p-4 flex justify-between items-center font-bold">
-          <h3>상품 검색</h3>
-          <button @click="showProductModal = false" class="text-2xl hover:text-gray-200 transition-colors">&times;</button>
+    <div v-if="showProductModal" class="modal-overlay z-[2100] p-4">
+      <div class="modal w-[850px] max-w-[95vw] overflow-hidden">
+        <div class="modal-header">
+          <h3 class="modal-title text-base">상품 검색</h3>
+          <button type="button" class="modal-close" aria-label="닫기" @click="showProductModal = false" />
         </div>
-        <div class="p-5">
+        <div class="modal-body">
           <div class="flex gap-3 mb-4">
             <select v-model="varietyFilter" class="border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-300">
               <option v-for="opt in varietyOptions" :key="opt" :value="opt">{{ opt }}</option>

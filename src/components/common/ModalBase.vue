@@ -60,26 +60,25 @@ onBeforeUnmount(() => {
   <teleport to="body">
     <div
       v-if="modelValue"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      class="modal-overlay p-4"
       @click.self="onBackdropClick"
     >
-      <section class="max-h-[90vh] w-full overflow-hidden rounded-xl bg-white shadow-xl" :class="widthClass">
-        <header class="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-          <h3 class="text-base font-semibold text-slate-800">{{ title }}</h3>
+      <section class="modal max-h-[90vh] w-full overflow-hidden" :class="widthClass">
+        <header class="modal-header">
+          <h3 class="modal-title">{{ title }}</h3>
           <button
             type="button"
-            class="icon-btn"
+            class="modal-close"
+            aria-label="닫기"
             @click="close"
-          >
-            ✕
-          </button>
+          />
         </header>
 
-        <div class="max-h-[calc(90vh-120px)] overflow-y-auto p-5">
+        <div class="modal-body max-h-[calc(90vh-120px)] overflow-y-auto">
           <slot />
         </div>
 
-        <footer v-if="$slots.footer" class="border-t border-slate-200 px-5 py-3">
+        <footer v-if="$slots.footer" class="modal-footer">
           <slot name="footer" :close="close" />
         </footer>
       </section>

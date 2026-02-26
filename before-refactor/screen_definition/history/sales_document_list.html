@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영업 문서 목록</title>
+    <style>
+        /* 기본 레이아웃 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; padding: 20px; color: #111827; }
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* 헤더 스타일 */
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .back-btn { padding: 8px; background: none; border: none; cursor: pointer; border-radius: 8px; font-size: 24px; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; }
+        .back-btn:hover { background-color: #e5e7eb; }
+        .header-content { flex: 1; }
+        .breadcrumb { font-size: 14px; color: #6b7280; }
+        .header h1 { font-size: 24px; font-weight: bold; color: #111827; }
+
+        .process-container {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .process-step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; position: relative; }
+
+        /* 아이콘 기본 스타일 */
+        .step-icon {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; transition: all 0.3s; z-index: 1;
+            background: #f3f4f6; color: #9ca3af;
+        }
+
+        /* 1. 완료: 초록바탕 + 체크 */
+        .process-step.completed .step-icon { background-color: #10b981; color: white; }
+        /* 2. 진행중: 파랑바탕 */
+        .process-step.active .step-icon { background-color: #2563eb; color: white; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+        /* 3. 진행전: 회색바탕 + 모래시계 (pending) */
+        .process-step.pending .step-icon { background-color: #e5e7eb; color: #9ca3af; }
+
+        .step-label { font-size: 13px; color: #6b7280; text-align: center; font-weight: 500; }
+        .process-step.active .step-label { color: #111827; font-weight: bold; }
+
+        /* 현재 선택된 탭 강조 */
+        .process-step.current-select .step-label { text-decoration: underline; color: #2563eb; }
+
+        /* 연결선 */
+        .process-step:not(:last-child)::after {
+            content: ''; position: absolute; top: 20px; right: -50%; width: 100%; height: 2px; background: #e5e7eb; z-index: 0;
+        }
+        .process-step.completed:not(:last-child)::after { background: #10b981; }
+
+        /* 리스트 스타일 */
+        .filter-section { background: white; padding: 16px; border-radius: 8px; margin-bottom: 24px; display: flex; gap: 10px; }
+        .search-input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 12px 24px; background: #f9fafb; text-align: left; font-size: 14px; color: #374151; }
+        td { padding: 16px 24px; border-top: 1px solid #e5e7eb; font-size: 14px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; }
+        .badge-green { background-color: #d1fae5; color: #065f46; }
+        .badge-red { background-color: #fee2e2; color: #991b1b; }
+        .btn-view { padding: 6px 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .empty-state { display: none; padding: 60px; text-align: center; color: #9ca3af; }
+
+        /* 모달 스타일 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-container { background: white; border-radius: 8px; width: 90%; max-width: 1200px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-header { padding: 15px 20px; background: #f8f9fa; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { flex: 1; display: flex; overflow: hidden; }
+        .pdf-viewer { flex: 2; background: #525659; display: flex; justify-content: center; overflow-y: auto; padding: 20px; }
+        .pdf-placeholder { width: 100%; max-width: 800px; background: white; height: 1000px; display: flex; justify-content: center; align-items: center; color: #ccc; }
+        .info-panel { flex: 1; background: white; border-left: 1px solid #ddd; padding: 20px; overflow-y: auto; }
+        .info-content { background: #fff9db; padding: 15px; border-radius: 5px; margin-top: 8px; border: 1px solid #fab005; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <button class="back-btn" onclick="goBack()">←</button>
+        <div class="header-content">
+            <p class="breadcrumb">현재 위치: OO육묘장 > <span id="currentStepText">견적서</span></p>
+            <h1 id="pageTitle">목록</h1>
+        </div>
+    </div>
+
+    <div class="process-container" id="processBar"></div>
+
+    <div class="filter-section">
+        <input type="text" id="searchInput" class="search-input" placeholder="문서번호로 검색해주세요">
+        <button class="btn-view" onclick="applySearch()">검색</button>
+    </div>
+
+    <div class="table-container">
+        <table id="docTable">
+            <thead>
+            <tr><th>문서번호</th><th>작성일</th><th>금액</th><th>상태</th><th>액션</th></tr>
+            </thead>
+            <tbody id="docBody">
+            <tr data-type="견적요청"><td>QR-001</td><td>2026-01-15</td><td>-</td><td><span class="badge badge-green">승인완료</span></td><td><button class="btn-view" onclick="openDetail(this)">보기</button></td></tr>
+            <tr data-type="견적서"><td>EST-005</td><td>2026-01-29</td><td>8,500,000원</td><td><span class="badge badge-red">반려</span></td><td><button class="btn-view" onclick="openDetail(this)">보기</button></td></tr>
+            <tr data-type="견적서"><td>EST-002</td><td>2026-01-22</td><td>4,500,000원</td><td><span class="badge badge-green">승인완료</span></td><td><button class="btn-view" onclick="openDetail(this)">보기</button></td></tr>
+            <tr data-type="계약서"><td>CON-001</td><td>2026-01-22</td><td>15,000,000원</td><td><span class="badge badge-green">진행중</span></td><td><button class="btn-view" onclick="openDetail(this)">보기</button></td></tr>
+            </tbody>
+        </table>
+        <div id="emptyMsg" class="empty-state">
+            <div style="font-size: 40px; margin-bottom: 10px;">📂</div>
+            <p id="emptyText">데이터가 없습니다</p>
+        </div>
+    </div>
+</div>
+
+<div id="contractModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 id="modalDocName">문서번호</h3>
+            <button onclick="closeModal()" style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="pdf-viewer"><div class="pdf-placeholder">📄 PDF 미리보기 영역</div></div>
+            <div class="info-panel">
+                <div style="font-weight:bold; margin-bottom:8px;">📄 작성자 메모</div>
+                <div id="remarkText" class="info-content">내용 없음</div>
+                <div id="rejectSection" style="display:none; margin-top:20px;">
+                    <div style="font-weight:bold; color:red; margin-bottom:8px;">🚫 반려 사유</div>
+                    <div id="rejectText" class="info-content" style="background:#fff5f5; border-color:#ff8787;">사유 없음</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. 초기 데이터 및 상태 설정
+    let currentTab = new URLSearchParams(window.location.search).get('title') || '견적서';
+
+    const stepsData = [
+        { name: '견적요청', status: 'completed' },
+        { name: '견적서',   status: 'completed' },
+        { name: '계약서',   status: 'active' },
+        { name: '주문서',   status: 'pending' },
+        { name: '명세서',   status: 'pending' },
+        { name: '청구서',   status: 'pending' },
+        { name: '결제완료', status: 'pending' }
+    ];
+
+    // 2. 프로세스 바 렌더링 함수
+    function renderProcessBar() {
+        const container = document.getElementById('processBar');
+        container.innerHTML = stepsData.map(step => {
+            let icon = '';
+            let statusText = '';
+
+            if (step.status === 'completed') { icon = '✓'; statusText = '완료'; }
+            else if (step.status === 'active') { icon = '🔄'; statusText = '진행중'; }
+            else { icon = '⏳'; statusText = '대기'; }
+
+            const isCurrent = (currentTab === step.name) ? 'current-select' : '';
+
+            return `
+                <div class="process-step ${step.status} ${isCurrent}" onclick="handleStepClick('${step.name}')">
+                    <div class="step-icon">${icon}</div>
+                    <div class="step-label">${step.name}<br>${statusText}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 3. 탭 전환 처리
+    function handleStepClick(name) {
+        currentTab = name;
+        renderProcessBar();
+        switchTab(name);
+    }
+
+    function switchTab(tabName) {
+        document.getElementById('pageTitle').innerText = tabName + ' 목록';
+        document.getElementById('currentStepText').innerText = tabName;
+
+        const rows = document.querySelectorAll('#docBody tr');
+        let hasData = false;
+
+        rows.forEach(row => {
+            if (row.dataset.type === tabName) {
+                row.style.display = '';
+                hasData = true;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('docTable').style.display = hasData ? 'table' : 'none';
+        document.getElementById('emptyMsg').style.display = hasData ? 'none' : 'block';
+        if(!hasData) document.getElementById('emptyText').innerText = `작성된 ${tabName}가 없습니다.`;
+    }
+
+    // 4. 검색 및 기타 기능
+    function applySearch() {
+        const val = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('#docBody tr').forEach(row => {
+            if (row.dataset.type === currentTab) {
+                row.style.display = row.innerText.toLowerCase().includes(val) ? '' : 'none';
+            }
+        });
+    }
+
+    function openDetail(btn) {
+        const row = btn.closest('tr');
+        document.getElementById('modalDocName').innerText = row.cells[0].innerText;
+        const isRejected = row.cells[3].innerText.includes('반려');
+        document.getElementById('rejectSection').style.display = isRejected ? 'block' : 'none';
+        document.getElementById('contractModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('contractModal').style.display = 'none'; }
+    function goBack() { window.parent.postMessage({ type: 'changePage', url: 'sales_pipeline_detail.html' }, '*'); }
+
+    // 초기 실행
+    window.onload = () => {
+        renderProcessBar();
+        switchTab(currentTab);
+    };
+</script>
+</body>
+</html>

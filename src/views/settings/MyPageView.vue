@@ -175,14 +175,39 @@ const submitPassword = async () => {
 </template>
 
 <style scoped>
-.screen-content { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
-.info-card { border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; padding: 14px; }
-.label { font-size: 12px; font-weight: 700; color: #64748b; }
-.value { margin-top: 6px; font-size: 15px; font-weight: 700; color: #1f2937; }
-.form-field { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: #334155; }
-.input { height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 10px; font-size: 14px; }
-.btn-primary { border: 1px solid var(--color-primary); border-radius: 10px; background: var(--color-primary); color: #fff; padding: 10px 16px; font-size: 14px; font-weight: 700; }
-.btn-primary:hover { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }
-.btn-sub { border: 1px solid #cbd5e1; border-radius: 10px; background: var(--color-primary-light); color: var(--color-primary); padding: 10px 16px; font-size: 14px; font-weight: 700; }
-.btn-sub:hover { background: #cbd5e1; }
+.info-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.value {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.form-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.input {
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 10px;
+  font-size: 14px;
+}
 </style>
