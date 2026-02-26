@@ -9,18 +9,28 @@ import { ROLES } from '@/utils/constants'
 const router = useRouter()
 const documentStore = useDocumentStore()
 const authStore = useAuthStore()
+const normalizeInvoiceStatus = (status) => {
+  const raw = String(status || '').trim().toUpperCase()
+  if (raw === 'ISSUED') return 'ISSUED'
+  if (raw === 'CANCELED') return 'CANCELED'
+  return 'DRAFT'
+}
 
 onMounted(() => {
   void documentStore.fetchDocuments()
 })
 
-const tab = ref('pending')
+const tab = ref('draft')
 const keyword = ref('')
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 
 const filteredInvoices = computed(() => {
-  const source = tab.value === 'issued' ? documentStore.issuedInvoices : documentStore.pendingInvoices
+  const source = tab.value === 'issued'
+      ? documentStore.issuedInvoices
+      : tab.value === 'canceled'
+          ? documentStore.canceledInvoices
+          : documentStore.pendingInvoices
   const search = keyword.value.trim().toLowerCase()
   if (!search) return source
   return source.filter((item) => {
@@ -81,7 +91,7 @@ function selectContract(contract) {
 }
 
 function goToInvoiceDetail(invoice) {
-  const mode = invoice.status === 'pending' ? 'pending' : 'issued'
+  const mode = normalizeInvoiceStatus(invoice.status) === 'ISSUED' ? 'issued' : 'pending'
   router.push(`/documents/invoice/new?mode=${mode}&id=${invoice.id}`)
 }
 </script>
@@ -107,10 +117,10 @@ function goToInvoiceDetail(invoice) {
         <button
             type="button"
             class="rounded px-3 py-2 text-sm font-semibold"
-            :class="tab === 'pending' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'"
-            @click="tab = 'pending'"
+            :class="tab === 'draft' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'"
+            @click="tab = 'draft'"
         >
-          발행 대기 ({{ documentStore.pendingInvoices.length }})
+          초안 ({{ documentStore.pendingInvoices.length }})
         </button>
         <button
             type="button"
@@ -119,6 +129,14 @@ function goToInvoiceDetail(invoice) {
             @click="tab = 'issued'"
         >
           발행 완료 ({{ documentStore.issuedInvoices.length }})
+        </button>
+        <button
+            type="button"
+            class="rounded px-3 py-2 text-sm font-semibold"
+            :class="tab === 'canceled' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'"
+            @click="tab = 'canceled'"
+        >
+          취소 ({{ documentStore.canceledInvoices.length }})
         </button>
         <input
             v-model="keyword"
@@ -155,11 +173,13 @@ function goToInvoiceDetail(invoice) {
             <td class="px-3 py-2">
                 <span
                     class="rounded-full px-2 py-0.5 text-xs font-bold"
-                    :class="invoice.status === 'pending'
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-green-100 text-green-700'"
+                    :class="normalizeInvoiceStatus(invoice.status) === 'CANCELED'
+                    ? 'bg-slate-200 text-slate-600'
+                    : normalizeInvoiceStatus(invoice.status) === 'ISSUED'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'"
                 >
-                  {{ invoice.status === 'pending' ? '발행 대기' : '발행 완료' }}
+                  {{ normalizeInvoiceStatus(invoice.status) === 'CANCELED' ? '취소' : normalizeInvoiceStatus(invoice.status) === 'ISSUED' ? '발행 완료' : '초안' }}
                 </span>
             </td>
             <td class="px-3 py-2">{{ invoice.createdAt || '—' }}</td>

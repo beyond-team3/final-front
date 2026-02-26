@@ -4,6 +4,7 @@ import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployeeStore } from '@/stores/employee'
 import { ROLES } from '@/utils/constants'
+import ModalBase from '@/components/common/ModalBase.vue'
 
 const props = defineProps({
   modelValue: {
@@ -55,6 +56,17 @@ const docDetail = ref(null)
 const isLoading = ref(false)
 
 const showInfoPanel = computed(() => props.mode !== 'readonly')
+const showCancelConfirm = ref(false)
+const cancelErrorMessage = ref('')
+
+const normalizeOrderStatus = (status) => {
+  const raw = String(status || '').trim().toUpperCase()
+  if (['ORDERED', 'PENDING', 'REQUESTED', '처리중', '대기'].includes(raw)) return 'REQUESTED'
+  if (['APPROVED', 'ACTIVE', '승인', '완료'].includes(raw)) return 'APPROVED'
+  if (['REJECTED', 'REJECT', '반려'].includes(raw)) return 'REJECTED'
+  if (['CANCELED', 'CANCELLED', 'CANCEL', '취소'].includes(raw)) return 'CANCELED'
+  return 'DRAFT'
+}
 
 // 💡 유저 요청 3: 견적 요청서의 memo는 요구사항이므로 우측 비고란에서 제외
 const isQuotationRequest = computed(() => {
@@ -81,6 +93,31 @@ const canCancel = computed(() => {
   // 상태가 'QUOTED'가 아니고 'CANCELLED'가 아닐 때만 취소 가능
   const status = String(docDetail.value.status).toUpperCase()
   return status !== 'QUOTED' && status !== 'CANCELLED'
+})
+
+const isOrderDocument = computed(() => {
+  const type = String(docDetail.value?.type || props.docType || '').toLowerCase()
+  return type === 'order' || type.includes('주문')
+})
+
+const orderStatus = computed(() => normalizeOrderStatus(docDetail.value?.status))
+
+const canOrderCancel = computed(() => {
+  if (!isOrderDocument.value) return false
+  if (![ROLES.CLIENT, ROLES.SALES_REP].includes(authStore.currentRole)) return false
+  return orderStatus.value === 'REQUESTED'
+})
+
+const isOrderCancelBlockedByApproval = computed(() => {
+  if (!isOrderDocument.value) return false
+  if (![ROLES.CLIENT, ROLES.SALES_REP].includes(authStore.currentRole)) return false
+  return orderStatus.value === 'APPROVED'
+})
+
+const showOrderCancelButton = computed(() => {
+  if (!isOrderDocument.value) return false
+  if (orderStatus.value === 'CANCELED') return false
+  return [ROLES.CLIENT, ROLES.SALES_REP].includes(authStore.currentRole)
 })
 
 const showRejectReason = computed(() => props.mode === 'sales-rejected' || props.mode === 'admin-rejected')
@@ -129,6 +166,8 @@ const formatDate = (date) => {
 
 const close = () => {
   emit('update:modelValue', false)
+  showCancelConfirm.value = false
+  cancelErrorMessage.value = ''
 }
 
 const loadDetail = async () => {
@@ -232,15 +271,41 @@ const downloadDocument = async () => {
 }
 
 const handleCancel = async () => {
-  if (!confirm('정말로 이 견적 요청을 삭제하시겠습니까?')) return
+  cancelErrorMessage.value = ''
+
+  if (showOrderCancelButton.value) {
+    if (!canOrderCancel.value) return
+    showCancelConfirm.value = true
+    return
+  }
+
+  if (canCancel.value) {
+    showCancelConfirm.value = true
+  }
+}
+
+const confirmCancel = async () => {
+  cancelErrorMessage.value = ''
+
+  if (showOrderCancelButton.value) {
+    const result = await documentStore.cancelOrder(props.docId)
+    if (result.success) {
+      showCancelConfirm.value = false
+      await loadDetail()
+      return
+    }
+    cancelErrorMessage.value = result.message || '주문 취소 처리에 실패했습니다.'
+    return
+  }
 
   const success = await documentStore.cancelQuotationRequest(props.docId)
   if (success) {
-    alert('견적 요청과 히스토리가 삭제되었습니다.')
+    showCancelConfirm.value = false
     close()
-  } else {
-    alert('삭제 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    return
   }
+
+  cancelErrorMessage.value = '삭제 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.'
 }
 
 </script>
@@ -257,10 +322,24 @@ const handleCancel = async () => {
         <header class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3">
           <h3 class="text-lg font-semibold text-slate-800">{{ title }}</h3>
           <div class="flex items-center gap-2">
+            <div v-if="showOrderCancelButton && isOrderCancelBlockedByApproval" class="text-xs font-semibold text-[#C44536]">
+              관리자 승인 필요
+            </div>
             <button
                 v-if="canCancel"
                 type="button"
-                class="rounded bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600 transition-colors"
+                class="rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors"
+                style="background-color: #C44536"
+                @click="handleCancel"
+            >
+              취소
+            </button>
+            <button
+                v-if="showOrderCancelButton"
+                type="button"
+                class="rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                style="background-color: #C44536"
+                :disabled="!canOrderCancel"
                 @click="handleCancel"
             >
               취소
@@ -593,6 +672,38 @@ const handleCancel = async () => {
       </section>
     </div>
   </teleport>
+
+  <ModalBase
+      v-model="showCancelConfirm"
+      title="취소 확인"
+      width-class="max-w-md"
+  >
+    <p class="text-sm text-slate-700">
+      {{ showOrderCancelButton ? '해당 주문서를 취소하시겠습니까?' : '해당 문서를 취소하시겠습니까?' }}
+    </p>
+    <p v-if="cancelErrorMessage" class="mt-3 text-xs font-semibold text-[#C44536]">
+      {{ cancelErrorMessage }}
+    </p>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <button
+            type="button"
+            class="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            @click="showCancelConfirm = false"
+        >
+          닫기
+        </button>
+        <button
+            type="button"
+            class="rounded px-3 py-1.5 text-sm font-semibold text-white"
+            style="background-color: #C44536"
+            @click="confirmCancel"
+        >
+          취소 확정
+        </button>
+      </div>
+    </template>
+  </ModalBase>
 </template>
 
 <style scoped>

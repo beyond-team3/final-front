@@ -12,9 +12,9 @@ const toggleSidebar = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50">
+  <div class="min-h-screen bg-[var(--color-bg)]">
     <AppHeader @toggle-sidebar="toggleSidebar" />
-    <div class="mx-auto flex max-w-screen-2xl">
+    <div class="mx-auto flex max-w-screen-2xl pt-14">
       <AppSidebar :visible="isSidebarOpen" />
       <main class="min-h-[calc(100vh-56px)] flex-1 p-6">
         <ErrorBoundary>

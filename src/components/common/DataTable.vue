@@ -26,15 +26,14 @@ defineEmits(['row-click'])
 </script>
 
 <template>
-  <div class="app-data-table overflow-hidden rounded-lg border border-slate-200 bg-white">
+  <div class="app-data-table overflow-hidden rounded-lg border" style="border-color: var(--color-border); background: var(--color-surface);">
     <div class="overflow-x-auto">
-      <table class="min-w-full border-collapse text-sm">
-        <thead class="bg-slate-100 text-left text-slate-700">
+      <table class="table min-w-full">
+        <thead>
           <tr>
             <th
               v-for="column in columns"
               :key="column.key"
-              class="border-b border-slate-200 px-4 py-3 font-semibold"
               :style="column.width ? { width: column.width } : undefined"
             >
               {{ column.label }}
@@ -44,13 +43,13 @@ defineEmits(['row-click'])
 
         <tbody>
           <tr v-if="loading">
-            <td :colspan="columns.length || 1" class="px-4 py-8 text-center text-slate-500">
+            <td :colspan="columns.length || 1" class="px-4 py-8 text-center" style="color: var(--color-muted);">
               로딩 중...
             </td>
           </tr>
 
           <tr v-else-if="rows.length === 0">
-            <td :colspan="columns.length || 1" class="px-4 py-8 text-center text-slate-400">
+            <td :colspan="columns.length || 1" class="px-4 py-8 text-center" style="color: var(--color-faint);">
               {{ emptyText }}
             </td>
           </tr>
@@ -59,13 +58,11 @@ defineEmits(['row-click'])
             v-for="(row, rowIndex) in rows"
             v-else
             :key="row[rowKey] ?? rowIndex"
-            class="border-b border-slate-100 hover:bg-slate-50"
             @click="$emit('row-click', row)"
           >
             <td
               v-for="column in columns"
               :key="column.key"
-              class="px-4 py-3 text-slate-700"
             >
               <slot
                 :name="`cell-${column.key}`"
@@ -82,7 +79,7 @@ defineEmits(['row-click'])
       </table>
     </div>
 
-    <div v-if="$slots.footer" class="border-t border-slate-200 px-4 py-3">
+    <div v-if="$slots.footer" class="border-t px-4 py-3" style="border-color: var(--color-border);">
       <slot name="footer" />
     </div>
   </div>

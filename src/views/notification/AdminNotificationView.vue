@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import ModalBase from '@/components/common/ModalBase.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -57,6 +57,10 @@ const badgeClass = (category) => {
   if (category === '상품') return 'badge-product'
   return 'badge-admin'
 }
+
+onMounted(() => {
+  void store.fetchNotifications(role)
+})
 </script>
 
 <template>
@@ -140,26 +144,21 @@ const badgeClass = (category) => {
 </template>
 
 <style scoped>
-.screen-content { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
 .noti-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .noti-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.noti-tab { border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; padding: 8px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
-.noti-tab.active { background: #1e293b; border-color: #1e293b; color: #fff; }
+.noti-tab { border: 1px solid var(--color-border); background: #f8fafc; color: #334155; padding: 8px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.noti-tab.active { background: var(--color-text); border-color: var(--color-text); color: #fff; }
 .noti-actions { display: flex; gap: 8px; }
-.btn { border: 1px solid #dbe1e9; background: #fff; color: #334155; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; }
-.btn.primary { background: #0ea5e9; border-color: #0ea5e9; color: #fff; text-decoration: none; }
-.btn.ghost { background: transparent; }
-.btn.toggle-on { background: #1e293b; border-color: #1e293b; color: #fff; }
-.noti-list-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.noti-list-wrap { border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; }
 .noti-list { max-height: 520px; overflow: auto; }
 .noti-item { display: flex; gap: 10px; border-bottom: 1px solid #eef2f7; padding: 13px 14px; cursor: pointer; }
 .noti-item:hover { background: #f8fafc; }
-.noti-dot { width: 9px; height: 9px; border-radius: 999px; background: #0ea5e9; opacity: 0; margin-top: 7px; }
+.noti-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--color-accent); opacity: 0; margin-top: 7px; }
 .noti-item.unread .noti-dot { opacity: 1; }
 .noti-main { flex: 1; min-width: 0; }
 .noti-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.noti-title strong { font-size: 14px; color: #1f2937; }
-.noti-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #64748b; }
+.noti-title strong { font-size: 14px; color: var(--color-text); }
+.noti-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--color-muted); }
 .noti-badge { padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #e2e8f0; color: #334155; }
 .badge-sales { background: #e0f2fe; color: #0369a1; }
 .badge-schedule { background: #dcfce7; color: #166534; }
@@ -167,10 +166,10 @@ const badgeClass = (category) => {
 .badge-product { background: #f3e8ff; color: #6b21a8; }
 .noti-preview { margin-top: 6px; font-size: 13px; color: #475569; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .noti-footer { display: flex; justify-content: space-between; gap: 10px; padding: 12px; background: #f8fafc; align-items: center; flex-wrap: wrap; }
-.result-meta { font-size: 12px; color: #64748b; }
+.result-meta { font-size: 12px; color: var(--color-muted); }
 .noti-empty { padding: 40px 12px; text-align: center; color: #94a3b8; }
-.modal-info { display: flex; gap: 8px; flex-wrap: wrap; color: #64748b; font-size: 12px; }
-.modal-title { margin-top: 10px; font-size: 18px; font-weight: 700; color: #1f2937; }
+.modal-info { display: flex; gap: 8px; flex-wrap: wrap; color: var(--color-muted); font-size: 12px; }
+.modal-title { margin-top: 10px; font-size: 18px; font-weight: 700; color: var(--color-text); }
 .modal-message { margin-top: 12px; white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: #334155; }
 .modal-actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
 </style>

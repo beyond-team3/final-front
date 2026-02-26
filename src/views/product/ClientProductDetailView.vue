@@ -17,19 +17,15 @@ const product = computed(() => productStore.getProductById(productId.value))
 const noteDraft = ref('')
 
 const tagRows = computed(() => {
-  if (!product.value) return []
-  return [
+  const rows = [
     { key: 'env', label: '재배환경' },
     { key: 'res', label: '내병성' },
     { key: 'growth', label: '생육/숙기' },
     { key: 'quality', label: '과실품질' },
     { key: 'conv', label: '재배편의성' },
   ]
-
-  return [
-    ...rows,
-    ...tags.filter((row) => (product.value.tags?.[row.key] || []).length > 0),
-  ]
+  if (!product.value) return []
+  return rows.filter((row) => (product.value.tags?.[row.key] || []).length > 0)
 })
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
@@ -133,7 +129,7 @@ const saveNote = () => {
             <p class="text-sm font-semibold text-slate-500">{{ row.label }}</p>
             <div class="flex flex-wrap gap-2">
               <span
-                v-for="tag in product.tags[row.key]"
+                v-for="tag in (product.tags?.[row.key] || [])"
                 :key="`${row.key}-${tag}`"
                 class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
               >

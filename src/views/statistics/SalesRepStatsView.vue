@@ -13,6 +13,7 @@ import {
   Title,
   Tooltip,
 } from 'chart.js'
+import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
 
 Chart.register(
   CategoryScale,
@@ -326,6 +327,17 @@ const selectedEmployeeText = computed(() => {
   const names = selectedEmployees.value.map((id) => employees.find((item) => item.id === id)?.name).filter(Boolean)
   return names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}개`
 })
+
+const toggleSelectedItem = (listRef, id, checked) => {
+  const numericId = Number(id)
+  if (checked) {
+    if (!listRef.value.includes(numericId)) {
+      listRef.value = [...listRef.value, numericId]
+    }
+    return
+  }
+  listRef.value = listRef.value.filter((itemId) => itemId !== numericId)
+}
 
 const createLineOrBarDatasets = (items, source, periodType, range, compareYear, chartType) => {
   const monthPoints = createMonthPoints(range)
@@ -701,9 +713,14 @@ onBeforeUnmount(() => {
           <div class="multi-select">
             <button type="button" class="multi-select-trigger" @click="employeeDropdownOpen = !employeeDropdownOpen">{{ selectedEmployeeText }}</button>
             <div v-if="employeeDropdownOpen" class="multi-select-dropdown">
-              <label v-for="item in employees" :key="item.id" class="multi-select-option">
-                <input v-model="selectedEmployees" type="checkbox" :value="item.id"> {{ item.name }}
-              </label>
+              <div v-for="item in employees" :key="item.id" class="multi-select-option">
+                <CedarCheckbox
+                  :id="`employee-option-${item.id}`"
+                  :label="item.name"
+                  :model-value="selectedEmployees.includes(item.id)"
+                  @update:model-value="(checked) => toggleSelectedItem(selectedEmployees, item.id, checked)"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -713,9 +730,14 @@ onBeforeUnmount(() => {
           <div class="multi-select">
             <button type="button" class="multi-select-trigger" @click="clientDropdownOpen = !clientDropdownOpen">{{ selectedClientText }}</button>
             <div v-if="clientDropdownOpen" class="multi-select-dropdown">
-              <label v-for="item in clients" :key="item.id" class="multi-select-option">
-                <input v-model="selectedClients" type="checkbox" :value="item.id"> {{ item.name }}
-              </label>
+              <div v-for="item in clients" :key="item.id" class="multi-select-option">
+                <CedarCheckbox
+                  :id="`client-option-${item.id}`"
+                  :label="item.name"
+                  :model-value="selectedClients.includes(item.id)"
+                  @update:model-value="(checked) => toggleSelectedItem(selectedClients, item.id, checked)"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -725,9 +747,14 @@ onBeforeUnmount(() => {
           <div class="multi-select">
             <button type="button" class="multi-select-trigger" @click="varietyDropdownOpen = !varietyDropdownOpen">{{ selectedVarietyText }}</button>
             <div v-if="varietyDropdownOpen" class="multi-select-dropdown">
-              <label v-for="item in varieties" :key="item.id" class="multi-select-option">
-                <input v-model="selectedVarieties" type="checkbox" :value="item.id"> {{ item.name }}
-              </label>
+              <div v-for="item in varieties" :key="item.id" class="multi-select-option">
+                <CedarCheckbox
+                  :id="`variety-option-${item.id}`"
+                  :label="item.name"
+                  :model-value="selectedVarieties.includes(item.id)"
+                  @update:model-value="(checked) => toggleSelectedItem(selectedVarieties, item.id, checked)"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -844,9 +871,7 @@ onBeforeUnmount(() => {
   </section>
 </template>
 
-<style scoped>
-.screen-content { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
-.screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
+<style scoped>.screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
 .filter-section { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
 .filter-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 .filter-group { display: flex; flex-direction: column; gap: 8px; }

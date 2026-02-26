@@ -7,6 +7,7 @@ import {
     createOrder as createOrderApi,
     createQuotation as createQuotationApi,
     createQuotationRequest as createQuotationRequestApi,
+    getDocumentDetail,
     getDocuments,
     getStatements,
     updateDocumentStatus as updateDocumentStatusApi,
@@ -63,7 +64,38 @@ const normalizeDocument = (doc = {}) => ({
     totalAmount: Number(doc.totalAmount ?? doc.amount ?? 0),
     createdAt: doc.createdAt || doc.date || new Date().toISOString().slice(0, 10),
     historyId: doc.historyId || doc.pipelineId || null,
+    statusHistory: Array.isArray(doc.statusHistory) ? doc.statusHistory : [],
 })
+
+const ORDER_STATUS = {
+    DRAFT: 'DRAFT',
+    REQUESTED: 'REQUESTED',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+    CANCELED: 'CANCELED',
+}
+
+const INVOICE_STATUS = {
+    DRAFT: 'DRAFT',
+    ISSUED: 'ISSUED',
+    CANCELED: 'CANCELED',
+}
+
+function normalizeOrderStatus(status) {
+    const raw = String(status || '').trim().toUpperCase()
+    if (['ORDERED', 'PENDING', 'REQUESTED', '처리중', '대기'].includes(raw)) return ORDER_STATUS.REQUESTED
+    if (['APPROVED', 'ACTIVE', '승인', '완료'].includes(raw)) return ORDER_STATUS.APPROVED
+    if (['REJECTED', 'REJECT', '반려'].includes(raw)) return ORDER_STATUS.REJECTED
+    if (['CANCELED', 'CANCELLED', 'CANCEL', '취소'].includes(raw)) return ORDER_STATUS.CANCELED
+    return ORDER_STATUS.DRAFT
+}
+
+function normalizeInvoiceStatus(status) {
+    const raw = String(status || '').trim().toUpperCase()
+    if (['ISSUED', '발행', '발행완료'].includes(raw)) return INVOICE_STATUS.ISSUED
+    if (['CANCELED', 'CANCELLED', 'CANCEL', '취소'].includes(raw)) return INVOICE_STATUS.CANCELED
+    return INVOICE_STATUS.DRAFT
+}
 
 export const useDocumentStore = defineStore('document', () => {
     const authStore = useAuthStore()
@@ -173,6 +205,21 @@ export const useDocumentStore = defineStore('document', () => {
         eventBus.emit('document:created', { type, id })
     }
     const totalAmountOf = (items = []) => items.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    const getActorName = () => authStore.me?.targetPerson || authStore.me?.name || authStore.me?.loginId || '알 수 없음'
+    const createStatusHistoryEntry = (previousStatus) => ({
+        timestamp: new Date().toISOString(),
+        actor: getActorName(),
+        previousStatus,
+    })
+    const syncPipelineDocumentStatus = (docId, status) => {
+        const targetDoc = allRawDocuments.value.find((item) => String(item.id) === String(docId))
+        if (!targetDoc?.historyId) return
+        const pipeline = historyStore.getPipelineById(targetDoc.historyId)
+        const summary = pipeline?.documents?.find((item) => String(item.id) === String(docId))
+        if (summary) {
+            summary.status = status
+        }
+    }
 
     const getRequestById = (id) => quotationRequests.value.find((item) => item.id === id)
     const getQuotationById = (id) => quotations.value.find((item) => item.id === id)
@@ -393,7 +440,7 @@ export const useDocumentStore = defineStore('document', () => {
             items: lineItems,
             deliveryDate,
             memo: memo || '',
-            status: 'ORDERED',
+            status: ORDER_STATUS.REQUESTED,
             date: formatDate(),
             createdAt: formatDate(),
             totalAmount: totalAmountOf(lineItems),
@@ -417,7 +464,7 @@ export const useDocumentStore = defineStore('document', () => {
         return next
     }
 
-    const createInvoice = ({ orderId, client, items, remarks, mode = 'pending', historyId }) => {
+    const createInvoice = ({ orderId, client, items, remarks, mode = INVOICE_STATUS.DRAFT, historyId }) => {
         const id = makeId('IV')
         const lineItems = (items || []).map(withAmount)
         const supplyAmount = totalAmountOf(lineItems)
@@ -435,7 +482,7 @@ export const useDocumentStore = defineStore('document', () => {
             authorName: authStore.me?.targetPerson || authStore.me?.loginId || '작성자',
             items: lineItems,
             remarks: remarks || '',
-            status: mode === 'issued' ? 'issued' : 'pending',
+            status: String(mode).toUpperCase() === INVOICE_STATUS.ISSUED ? INVOICE_STATUS.ISSUED : INVOICE_STATUS.DRAFT,
             date: formatDate(),
             createdAt: formatDate(),
             dueDate: formatDate(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)),
@@ -464,7 +511,91 @@ export const useDocumentStore = defineStore('document', () => {
 
     const markInvoiceIssued = (invoiceId) => {
         const invoice = getInvoiceById(invoiceId)
-        if (invoice) invoice.status = 'issued'
+        if (invoice) invoice.status = INVOICE_STATUS.ISSUED
+    }
+
+    const cancelOrder = async (orderId) => {
+        const index = allRawDocuments.value.findIndex((item) => String(item.id) === String(orderId))
+        if (index < 0) {
+            return { success: false, reason: 'NOT_FOUND', message: '주문서를 찾을 수 없습니다.' }
+        }
+
+        const current = allRawDocuments.value[index]
+        const currentStatus = normalizeOrderStatus(current.status)
+
+        if (![ROLES.CLIENT, ROLES.SALES_REP].includes(authStore.currentRole)) {
+            return { success: false, reason: 'FORBIDDEN', message: '취소 권한이 없습니다.' }
+        }
+
+        if (currentStatus === ORDER_STATUS.APPROVED) {
+            return { success: false, reason: 'ADMIN_APPROVAL_REQUIRED', message: '관리자 승인 필요' }
+        }
+
+        if (currentStatus !== ORDER_STATUS.REQUESTED) {
+            return { success: false, reason: 'INVALID_STATUS', message: 'REQUESTED 상태에서만 취소할 수 있습니다.' }
+        }
+
+        const prevDoc = { ...current }
+        const nextHistory = [...(current.statusHistory || []), createStatusHistoryEntry(currentStatus)]
+        allRawDocuments.value[index] = normalizeDocument({
+            ...current,
+            status: ORDER_STATUS.CANCELED,
+            statusHistory: nextHistory,
+        })
+        syncPipelineDocumentStatus(orderId, ORDER_STATUS.CANCELED)
+
+        try {
+            await updateDocumentStatusApi(orderId, {
+                status: ORDER_STATUS.CANCELED,
+                statusHistory: nextHistory,
+            })
+            return { success: true }
+        } catch (e) {
+            allRawDocuments.value[index] = prevDoc
+            syncPipelineDocumentStatus(orderId, prevDoc.status)
+            error.value = getErrorMessage(e, '주문서 취소에 실패했습니다.')
+            return { success: false, reason: 'API_ERROR', message: error.value }
+        }
+    }
+
+    const cancelInvoice = async (invoiceId) => {
+        const index = allRawDocuments.value.findIndex((item) => String(item.id) === String(invoiceId))
+        if (index < 0) {
+            return { success: false, reason: 'NOT_FOUND', message: '청구서를 찾을 수 없습니다.' }
+        }
+
+        const current = allRawDocuments.value[index]
+        const currentStatus = normalizeInvoiceStatus(current.status)
+
+        if (authStore.currentRole !== ROLES.SALES_REP) {
+            return { success: false, reason: 'FORBIDDEN', message: '영업사원만 취소할 수 있습니다.' }
+        }
+
+        if (currentStatus === INVOICE_STATUS.CANCELED) {
+            return { success: false, reason: 'ALREADY_CANCELED', message: '이미 취소된 청구서입니다.' }
+        }
+
+        const prevDoc = { ...current }
+        const nextHistory = [...(current.statusHistory || []), createStatusHistoryEntry(currentStatus)]
+        allRawDocuments.value[index] = normalizeDocument({
+            ...current,
+            status: INVOICE_STATUS.CANCELED,
+            statusHistory: nextHistory,
+        })
+        syncPipelineDocumentStatus(invoiceId, INVOICE_STATUS.CANCELED)
+
+        try {
+            await updateDocumentStatusApi(invoiceId, {
+                status: INVOICE_STATUS.CANCELED,
+                statusHistory: nextHistory,
+            })
+            return { success: true }
+        } catch (e) {
+            allRawDocuments.value[index] = prevDoc
+            syncPipelineDocumentStatus(invoiceId, prevDoc.status)
+            error.value = getErrorMessage(e, '청구서 취소에 실패했습니다.')
+            return { success: false, reason: 'API_ERROR', message: error.value }
+        }
     }
 
     const cancelQuotationRequest = async (id) => {
@@ -503,8 +634,9 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const pendingInvoices = computed(() => invoices.value.filter((d) => d.status === 'pending' || d.status === '발행대기'))
-    const issuedInvoices = computed(() => invoices.value.filter((d) => d.status === 'issued' || d.status === '발행'))
+    const pendingInvoices = computed(() => invoices.value.filter((d) => normalizeInvoiceStatus(d.status) === INVOICE_STATUS.DRAFT))
+    const issuedInvoices = computed(() => invoices.value.filter((d) => normalizeInvoiceStatus(d.status) === INVOICE_STATUS.ISSUED))
+    const canceledInvoices = computed(() => invoices.value.filter((d) => normalizeInvoiceStatus(d.status) === INVOICE_STATUS.CANCELED))
 
     void initialize()
 
@@ -518,6 +650,7 @@ export const useDocumentStore = defineStore('document', () => {
         invoices,
         pendingInvoices,
         issuedInvoices,
+        canceledInvoices,
         loading,
         error,
         fetchProductMaster,
@@ -536,6 +669,8 @@ export const useDocumentStore = defineStore('document', () => {
         createOrder,
         createInvoice,
         markInvoiceIssued,
+        cancelOrder,
+        cancelInvoice,
         cancelQuotationRequest,
         statements,
         fetchStatements,

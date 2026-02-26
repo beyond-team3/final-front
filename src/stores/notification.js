@@ -9,7 +9,7 @@ import {
 } from '@/api/notification'
 
 const DEFAULT_CATEGORY_MAP = {
-  [ROLES.SALES_REP]: ['전체', '계정', '영업', '재고'],
+  [ROLES.SALES_REP]: ['전체', '계정', '영업', '재고', '일정', '재배적기'],
   [ROLES.ADMIN]: ['전체', '영업', '일정', '관리', '상품'],
   [ROLES.CLIENT]: ['전체', '견적요청', '계약', '명세', '청구'],
 }
@@ -81,6 +81,29 @@ export const useNotificationStore = defineStore('notification', () => {
     notificationsByRole.value = {
       ...notificationsByRole.value,
       [role]: [next, ...getAllByRole(role)],
+    }
+  }
+
+  const mergeNotifications = (role, incoming = []) => {
+    if (!role || !Array.isArray(incoming) || incoming.length === 0) {
+      return
+    }
+
+    const existing = getAllByRole(role)
+    const deduped = incoming.filter((item) => {
+      if (!item) {
+        return false
+      }
+      return !existing.some((current) => current.id === item.id || (item.sourceKey && current.sourceKey === item.sourceKey))
+    })
+
+    if (deduped.length === 0) {
+      return
+    }
+
+    notificationsByRole.value = {
+      ...notificationsByRole.value,
+      [role]: [...deduped, ...existing],
     }
   }
 
@@ -242,5 +265,6 @@ export const useNotificationStore = defineStore('notification', () => {
     markRead,
     toggleRead,
     markAllRead,
+    mergeNotifications,
   }
 })

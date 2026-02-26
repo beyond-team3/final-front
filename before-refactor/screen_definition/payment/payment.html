@@ -1,0 +1,1777 @@
+<html lang="ko"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>결제 관리 - PAY-001</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #f0f2f5;
+        }
+
+        /* ───── 공통 레이아웃 ───── */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #1a2636;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 16px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .menu-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .header-badge {
+            margin-left: 12px;
+            background: #3b82f6;
+            color: white;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 240px;
+            height: calc(100vh - 60px);
+            background: #1e2d3d;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 16px 0;
+        }
+
+        .nav-category {
+            padding: 16px 20px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 1px;
+        }
+
+        .nav-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border-left-color: #3b82f6;
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: white;
+            border-left-color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 240px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background: #f0f2f5;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        /* ───── screen-content ───── */
+        .screen-content {
+            margin: 24px;
+        }
+
+        /* 페이지 헤더 */
+        .page-header {
+            margin-bottom: 20px;
+        }
+
+        .breadcrumb {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .breadcrumb span {
+            color: #3b82f6;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .screen-id-badge {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            background: #e2e8f0;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .page-notice {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            color: #92400e;
+        }
+
+        .page-notice .n-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        /* ───── Split View Layout ───── */
+        .split-layout {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .left-panel {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .right-panel {
+            position: sticky;
+            top: 0;
+        }
+
+        /* ───── 공통 섹션 ───── */
+        .section {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            transition: opacity 0.3s, filter 0.3s;
+        }
+
+        .section.disabled-section {
+            opacity: 0.45;
+            pointer-events: none;
+            filter: grayscale(0.3);
+        }
+
+        .section-header {
+            padding: 13px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fafbfc;
+        }
+
+        .section-icon {
+            font-size: 16px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .section-desc {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-left: auto;
+        }
+
+        .section-body {
+            padding: 20px;
+        }
+
+        /* ───── 여신 배너 ───── */
+        .credit-banner {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .credit-banner-icon {
+            width: 40px;
+            height: 40px;
+            background: #eff6ff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .credit-banner-info {
+            flex: 1;
+        }
+
+        .credit-banner-label {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .credit-banner-val {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1d4ed8;
+            letter-spacing: -0.5px;
+            transition: all 0.5s;
+        }
+
+        .credit-banner-val.increased {
+            color: #16a34a;
+            animation: credit-up 0.6s ease;
+        }
+
+        @keyframes credit-up {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .credit-banner-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* ───── 청구서 테이블 ───── */
+        .inv-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .inv-table thead tr {
+            background: #f8fafc;
+        }
+
+        .inv-table th {
+            padding: 10px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .inv-table th.right,
+        .inv-table td.right {
+            text-align: right;
+        }
+
+        .inv-table th.center,
+        .inv-table td.center {
+            text-align: center;
+        }
+
+        .inv-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .inv-table tbody tr:hover {
+            background: #f0f7ff;
+        }
+
+        .inv-table tbody tr.selected {
+            background: #eff6ff;
+            box-shadow: inset 3px 0 0 #2563eb;
+        }
+
+        .inv-table tbody tr.paid-row {
+            cursor: default;
+        }
+
+        .inv-table tbody tr.paid-row:hover {
+            background: transparent;
+        }
+
+        .inv-table td {
+            padding: 13px 14px;
+            font-size: 13px;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .inv-num {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .inv-num-sub {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+
+        .status-badge::before {
+            content: "●";
+            font-size: 8px;
+        }
+
+        .status-badge.unpaid {
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+        }
+
+        .status-badge.paid {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .amount-cell {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .date-cell {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        /* 행 선택 아이콘 */
+        .row-select-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #94a3b8;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .selected .row-select-icon {
+            background: #2563eb;
+            color: white;
+        }
+
+        /* 빈 상태 */
+        .empty-all {
+            padding: 48px;
+            text-align: center;
+            color: #94a3b8;
+        }
+
+        .empty-all .e-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+        }
+
+        .empty-all .e-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .empty-all .e-sub {
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        /* ───── 결제 내역 섹션 ───── */
+        .pay-detail-placeholder {
+            padding: 32px 20px;
+            text-align: center;
+            color: #cbd5e1;
+        }
+
+        .pay-detail-placeholder .ph-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .pay-detail-placeholder .ph-text {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .pay-detail-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .pay-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .pay-row:last-child {
+            border-bottom: none;
+        }
+
+        .pay-row .pr-label {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .pay-row .pr-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .pay-row.total-row {
+            padding-top: 14px;
+            margin-top: 4px;
+            border-top: 2px solid #e2e8f0;
+            border-bottom: none;
+        }
+
+        .pay-row.total-row .pr-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .pay-row.total-row .pr-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1d4ed8;
+        }
+
+        /* ───── 결제 수단 라디오 ───── */
+        .pay-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .pay-method-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pay-method-item:hover {
+            border-color: #93c5fd;
+            background: #f8fbff;
+        }
+
+        .pay-method-item.selected {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .pay-method-item input[type="radio"] {
+            display: none;
+        }
+
+        .radio-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            flex-shrink: 0;
+            position: relative;
+            transition: all 0.18s;
+        }
+
+        .pay-method-item.selected .radio-dot {
+            border-color: #2563eb;
+            background: #2563eb;
+        }
+
+        .pay-method-item.selected .radio-dot::after {
+            content: "";
+            position: absolute;
+            inset: 3px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .pm-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .pm-info {
+            flex: 1;
+        }
+
+        .pm-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .pm-desc {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 1px;
+        }
+
+        .pay-method-item.selected .pm-name {
+            color: #1d4ed8;
+        }
+
+        /* ───── 여신 시뮬레이션 ───── */
+        .credit-sim-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .cs-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .cs-row:last-child {
+            border-bottom: none;
+        }
+
+        .cs-row .cs-label {
+            font-size: 13px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .cs-row .cs-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .cs-row.after-row {
+            padding-top: 14px;
+            margin-top: 4px;
+            border-top: 2px solid #e2e8f0;
+            border-bottom: none;
+        }
+
+        .cs-row.after-row .cs-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .cs-row.after-row .cs-value {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .cs-row.after-row .cs-value.pos {
+            color: #16a34a;
+        }
+
+        .cs-row.after-row .cs-value.neu {
+            color: #64748b;
+        }
+
+        .cs-arrow {
+            text-align: center;
+            font-size: 18px;
+            padding: 4px 0;
+            color: #94a3b8;
+        }
+
+        .credit-increase-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #dcfce7;
+            color: #16a34a;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 6px;
+        }
+
+        /* ───── 액션 바 ───── */
+        .action-bar {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 14px 24px;
+            margin-top: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            /* 액션 바는 왼쪽 패널 안에 있으므로 너비 100% 사용 */
+        }
+
+        .action-bar-left {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .action-bar-left strong {
+            color: #334155;
+        }
+
+        .action-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 18px;
+            height: 40px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .btn-cancel {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .btn-cancel:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .btn-pay {
+            background: linear-gradient(135deg, #16a34a, #059669);
+            color: white;
+            box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);
+        }
+
+        .btn-pay:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(22, 163, 74, 0.45);
+        }
+
+        .btn-pay:disabled {
+            background: linear-gradient(135deg, #94a3b8, #94a3b8);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ───── 영수증 (Right Panel) ───── */
+        .receipt {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            /* 약간의 그림자 추가 */
+            position: sticky;
+            top: 0;
+            min-height: 500px;
+        }
+
+        .receipt-top {
+            background: linear-gradient(135deg, #1e3a5f, #1d4ed8);
+            padding: 28px 28px 22px;
+            color: white;
+            text-align: center;
+        }
+
+        .receipt-company {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .receipt-doc-title {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            margin-bottom: 8px;
+        }
+
+        .receipt-num {
+            font-size: 12px;
+            opacity: 0.8;
+            background: rgba(255, 255, 255, 0.15);
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 20px;
+        }
+
+        .receipt-body {
+            padding: 24px 28px;
+        }
+
+        .receipt-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .receipt-meta-item {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .receipt-meta-item:nth-child(odd) {
+            border-right: 1px solid #f1f5f9;
+        }
+
+        .receipt-meta-item .rm-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+
+        .receipt-meta-item .rm-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .receipt-amount-box {
+            background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .receipt-amount-box .ra-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .receipt-amount-box .ra-value {
+            font-size: 28px;
+            font-weight: 900;
+            color: #1d4ed8;
+            letter-spacing: -1px;
+        }
+
+        .receipt-amount-box .ra-sub {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 6px;
+        }
+
+        .receipt-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin-bottom: 20px;
+        }
+
+        .rr {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #f1f5f9;
+            font-size: 13px;
+        }
+
+        .rr:last-child {
+            border-bottom: none;
+        }
+
+        .rr .rl {
+            color: #64748b;
+        }
+
+        .rr .rv {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .receipt-credit-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .receipt-credit-box .rc-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .receipt-credit-box .rc-text {
+            font-size: 13px;
+            color: #166534;
+            font-weight: 600;
+        }
+
+        .receipt-credit-box .rc-amt {
+            font-size: 15px;
+            font-weight: 800;
+            color: #16a34a;
+        }
+
+        .receipt-footer {
+            padding: 16px 28px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .receipt-stamp {
+            width: 52px;
+            height: 52px;
+            border: 2px solid #2563eb;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 800;
+            color: #2563eb;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* ───── 결제 완료 오버레이 ───── */
+        .success-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.75);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(6px);
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-modal {
+            background: white;
+            border-radius: 20px;
+            padding: 44px 52px;
+            text-align: center;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+            animation: modal-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 420px;
+            width: 90vw;
+        }
+
+        .success-anim {
+            font-size: 60px;
+            margin-bottom: 16px;
+            animation: bounce-in 0.5s ease;
+        }
+
+        @keyframes bounce-in {
+            0% {
+                transform: scale(0);
+            }
+
+            70% {
+                transform: scale(1.15);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .success-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .success-sub {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .success-credit-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #dcfce7;
+            color: #16a34a;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 6px 16px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+        }
+
+        .success-btn {
+            background: linear-gradient(135deg, #16a34a, #059669);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            padding: 12px 32px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            box-shadow: 0 3px 10px rgba(22, 163, 74, 0.35);
+        }
+
+        .success-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* 토스트 */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 4000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 1200px) {
+            .split-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .right-panel {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden)~.main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+
+            .action-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- 헤더 -->
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+    <span class="header-badge">B2B</span>
+</header>
+
+<!-- 사이드바 -->
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">영업</div>
+        <div class="nav-item">📋&nbsp; 영업 대시보드</div>
+        <div class="nav-item">📝&nbsp; 주문서 작성</div>
+        <div class="nav-item">🧾&nbsp; 청구서 작성</div>
+        <div class="nav-item active">💳&nbsp; 결제 관리</div>
+        <div class="nav-item">📜&nbsp; 계약 관리</div>
+        <div class="nav-item">🏢&nbsp; 거래처 관리</div>
+        <div class="nav-category">이력</div>
+        <div class="nav-item">🕒&nbsp; 영업 히스토리</div>
+        <div class="nav-item">📦&nbsp; 주문 이력</div>
+        <div class="nav-category">설정</div>
+        <div class="nav-item">⚙️&nbsp; 설정</div>
+        <div class="nav-item">👤&nbsp; 프로필</div>
+    </nav>
+</aside>
+
+<!-- 메인 컨텐츠 -->
+<main class="main-content" id="mainContent">
+    <div class="screen-content">
+
+        <!-- 페이지 헤더 -->
+        <div class="page-header">
+            <div class="breadcrumb">영업 › <span>결제 관리</span></div>
+            <div class="page-title">결제 관리 <span class="screen-id-badge">PAY-001</span></div>
+            <div class="page-notice">
+                <span class="n-icon">💡</span>
+                미결제 상태의 청구서에 대해서만 결제가 가능합니다. 청구서를 선택하면 결제 정보가 활성화됩니다.
+            </div>
+        </div>
+
+        <!-- ───── 분할 레이아웃 시작 ───── -->
+        <div class="split-layout">
+
+            <!-- 왼쪽 패널 -->
+            <div class="left-panel">
+                <!-- 여신 배너 -->
+
+
+                <!-- 청구서 목록 -->
+                <div class="section">
+                    <div class="section-header">
+                        <span class="section-icon">📋</span>
+                        <span class="section-title">미결제 청구서 목록</span>
+                        <span class="section-desc">PAY-001 · 행 클릭으로 선택</span>
+                    </div>
+                    <div style="overflow-x:auto">
+                        <table class="inv-table">
+                            <thead>
+                            <tr>
+                                <th style="width:36px"></th>
+                                <th>청구서 번호</th>
+                                <th>거래처명</th>
+                                <th class="right">청구 금액</th>
+                                <th>발행일</th>
+                                <th class="center">상태</th>
+                            </tr>
+                            </thead>
+                            <tbody id="invTableBody">
+                            <tr class="" id="invRow_CINV-20250410-0381" onclick="selectInvoice('CINV-20250410-0381')">
+                                <td>
+                                    <div class="row-select-icon">·</div>
+                                </td>
+                                <td>
+                                    <div class="inv-num" style="">CINV-20250410-0381</div>
+                                    <div class="inv-num-sub">ORD-20250410-2847</div>
+                                </td>
+                                <td style="font-size:13px; color:#475569">㈜한국농업 (서울)</td>
+                                <td class="right amount-cell" style="">₩17,050,000</td>
+                                <td class="date-cell" style="">2025.04.10</td>
+                                <td class="center"><span class="status-badge unpaid">미결제</span></td>
+                            </tr>
+                            <tr class="selected" id="invRow_CINV-20250408-0374" onclick="selectInvoice('CINV-20250408-0374')">
+                                <td>
+                                    <div class="row-select-icon">✓</div>
+                                </td>
+                                <td>
+                                    <div class="inv-num" style="">CINV-20250408-0374</div>
+                                    <div class="inv-num-sub">ORD-20250408-2801</div>
+                                </td>
+                                <td style="font-size:13px; color:#475569">㈜한국농업 (서울)</td>
+                                <td class="right amount-cell" style="">₩9,900,000</td>
+                                <td class="date-cell" style="">2025.04.08</td>
+                                <td class="center"><span class="status-badge unpaid">미결제</span></td>
+                            </tr>
+                            <tr class="" id="invRow_CINV-20250405-0362" onclick="selectInvoice('CINV-20250405-0362')">
+                                <td>
+                                    <div class="row-select-icon">·</div>
+                                </td>
+                                <td>
+                                    <div class="inv-num" style="">CINV-20250405-0362</div>
+                                    <div class="inv-num-sub">ORD-20250405-2766</div>
+                                </td>
+                                <td style="font-size:13px; color:#475569">농업법인 동산</td>
+                                <td class="right amount-cell" style="">₩24,200,000</td>
+                                <td class="date-cell" style="">2025.04.05</td>
+                                <td class="center"><span class="status-badge unpaid">미결제</span></td>
+                            </tr>
+                            <tr class="" id="invRow_CINV-20250401-0350" onclick="selectInvoice('CINV-20250401-0350')">
+                                <td>
+                                    <div class="row-select-icon">·</div>
+                                </td>
+                                <td>
+                                    <div class="inv-num" style="">CINV-20250401-0350</div>
+                                    <div class="inv-num-sub">ORD-20250401-2700</div>
+                                </td>
+                                <td style="font-size:13px; color:#475569">㈜그린팜 경기</td>
+                                <td class="right amount-cell" style="">₩8,580,000</td>
+                                <td class="date-cell" style="">2025.04.01</td>
+                                <td class="center"><span class="status-badge unpaid">미결제</span></td>
+                            </tr></tbody>
+                        </table>
+                        <div id="emptyState" class="empty-all" style="display:none">
+                            <div class="e-icon">✅</div>
+                            <div class="e-title">미결제 청구서가 없습니다</div>
+                            <div class="e-sub">모든 청구서의 결제가 완료되었습니다.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결제 내역 확인 (PAY-002) -->
+                <div class="section" id="payDetailSection">
+                    <div class="section-header">
+                        <span class="section-icon">🧾</span>
+                        <span class="section-title">결제 내역 확인</span>
+                        <span class="section-desc">PAY-002</span>
+                    </div>
+                    <div class="section-body">
+                        <div id="payDetailPlaceholder" class="pay-detail-placeholder" style="display: none;">
+                            <div class="ph-icon">👆</div>
+                            <div class="ph-text">청구서를 선택하면<br>결제 정보가 표시됩니다</div>
+                        </div>
+                        <div id="payDetailRows" class="pay-detail-rows" style="display: flex;">
+                            <div class="pay-row">
+                                <span class="pr-label">청구서 번호</span>
+                                <span class="pr-value" id="detailInvNo" style="font-size:12px; color:#2563eb">CINV-20250408-0374</span>
+                            </div>
+                            <div class="pay-row">
+                                <span class="pr-label">공급가액</span>
+                                <span class="pr-value" id="detailSupply">₩9,000,000</span>
+                            </div>
+                            <div class="pay-row">
+                                <span class="pr-label">부가세 (10%)</span>
+                                <span class="pr-value" id="detailTax">₩900,000</span>
+                            </div>
+                            <div class="pay-row total-row">
+                                <span class="pr-label">총 결제 금액</span>
+                                <span class="pr-value" id="detailTotal">₩9,900,000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결제 수단 선택 (PAY-003) -->
+                <div class="section" id="payMethodSection">
+                    <div class="section-header">
+                        <span class="section-icon">💰</span>
+                        <span class="section-title">결제 수단 선택</span>
+                        <span class="section-desc">PAY-003</span>
+                    </div>
+                    <div class="section-body">
+                        <div class="pay-methods">
+                            <div class="pay-method-item" id="pm_vbank" onclick="selectMethod('vbank')">
+                                <input type="radio" name="payMethod" value="vbank">
+                                <div class="radio-dot"></div>
+                                <span class="pm-icon">🏦</span>
+                                <div class="pm-info">
+                                    <div class="pm-name">가상계좌</div>
+                                    <div class="pm-desc">발급된 계좌로 입금 처리</div>
+                                </div>
+                            </div>
+                            <div class="pay-method-item" id="pm_card" onclick="selectMethod('card')">
+                                <input type="radio" name="payMethod" value="card">
+                                <div class="radio-dot"></div>
+                                <span class="pm-icon">💳</span>
+                                <div class="pm-info">
+                                    <div class="pm-name">신용카드</div>
+                                    <div class="pm-desc">법인카드 / 개인카드</div>
+                                </div>
+                            </div>
+                            <div class="pay-method-item" id="pm_transfer" onclick="selectMethod('transfer')">
+                                <input type="radio" name="payMethod" value="transfer">
+                                <div class="radio-dot"></div>
+                                <span class="pm-icon">🔄</span>
+                                <div class="pm-info">
+                                    <div class="pm-name">계좌이체</div>
+                                    <div class="pm-desc">실시간 이체 처리</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 여신 시뮬레이션 (PAY-006) -->
+                <div class="section" id="creditSimSection">
+                    <div class="section-header">
+                        <span class="section-icon">📈</span>
+                        <span class="section-title">결제 후 여신 변경 예상</span>
+                        <span class="section-desc">PAY-006</span>
+                    </div>
+                    <div class="section-body">
+                        <div class="credit-sim-grid">
+                            <div class="cs-row">
+                                <span class="cs-label">현재 사용 가능 여신</span>
+                                <span class="cs-value" id="simBefore">₩50,000,000</span>
+                            </div>
+                            <div class="cs-arrow">↓</div>
+                            <div class="cs-row">
+                                <span class="cs-label">결제 금액</span>
+                                <span class="cs-value" style="color:#c2410c" id="simPayAmt">₩9,900,000</span>
+                            </div>
+                            <div class="cs-arrow">↓</div>
+                            <div class="cs-row after-row">
+                                <span class="cs-label">결제 후 여신<span id="simIncrBadge"><span class="credit-increase-badge">▲ +₩9,900,000</span></span></span>
+                                <span class="cs-value pos" id="simAfter">₩59,900,000</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 액션 바 -->
+                <div class="action-bar">
+                    <div class="action-bar-left" id="actionBarInfo">선택: <strong>CINV-20250408-0374</strong> · 결제 수단 선택 대기 중 · <strong>₩9,900,000</strong></div>
+                    <div class="action-bar-right">
+                        <button class="btn btn-cancel" onclick="handleCancel()">✕&nbsp; 취소</button>
+                        <!-- 미리보기 버튼 제거 -->
+                        <button class="btn btn-pay" id="payBtn" onclick="handlePay()" disabled="">✔&nbsp; 결제</button>
+                    </div>
+                </div>
+
+            </div><!-- /left-panel -->
+
+            <!-- 오른쪽 패널: 영수증 미리보기 -->
+            <div class="right-panel">
+                <div class="receipt" id="receiptPreview">
+                    <div class="receipt-top">
+                        <div class="receipt-company">종자 코리아 (SEED KOREA CO., LTD)</div>
+                        <div class="receipt-doc-title">영 수 증</div>
+                        <div class="receipt-num" id="rcptNum">RCP-XXXX</div>
+                    </div>
+                    <div class="receipt-body">
+                        <div class="receipt-meta">
+                            <div class="receipt-meta-item">
+                                <div class="rm-label">청구서 번호</div>
+                                <div class="rm-value" id="rcptInvNo">CINV-20250408-0374</div>
+                            </div>
+                            <div class="receipt-meta-item">
+                                <div class="rm-label">결제일시</div>
+                                <div class="rm-value" id="rcptDate">2026. 2. 12. (예정)</div>
+                            </div>
+                            <div class="receipt-meta-item">
+                                <div class="rm-label">거래처명</div>
+                                <div class="rm-value" id="rcptCompany">㈜한국농업 (서울)</div>
+                            </div>
+                            <div class="receipt-meta-item">
+                                <div class="rm-label">결제 수단</div>
+                                <div class="rm-value" id="rcptMethod">미선택</div>
+                            </div>
+                        </div>
+
+                        <div class="receipt-amount-box">
+                            <div class="ra-label">최종 결제 금액</div>
+                            <div class="ra-value" id="rcptTotal">₩9,900,000</div>
+                            <div class="ra-sub" id="rcptAmtSub">공급가액 ₩9,000,000 + 부가세 ₩900,000</div>
+                        </div>
+
+                        <div class="receipt-rows">
+                            <div class="rr"><span class="rl">공급가액</span><span class="rv" id="rcptSupply">₩9,000,000</span>
+                            </div>
+                            <div class="rr"><span class="rl">부가세 (10%)</span><span class="rv" id="rcptTax">₩900,000</span>
+                            </div>
+                            <div class="rr"><span class="rl">주문 번호</span><span class="rv" id="rcptOrderNo" style="color:#2563eb;font-size:12px">ORD-20250408-2801</span></div>
+                        </div>
+
+
+                    </div>
+                    <div class="receipt-footer">
+                        <div>본 영수증은 결제 완료 후 자동 발행됩니다.</div>
+                        <div class="receipt-stamp" id="receiptStamp" style="opacity:0.3; border-color:#ccc; color:#ccc;">결제<br>대기</div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /split-layout -->
+
+    </div><!-- /screen-content -->
+</main>
+
+<!-- 결제 완료 오버레이 -->
+<div class="success-overlay" id="successOverlay">
+    <div class="success-modal">
+        <div class="success-anim">✅</div>
+        <div class="success-title">결제가 완료되었습니다</div>
+        <div class="success-sub" id="successMsg"></div>
+        <div class="success-credit-chip" id="successCreditChip"></div>
+        <br>
+        <button class="success-btn" onclick="closeSuccess()">확인</button>
+    </div>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="toast"></div>
+
+<script>
+    // ─── 더미 데이터 ───
+    let CREDIT = 50000000;
+
+    let invoices = [
+        { id: 'CINV-20250410-0381', company: '㈜한국농업 (서울)', supply: 15500000, orderNo: 'ORD-20250410-2847', issueDate: '2025.04.10', status: 'unpaid' },
+        { id: 'CINV-20250408-0374', company: '㈜한국농업 (서울)', supply: 9000000, orderNo: 'ORD-20250408-2801', issueDate: '2025.04.08', status: 'unpaid' },
+        { id: 'CINV-20250405-0362', company: '농업법인 동산', supply: 22000000, orderNo: 'ORD-20250405-2766', issueDate: '2025.04.05', status: 'unpaid' },
+        { id: 'CINV-20250401-0350', company: '㈜그린팜 경기', supply: 7800000, orderNo: 'ORD-20250401-2700', issueDate: '2025.04.01', status: 'unpaid' },
+    ];
+
+    let selectedInvId = null;
+    let selectedMethod = null;
+
+    const methodLabels = { vbank: '가상계좌', card: '신용카드', transfer: '계좌이체' };
+
+    // ─── 테이블 렌더링 ───
+    function renderTable() {
+        const tbody = document.getElementById('invTableBody');
+        const empty = document.getElementById('emptyState');
+        const unpaid = invoices.filter(i => i.status === 'unpaid');
+
+        if (unpaid.length === 0) {
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        tbody.innerHTML = invoices.map(inv => {
+            const tax = Math.round(inv.supply * 0.1);
+            const total = inv.supply + tax;
+            const isPaid = inv.status === 'paid';
+            const isSelected = inv.id === selectedInvId;
+
+            const badge = isPaid
+                ? '<span class="status-badge paid">결제완료</span>'
+                : '<span class="status-badge unpaid">미결제</span>';
+
+            const rowClass = [isPaid ? 'paid-row' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ');
+            const amtStyle = isPaid ? 'color:#cbd5e1' : '';
+
+            return `
+        <tr class="${rowClass}" id="invRow_${inv.id}" onclick="${isPaid ? '' : `selectInvoice('${inv.id}')`}">
+            <td>
+                <div class="row-select-icon">${isSelected ? '✓' : '·'}</div>
+            </td>
+            <td>
+                <div class="inv-num" style="${isPaid ? 'color:#94a3b8' : ''}">${inv.id}</div>
+                <div class="inv-num-sub">${inv.orderNo}</div>
+            </td>
+            <td style="font-size:13px; ${isPaid ? 'color:#cbd5e1' : 'color:#475569'}">${inv.company}</td>
+            <td class="right amount-cell" style="${amtStyle}">₩${total.toLocaleString()}</td>
+            <td class="date-cell" style="${isPaid ? 'color:#cbd5e1' : ''}">${inv.issueDate}</td>
+            <td class="center">${badge}</td>
+        </tr>`;
+        }).join('');
+    }
+
+    // ─── 청구서 선택 (PAY-002) ───
+    function selectInvoice(id) {
+        selectedInvId = id;
+        selectedMethod = null;
+
+        // 수단 초기화
+        document.querySelectorAll('.pay-method-item').forEach(el => el.classList.remove('selected'));
+
+        renderTable();
+        updatePayDetail();
+        updateCreditSim();
+        updateActionBar();
+        renderReceipt();
+
+        document.getElementById('payBtn').disabled = true;
+    }
+
+    function updatePayDetail() {
+        const inv = invoices.find(i => i.id === selectedInvId);
+        const ph = document.getElementById('payDetailPlaceholder');
+        const rows = document.getElementById('payDetailRows');
+
+        if (!inv) { ph.style.display = 'block'; rows.style.display = 'none'; return; }
+        ph.style.display = 'none';
+        rows.style.display = 'flex';
+
+        const tax = Math.round(inv.supply * 0.1);
+        const total = inv.supply + tax;
+        document.getElementById('detailInvNo').textContent = inv.id;
+        document.getElementById('detailSupply').textContent = '₩' + inv.supply.toLocaleString();
+        document.getElementById('detailTax').textContent = '₩' + tax.toLocaleString();
+        document.getElementById('detailTotal').textContent = '₩' + total.toLocaleString();
+    }
+
+    // ─── 여신 시뮬레이션 (PAY-006) ───
+    function updateCreditSim() {
+        const inv = invoices.find(i => i.id === selectedInvId);
+        const simBefore = document.getElementById('simBefore');
+        const simPayAmt = document.getElementById('simPayAmt');
+        const simAfter = document.getElementById('simAfter');
+        const simBadge = document.getElementById('simIncrBadge');
+
+        simBefore.textContent = '₩' + CREDIT.toLocaleString();
+
+        if (!inv) {
+            simPayAmt.textContent = '—';
+            simAfter.textContent = '₩' + CREDIT.toLocaleString();
+            simAfter.className = 'cs-value neu';
+            simBadge.innerHTML = '';
+            return;
+        }
+        const tax = Math.round(inv.supply * 0.1);
+        const total = inv.supply + tax;
+        const after = CREDIT + total;
+
+        simPayAmt.textContent = '₩' + total.toLocaleString();
+        simAfter.textContent = '₩' + after.toLocaleString();
+        simAfter.className = 'cs-value pos';
+        simBadge.innerHTML = `<span class="credit-increase-badge">▲ +₩${total.toLocaleString()}</span>`;
+    }
+
+    // ─── 결제 수단 선택 (PAY-003) ───
+    function selectMethod(method) {
+        if (!selectedInvId) { showToast('⚠️ 먼저 청구서를 선택해 주세요.', '#d97706'); return; }
+        selectedMethod = method;
+
+        document.querySelectorAll('.pay-method-item').forEach(el => el.classList.remove('selected'));
+        document.getElementById(`pm_${method}`).classList.add('selected');
+
+        document.getElementById('payBtn').disabled = false;
+        updateActionBar();
+        renderReceipt();
+    }
+
+    function updateActionBar() {
+        const info = document.getElementById('actionBarInfo');
+        const inv = invoices.find(i => i.id === selectedInvId);
+        if (!inv) { info.innerHTML = '청구서를 선택하고 결제 수단을 선택하세요.'; return; }
+        const total = inv.supply + Math.round(inv.supply * 0.1);
+        const method = selectedMethod ? `<strong>${methodLabels[selectedMethod]}</strong>` : '결제 수단 선택 대기 중';
+        info.innerHTML = `선택: <strong>${inv.id}</strong> · ${method} · <strong>₩${total.toLocaleString()}</strong>`;
+    }
+
+    // ─── 영수증 실시간 렌더링 ───
+    function renderReceipt() {
+        const inv = invoices.find(i => i.id === selectedInvId);
+
+        // 기본 플레이스홀더 텍스트
+        const phText = '—';
+        const stamp = document.getElementById('receiptStamp');
+
+        if (!inv) {
+            // 선택 안됨 - 초기화
+            document.getElementById('rcptNum').textContent = 'RCP-XXXX';
+            document.getElementById('rcptInvNo').textContent = phText;
+            document.getElementById('rcptDate').textContent = phText;
+            document.getElementById('rcptCompany').textContent = phText;
+            document.getElementById('rcptMethod').textContent = phText;
+            document.getElementById('rcptTotal').textContent = '₩0';
+            document.getElementById('rcptAmtSub').textContent = '공급가액 + 부가세 포함';
+            document.getElementById('rcptSupply').textContent = phText;
+            document.getElementById('rcptTax').textContent = phText;
+            document.getElementById('rcptOrderNo').textContent = phText;
+            document.getElementById('rcptCreditInc').textContent = '+₩0';
+
+            stamp.style.opacity = '0.3';
+            stamp.style.borderColor = '#ccc';
+            stamp.style.color = '#ccc';
+            stamp.innerHTML = '결제<br>대기';
+            return;
+        }
+
+        const tax = Math.round(inv.supply * 0.1);
+        const total = inv.supply + tax;
+        const after = CREDIT + total;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('ko-KR'); // 실제 결제 전이므로 날짜만 표시하거나 '처리 예정'
+
+        document.getElementById('rcptInvNo').textContent = inv.id;
+        document.getElementById('rcptDate').textContent = dateStr + ' (예정)';
+        document.getElementById('rcptCompany').textContent = inv.company;
+        document.getElementById('rcptMethod').textContent = selectedMethod ? methodLabels[selectedMethod] : '미선택';
+
+        document.getElementById('rcptTotal').textContent = '₩' + total.toLocaleString();
+        document.getElementById('rcptAmtSub').textContent = `공급가액 ₩${inv.supply.toLocaleString()} + 부가세 ₩${tax.toLocaleString()}`;
+
+        document.getElementById('rcptSupply').textContent = '₩' + inv.supply.toLocaleString();
+        document.getElementById('rcptTax').textContent = '₩' + tax.toLocaleString();
+        document.getElementById('rcptOrderNo').textContent = inv.orderNo;
+        document.getElementById('rcptCreditInc').textContent = '+₩' + total.toLocaleString() + ' → ₩' + after.toLocaleString();
+
+        // 결제 완료 여부에 따라 도장 처리 (여기서는 미리보기이므로 대기 상태)
+        stamp.style.opacity = '0.3';
+        stamp.style.borderColor = '#ccc';
+        stamp.style.color = '#ccc';
+        stamp.innerHTML = '결제<br>대기';
+    }
+
+    // ─── 결제 실행 (PAY-004, PAY-005) ───
+    function handlePay() {
+        if (!selectedInvId || !selectedMethod) return;
+        const inv = invoices.find(i => i.id === selectedInvId);
+        if (!inv) return;
+
+        const tax = Math.round(inv.supply * 0.1);
+        const total = inv.supply + tax;
+
+        // 상태 변경
+        inv.status = 'paid';
+        CREDIT += total;
+
+        // UI 갱신 (여신)
+        const prevCredit = CREDIT - total;
+        document.getElementById('globalCredit').textContent = '₩' + CREDIT.toLocaleString();
+        document.getElementById('globalCredit').classList.add('increased');
+        setTimeout(() => document.getElementById('globalCredit').classList.remove('increased'), 800);
+
+        // 완료된 영수증 도장 찍기
+        const stamp = document.getElementById('receiptStamp');
+        stamp.style.opacity = '1';
+        stamp.style.borderColor = '#2563eb';
+        stamp.style.color = '#2563eb';
+        stamp.innerHTML = '결제<br>완료';
+
+        // 현재 날짜로 업데이트
+        const now = new Date();
+        const rcptNo = 'RCP-' + now.toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(Math.random() * 9000 + 1000);
+        document.getElementById('rcptNum').textContent = rcptNo;
+        document.getElementById('rcptDate').textContent = now.toLocaleString('ko-KR');
+
+        // 완료 오버레이
+        document.getElementById('successMsg').innerHTML =
+            `청구서 <strong>${inv.id}</strong><br>결제 수단: ${methodLabels[selectedMethod] || '—'}<br>결제 금액: <strong>₩${total.toLocaleString()}</strong>`;
+        document.getElementById('successCreditChip').innerHTML =
+            `📈 여신 증액: +₩${total.toLocaleString()} → ₩${CREDIT.toLocaleString()}`;
+        document.getElementById('successOverlay').classList.add('active');
+
+        // 초기화는 닫기 누른 후 처리
+    }
+
+    function closeSuccess() {
+        document.getElementById('successOverlay').classList.remove('active');
+
+        // 초기화
+        selectedInvId = null;
+        selectedMethod = null;
+        document.querySelectorAll('.pay-method-item').forEach(el => el.classList.remove('selected'));
+
+        updatePayDetail();
+        updateCreditSim();
+        updateActionBar();
+        document.getElementById('payBtn').disabled = true;
+        renderTable();
+        renderReceipt(); // 영수증도 초기화
+    }
+
+    // ─── 취소 ───
+    function handleCancel() {
+        selectedInvId = null;
+        selectedMethod = null;
+        document.querySelectorAll('.pay-method-item').forEach(el => el.classList.remove('selected'));
+        document.getElementById('payBtn').disabled = true;
+        renderTable();
+        updatePayDetail();
+        updateCreditSim();
+        updateActionBar();
+        renderReceipt();
+        showToast('선택이 초기화되었습니다.', '#64748b');
+    }
+
+    // ─── 토스트 ───
+    function showToast(msg, bg = '#1e293b') {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.style.background = bg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3200);
+    }
+
+    // ─── 사이드바 ───
+    document.getElementById('menuToggle').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('hidden');
+        document.getElementById('mainContent').classList.toggle('expanded');
+    });
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.add('hidden');
+                document.getElementById('mainContent').classList.add('expanded');
+            }
+        });
+    });
+
+    // ─── 초기화 ───
+    renderTable();
+    updatePayDetail();
+    updateCreditSim();
+    renderReceipt();
+</script>
+
+
+<script>
+    (function() {
+        var ws = new WebSocket('ws://' + window.location.host +
+            '/jb-server-page?reloadMode=RELOAD_ON_SAVE&'+
+            'referrer=' + encodeURIComponent(window.location.pathname));
+        ws.onmessage = function (msg) {
+            if (msg.data === 'reload') {
+                window.location.reload();
+            }
+            if (msg.data.startsWith('update-css ')) {
+                var messageId = msg.data.substring(11);
+                var links = document.getElementsByTagName('link');
+                for (var i = 0; i < links.length; i++) {
+                    var link = links[i];
+                    if (link.rel !== 'stylesheet') continue;
+                    var clonedLink = link.cloneNode(true);
+                    var newHref = link.href.replace(/(&|\?)jbUpdateLinksId=\d+/, "$1jbUpdateLinksId=" + messageId);
+                    if (newHref !== link.href) {
+                        clonedLink.href = newHref;
+                    }
+                    else {
+                        var indexOfQuest = newHref.indexOf('?');
+                        if (indexOfQuest >= 0) {
+                            // to support ?foo#hash
+                            clonedLink.href = newHref.substring(0, indexOfQuest + 1) + 'jbUpdateLinksId=' + messageId + '&' +
+                                newHref.substring(indexOfQuest + 1);
+                        }
+                        else {
+                            clonedLink.href += '?' + 'jbUpdateLinksId=' + messageId;
+                        }
+                    }
+                    link.replaceWith(clonedLink);
+                }
+            }
+        };
+    })();
+</script></body></html>
