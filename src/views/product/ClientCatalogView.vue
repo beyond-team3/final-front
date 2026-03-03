@@ -91,6 +91,7 @@ const openCompare = () => {
 onMounted(async () => {
   try {
     await Promise.all([
+      productStore.fetchCategories(),
       productStore.fetchProducts(),
       productStore.fetchFavorites(),
       productStore.fetchCompareList(),

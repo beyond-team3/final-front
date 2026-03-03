@@ -7,9 +7,12 @@ const route = useRoute()
 const router = useRouter()
 const productStore = useProductStore()
 
-onMounted(() => {
+onMounted(async () => {
   if (productStore.products.length === 0) {
-    productStore.fetchProducts()
+    await productStore.fetchProducts()
+  }
+  if (productId.value) {
+    await productStore.fetchFeedbackMessages(productId.value)
   }
 })
 

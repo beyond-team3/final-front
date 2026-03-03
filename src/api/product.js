@@ -16,24 +16,28 @@ export function updateProduct(id, data) {
   return api.put(`/products/${id}`, data)
 }
 
+export function deleteProduct(id) {
+  return api.delete(`/products/${id}`)
+}
+
 export function getSimilarProducts(id) {
-  return api.get(`/products/${id}/similarity`)
+  return api.get(`/products/${id}/similar`)
 }
 
 export function getFavorites() {
-  return api.get('/products/favorites')
+  return api.get('/products/bookmarks')
 }
 
-export function addFavorite(data) {
-  return api.post('/products/favorites', data)
+export function toggleBookmark(id) {
+  return api.post(`/products/${id}/bookmark`)
 }
 
-export function removeFavorite(id) {
-  return api.delete(`/products/favorites/${id}`)
+export function getCompareHistory() {
+  return api.get('/products/compare/history')
 }
 
-export function getCompareList() {
-  return api.get('/products/compare')
+export function getCompareProducts(productIds) {
+  return api.get('/products/compare', { params: { productIds: productIds.join(',') } })
 }
 
 export function addToCompare(data) {
@@ -44,6 +48,14 @@ export function removeFromCompare(id) {
   return api.delete(`/products/compare/${id}`)
 }
 
+export function getFeedbacks(productId) {
+  return api.get(`/products/${productId}/feedbacks`)
+}
+
 export function submitFeedback(productId, data) {
-  return api.post(`/products/${productId}/feedback`, data)
+  return api.post(`/products/${productId}/feedbacks`, data)
+}
+
+export function getCategories() {
+  return api.get('/products/categories')
 }

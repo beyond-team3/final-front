@@ -96,9 +96,19 @@ const saveNote = () => {
             <h3 class="mt-2 text-3xl font-bold text-slate-800">{{ product.name }}</h3>
             
             <!-- 단가 정보 (관리자/영업사원에게만 표시) -->
-            <div v-if="!isClient" class="mt-3 flex items-baseline gap-2">
-              <span class="text-2xl font-bold text-slate-900">₩{{ (product.price || 0).toLocaleString() }}</span>
-              <span class="text-sm text-slate-500">/ {{ product.unit || '단위 미정' }}</span>
+            <div v-if="!isClient" class="mt-3">
+              <div class="flex items-baseline gap-2">
+                <span class="text-2xl font-bold text-slate-900">₩{{ (product.price || 0).toLocaleString() }}</span>
+                <span class="text-sm text-slate-500">/ {{ product.unit || '단위 미정' }}</span>
+              </div>
+              <div class="mt-2 flex items-center gap-3">
+                <span class="rounded px-2 py-1 text-xs font-semibold"
+                  :class="product.status === 'ACTIVE' || !product.status ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-600'"
+                >
+                  {{ product.status === 'OUT_OF_STOCK' ? '일시 품절' : (product.status === 'DISCONTINUED' ? '단종' : '판매 중') }}
+                </span>
+                <span class="text-sm font-medium text-slate-600">재고: {{ product.amount || 0 }}</span>
+              </div>
             </div>
           </div>
 
