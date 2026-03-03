@@ -7,10 +7,13 @@ import { useProductStore } from '@/stores/product'
 const router = useRouter()
 const productStore = useProductStore()
 
-onMounted(() => {
+onMounted(async () => {
+  const tasks = []
   if (productStore.products.length === 0) {
-    productStore.fetchProducts()
+    tasks.push(productStore.fetchProducts())
   }
+  tasks.push(productStore.fetchCompareList())
+  await Promise.all(tasks)
 })
 
 const labelRows = [

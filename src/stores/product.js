@@ -81,14 +81,13 @@ export const useProductStore = defineStore('product', () => {
     error.value = null
     try {
       const result = await getProducts(params)
-      // DTO structure maps product.category to enum. We adapt to ui:
-      // In response: priceData is present for allowed users
+      // Backend 응답 DTO를 UI 규격에 맞게 매핑
       products.value = (Array.isArray(result) ? result : []).map(p => ({
         ...p,
-        category: p.category, // Enum name "고추", but backend returned string maybe? Wait, backend returns Enum name, wait, CategoryResponse drops name! Let's just fix the rest.
-        price: p.priceData ? p.priceData.price : undefined,
-        amount: p.priceData ? p.priceData.amount : undefined,
-        unit: p.priceData ? p.priceData.unit : undefined,
+        category: p.category,
+        price: p.priceData?.price,
+        amount: p.priceData?.amount,
+        unit: p.priceData?.unit,
       }))
     } catch (e) {
       error.value = getErrorMessage(e, '상품 목록 로드 실패')
@@ -246,8 +245,7 @@ export const useProductStore = defineStore('product', () => {
   }
 
   const updateFeedbackMessage = (pid, mid, content) => {
-    // Backend doesn't support edit/delete feedback according to recent steps. So local only or removed. 
-    // Let's keep local stub if UI needs it.
+    // 로컬 상태 업데이트 (추후 백엔드 API 지원 시 연동 필요)
     const msgs = getFeedbackMessages(pid)
     const idx = msgs.findIndex(m => m.id === mid && m.isMine)
     if (idx < 0) return false
