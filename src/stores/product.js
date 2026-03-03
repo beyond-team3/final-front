@@ -183,10 +183,12 @@ export const useProductStore = defineStore('product', () => {
 
   const removeFavoriteItem = async (id) => {
     const productId = Number(id)
+    const prevItems = [...favoriteItems.value]
     favoriteItems.value = favoriteItems.value.filter((item) => Number(item.productId) !== productId)
     try {
       await toggleBookmarkApi(productId)
     } catch (e) {
+      favoriteItems.value = prevItems // 롤백
       error.value = getErrorMessage(e, '서버 동기화 실패(즐겨찾기)')
     }
   }

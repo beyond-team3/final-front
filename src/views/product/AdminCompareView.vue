@@ -150,7 +150,7 @@ const deleteHistory = async (id) => {
           <div>
             <p class="font-bold text-slate-800 text-sm">{{ history.title || '비교 내역' }}</p>
             <p class="text-xs font-semibold text-slate-500 mt-1">{{ (history.products || []).map(p => p?.name).filter(Boolean).join(' vs ') }}</p>
-            <p class="text-xs text-slate-400 mt-1">{{ new Date(history.createdAt).toLocaleString() }}</p>
+            <p class="text-xs text-slate-400 mt-1">{{ history.createdAt ? new Date(history.createdAt).toLocaleString() : '' }}</p>
           </div>
           <button type="button" class="rounded px-3 py-1 text-xs font-semibold text-red-500 hover:bg-red-50 border border-red-200 bg-white" @click="deleteHistory(history.compareId)">
             삭제
