@@ -16,10 +16,6 @@ const formattedPrice = computed(() => {
   return Number(product.value.priceData.price).toLocaleString()
 })
 
-const formattedAmount = computed(() => {
-  if (!product.value?.priceData?.amount) return ''
-  return Number(product.value.priceData.amount).toLocaleString()
-})
 
 const tagRows = computed(() => {
   const rows = [
@@ -106,7 +102,6 @@ const toggleCompare = async () => {
               >
                 {{ product.status === 'OUT_OF_STOCK' ? '일시 품절' : (product.status === 'DISCONTINUED' ? '단종' : '판매 중') }}
               </span>
-              <span class="text-sm font-medium text-slate-600">재고: {{ formattedAmount || 0 }}</span>
             </div>
           </div>
 

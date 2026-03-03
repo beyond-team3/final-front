@@ -41,8 +41,15 @@ const saveCompare = async () => {
     window.alert('비교하려면 최소 2개 이상의 상품이 있어야 합니다.')
     return
   }
-  const title = window.prompt('비교 내역의 제목을 입력해주세요.', '새 비교 내역')
+  let title = window.prompt('비교 내역의 제목을 입력해주세요.', '새 비교 내역')
   if (title === null) return
+
+  title = title.trim()
+  if (title === '') {
+    window.alert('유효한 제목을 입력해주세요.')
+    return
+  }
+
   const ok = await productStore.saveCompareHistoryToBackend(title)
   if (ok) {
     window.alert('비교 내역이 저장되었습니다.')
@@ -139,7 +146,7 @@ const deleteHistory = async (id) => {
         <div v-for="history in productStore.compareHistories" :key="history.compareId" class="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
           <div>
             <p class="font-bold text-slate-800 text-sm">{{ history.title || '비교 내역' }}</p>
-            <p class="text-xs font-semibold text-slate-500 mt-1">{{ (history.products || []).map(p => p.name).join(' vs ') }}</p>
+            <p class="text-xs font-semibold text-slate-500 mt-1">{{ (history.products || []).map(p => p?.name).filter(Boolean).join(' vs ') }}</p>
             <p class="text-xs text-slate-400 mt-1">{{ new Date(history.createdAt).toLocaleString() }}</p>
           </div>
           <button type="button" class="rounded px-3 py-1 text-xs font-semibold text-red-500 hover:bg-red-50 border border-red-200 bg-white" @click="deleteHistory(history.compareId)">

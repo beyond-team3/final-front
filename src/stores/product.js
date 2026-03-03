@@ -101,7 +101,9 @@ export const useProductStore = defineStore('product', () => {
     try {
       const res = await getCategoriesApi()
       serverCategories.value = Array.isArray(res) ? res : []
-    } catch (e) { console.error('category fetch error', e) }
+    } catch (e) {
+      error.value = getErrorMessage(e, 'category fetch error')
+    }
   }
 
   async function fetchFavorites() {
@@ -186,7 +188,7 @@ export const useProductStore = defineStore('product', () => {
     try {
       await toggleBookmarkApi(productId)
     } catch (e) {
-      console.error('서버 동기화 실패(즐겨찾기):', e)
+      error.value = getErrorMessage(e, '서버 동기화 실패(즐겨찾기)')
     }
   }
 
@@ -260,14 +262,18 @@ export const useProductStore = defineStore('product', () => {
   const getProductNote = (pid) => productNotes.value[pid] || ''
   const setProductNote = (pid, text) => { productNotes.value[pid] = text }
 
-  const createProduct = (payload) => {
-    createProductApi(payload).then(res => { if (res) fetchProducts() })
+  const createProduct = async (payload) => {
+    const res = await createProductApi(payload)
+    if (res) await fetchProducts()
+    return res
   }
-  const updateProduct = (id, payload) => {
-    updateProductApi(id, payload).then(res => { fetchProducts() })
+  const updateProduct = async (id, payload) => {
+    await updateProductApi(id, payload)
+    await fetchProducts()
   }
-  const deleteProduct = (id) => {
-    deleteProductApi(id).then(() => fetchProducts())
+  const deleteProduct = async (id) => {
+    await deleteProductApi(id)
+    await fetchProducts()
   }
 
   return {

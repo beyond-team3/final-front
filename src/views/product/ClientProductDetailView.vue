@@ -107,7 +107,6 @@ const saveNote = () => {
                 >
                   {{ product.status === 'OUT_OF_STOCK' ? '일시 품절' : (product.status === 'DISCONTINUED' ? '단종' : '판매 중') }}
                 </span>
-                <span class="text-sm font-medium text-slate-600">재고: {{ product.amount || 0 }}</span>
               </div>
             </div>
           </div>
