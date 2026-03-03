@@ -17,6 +17,7 @@ const initialProduct = computed(() => {
 })
 
 onMounted(async () => {
+  await productStore.fetchCategories()
   if (productStore.products.length === 0) {
     await productStore.fetchProducts()
   }
@@ -44,7 +45,9 @@ const form = reactive({
   category: '',
   desc: '',
   imageUrl: '',
-  price: '', // 데이터 스키마에 맞게 price로 수정 (B2B 표준)
+  price: '',
+  amount: '',
+  status: 'ACTIVE',
   unit: '립',
   tags: { env: [], res: [], growth: [], quality: [], conv: [] },
 })
@@ -55,7 +58,9 @@ watch(initialProduct, (product) => {
     form.category = product.category || ''
     form.desc = product.desc || ''
     form.imageUrl = product.imageUrl || ''
-    form.price = product.price || ''
+    form.price = product.price ?? ''
+    form.amount = product.amount ?? ''
+    form.status = product.status || 'ACTIVE'
     form.unit = product.unit || '립'
     form.tags = {
       env: [...(product.tags?.env || [])],
@@ -67,7 +72,6 @@ watch(initialProduct, (product) => {
   }
 }, { immediate: true })
 
-const categoryOptions = ['고추', '참외', '파', '수박', '오이', '토마토', '배추', '무', '옥수수']
 
 const addCustomTag = (key) => {
   const tagName = window.prompt('추가할 태그명을 입력하세요:')
@@ -112,24 +116,34 @@ const processFile = (file) => {
   reader.readAsDataURL(file)
 }
 
-const submitForm = () => {
+const submitForm = async () => {
   if (!form.name.trim()) return alert('품종명은 필수입니다.')
   if (!form.category) return alert('품목을 선택해주세요.')
+
+  const amountVal = Number(form.amount)
+  if (form.amount === '' || form.amount === null || Number.isNaN(amountVal) || amountVal < 0) {
+    return alert('유효한 수량(재고)을 입력해주세요 (0 이상의 숫자).')
+  }
 
   const payload = {
     ...form,
     price: Number(form.price || 0),
+    amount: amountVal,
     updatedAt: new Date().toISOString().split('T')[0]
   }
 
-  if (isEdit.value) {
-    productStore.updateProduct(editId.value, payload)
-    alert('수정되었습니다.')
-  } else {
-    productStore.createProduct(payload)
-    alert('등록되었습니다.')
+  try {
+    if (isEdit.value) {
+      await productStore.updateProduct(editId.value, payload)
+      alert('수정되었습니다.')
+    } else {
+      await productStore.createProduct(payload)
+      alert('등록되었습니다.')
+    }
+    router.push('/products/catalog')
+  } catch (e) {
+    alert('저장에 실패했습니다. 잠시 후 다시 시도해주세요.')
   }
-  router.push('/products/catalog')
 }
 </script>
 
@@ -161,7 +175,7 @@ const submitForm = () => {
               <span class="text-sm font-semibold text-slate-700">품목(카테고리) <span class="text-red-500">*</span></span>
               <select v-model="form.category" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none">
                 <option value="">선택하세요</option>
-                <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+                <option v-for="cat in productStore.categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
               </select>
             </label>
           </div>
@@ -178,6 +192,21 @@ const submitForm = () => {
                 <option value="kg">kg</option>
                 <option value="g">g</option>
                 <option value="박스">박스</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <label class="block space-y-1">
+              <span class="text-sm font-semibold text-slate-700">수량(재고) <span class="text-red-500">*</span></span>
+              <input v-model="form.amount" type="number" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none" placeholder="100" />
+            </label>
+            <label class="block space-y-1">
+              <span class="text-sm font-semibold text-slate-700">판매 상태 <span class="text-red-500">*</span></span>
+              <select v-model="form.status" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none">
+                <option value="ACTIVE">판매 가능 (ACTIVE)</option>
+                <option value="OUT_OF_STOCK">일시 품절 (OUT_OF_STOCK)</option>
+                <option value="DISCONTINUED">단종 (DISCONTINUED)</option>
               </select>
             </label>
           </div>

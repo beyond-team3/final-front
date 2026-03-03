@@ -5,14 +5,17 @@ import { getMyInfo } from '@/api/auth'
 import {
   createProduct as createProductApi,
   getProducts,
-  submitFeedback,
+  submitFeedback as submitFeedbackApi,
+  getFeedbacks as getFeedbacksApi,
   updateProduct as updateProductApi,
+  deleteProduct as deleteProductApi,
   getFavorites as getFavoritesApi,
-  addFavorite as addFavoriteApi,
-  removeFavorite as removeFavoriteApi,
-  getCompareList as getCompareListApi,
+  toggleBookmark as toggleBookmarkApi,
+  getCompareHistory as getCompareHistoryApi,
   addToCompare as addToCompareApi,
   removeFromCompare as removeFromCompareApi,
+  getSimilarProducts as getSimilarProductsApi,
+  getCategories as getCategoriesApi
 } from '@/api/product'
 
 const DEFAULT_CRITERIA = { env: true, res: true, growth: true, quality: true, conv: true }
@@ -26,7 +29,9 @@ export const useProductStore = defineStore('product', () => {
   const authStore = useAuthStore()
   const products = ref([])
   const compareItems = ref([])
+  const compareHistories = ref([])
   const favoriteItems = ref([])
+  const serverCategories = ref([])
   const loading = ref(false)
   const error = ref(null)
 
@@ -36,7 +41,10 @@ export const useProductStore = defineStore('product', () => {
   const feedbackByProduct = ref({})
   const productNotes = ref({})
 
-  const categoryOptions = computed(() => [...new Set((products.value || []).map((item) => item.category).filter(Boolean))])
+  const categoryOptions = computed(() => {
+    if (serverCategories.value.length > 0) return serverCategories.value.map(c => c.name)
+    return [...new Set((products.value || []).map((item) => item.category).filter(Boolean))]
+  })
   const envOptions = computed(() => {
     const all = (products.value || []).flatMap((item) => item.tags?.env || [])
     return [...new Set(all)]
@@ -64,7 +72,7 @@ export const useProductStore = defineStore('product', () => {
         authStore.me = myInfo
         return myInfo.id
       }
-    } catch (e) {}
+    } catch (e) { }
     return null
   }
 
@@ -73,11 +81,27 @@ export const useProductStore = defineStore('product', () => {
     error.value = null
     try {
       const result = await getProducts(params)
-      products.value = Array.isArray(result) ? result : []
+      // Backend 응답 DTO를 UI 규격에 맞게 매핑
+      products.value = (Array.isArray(result) ? result : []).map(p => ({
+        ...p,
+        category: p.category,
+        price: p.priceData?.price,
+        amount: p.priceData?.amount,
+        unit: p.priceData?.unit,
+      }))
     } catch (e) {
       error.value = getErrorMessage(e, '상품 목록 로드 실패')
     } finally {
       loading.value = false
+    }
+  }
+
+  async function fetchCategories() {
+    try {
+      const res = await getCategoriesApi()
+      serverCategories.value = Array.isArray(res) ? res : []
+    } catch (e) {
+      error.value = getErrorMessage(e, 'category fetch error')
     }
   }
 
@@ -86,9 +110,8 @@ export const useProductStore = defineStore('product', () => {
     if (!userId) return []
     try {
       const result = await getFavoritesApi()
-      favoriteItems.value = Array.isArray(result) 
-        ? result.filter(item => Number(item.userId) === Number(userId))
-            .map(item => ({ id: item.id, productId: Number(item.productId), userId: Number(item.userId) }))
+      favoriteItems.value = Array.isArray(result)
+        ? result.map(item => ({ id: item.id, productId: Number(item.id), userId: Number(userId) }))
         : []
       return favoriteItems.value
     } catch (e) { return [] }
@@ -98,46 +121,25 @@ export const useProductStore = defineStore('product', () => {
     const userId = await ensureUser()
     if (!userId) return []
     try {
-      const result = await getCompareListApi()
-      compareItems.value = Array.isArray(result)
-        ? result.filter(item => Number(item.userId) === Number(userId))
-            .map(item => ({ id: item.id, productId: Number(item.productId), userId: Number(item.userId) }))
-        : []
-      return compareItems.value
+      const result = await getCompareHistoryApi()
+      compareHistories.value = Array.isArray(result) ? result : []
+      return compareHistories.value
     } catch (e) { return [] }
   }
 
   const addCompareItem = async (id) => {
     const productId = Number(id)
-    const userId = await ensureUser()
-    if (!userId) return { ok: false, reason: 'unauthorized' }
     if (isInCompare(productId)) return { ok: true, reason: 'exists' }
     if (compareItems.value.length >= 3) return { ok: false, reason: 'limit' }
 
-    try {
-      const response = await addToCompareApi({ productId, userId: Number(userId) })
-      if (response) {
-        compareItems.value.push({ id: response.id, productId: Number(response.productId), userId: Number(response.userId) })
-      }
-      return { ok: true, reason: 'added' }
-    } catch (e) { return { ok: false, reason: 'error' } }
+    // Staging locally
+    compareItems.value.push({ id: Date.now(), productId })
+    return { ok: true, reason: 'added' }
   }
 
   const removeCompareItem = async (id) => {
     const productId = Number(id)
-    const record = compareItems.value.find(item => Number(item.productId) === productId)
-    
-    // 낙관적 업데이트: UI에서 먼저 제거
     compareItems.value = compareItems.value.filter((item) => Number(item.productId) !== productId)
-    
-    if (record?.id) {
-      try {
-        await removeFromCompareApi(record.id)
-      } catch (e) {
-        console.error('서버 동기화 실패(비교함):', e)
-        // 실패하더라도 UI는 이미 지워진 상태 유지 (사용자 편의)
-      }
-    }
     return { ok: true }
   }
 
@@ -147,11 +149,26 @@ export const useProductStore = defineStore('product', () => {
   }
 
   const clearCompareItems = async () => {
-    const previous = [...compareItems.value]
     compareItems.value = []
+  }
+
+  const saveCompareHistoryToBackend = async (title) => {
+    const productIds = compareItems.value.map(i => i.productId)
+    if (productIds.length < 2) return false
     try {
-      await Promise.all(previous.map(item => removeFromCompareApi(item.id)))
-    } catch (e) {}
+      await addToCompareApi({ productIds, title })
+      await fetchCompareList() // Refresh history
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  const deleteCompareHistory = async (compareId) => {
+    try {
+      await removeFromCompareApi(compareId)
+      await fetchCompareList()
+    } catch (e) { }
   }
 
   const addFavoriteItem = async (id) => {
@@ -159,26 +176,20 @@ export const useProductStore = defineStore('product', () => {
     const userId = await ensureUser()
     if (!userId || isFavorite(productId)) return
     try {
-      const response = await addFavoriteApi({ productId, userId: Number(userId) })
-      if (response) {
-        favoriteItems.value.push({ id: response.id, productId: Number(response.productId), userId: Number(response.userId) })
-      }
-    } catch (e) {}
+      await toggleBookmarkApi(productId)
+      favoriteItems.value.push({ id: Date.now(), productId: Number(productId), userId: Number(userId) })
+    } catch (e) { }
   }
 
   const removeFavoriteItem = async (id) => {
     const productId = Number(id)
-    const record = favoriteItems.value.find(item => Number(item.productId) === productId)
-    
-    // 낙관적 업데이트: UI에서 먼저 제거
+    const prevItems = [...favoriteItems.value]
     favoriteItems.value = favoriteItems.value.filter((item) => Number(item.productId) !== productId)
-    
-    if (record?.id) {
-      try {
-        await removeFavoriteApi(record.id)
-      } catch (e) {
-        console.error('서버 동기화 실패(즐겨찾기):', e)
-      }
+    try {
+      await toggleBookmarkApi(productId)
+    } catch (e) {
+      favoriteItems.value = prevItems // 롤백
+      error.value = getErrorMessage(e, '서버 동기화 실패(즐겨찾기)')
     }
   }
 
@@ -218,19 +229,37 @@ export const useProductStore = defineStore('product', () => {
       .sort((a, b) => b.similarity - a.similarity)
   }
 
-  const getFeedbackMessages = (pid) => feedbackByProduct.value[pid] || []
-  const addFeedbackMessage = (pid, content) => {
-    const msg = { id: Date.now(), content, sender: '나', isMine: true, createdAt: new Date().toISOString() }
-    feedbackByProduct.value[pid] = [...getFeedbackMessages(pid), msg]
-    submitFeedback(pid, msg).catch(() => {})
+  // API request logic update for feedback
+  const fetchFeedbackMessages = async (pid) => {
+    try {
+      const res = await getFeedbacksApi(pid)
+      feedbackByProduct.value[pid] = Array.isArray(res) ? res : []
+    } catch (e) { }
   }
+
+  const getFeedbackMessages = (pid) => feedbackByProduct.value[pid] || []
+
+  const addFeedbackMessage = async (pid, content, sender, parentId = null) => {
+    try {
+      const payload = {
+        content,
+        ...(parentId != null ? { parentId } : {}),
+        ...(sender ? { sender } : {}),
+      }
+      await submitFeedbackApi(pid, payload)
+      await fetchFeedbackMessages(pid)
+    } catch (e) { }
+  }
+
   const updateFeedbackMessage = (pid, mid, content) => {
+    // 로컬 상태 업데이트 (추후 백엔드 API 지원 시 연동 필요)
     const msgs = getFeedbackMessages(pid)
     const idx = msgs.findIndex(m => m.id === mid && m.isMine)
     if (idx < 0) return false
     msgs[idx].content = content
     return true
   }
+
   const deleteFeedbackMessage = (pid, mid) => {
     feedbackByProduct.value[pid] = getFeedbackMessages(pid).filter(m => !(m.id === mid && m.isMine))
   }
@@ -238,27 +267,30 @@ export const useProductStore = defineStore('product', () => {
   const getProductNote = (pid) => productNotes.value[pid] || ''
   const setProductNote = (pid, text) => { productNotes.value[pid] = text }
 
-  const createProduct = (payload) => {
-    createProductApi(payload).then(res => { if (res) products.value.unshift(res) })
+  const createProduct = async (payload) => {
+    const res = await createProductApi(payload)
+    if (res) await fetchProducts()
+    return res
   }
-  const updateProduct = (id, payload) => {
-    updateProductApi(id, payload).then(res => {
-      if (res) products.value = products.value.map(p => Number(p.id) === Number(id) ? res : p)
-    })
+  const updateProduct = async (id, payload) => {
+    await updateProductApi(id, payload)
+    await fetchProducts()
   }
-  const deleteProduct = (id) => {
-    products.value = (products.value || []).filter(p => Number(p.id) !== Number(id))
+  const deleteProduct = async (id) => {
+    await deleteProductApi(id)
+    await fetchProducts()
   }
 
   return {
-    products, compareItems, favoriteItems, loading, error,
+    products, compareItems, compareHistories, favoriteItems, serverCategories, loading, error,
     compareProducts, favoriteProducts, categoryOptions, envOptions,
     selectedBaseProductId, similarityThreshold, similarityCriteria, enabledSimilarityKeys,
-    fetchProducts, fetchFavorites, fetchCompareList, getProductById,
+    fetchProducts, fetchCategories, fetchFavorites, fetchCompareList, getProductById,
     isInCompare, isFavorite, toggleCompareItem, toggleFavoriteItem,
     removeCompareItem, removeFavoriteItem, clearCompareItems,
+    saveCompareHistoryToBackend, deleteCompareHistory,
     setSelectedBaseProduct, setSimilarityThreshold, setSimilarityCriterion,
-    getSimilarityScore, getSimilarProducts, getFeedbackMessages, addFeedbackMessage,
+    getSimilarityScore, getSimilarProducts, fetchFeedbackMessages, getFeedbackMessages, addFeedbackMessage,
     updateFeedbackMessage, deleteFeedbackMessage, getProductNote, setProductNote,
     createProduct, updateProduct, deleteProduct
   }

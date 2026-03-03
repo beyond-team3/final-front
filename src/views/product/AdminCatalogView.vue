@@ -91,6 +91,7 @@ onMounted(async () => {
   try {
     // 상품 목록이 이미 있다면 초기화 생략 가능하지만, 안전을 위해 호출
     await Promise.all([
+      productStore.fetchCategories(),
       productStore.fetchProducts(),
       productStore.fetchFavorites(),
       productStore.fetchCompareList(),

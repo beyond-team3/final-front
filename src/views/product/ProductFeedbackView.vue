@@ -7,9 +7,17 @@ const route = useRoute()
 const router = useRouter()
 const productStore = useProductStore()
 
-onMounted(() => {
-  if (productStore.products.length === 0) {
-    productStore.fetchProducts()
+onMounted(async () => {
+  try {
+    if (productStore.products.length === 0) {
+      await productStore.fetchProducts()
+    }
+    if (productId.value) {
+      await productStore.fetchFeedbackMessages(productId.value)
+    }
+  } catch (error) {
+    console.error('피드백 뷰 초기화 중 오류 발생:', error)
+    window.alert('데이터를 불러오는 중 문제가 발생했습니다.')
   }
 })
 

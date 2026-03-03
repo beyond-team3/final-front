@@ -16,10 +16,6 @@ const formattedPrice = computed(() => {
   return Number(product.value.priceData.price).toLocaleString()
 })
 
-const formattedAmount = computed(() => {
-  if (!product.value?.priceData?.amount) return ''
-  return Number(product.value.priceData.amount).toLocaleString()
-})
 
 const tagRows = computed(() => {
   const rows = [
@@ -98,6 +94,14 @@ const toggleCompare = async () => {
             <div class="mt-3 flex items-baseline gap-2">
               <span class="text-2xl font-bold text-slate-900">₩{{ (product.price || 0).toLocaleString() }}</span>
               <span class="text-sm text-slate-500">/ {{ product.unit || '단위 미정' }}</span>
+            </div>
+
+            <div class="mt-2 flex items-center gap-3">
+              <span class="rounded px-2 py-1 text-xs font-semibold"
+                :class="product.status === 'ACTIVE' || !product.status ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-600'"
+              >
+                {{ product.status === 'OUT_OF_STOCK' ? '일시 품절' : (product.status === 'DISCONTINUED' ? '단종' : '판매 중') }}
+              </span>
             </div>
           </div>
 
