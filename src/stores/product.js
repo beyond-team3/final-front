@@ -237,9 +237,14 @@ export const useProductStore = defineStore('product', () => {
 
   const getFeedbackMessages = (pid) => feedbackByProduct.value[pid] || []
 
-  const addFeedbackMessage = async (pid, content) => {
+  const addFeedbackMessage = async (pid, content, sender, parentId = null) => {
     try {
-      await submitFeedbackApi(pid, { content })
+      const payload = {
+        content,
+        ...(parentId != null ? { parentId } : {}),
+        ...(sender ? { sender } : {}),
+      }
+      await submitFeedbackApi(pid, payload)
       await fetchFeedbackMessages(pid)
     } catch (e) { }
   }
