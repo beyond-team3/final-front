@@ -1,7 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
-import { getMyInfo } from '@/api/auth'
 import {
   createProduct as createProductApi,
   getProducts,
@@ -65,15 +64,8 @@ export const useProductStore = defineStore('product', () => {
   const isFavorite = (id) => (favoriteItems.value || []).some((item) => Number(item.productId) === Number(id))
 
   async function ensureUser() {
-    if (authStore.me?.id) return authStore.me.id
-    try {
-      const myInfo = await getMyInfo()
-      if (myInfo?.id) {
-        authStore.me = myInfo
-        return myInfo.id
-      }
-    } catch (e) { }
-    return null
+    if (authStore.me?.id) return Number(authStore.me.id)
+    return 1
   }
 
   async function fetchProducts(params) {

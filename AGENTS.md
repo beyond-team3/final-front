@@ -1,4 +1,4 @@
-GENTS.md — MonSoon 프론트엔드 프로젝트 컨텍스트
+AGENTS.md — MonSoon 프론트엔드 프로젝트 컨텍스트
 
 > AI 코딩 에이전트(Codex, Copilot 등)가 이 파일을 읽고 프로젝트를 이해한 뒤 작업한다.
 > 수정 요청 시 `@AGENTS.md 를 읽어줘`로 시작할 것.
@@ -19,6 +19,7 @@ GENTS.md — MonSoon 프론트엔드 프로젝트 컨텍스트
 ```
 final-front/
 ├── AGENTS.md
+├── DESIGN.md              ← SeedFlow+ 컬러 팔레트 가이드
 ├── package.json
 ├── vite.config.js
 ├── .env.development          ← VITE_API_BASE_URL=http://localhost:3001
@@ -102,7 +103,7 @@ View → Pinia Store → src/api/{도메인}.js → axios → mock-server(3001)
 
 ## 6. 수정 시 규칙
 
-- 세션 시작: AGENTS.md 읽기 → 대상 파일 확인 → 관련 프로토타입 HTML 확인
+- 세션 시작: AGENTS.md + DESIGN.md 읽기 → 대상 파일 확인 → 관련 프로토타입 HTML 확인
 - 세션 종료: 수정 파일 목록 출력 → `npm run dev` 에러 확인
 - 금지: 범위 외 파일 변경, 프로토타입에 없는 기능 추가, console.log 잔류
 

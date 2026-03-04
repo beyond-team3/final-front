@@ -9,6 +9,7 @@ import ProductCatalogCard from '@/components/product/ProductCatalogCard.vue'
 import { useProductStore } from '@/stores/product'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import { GROWING_SEASON_MONTH_OPTIONS, matchesGrowingSeason } from '@/utils/growingSeason'
 
 const router = useRouter()
 const productStore = useProductStore()
@@ -19,6 +20,7 @@ const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
 const filters = ref({
   category: '',
   env: '',
+  growingSeasonMonth: '',
   keyword: '',
 })
 const visibleCount = ref(12)
@@ -37,6 +39,13 @@ const filterFields = computed(() => [
     options: (productStore.envOptions || []).map((item) => ({ label: item, value: item })),
   },
   {
+    key: 'growingSeasonMonth',
+    label: '재배적기',
+    type: 'select',
+    placeholder: '전체 월',
+    options: GROWING_SEASON_MONTH_OPTIONS,
+  },
+  {
     key: 'keyword',
     label: '검색어',
     placeholder: '상품명 또는 태그 검색',
@@ -51,10 +60,13 @@ const filteredProducts = computed(() => {
     if (!item) return false
     const matchCategory = !filters.value.category || item.category === filters.value.category
     const matchEnv = !filters.value.env || (item.tags?.env || []).includes(filters.value.env)
+    const matchGrowingSeason = matchesGrowingSeason(item, filters.value.growingSeasonMonth)
     const tags = Object.values(item.tags || {}).flat().join(' ').toLowerCase()
+    const traits = Array.isArray(item.traits) ? item.traits.join(' ').toLowerCase() : ''
     const matchKeyword = !keyword || (item.name || '').toLowerCase().includes(keyword) || tags.includes(keyword)
+      || traits.includes(keyword)
 
-    return matchCategory && matchEnv && matchKeyword
+    return matchCategory && matchEnv && matchGrowingSeason && matchKeyword
   })
 })
 
