@@ -53,6 +53,14 @@ const isExactPath = (path) => {
   return route.path === path || route.path.startsWith(`${path}/`)
 }
 
+const isParentMenuActive = (menu) => {
+  if (!menu?.children || menu.children.length === 0) {
+    return false
+  }
+
+  return menu.children.some((child) => isExactPath(child.route))
+}
+
 const toggleMenu = (menuKey) => {
   expandedMenus.value[menuKey] = !expandedMenus.value[menuKey]
 }
@@ -92,7 +100,7 @@ watch(
           <button
             type="button"
             class="sidebar-item has-children mb-1 flex w-full items-center px-3 py-2 text-left text-sm font-medium"
-            :class="{ active: expandedMenus[menu.key], open: expandedMenus[menu.key] }"
+            :class="{ active: isParentMenuActive(menu), open: expandedMenus[menu.key] }"
             @click="toggleMenu(menu.key)"
           >
             <span>{{ menu.label }}</span>

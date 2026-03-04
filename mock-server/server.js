@@ -33,6 +33,28 @@ const getNotifications = (req) => {
   return list
 }
 
+const getCurrentUser = () => {
+  const fallbackUser = (router.db.get('users').value() || [])[0]
+  return router.db.get('users').find({ id: 1 }).value() || fallbackUser || {}
+}
+
+const getProductCategories = () => {
+  const categories = [...new Set(
+    (router.db.get('products').value() || [])
+      .map((item) => item?.category)
+      .filter(Boolean),
+  )]
+  return categories.map((name) => ({ name }))
+}
+
+server.get(['/api/auth/me', '/auth/me'], (req, res) => {
+  res.status(200).jsonp(getCurrentUser())
+})
+
+server.get(['/api/products/categories', '/products/categories'], (req, res) => {
+  res.status(200).jsonp(getProductCategories())
+})
+
 server.get('/api/notifications', (req, res) => {
   res.status(200).jsonp(getNotifications(req))
 })
