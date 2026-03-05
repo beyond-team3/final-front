@@ -62,13 +62,13 @@ const toggleSidebar = () => {
 }
 
 watch(
-  () => authStore.currentRole,
-  (role) => { // UPDATED
-    if (role && typeof notificationStore.fetchNotifications === 'function') {
-      notificationStore.fetchNotifications(role)
-    }
-  },
-  { immediate: true },
+    () => authStore.currentRole,
+    (role) => { // UPDATED
+      if (role && typeof notificationStore.fetchNotifications === 'function') {
+        notificationStore.fetchNotifications(role)
+      }
+    },
+    { immediate: true },
 )
 </script>
 
@@ -77,19 +77,19 @@ watch(
     <div class="mx-auto flex h-full max-w-screen-2xl items-center justify-between">
       <div class="flex items-center gap-3">
         <button
-          type="button"
-          class="inline-flex h-9 w-9 items-center justify-center rounded border text-sm transition-colors"
-          style="border-color: var(--color-border); color: var(--color-text);"
-          aria-label="사이드바 토글"
-          @click="toggleSidebar"
+            type="button"
+            class="inline-flex h-9 w-9 items-center justify-center rounded border text-sm transition-colors"
+            style="border-color: var(--color-border); color: var(--color-text);"
+            aria-label="사이드바 토글"
+            @click="toggleSidebar"
         >
           ☰
         </button>
         <button
-          type="button"
-          class="text-2xl leading-none"
-          style="font-family: var(--font-display); font-weight: 700; font-style: normal; color: var(--color-text);"
-          @click="navigateTo('/dashboard')"
+            type="button"
+            class="text-2xl leading-none"
+            style="font-family: var(--font-display); font-weight: 700; font-style: normal; color: var(--color-text);"
+            @click="navigateTo('/dashboard')"
         >
           SeedFlow+
         </button>
@@ -97,14 +97,14 @@ watch(
       <div class="flex items-center gap-2 sm:gap-3">
         <nav class="hidden items-center gap-1 md:flex">
           <button
-            v-for="menu in iconHeaderMenus"
-            :key="menu.key"
-            type="button"
-            class="header-icon-btn"
-            :class="{ 'is-active': isActivePath(menu.route) }"
-            :aria-label="menu.label"
-            :title="menu.label"
-            @click="navigateTo(menu.route)"
+              v-for="menu in iconHeaderMenus"
+              :key="menu.key"
+              type="button"
+              class="header-icon-btn"
+              :class="{ 'is-active': isActivePath(menu.route) }"
+              :aria-label="menu.label"
+              :title="menu.label"
+              @click="navigateTo(menu.route)"
           >
             <Icon :name="iconNameMap[menu.key]" :size="20" /> <!-- UPDATED -->
             <span v-if="menu.key === 'notification' && unreadCount > 0" class="header-icon-badge" aria-hidden="true" /> <!-- UPDATED -->
@@ -112,14 +112,14 @@ watch(
         </nav>
         <div class="flex items-center gap-2 md:hidden">
           <button
-            v-for="menu in iconHeaderMenus"
-            :key="`mobile-${menu.key}`"
-            type="button"
-            class="header-icon-btn"
-            :class="{ 'is-active': isActivePath(menu.route) }"
-            :aria-label="menu.label"
-            :title="menu.label"
-            @click="navigateTo(menu.route)"
+              v-for="menu in iconHeaderMenus"
+              :key="`mobile-${menu.key}`"
+              type="button"
+              class="header-icon-btn"
+              :class="{ 'is-active': isActivePath(menu.route) }"
+              :aria-label="menu.label"
+              :title="menu.label"
+              @click="navigateTo(menu.route)"
           >
             <Icon :name="iconNameMap[menu.key]" :size="20" /> <!-- UPDATED -->
             <span v-if="menu.key === 'notification' && unreadCount > 0" class="header-icon-badge" aria-hidden="true" /> <!-- UPDATED -->
@@ -129,10 +129,10 @@ watch(
           {{ roleLabel }}
         </span>
         <button
-          type="button"
-          class="rounded px-3 py-1.5 text-xs font-bold text-white transition-colors hover:brightness-95"
-          style="background: var(--color-accent);"
-          @click="logout"
+            type="button"
+            class="rounded px-3 py-1.5 text-xs font-bold text-white transition-colors hover:brightness-95"
+            style="background: var(--color-accent);"
+            @click="logout"
         >
           로그아웃
         </button>

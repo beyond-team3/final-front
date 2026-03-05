@@ -141,7 +141,7 @@ const openDetail = (row) => {
 <template>
   <section class="mx-auto max-w-[1400px] p-6">
     <header class="mb-6">
-      <h1 class="text-2xl font-bold text-slate-900">모든 문서</h1>
+      <h1 class="text-2xl font-bold text-slate-900" style="font-family: 'KoPub Dotum', sans-serif !important;">모든 문서</h1>
       <p class="mt-1 text-sm text-slate-500">
         {{ authStore.me?.name }}님, 총 {{ sourceRows.length }}건을 찾았습니다.
       </p>
