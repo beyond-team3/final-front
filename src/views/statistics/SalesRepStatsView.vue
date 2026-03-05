@@ -65,7 +65,43 @@ const employees = [
   { id: 5, name: '최동욱' },
 ]
 
-const palette = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
+const CHART_COLORS = {
+  primary: '#7A8C42',
+  secondary: '#C8622A',
+  info: '#8A9BAE',
+  error: '#B85C5C',
+  neutral: '#9A8C7E',
+  placeholderLine: '#BFB3A5',
+  placeholderFill: '#E8E3D8',
+}
+
+const palette = [
+  CHART_COLORS.primary,
+  CHART_COLORS.secondary,
+  CHART_COLORS.info,
+  CHART_COLORS.error,
+  CHART_COLORS.neutral,
+]
+
+const hexToRgb = (hexColor) => {
+  const normalized = hexColor.replace('#', '')
+  const fullHex = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized
+
+  const value = Number.parseInt(fullHex, 16)
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  }
+}
+
+const getLightenedColor = (hexColor, ratio = 0.35) => {
+  const { r, g, b } = hexToRgb(hexColor)
+  const lighten = (channel) => Math.round(channel + ((255 - channel) * ratio))
+  return `rgb(${lighten(r)}, ${lighten(g)}, ${lighten(b)})`
+}
 
 // TODO: API 연결
 const personalSales = {
@@ -339,6 +375,18 @@ const toggleSelectedItem = (listRef, id, checked) => {
   listRef.value = listRef.value.filter((itemId) => itemId !== numericId)
 }
 
+const toggleEmployeeSelection = (id, checked) => {
+  toggleSelectedItem(selectedEmployees, id, checked)
+}
+
+const toggleClientSelection = (id, checked) => {
+  toggleSelectedItem(selectedClients, id, checked)
+}
+
+const toggleVarietySelection = (id, checked) => {
+  toggleSelectedItem(selectedVarieties, id, checked)
+}
+
 const createLineOrBarDatasets = (items, source, periodType, range, compareYear, chartType) => {
   const monthPoints = createMonthPoints(range)
   const { labels, contexts } = getPeriodContexts(monthPoints, periodType, range.isMultiYear)
@@ -350,8 +398,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
       datasets: [{
         label: '항목을 선택하세요',
         data: emptyValues,
-        borderColor: '#d1d5db',
-        backgroundColor: '#e5e7eb',
+        borderColor: CHART_COLORS.placeholderLine,
+        backgroundColor: CHART_COLORS.placeholderFill,
       }],
     }
   }
@@ -386,8 +434,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
         {
           label: '조회 기간',
           data: currentTotals.map((item) => item.amount),
-          backgroundColor: '#3498db',
-          borderColor: '#3498db',
+          backgroundColor: CHART_COLORS.primary,
+          borderColor: CHART_COLORS.primary,
           borderWidth: 2,
         },
         {
@@ -419,6 +467,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
     })
 
     if (compareYear) {
+      const baseColor = palette[index % palette.length]
+      const compareColor = getLightenedColor(baseColor)
       const previous = getValuesByContexts(
         contexts,
         periodType,
@@ -428,8 +478,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
       datasets.push({
         label: `${item.name} (전년도 동기간)`,
         data: previous,
-        borderColor: '#9ca3af',
-        backgroundColor: '#9ca3af33',
+        borderColor: compareColor,
+        backgroundColor: `${compareColor.replace('rgb', 'rgba').replace(')', ', 0.22)')}`,
         tension: 0.35,
         borderWidth: 2,
         borderDash: [6, 6],
@@ -458,8 +508,8 @@ const renderPersonalChart = () => {
         {
           label: '조회 구간',
           data: data.current,
-          borderColor: '#3498db',
-          backgroundColor: '#3498db33',
+          borderColor: CHART_COLORS.primary,
+          backgroundColor: `${CHART_COLORS.primary}33`,
           tension: 0.35,
           borderWidth: 3,
         },
@@ -467,8 +517,8 @@ const renderPersonalChart = () => {
           ? [{
             label: '전년도',
             data: data.previous,
-            borderColor: '#9ca3af',
-            backgroundColor: '#9ca3af33',
+            borderColor: CHART_COLORS.info,
+            backgroundColor: `${CHART_COLORS.info}33`,
             borderDash: [6, 6],
             tension: 0.35,
             borderWidth: 2,
@@ -718,7 +768,7 @@ onBeforeUnmount(() => {
                   :id="`employee-option-${item.id}`"
                   :label="item.name"
                   :model-value="selectedEmployees.includes(item.id)"
-                  @update:model-value="(checked) => toggleSelectedItem(selectedEmployees, item.id, checked)"
+                  @update:model-value="(checked) => toggleEmployeeSelection(item.id, checked)"
                 />
               </div>
             </div>
@@ -735,7 +785,7 @@ onBeforeUnmount(() => {
                   :id="`client-option-${item.id}`"
                   :label="item.name"
                   :model-value="selectedClients.includes(item.id)"
-                  @update:model-value="(checked) => toggleSelectedItem(selectedClients, item.id, checked)"
+                  @update:model-value="(checked) => toggleClientSelection(item.id, checked)"
                 />
               </div>
             </div>
@@ -752,7 +802,7 @@ onBeforeUnmount(() => {
                   :id="`variety-option-${item.id}`"
                   :label="item.name"
                   :model-value="selectedVarieties.includes(item.id)"
-                  @update:model-value="(checked) => toggleSelectedItem(selectedVarieties, item.id, checked)"
+                  @update:model-value="(checked) => toggleVarietySelection(item.id, checked)"
                 />
               </div>
             </div>
@@ -872,28 +922,158 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>.screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
-.filter-section { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+.filter-section {
+  background: var(--cdr-color-background-page-default, var(--color-bg-section, var(--color-sidebar-hover)));
+  border: 1px solid var(--cdr-color-border-separator-weak, var(--color-border-card, var(--color-border)));
+  padding: 18px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(61, 53, 41, 0.06);
+}
 .filter-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 .filter-group { display: flex; flex-direction: column; gap: 8px; }
-.filter-label { font-size: 13px; font-weight: 600; color: #555; }
-.radio-group { display: flex; gap: 15px; background-color: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #ddd; }
-.radio-option { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #333; cursor: pointer; }
+.filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-sub, var(--color-muted));
+  letter-spacing: 0.2px;
+}
+.radio-group {
+  display: flex;
+  gap: 14px;
+  background: var(--cdr-color-background-input-default, var(--color-bg-input, var(--color-surface)));
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--cdr-color-border-input-default, var(--color-border-card, var(--color-border)));
+}
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-text-body, var(--color-text));
+  cursor: pointer;
+}
 .multi-select { position: relative; min-width: 250px; }
-.multi-select-trigger { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; background-color: #fff; text-align: left; cursor: pointer; }
-.multi-select-dropdown { position: absolute; top: 100%; left: 0; right: 0; background-color: #fff; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
+.multi-select-trigger {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--cdr-color-border-input-default, var(--color-border-card, var(--color-border)));
+  border-radius: 8px;
+  background: var(--cdr-color-background-input-default, var(--color-bg-input, var(--color-surface)));
+  text-align: left;
+  color: var(--color-text-body, var(--color-text));
+  cursor: pointer;
+}
+.multi-select-trigger:hover {
+  border-color: var(--cdr-color-border-input-default-hover, var(--color-olive-light, var(--color-border-focus)));
+}
+.multi-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--cdr-color-border-input-default-active, var(--color-olive, var(--color-border-focus)));
+  box-shadow: 0 0 0 3px rgba(122, 140, 66, 0.18);
+}
+.multi-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--cdr-color-background-input-default, var(--color-bg-input, var(--color-surface)));
+  border: 1px solid var(--cdr-color-border-input-default, var(--color-border-card, var(--color-border)));
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 20px rgba(41, 37, 36, 0.12);
+}
 .multi-select-option { display: flex; gap: 8px; align-items: center; padding: 10px 12px; cursor: pointer; }
-.multi-select-option:hover { background-color: #f8f9fa; }
+.multi-select-option:hover { background: var(--color-bg-section, var(--color-sidebar-hover)); }
 .section-block { margin-top: 10px; }
 .control-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.inline-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.inline-row label { font-weight: 600; color: #2c3e50; }
-.inline-row select, .inline-row input { padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
-.compare-btn { border: 1px solid #d1d5db; background: #fff; color: #1f2937; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.compare-btn.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+.inline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-card, var(--color-border));
+  border-radius: 10px;
+  background: var(--color-bg-input, var(--color-surface));
+}
+.inline-row label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-body, var(--color-text));
+  margin-right: 2px;
+}
+.inline-row span {
+  color: var(--color-text-sub, var(--color-muted));
+  font-weight: 600;
+}
+.inline-row select,
+.inline-row input {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--cdr-color-border-input-default, var(--color-border-card, var(--color-border)));
+  border-radius: 8px;
+  background: var(--cdr-color-background-input-default, var(--color-bg-input, var(--color-surface)));
+  color: var(--color-text-body, var(--color-text));
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.inline-row select:hover,
+.inline-row input:hover {
+  border-color: var(--cdr-color-border-input-default-hover, var(--color-olive-light, var(--color-border-focus)));
+}
+.inline-row select:focus,
+.inline-row input:focus {
+  outline: none;
+  border-color: var(--cdr-color-border-input-default-active, var(--color-olive, var(--color-border-focus)));
+  box-shadow: 0 0 0 3px rgba(122, 140, 66, 0.18);
+}
+.compare-btn {
+  border: 1px solid var(--color-border-card, var(--color-border));
+  background: var(--color-bg-input, var(--color-surface));
+  color: var(--color-text-body, var(--color-text));
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.compare-btn:hover {
+  background: var(--color-bg-section, var(--color-sidebar-hover));
+  border-color: var(--color-olive-light, var(--color-border-focus));
+}
+.compare-btn.active {
+  border-color: var(--color-olive, var(--color-border-focus));
+  background: var(--color-olive-light, #ecf3e5);
+  color: var(--color-olive-dark, var(--color-olive));
+}
 .chart-toggle { display: flex; gap: 10px; margin-bottom: 16px; }
-.chart-toggle-btn { padding: 10px 20px; background-color: #f8f9fa; border: 2px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
-.chart-toggle-btn.active { background-color: #3498db; border-color: #3498db; color: #fff; }
-.chart-container { position: relative; height: 420px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+.chart-toggle-btn {
+  padding: 10px 20px;
+  background: var(--color-bg-input, var(--color-surface));
+  border: 1px solid var(--color-border-card, var(--color-border));
+  color: var(--color-text-body, var(--color-text));
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.chart-toggle-btn:hover {
+  background: var(--color-bg-section, var(--color-sidebar-hover));
+}
+.chart-toggle-btn.active {
+  background: var(--color-olive, #7a8c42);
+  border-color: var(--color-olive-dark, #586830);
+  color: #fff;
+}
+.chart-container { position: relative; height: 420px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; overflow: hidden; }
+.chart-container :deep(canvas) { display: block; width: 100% !important; max-width: 100% !important; }
 @media (max-width: 768px) {
   .filter-row { flex-direction: column; align-items: stretch; }
   .radio-group { flex-direction: column; align-items: flex-start; }
