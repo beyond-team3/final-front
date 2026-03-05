@@ -87,10 +87,10 @@ pipeline {
                                 git commit -m "[CD] Update ${imageName} to ${newTag} [skip ci]"
                                 git pull --rebase origin main
                                 git push origin main
+                                echo "Manifest updated in beyond-team3/final-manifests frontend"
                             fi
                         """
                     }
-                    echo "Manifest updated in beyond-team3/final-manifests frontend"
                 }
             }
             post {
