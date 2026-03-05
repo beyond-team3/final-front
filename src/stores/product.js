@@ -41,8 +41,8 @@ export const useProductStore = defineStore('product', () => {
   const productNotes = ref({})
 
   const categoryOptions = computed(() => {
-    if (serverCategories.value.length > 0) return serverCategories.value.map(c => c.name)
-    return [...new Set((products.value || []).map((item) => item.category).filter(Boolean))]
+    if (serverCategories.value.length > 0) return serverCategories.value
+    return [...new Set((products.value || []).map((item) => item.category).filter(Boolean))].map(c => ({ code: c, name: c }))
   })
   const envOptions = computed(() => {
     const all = (products.value || []).flatMap((item) => item.tags?.env || [])
