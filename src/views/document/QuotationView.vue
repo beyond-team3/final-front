@@ -1,11 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
-import StatusBadge from '@/components/common/StatusBadge.vue'
 import axios from 'axios'
 
 const router = useRouter()
@@ -17,9 +16,11 @@ const authStore = useAuthStore()
 // --- [상태 관리] ---
 const isProcessStarted = ref(false)
 const isNewMode = ref(false)
-const showStartModal = ref(false)
+const showStartModal = ref(true) // 처음부터 모달을 띄워서 사용자 경험을 개선
 const showCorpModal = ref(false)
 const showProductModal = ref(false)
+const isVarietyDropdownOpen = ref(false)
+const varietyDropdownRef = ref(null)
 
 // 원본 데이터 추적
 const sourceRequestId = ref(null)
@@ -36,19 +37,29 @@ const modalSearchInput = ref('')
 const clientSearchInput = ref('')
 const varietyFilter = ref('전체')
 
+const handleClickOutside = (event) => {
+  if (varietyDropdownRef.value && !varietyDropdownRef.value.contains(event.target)) {
+    isVarietyDropdownOpen.value = false
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('click', handleClickOutside)
   try {
+    // 백그라운드에서 데이터 로딩
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
     if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
     else if (documentStore.fetchClients) await documentStore.fetchClients()
 
     if (productStore.fetchProducts) await productStore.fetchProducts()
     if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
-
-    showStartModal.value = true
   } catch (e) {
     console.error("데이터 로딩 실패:", e)
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutside)
 })
 
 // --- [핵심 로직] ---
@@ -75,9 +86,7 @@ const startFromRequest = (req) => {
   customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
 
   selectedItems.value = req.items.map(i => {
-    // 상품 마스터에서 정보 검색 (id 또는 이름으로)
     const masterProduct = productStore.products?.find(p => p.id === i.productId || p.name === i.name)
-
     return {
       uid: Date.now() + Math.random(),
       productId: i.productId || masterProduct?.id,
@@ -106,7 +115,7 @@ const startNewQuotation = () => {
 }
 
 const setCorp = (corp) => {
-  inCorpCode.value = corp.id // 코드가 아니라 numeric ID를 넣어야 함다!
+  inCorpCode.value = corp.id
   inCorp.value = corp.name
   inName.value = corp.contact
   showCorpModal.value = false
@@ -173,26 +182,15 @@ const validityDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
-const quoteCardStatus = computed(() => {
-  if (!isProcessStarted.value) return 'DRAFT'
-  if (!isNewMode.value && sourceRequestId.value) return 'REQUESTED'
-  return 'DRAFT'
-})
-
 // --- [저장 핵심 로직] ---
 const submitDoc = async () => {
   if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
   if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
 
   const currentUser = authStore.me || { id: 1, name: "김민수" }
-
-  // 1. 견적서 번호 생성 (고유 아이디를 위해 타임스탬프 기반으로 처리)
-  const now = new Date()
   const quotationId = `QT-${Date.now()}`
+  const today = new Date().toISOString().split('T')[0]
 
-  const today = now.toISOString().split('T')[0]
-
-  // 2. documents 저장용 데이터 객체
   const quotationData = {
     id: quotationId,
     type: "quotation",
@@ -205,7 +203,7 @@ const submitDoc = async () => {
     },
     authorId: currentUser.id,
     authorName: currentUser.name,
-    status: "승인대기", // 발행 시 관리자 승인 기다림
+    status: "승인대기",
     totalAmount: totalSum.value,
     date: today,
     items: selectedItems.value.map(item => ({
@@ -218,7 +216,6 @@ const submitDoc = async () => {
     memo: internalMemo.value
   }
 
-  // 3. history 저장용 데이터 객체
   const historyData = {
     id: `H-${Date.now()}`,
     clientId: inCorpCode.value,
@@ -244,12 +241,9 @@ const submitDoc = async () => {
   }
 
   try {
-    // 4. 서버로 데이터 전송
     await axios.post('http://localhost:3001/documents', quotationData);
 
-    // 4-1. 히스토리 업데이트 (연결된 히스토리 아이디가 있으면 PUT, 없으면 POST)
     if (sourceHistoryId.value) {
-      // 기존 히스토리 로드 후 업데이트
       const hRes = await axios.get(`http://localhost:3001/history/${sourceHistoryId.value}`);
       const history = hRes.data;
 
@@ -257,14 +251,13 @@ const submitDoc = async () => {
         ...history,
         pipelineStage: "견적",
         stageNumber: 2,
-        status: "대기중", // 견적 단계의 대기 상태를 의미
+        status: "대기중",
         documentId: quotationId,
         nextAction: "고객사 견적 검토 대기",
         updatedAt: today,
         amount: Math.max(Number(history.amount || 0), totalSum.value)
       };
 
-      // 만약 documents 배열이 있으면 추가
       if (Array.isArray(updatedHistory.documents)) {
         updatedHistory.documents.push({
           id: quotationId,
@@ -277,64 +270,79 @@ const submitDoc = async () => {
           amount: totalSum.value
         });
       }
-
       await axios.put(`http://localhost:3001/history/${sourceHistoryId.value}`, updatedHistory);
     } else {
       await axios.post('http://localhost:3001/history', historyData);
     }
 
-    // 4-2. 원본 견적 요청서가 있으면 상태 업데이트
     if (sourceRequestId.value) {
       await axios.patch(`http://localhost:3001/documents/${sourceRequestId.value}`, {
         status: "QUOTED"
       });
     }
 
-    // 5. 스토어 새로고침 (목록 갱신용)
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
     if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
 
-    window.alert(`[${quotationId}] 견적서가 성공적으로 발행되어 저장되었습니다.`);
+    window.alert(`[${quotationId}] 견적서 발행 완료`);
     router.push('/documents/all');
   } catch (error) {
-    console.error("견적서 저장 에러:", error);
-    window.alert("3001번 서버 저장 중에 에러가 났습니다.");
+    console.error("저장 에러:", error);
+    window.alert("서버 저장 에러");
   }
 }
 </script>
 
 <template>
-  <div class="content-wrapper p-6">
+  <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
-
-      <div class="flex justify-between items-center mb-5">
-        <h2 class="text-2xl font-bold text-[#2c3e50]">{{ isProcessStarted ? '견적서 작성' : '문서 작성' }}</h2>
-        <button v-if="isProcessStarted" class="bg-[#95a5a6] text-white px-4 py-2 rounded text-sm font-bold" @click="isProcessStarted = false; showStartModal = true">뒤로가기</button>
+      <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
+        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 작성</span></p>
+        <button
+            v-if="isProcessStarted"
+            type="button"
+            class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
+            style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
+            @click="router.push('/documents/create')"
+        >
+          뒤로가기
+        </button>
       </div>
-
-      <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in fade-in duration-300">
+      <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in">
         <div class="flex-1 space-y-5 w-full">
-          <div class="card relative bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
-            <StatusBadge class="absolute right-4 top-4" :status="quoteCardStatus" />
+          <div class="card relative border p-5 rounded-lg shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-base font-bold text-slate-800">거래처 정보</h3>
-              <button v-if="isNewMode" class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="showCorpModal = true">거래처 선택</button>
+              <h3 class="text-base font-bold" style="color: #3D3529;">거래처 정보</h3>
+              <button
+                  v-if="isNewMode"
+                  class="text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors hover:opacity-90"
+                  style="background-color: #C8622A !important;"
+                  @click="showCorpModal = true"
+              >
+                거래처 선택
+              </button>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <input v-model="inCorpCode" readonly class="p-2 border rounded bg-gray-50 text-sm font-semibold" placeholder="거래처 코드">
-              <input v-model="inCorp" readonly class="p-2 border rounded bg-gray-50 text-sm font-semibold" placeholder="법인명">
-              <input v-model="inName" readonly class="p-2 border rounded bg-gray-50 text-sm font-semibold" placeholder="담당자">
+              <input v-model="inCorpCode" readonly class="p-2 border rounded text-sm font-semibold outline-none" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="거래처 코드">
+              <input v-model="inCorp" readonly class="p-2 border rounded text-sm font-semibold outline-none" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="법인명">
+              <input v-model="inName" readonly class="p-2 border rounded text-sm font-semibold outline-none" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="담당자">
             </div>
           </div>
 
-          <div class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+          <div class="card border p-5 rounded-lg shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-base font-bold text-slate-800">작성 품목</h3>
-              <button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="showProductModal = true">+ 상품 검색</button>
+              <h3 class="text-base font-bold" style="color: #3D3529;">작성 품목</h3>
+              <button
+                  class="text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors hover:opacity-90"
+                  style="background-color: #C8622A !important;"
+                  @click="showProductModal = true"
+              >
+                + 상품 검색
+              </button>
             </div>
-            <div class="max-h-[350px] overflow-y-auto border rounded bg-white">
-              <table class="w-full text-sm text-left">
-                <thead class="bg-gray-50 sticky top-0 z-10 border-b">
+            <div class="max-h-[350px] overflow-y-auto border rounded" style="background-color: #F7F3EC; border-color: #DDD7CE;">
+              <table class="w-full text-sm text-left border-collapse">
+                <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
                 <tr>
                   <th class="p-3 w-[15%]">품종명</th><th class="p-3 w-[25%]">상품명</th>
                   <th class="p-3 w-[15%] text-center">수량</th><th class="p-3 w-[15%] text-center">단위</th>
@@ -342,77 +350,83 @@ const submitDoc = async () => {
                 </tr>
                 </thead>
                 <tbody>
-                <tr v-for="item in selectedItems" :key="item.uid" class="border-b hover:bg-slate-50 transition-colors">
-                  <td class="p-3 text-slate-500 text-xs">{{ item.variety }}</td>
-                  <td class="p-3 font-bold text-slate-800">{{ item.name }}</td>
+                <tr v-for="item in selectedItems" :key="item.uid" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;">
+                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ item.variety }}</td>
+                  <td class="p-3 font-bold" style="color: #3D3529;">{{ item.name }}</td>
                   <td class="p-3 text-center">
-                    <input type="number" min="1" class="w-full border border-blue-300 rounded text-center p-1 font-bold text-blue-700" :value="item.count" @input="updateItem(item, 'count', $event.target.value)">
+                    <input type="number" min="1" class="w-full rounded text-center p-1 font-bold outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.count" @input="updateItem(item, 'count', $event.target.value)">
                   </td>
                   <td class="p-3 text-center">
-                    <input type="text" class="w-full border border-slate-200 rounded p-1 text-xs text-center" v-model="item.unit">
+                    <input type="text" class="w-full rounded p-1 text-xs text-center outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" v-model="item.unit">
                   </td>
-                  <td class="p-3">
-                    <input type="number" min="0" class="w-full border border-emerald-300 rounded text-right p-1 font-mono" :value="item.price" @input="updateItem(item, 'price', $event.target.value)">
+                  <td class="p-3 text-right">
+                    <input type="number" min="0" class="w-full rounded text-right p-1 font-mono outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.price" @input="updateItem(item, 'price', $event.target.value)">
                   </td>
                   <td class="p-3 text-center">
-                    <button class="bg-[#e74c3c] text-white px-2 py-1 rounded text-[10px] font-bold" @click="removeItem(item.uid)">삭제</button>
+                    <button class="text-white px-2 py-1 rounded text-[10px] font-bold" style="background-color: #B85C5C;" @click="removeItem(item.uid)">삭제</button>
                   </td>
                 </tr>
-                <tr v-if="selectedItems.length === 0"><td colspan="6" class="p-10 text-center text-gray-400 italic">상품 정보를 입력해 주세요.</td></tr>
+                <tr v-if="selectedItems.length === 0"><td colspan="6" class="p-10 text-center italic" style="color: #9A8C7E;">상품 정보를 입력해 주세요.</td></tr>
                 </tbody>
               </table>
             </div>
-            <div class="mt-4 text-right font-bold text-lg text-[#2c3e50]">총 합계: {{ totalSum.toLocaleString() }} 원</div>
+            <div class="mt-4 text-right font-bold text-lg" style="color: #3D3529;">총 합계: {{ totalSum.toLocaleString() }} 원</div>
           </div>
 
-          <div v-if="!isNewMode && customerRequirements" class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
+          <div v-if="!isNewMode && customerRequirements" class="card border p-5 rounded-lg shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
             <div class="flex items-center gap-2 mb-3">
-              <h3 class="text-base font-bold text-slate-800">견적 요청서 요구사항</h3>
+              <h3 class="text-base font-bold" style="color: #3D3529;">견적 요청서 요구사항</h3>
             </div>
-            <div class="bg-gray-50 border border-gray-200 p-3 rounded text-sm text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[60px]">
+            <div class="border p-3 rounded text-sm leading-relaxed whitespace-pre-wrap min-h-[60px]" style="background-color: #EFEADF; border-color: #DDD7CE; color: #6B5F50;">
               {{ customerRequirements }}
             </div>
-            <p class="text-[11px] text-gray-500 mt-2 font-medium">* 위 내용은 참고용이며, 발행되는 PDF 견적서에는 포함되지 않습니다.</p>
+            <p class="text-[11px] mt-2 font-medium" style="color: #9A8C7E;">* 위 내용은 참고용이며, 발행되는 PDF 견적서에는 포함되지 않습니다.</p>
           </div>
 
-          <div class="card bg-white border border-[#eee] p-5 rounded-lg shadow-sm">
-            <h3 class="text-base font-bold text-slate-800">내부 비고</h3>
-            <textarea v-model="internalMemo" rows="3" class="w-full border border-slate-200 rounded p-3 mt-3 text-sm resize-none focus:ring-2 focus:ring-blue-100 outline-none" placeholder="비고는 PDF에 표시되지 않습니다."></textarea>
+          <div class="card border p-5 rounded-lg shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
+            <h3 class="text-base font-bold" style="color: #3D3529;">내부 비고</h3>
+            <textarea v-model="internalMemo" rows="3" class="w-full rounded p-3 mt-3 text-sm resize-none outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="비고는 PDF에 표시되지 않습니다."></textarea>
           </div>
 
-          <button class="w-full bg-[#2ecc71] text-white py-4 rounded-lg font-bold text-lg hover:bg-emerald-600 shadow-md transition-all" @click="submitDoc">견적서 발행 완료</button>
+          <button
+              class="w-full text-white py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:opacity-90"
+              style="background-color: #7A8C42 !important;"
+              @click="submitDoc"
+          >
+            견적서 발행 완료
+          </button>
         </div>
 
         <div class="w-full xl:w-[500px] sticky top-5">
           <div class="bg-[#525659] p-4 rounded-lg shadow-inner">
-            <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black [font-family:serif]">
+            <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black" style="font-family: 'KoPub Dotum', sans-serif !important;">
               <div class="text-center border-b-2 border-black pb-3 mb-5">
-                <h1 class="text-2xl font-bold tracking-widest">견 적 서</h1>
+                <h1 class="text-2xl font-bold tracking-widest" style="font-family: 'KoPub Dotum', sans-serif !important;">견 적 서</h1>
               </div>
               <div class="flex justify-between items-start mb-6 text-[12px]">
                 <div class="space-y-1">
                   <p>수신: <span class="border-b border-black font-bold px-2 text-[14px]">{{ inCorp || '(빈값)' }}</span> 귀하</p>
                   <p>담당: <span class="px-2">{{ inName || '(빈값)' }}</span></p>
-                  <p>견적 유효기간: <span class="font-bold text-blue-700 underline">{{ validityDate }}</span> (30일)</p>
+                  <p>견적 유효기간: <span class="font-bold border-b border-black px-1">{{ validityDate }}</span> (발행일로부터 30일)</p>
                 </div>
                 <div class="w-14 h-14 border border-black flex items-center justify-center font-bold text-xs">인</div>
               </div>
-              <table class="w-full border-collapse border border-gray-400 text-center mb-5 text-[10px]">
-                <thead class="bg-gray-100">
-                <tr><th class="border border-gray-400 p-1">품종</th><th class="border border-gray-400 p-1">상품명</th><th class="border border-gray-400 p-1">수량</th><th class="border border-gray-400 p-1">단위</th><th class="border border-gray-400 p-1">단가</th><th class="border border-gray-400 p-1">금액</th></tr>
+              <table class="w-full border-collapse border border-black text-center mb-5 text-[10px]">
+                <thead class="bg-[#F7F3EC]">
+                <tr class="border-b border-black"><th class="border-r border-black p-1">품종</th><th class="border-r border-black p-1">상품명</th><th class="border-r border-black p-1">수량</th><th class="border-r border-black p-1">단위</th><th class="border-r border-black p-1">단가</th><th class="p-1">금액</th></tr>
                 </thead>
                 <tbody>
-                <tr v-for="item in selectedItems" :key="'pdf-'+item.uid">
-                  <td class="border border-gray-400 p-1">{{ item.variety }}</td>
-                  <td class="border border-gray-400 p-1 text-left font-bold">{{ item.name }}</td>
-                  <td class="border border-gray-400 p-1">{{ item.count }}</td>
-                  <td class="border border-gray-400 p-1">{{ item.unit }}</td>
-                  <td class="border border-gray-400 p-1 text-right">{{ item.price.toLocaleString() }}</td>
-                  <td class="border border-gray-400 p-1 text-right font-bold">{{ (item.count * item.price).toLocaleString() }}</td>
+                <tr v-for="item in selectedItems" :key="'pdf-'+item.uid" class="border-b border-black">
+                  <td class="border-r border-black p-1">{{ item.variety }}</td>
+                  <td class="border-r border-black p-1 text-left font-bold px-2">{{ item.name }}</td>
+                  <td class="border-r border-black p-1">{{ item.count }}</td>
+                  <td class="border-r border-black p-1">{{ item.unit }}</td>
+                  <td class="border-r border-black p-1 text-right px-2">{{ item.price.toLocaleString() }}</td>
+                  <td class="p-1 text-right font-bold px-2">{{ (item.count * item.price).toLocaleString() }}</td>
                 </tr>
                 </tbody>
-                <tfoot class="bg-gray-50 font-bold">
-                <tr><td colspan="5" class="border border-gray-400 p-1 text-sm text-right">합 계</td><td class="border border-gray-400 p-1 text-right font-mono">{{ totalSum.toLocaleString() }}</td></tr>
+                <tfoot class="bg-[#FAF7F3] font-bold">
+                <tr><td colspan="5" class="border-r border-black p-1 text-sm text-right px-2">합 계</td><td class="p-1 text-right font-mono px-2">{{ totalSum.toLocaleString() }}</td></tr>
                 </tfoot>
               </table>
               <div class="absolute bottom-10 left-0 right-0 text-center space-y-4">
@@ -423,96 +437,213 @@ const submitDoc = async () => {
           </div>
         </div>
       </div>
-    </div>
 
-    <div v-if="showStartModal" class="modal-overlay z-[2000] p-4">
-      <div class="modal w-[750px] max-w-[95vw] overflow-hidden">
-        <div class="modal-header">
-          <h3 class="modal-title text-base">기존 견적 요청 건 선택</h3>
-          <button type="button" class="modal-close" aria-label="닫기" @click="handleCloseModal" />
-        </div>
-        <div class="modal-body">
-          <div class="max-h-[300px] overflow-y-auto border rounded bg-white mb-5">
-            <table class="w-full text-sm text-center">
-              <thead class="bg-[var(--color-sidebar-hover)] border-b border-slate-200 sticky top-0">
-              <tr><th>법인명</th><th>담당자</th><th>요청 날짜</th><th>상태</th><th>선택</th></tr>
-              </thead>
-              <tbody>
-              <tr v-for="req in documentStore.quotationRequests" :key="req.id" class="border-b hover:bg-blue-50 transition-colors cursor-pointer" @click="startFromRequest(req)">
-                <td class="p-3 font-bold text-slate-800">{{ req.client?.name }}</td>
-                <td class="p-3">{{ req.client?.contact }}</td>
-                <td class="p-3 text-slate-500">{{ req.date }}</td>
-                <td class="p-3 text-orange-500 font-bold">{{ req.status }}</td>
-                <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs shadow-sm">선택</button></td>
-              </tr>
-              </tbody>
-            </table>
+      <!-- Start Modal -->
+      <div v-if="showStartModal" class="modal-overlay z-[2000] p-4">
+        <div class="modal w-[750px] max-w-[95vw] shadow-2xl relative" style="background-color: #F7F3EC; border: 1px solid #DDD7CE;">
+          <div class="modal-header border-b" style="background-color: #C8622A; border-color: rgba(255,255,255,0.1);">
+            <h3 class="modal-title text-base font-bold text-white">문서 작성 방식 선택</h3>
+            <button type="button" class="modal-close" style="filter: brightness(0) invert(1);" aria-label="닫기" @click="handleCloseModal" />
           </div>
-          <button class="w-full bg-[#2ecc71] text-white py-3 rounded-lg font-bold shadow-lg hover:bg-emerald-600 transition-all" @click="startNewQuotation">+ 견적서 신규 생성</button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="showCorpModal" class="modal-overlay z-[2100] p-4">
-      <div class="modal w-[600px] max-w-[95vw] overflow-hidden">
-        <div class="modal-header">
-          <h3 class="modal-title text-base">거래처 선택</h3>
-          <button type="button" class="modal-close" aria-label="닫기" @click="showCorpModal = false" />
-        </div>
-        <div class="modal-body">
-          <input v-model="clientSearchInput" type="text" placeholder="거래처명 또는 코드 검색..." class="w-full border p-2 rounded mb-4 text-sm outline-none focus:ring-2 focus:ring-blue-300">
-          <div class="max-h-[400px] overflow-y-auto border rounded">
-            <table class="w-full text-sm text-center">
-              <thead class="bg-gray-100 sticky top-0">
-              <tr><th class="p-2">코드</th><th class="p-2">법인명</th><th class="p-2">담당자</th><th class="p-2">선택</th></tr>
-              </thead>
-              <tbody>
-              <tr v-for="corp in filteredClients" :key="corp.id" class="border-b hover:bg-slate-50 transition-colors">
-                <td class="p-3 text-slate-500 font-mono text-xs">{{ corp.code }}</td>
-                <td class="p-3 font-bold text-slate-800">{{ corp.name }}</td>
-                <td class="p-3 text-slate-600">{{ corp.contact }}</td>
-                <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold" @click="setCorp(corp)">선택</button></td>
-              </tr>
-              <tr v-if="filteredClients.length === 0"><td colspan="4" class="p-10 text-gray-400 italic">검색 결과가 없습니다.</td></tr>
-              </tbody>
-            </table>
+          <div class="modal-body p-6">
+            <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적 요청서 참조</p>
+            <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
+              <table class="w-full text-sm text-center border-collapse">
+                <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
+                <tr><th class="p-3">법인명</th><th class="p-3">담당자</th><th class="p-3">요청 날짜</th><th class="p-3">상태</th><th class="p-3">선택</th></tr>
+                </thead>
+                <tbody>
+                <tr v-for="req in documentStore.quotationRequests" :key="req.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRequest(req)">
+                  <td class="p-3 font-bold">{{ req.client?.name }}</td>
+                  <td class="p-3">{{ req.client?.contact }}</td>
+                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date }}</td>
+                  <td class="p-3 font-bold" style="color: #C8622A;">{{ req.status }}</td>
+                  <td class="p-3">
+                    <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">선택</button>
+                  </td>
+                </tr>
+                <tr v-if="!documentStore.quotationRequests || documentStore.quotationRequests.length === 0">
+                  <td colspan="5" class="p-10 italic" style="color: #9A8C7E;">참조 가능한 견적 요청서가 없습니다.</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+            <button
+                class="w-full text-white py-4 rounded-lg font-bold shadow-lg transition-all hover:opacity-90"
+                style="background-color: #7A8C42 !important;"
+                @click="startNewQuotation"
+            >
+              + 견적서 신규 생성
+            </button>
           </div>
         </div>
       </div>
-    </div>
 
-    <div v-if="showProductModal" class="modal-overlay z-[2100] p-4">
-      <div class="modal w-[850px] max-w-[95vw] overflow-hidden">
-        <div class="modal-header">
-          <h3 class="modal-title text-base">상품 검색</h3>
-          <button type="button" class="modal-close" aria-label="닫기" @click="showProductModal = false" />
-        </div>
-        <div class="modal-body">
-          <div class="flex gap-3 mb-4">
-            <select v-model="varietyFilter" class="border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-300">
-              <option v-for="opt in varietyOptions" :key="opt" :value="opt">{{ opt }}</option>
-            </select>
-            <input v-model="modalSearchInput" type="text" placeholder="상품명으로 검색" class="flex-1 border p-2 rounded text-sm outline-none focus:ring-2 focus:ring-blue-300">
+      <!-- Corp Modal -->
+      <div v-if="showCorpModal" class="modal-overlay z-[2100] p-4">
+        <div class="modal w-[600px] max-w-[95vw] shadow-2xl relative" style="background-color: #F7F3EC; border: 1px solid #DDD7CE;">
+          <div class="modal-header border-b" style="background-color: #C8622A; border-color: rgba(255,255,255,0.1);">
+            <h3 class="modal-title text-base font-bold text-white">거래처 선택</h3>
+            <button type="button" class="modal-close" style="filter: brightness(0) invert(1);" aria-label="닫기" @click="showCorpModal = false" />
           </div>
-          <div class="max-h-[450px] overflow-y-auto border rounded">
-            <table class="w-full text-sm text-center">
-              <thead class="bg-gray-100 sticky top-0">
-              <tr><th class="p-2">품종</th><th class="p-2">상품명</th><th class="p-2">단위</th><th class="p-2 text-right">표준 단가</th><th class="p-2">선택</th></tr>
-              </thead>
-              <tbody>
-              <tr v-for="p in filteredProducts" :key="p.id" class="border-b hover:bg-slate-50 transition-colors">
-                <td class="p-3 text-xs text-slate-500">{{ p.variety || p.category }}</td>
-                <td class="p-3 font-bold text-slate-800 text-left">{{ p.name }}</td>
-                <td class="p-3 text-slate-600">{{ p.unit }}</td>
-                <td class="p-3 text-right font-mono text-emerald-600 pr-4">{{ (p.price || p.unitPrice || 0).toLocaleString() }}원</td>
-                <td class="p-3"><button class="bg-[#3498db] text-white px-3 py-1 rounded text-xs font-bold hover:bg-blue-600" @click="addProduct(p)">추가</button></td>
-              </tr>
-              </tbody>
-            </table>
+          <div class="modal-body p-6">
+            <input
+                v-model="clientSearchInput"
+                type="text"
+                placeholder="거래처명 또는 코드 검색..."
+                class="w-full border p-3 rounded mb-4 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
+                style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
+            >
+            <div class="max-h-[400px] overflow-y-auto border rounded" style="background-color: #FAF7F3; border-color: #DDD7CE;">
+              <table class="w-full text-sm text-center border-collapse">
+                <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
+                <tr><th class="p-3">코드</th><th class="p-3">법인명</th><th class="p-3">담당자</th><th class="p-3">선택</th></tr>
+                </thead>
+                <tbody>
+                <tr v-for="corp in filteredClients" :key="corp.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;">
+                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ corp.code }}</td>
+                  <td class="p-3 font-bold">{{ corp.name }}</td>
+                  <td class="p-3">{{ corp.contact }}</td>
+                  <td class="p-3">
+                    <button class="text-white px-3 py-1 rounded text-xs font-bold transition-colors hover:opacity-90" style="background-color: #C8622A;" @click="setCorp(corp)">선택</button>
+                  </td>
+                </tr>
+                <tr v-if="filteredClients.length === 0"><td colspan="4" class="p-10 italic" style="color: #9A8C7E;">검색 결과가 없습니다.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="showProductModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="w-[800px] rounded-lg shadow-2xl border" style="background-color: #F7F3EC; border-color: #DDD7CE;">
+          <div class="text-white p-4 flex justify-between items-center font-bold rounded-t-lg" style="background-color: #C8622A !important; color: white !important;">
+            <h3 style="color: white !important;">상품 검색 및 선택</h3>
+            <button @click="showProductModal = false" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
+          </div>
+          <div class="p-5">
+            <div class="flex gap-3 mb-4 relative z-50">
+              <!-- Custom Variety Dropdown -->
+              <div ref="varietyDropdownRef" class="relative w-32">
+                <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded border p-2 text-sm font-bold shadow-sm outline-none transition-all focus:ring-1 focus:ring-[#7A8C42]"
+                    style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
+                    @click="isVarietyDropdownOpen = !isVarietyDropdownOpen"
+                >
+                  <span>{{ varietyFilter }}</span>
+                  <span class="ml-2 transform text-xs transition-transform" :class="{ 'rotate-180': isVarietyDropdownOpen }">▼</span>
+                </button>
+                <ul
+                    v-if="isVarietyDropdownOpen"
+                    class="absolute left-0 z-[2200] mt-1 m-0 p-0 w-full rounded border shadow-lg overflow-y-auto max-h-60 list-none"
+                    style="background-color: #FAF7F3; border-color: #DDD7CE;"
+                >
+                  <li
+                      v-for="opt in varietyOptions"
+                      :key="opt"
+                      class="cursor-pointer px-3 py-2 text-sm transition-colors"
+                      :class="[varietyFilter === opt ? 'bg-[#C8D4A0] font-bold' : 'hover:bg-[#EFEADF]']"
+                      style="color: #3D3529;"
+                      @click="varietyFilter = opt; isVarietyDropdownOpen = false"
+                  >
+                    {{ opt }}
+                  </li>
+                </ul>
+              </div>
+
+              <input
+                  v-model="modalSearchInput"
+                  type="text"
+                  placeholder="상품명으로 검색"
+                  class="search-input flex-1 border p-2 rounded text-sm outline-none focus:ring-1 focus:ring-[#7A8C42] shadow-sm"
+                  style="background-color: #FAF7F3 !important; border-color: #DDD7CE; color: #3D3529 !important;"
+              >
+            </div>
+            <div class="max-h-[450px] overflow-y-auto border rounded" style="background-color: #F7F3EC; border-color: #DDD7CE;">
+              <table class="w-full text-sm text-center border-collapse">
+                <thead class="sticky top-0 font-bold" style="color: #3D3529 !important;">
+                <tr style="background-color: #EFEADF !important;">
+                  <th class="p-2 border" style="border-color: #DDD7CE; color: #3D3529 !important;">품종</th>
+                  <th class="p-2 border" style="border-color: #DDD7CE; color: #3D3529 !important;">상품명</th>
+                  <th class="p-2 border" style="border-color: #DDD7CE; color: #3D3529 !important;">단위</th>
+                  <th class="p-2 border" style="border-color: #DDD7CE; color: #3D3529 !important;">단가</th>
+                  <th class="p-2 border" style="border-color: #DDD7CE; color: #3D3529 !important;">선택</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="p in filteredProducts" :key="p.id" class="border-b transition-colors hover-row" style="border-color: #E8E3D8; color: #6B5F50 !important;">
+                  <td class="p-3 text-xs font-bold" style="color: #9A8C7E !important; border-color: #E8E3D8;">{{ p.variety || p.category }}</td>
+                  <td class="p-3 font-bold text-left" style="color: #3D3529 !important; border-color: #E8E3D8;">{{ p.name }}</td>
+                  <td class="p-3 font-bold" style="color: #6B5F50 !important; border-color: #E8E3D8;">{{ p.unit }}</td>
+                  <td class="p-3 text-right font-mono" style="color: #7A8C42 !important; border-color: #E8E3D8;">{{ (p.price || p.unitPrice || 0).toLocaleString() }}원</td>
+                  <td class="p-3" style="border-color: #E8E3D8;">
+                    <button
+                        class="text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors hover:opacity-90"
+                        style="background-color: #C8622A !important;"
+                        @click="addProduct(p)"
+                    >
+                      추가
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="filteredProducts.length === 0">
+                  <td colspan="5" class="p-10 italic text-center" style="color: #9A8C7E;">검색 결과가 없습니다.</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </template>
+
+<style scoped>
+/* Modal Animations */
+.animate-in {
+  animation: fadeIn 0.3s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F7F3EC;
+}
+::-webkit-scrollbar-thumb {
+  background: #DDD7CE;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C8622A;
+}
+
+/* Input/Textarea Styles */
+input::placeholder, textarea::placeholder {
+  color: #9A8C7E;
+  font-style: italic;
+}
+
+/* Hover Effects */
+.hover-row:hover {
+  background-color: #EFEADF !important;
+}
+
+/* Table Sticky Header Shadow */
+thead th {
+  box-shadow: 0 1px 0 #DDD7CE;
+}
+
+/* Button & Tooltip effects */
+button:active {
+  transform: scale(0.98);
+}
+</style>

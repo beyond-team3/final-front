@@ -598,26 +598,32 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const cancelQuotationRequest = async (id) => {
+    const deleteDocument = async (id) => {
         try {
             const doc = allRawDocuments.value.find(d => String(d.id) === String(id))
             const historyId = doc?.historyId
 
-            // 1. 문서 삭제
+            // 1. 서버에서 문서 삭제
             await deleteDocumentApi(id)
+
+            // 2. 로컬 상태에서 제거
             allRawDocuments.value = allRawDocuments.value.filter(d => String(d.id) !== String(id))
 
-            // 2. 히스토리 삭제 (있는 경우)
+            // 3. 연관된 히스토리(파이프라인) 삭제 (최초 문서인 경우 등)
             if (historyId) {
+                // 파이프라인에 다른 문서가 상주해 있는지 여부에 따라 전체 삭제 혹은 부분 관리 가능
+                // 여기서는 기존 cancelQuotationRequest 로직을 따라 파이프라인 전체 삭제를 기본으로 함
                 await historyStore.deletePipeline(historyId)
             }
 
             return true
         } catch (e) {
-            error.value = getErrorMessage(e, '견적 요청서 삭제에 실패했습니다.')
+            error.value = getErrorMessage(e, '문서 삭제에 실패했습니다.')
             return false
         }
     }
+
+    const cancelQuotationRequest = (id) => deleteDocument(id)
 
     async function initialize() {
         loading.value = true
@@ -672,6 +678,7 @@ export const useDocumentStore = defineStore('document', () => {
         cancelOrder,
         cancelInvoice,
         cancelQuotationRequest,
+        deleteDocument,
         statements,
         fetchStatements,
         initialize,
