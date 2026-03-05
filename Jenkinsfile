@@ -48,48 +48,57 @@ pipeline {
 			}
 		}
 
-	    stage('Update Manifest (CD)') {
-            when { branch 'main' }
+	    stage('Update Manifest') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
-                    // 1. 설정 변수
-                    def manifestRepoUrl = "github.com/beyond-team3/monsoon-manifests.git"
+                    // SSH 주소 형식으로 변경
+                    def manifestRepoUrl = "git@github.com:beyond-team3/final-manifests.git"
                     def targetFile = "frontend/deployment.yml"
                     def imageName = "21monsoon/monsoon-frontend"
                     def newTag = "${env.APP_VERSION_PREFIX}.${env.BUILD_ID}"
 
-                    withCredentials([usernamePassword(credentialsId: 'github-access-token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    // 등록하신 SSH 자격 증명 ID 사용
+                    sshagent(credentials: ['github-deploy-key']) {
                         sh """
-                            set +x
-                            # 기존 폴더 정리
+                            # 기존 임시 폴더 정리
                             rm -rf temp-manifests
 
-                            # Clone (이때는 비밀번호 사용)
-                            git clone https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} temp-manifests
-
+                            # SSH를 통한 보안 클론
+                            git clone ${manifestRepoUrl} temp-manifests
                             cd temp-manifests
-
-                            # 로컬 설정 파일(.git/config)에서 비밀번호가 포함된 URL을 즉시 삭제
-                            git remote set-url origin https://${manifestRepoUrl}
 
                             # 젠킨스 봇 계정 설정
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
 
-                            # 파일 수정 (sed)
+                            # 태그 업데이트
                             sed -i "s|image: ${imageName}:.*|image: ${imageName}:${newTag}|g" ${targetFile}
 
-                            # Commit & Push
-                            git add "${targetFile}"
-                            # Push 할 때만 일회성으로 비밀번호를 다시 조합해서 사용
-                            git diff-index --quiet HEAD || (git commit -m "🚀 [CD] Update ${imageName} to ${newTag}" && git push https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} main)
+                            # 변경 사항이 있을 때만 커밋 및 푸시
+                            git add ${targetFile}
 
-                            set -x
+                            if git diff --cached --quiet; then
+                                echo "No changes detected in manifest; skipping commit/push."
+                            else
+                                # 동시 푸시 충돌 방지를 위한 rebase 전략 적용
+                                git commit -m "[CD] Update ${imageName} to ${newTag} [skip ci]"
+                                for attempt in 1 2 3; do
+                                    git pull --rebase origin main && git push origin main && break
+                                    if [ "$attempt" -eq 3 ]; then
+                                        echo "Push failed after 3 attempts."
+                                        exit 1
+                                    fi
+                                    sleep 2
+                                done
+                                echo "Manifest update stage completed for beyond-team3/final-manifests frontend"
+                            fi
                         """
                     }
                 }
             }
-            // 빌드가 성공하든 실패하든 무조건 임시 폴더 삭제
             post {
                 always {
                     sh 'rm -rf temp-manifests'
