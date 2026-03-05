@@ -1,23 +1,24 @@
 <script setup>
-import { nextTick, ref } from 'vue'
+import { ref } from 'vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import AppSidebar from '@/components/common/AppSidebar.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
+import { provideLayoutState } from '@/composables/layoutState'
 
 const isSidebarOpen = ref(true)
+const layoutState = provideLayoutState()
 
-const emitLayoutResize = async () => {
-  await nextTick()
-  window.dispatchEvent(new Event('resize'))
-  window.setTimeout(() => {
-    window.dispatchEvent(new Event('resize'))
-  }, 120)
+const emitLayoutResize = () => {
+  layoutState.setSidebarOpen(isSidebarOpen.value)
+  layoutState.notifyLayoutResize()
 }
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
   emitLayoutResize()
 }
+
+emitLayoutResize()
 </script>
 
 <template>
