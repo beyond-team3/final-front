@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CdrButton, IconRefresh } from '@rei/cedar'
+import { CdrButton, IconAccountProfile, IconArrowLeft, IconArrowRight, IconLocationPinStroke, IconRefresh } from '@rei/cedar'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
 import { syncHarvestSchedulesForSalesRep } from '@/services/GrowingSeasonService'
@@ -16,7 +16,22 @@ const notificationStore = useNotificationStore()
 const router = useRouter()
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
+const canUseScheduleTypeFilter = computed(() => isSalesRep.value || isAdmin.value)
 const filterState = ref({ sales: 'ALL', client: 'ALL', employee: 'ALL', scheduleType: 'ALL' })
+const showClientFilterMenu = ref(false)
+const showEmployeeFilterMenu = ref(false)
+const clientFilterOptions = [
+  { value: 'ALL', label: '전체' },
+  { value: 'C001', label: '대상팜' },
+  { value: 'C002', label: '그린농원' },
+  { value: 'C003', label: '해오름농장' },
+]
+const employeeFilterOptions = [
+  { value: 'ALL', label: '전체' },
+  { value: 'E001', label: '김영업' },
+  { value: 'E002', label: '이영업' },
+  { value: 'E003', label: '박영업' },
+]
 
 const viewDate = ref(new Date(2026, 1, 1))
 const selectedDate = ref('2026-02-10')
@@ -108,20 +123,27 @@ const recommendations = ref([
   { id: 4, name: '파워 고추', tag: '내병성', colorA: '#fff7ef', colorB: '#ffe6cd' },
 ])
 const recommendIdx = ref(0)
-let carouselTimer = null
 
 const dayModalOpen = ref(false)
 const detailModalOpen = ref(false)
 const editModalOpen = ref(false)
 const detailEvent = ref(null)
 
-const editDate = ref('')
-const editTime = ref('09:00')
 const editTitle = ref('')
 const editDesc = ref('')
+const editStartAt = ref('')
+const editEndAt = ref('')
+const editAllDay = ref(false)
+const editStatus = ref('PLANNED')
+const editVisibility = ref('PRIVATE')
 const editingId = ref(null)
 const harvestAlerts = ref([])
 const generatedEvents = ref([])
+const harvestDummyItems = [
+  { sourceKey: 'DUMMY-001', varietyName: '샤인토마토 F1', expectedHarvestMonth: 3, clientId: 'C001', clientName: '대상팜' },
+  { sourceKey: 'DUMMY-002', varietyName: '프라임오이', expectedHarvestMonth: 3, clientId: 'C002', clientName: '그린농원' },
+  { sourceKey: 'DUMMY-003', varietyName: '골드파프리카', expectedHarvestMonth: 4, clientId: 'C003', clientName: '해오름농장' },
+]
 
 const labelHistory = (cat) => ({
   RFQ: '견적요청',
@@ -165,6 +187,76 @@ const eventTypeDetailLabel = (eventItem) => {
   return '개인 일정'
 }
 
+// 3개 이상일 때는 "첫 번째 일정 + ..."만 표시 (셀 내 안정적 표시)
+const MAX_BADGES_PER_CELL = 2
+
+const truncateBadgeText = (text) => {
+  const rawText = String(text ?? '')
+  return rawText.length > 5 ? `${rawText.slice(0, 5)}...` : rawText
+}
+
+const scheduleStatusOptions = [
+  { value: 'PLANNED', label: '예정' },
+  { value: 'IN_PROGRESS', label: '진행중' },
+  { value: 'COMPLETED', label: '완료' },
+  { value: 'CANCELED', label: '취소' },
+]
+
+const scheduleVisibilityOptions = [
+  { value: 'PRIVATE', label: '비공개' },
+  { value: 'TEAM', label: '팀 공개' },
+  { value: 'PUBLIC', label: '전체 공개' },
+]
+
+const formatToDateTimeLocal = (value) => {
+  const dateObj = new Date(value)
+  if (Number.isNaN(dateObj.getTime())) {
+    return ''
+  }
+  return `${ymd(dateObj)}T${pad2(dateObj.getHours())}:${pad2(dateObj.getMinutes())}`
+}
+
+const addHoursToDateTimeLocal = (dateTimeLocalValue, hoursToAdd = 1) => {
+  const dateObj = new Date(dateTimeLocalValue)
+  if (Number.isNaN(dateObj.getTime())) {
+    return ''
+  }
+  dateObj.setHours(dateObj.getHours() + hoursToAdd)
+  return formatToDateTimeLocal(dateObj)
+}
+
+const buildPersonalEvent = ({ id, title, description, startAt, endAt, allDay, status, visibility }) => {
+  const startDate = new Date(startAt)
+  const fallbackDate = selectedDate.value || ymd(new Date())
+  const date = Number.isNaN(startDate.getTime()) ? fallbackDate : ymd(startDate)
+
+  return {
+    id,
+    type: 'personal',
+    title: `개인 일정: ${title}`,
+    desc: description,
+    startAt,
+    endAt,
+    allDay,
+    status,
+    visibility,
+    date,
+    time: allDay ? '' : (startAt?.split('T')[1] || ''),
+  }
+}
+
+const getVisibleBadges = (events) => {
+  if (!Array.isArray(events) || events.length === 0) {
+    return []
+  }
+  if (events.length >= 3) {
+    return events.slice(0, 1)
+  }
+  return events.slice(0, MAX_BADGES_PER_CELL)
+}
+
+const shouldShowMoreBadge = (events) => Array.isArray(events) && events.length >= 3
+
 const passHistoryFilter = (ev) => {
   if (ev.type !== 'history') return true
   if (filterState.value.sales !== 'ALL' && ev.historyCategory !== filterState.value.sales) return false
@@ -174,21 +266,15 @@ const passHistoryFilter = (ev) => {
 }
 
 const passScheduleTypeFilter = (ev) => {
-  if (!isSalesRep.value || filterState.value.scheduleType === 'ALL') {
+  if (!canUseScheduleTypeFilter.value || filterState.value.scheduleType === 'ALL') {
     return true
   }
 
-  if (filterState.value.scheduleType === 'DOCUMENT') {
+  if (filterState.value.scheduleType === 'BUSINESS') {
     return ev.type === 'history'
   }
   if (filterState.value.scheduleType === 'PERSONAL') {
     return ev.type === 'personal'
-  }
-  if (filterState.value.scheduleType === 'GROWING_SEASON') {
-    return ev.type === 'growing-season'
-  }
-  if (filterState.value.scheduleType === 'HARVEST') {
-    return ev.type === 'harvest'
   }
   return true
 }
@@ -250,6 +336,14 @@ const calendarCells = computed(() => {
 
 const selectedDayEvents = computed(() => eventsByDate(selectedDate.value))
 const currentRecommendation = computed(() => recommendations.value[recommendIdx.value])
+const hasHarvestAlerts = computed(() => harvestAlerts.value.length > 0)
+const harvestItems = computed(() => (hasHarvestAlerts.value ? harvestAlerts.value : harvestDummyItems))
+const selectedClientLabel = computed(
+  () => clientFilterOptions.find((item) => item.value === filterState.value.client)?.label || '전체',
+)
+const selectedEmployeeLabel = computed(
+  () => employeeFilterOptions.find((item) => item.value === filterState.value.employee)?.label || '전체',
+)
 
 const openDayModal = (date) => {
   selectedDate.value = date
@@ -264,10 +358,15 @@ const openDetail = (eventItem) => {
 
 const openEditModal = (eventItem = null) => {
   editingId.value = eventItem?.id || null
-  editDate.value = eventItem?.date || selectedDate.value || ymd(new Date())
-  editTime.value = eventItem?.time || '09:00'
   editTitle.value = (eventItem?.title || '').replace('개인 일정: ', '')
   editDesc.value = eventItem?.desc || ''
+  const baseDate = eventItem?.date || selectedDate.value || ymd(new Date())
+  const fallbackStartAt = `${baseDate}T09:00`
+  editStartAt.value = eventItem?.startAt ? formatToDateTimeLocal(eventItem.startAt) : fallbackStartAt
+  editEndAt.value = eventItem?.endAt ? formatToDateTimeLocal(eventItem.endAt) : addHoursToDateTimeLocal(editStartAt.value)
+  editAllDay.value = Boolean(eventItem?.allDay)
+  editStatus.value = eventItem?.status || 'PLANNED'
+  editVisibility.value = eventItem?.visibility || 'PRIVATE'
   editModalOpen.value = true
 }
 
@@ -285,6 +384,20 @@ const goToRecommendationDetail = async (item, index = null) => {
   }
 }
 
+const prevRecommendation = () => {
+  if (recommendations.value.length === 0) {
+    return
+  }
+  recommendIdx.value = (recommendIdx.value - 1 + recommendations.value.length) % recommendations.value.length
+}
+
+const nextRecommendation = () => {
+  if (recommendations.value.length === 0) {
+    return
+  }
+  recommendIdx.value = (recommendIdx.value + 1) % recommendations.value.length
+}
+
 const goToClientDetail = async (clientId) => {
   if (!clientId) {
     return
@@ -300,29 +413,84 @@ const resetFilters = () => {
   filterState.value = { sales: 'ALL', client: 'ALL', employee: 'ALL', scheduleType: 'ALL' }
 }
 
-const saveEdit = () => {
-  if (!editDate.value || !editTitle.value.trim()) {
-    window.alert('날짜와 제목은 필수입니다.')
+const toggleClientFilterMenu = () => {
+  showClientFilterMenu.value = !showClientFilterMenu.value
+  if (showClientFilterMenu.value) {
+    showEmployeeFilterMenu.value = false
+  }
+}
+
+const toggleEmployeeFilterMenu = () => {
+  showEmployeeFilterMenu.value = !showEmployeeFilterMenu.value
+  if (showEmployeeFilterMenu.value) {
+    showClientFilterMenu.value = false
+  }
+}
+
+const applyClientFilter = (value) => {
+  filterState.value.client = value
+  showClientFilterMenu.value = false
+}
+
+const applyEmployeeFilter = (value) => {
+  filterState.value.employee = value
+  showEmployeeFilterMenu.value = false
+}
+
+const closeFilterMenusByOutsideClick = (event) => {
+  const target = event?.target
+  if (!(target instanceof Element)) {
     return
+  }
+
+  if (!target.closest('.filter-popover')) {
+    showClientFilterMenu.value = false
+    showEmployeeFilterMenu.value = false
+  }
+}
+
+const saveEdit = () => {
+  const title = editTitle.value.trim()
+  const description = editDesc.value.trim()
+
+  if (!title || !editStartAt.value || !editEndAt.value || !editStatus.value || !editVisibility.value) {
+    window.alert('제목, 시작/종료 일시, 상태, 공개 범위는 필수입니다.')
+    return
+  }
+
+  if (title.length > 200) {
+    window.alert('제목은 200자 이하여야 합니다.')
+    return
+  }
+
+  const startDate = new Date(editStartAt.value)
+  const endDate = new Date(editEndAt.value)
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    window.alert('시작/종료 일시 형식이 올바르지 않습니다.')
+    return
+  }
+  if (endDate <= startDate) {
+    window.alert('종료 일시는 시작 일시보다 늦어야 합니다.')
+    return
+  }
+
+  const payload = {
+    title,
+    description,
+    startAt: editStartAt.value,
+    endAt: editEndAt.value,
+    allDay: editAllDay.value,
+    status: editStatus.value,
+    visibility: editVisibility.value,
   }
 
   if (editingId.value) {
     const target = events.value.find((item) => item.id === editingId.value)
     if (target) {
-      target.date = editDate.value
-      target.time = editTime.value
-      target.title = `개인 일정: ${editTitle.value.trim()}`
-      target.desc = editDesc.value.trim()
+      Object.assign(target, buildPersonalEvent({ ...payload, id: editingId.value }))
     }
   } else {
-    events.value.push({
-      id: `P-${Date.now()}`,
-      type: 'personal',
-      date: editDate.value,
-      time: editTime.value,
-      title: `개인 일정: ${editTitle.value.trim()}`,
-      desc: editDesc.value.trim(),
-    })
+    events.value.push(buildPersonalEvent({ ...payload, id: `P-${Date.now()}` }))
   }
 
   editModalOpen.value = false
@@ -341,12 +509,6 @@ const prevMonth = async () => {
 const nextMonth = async () => {
   viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 1)
   await loadHarvestSchedules()
-}
-
-const startRecommendTimer = () => {
-  carouselTimer = window.setInterval(() => {
-    recommendIdx.value = (recommendIdx.value + 1) % recommendations.value.length
-  }, 5000)
 }
 
 const loadHarvestSchedules = async () => {
@@ -379,14 +541,12 @@ const loadHarvestSchedules = async () => {
 }
 
 onMounted(async () => {
-  startRecommendTimer()
+  window.addEventListener('click', closeFilterMenusByOutsideClick)
   await loadHarvestSchedules()
 })
 
 onBeforeUnmount(() => {
-  if (carouselTimer) {
-    window.clearInterval(carouselTimer)
-  }
+  window.removeEventListener('click', closeFilterMenusByOutsideClick)
 })
 </script>
 
@@ -399,35 +559,94 @@ onBeforeUnmount(() => {
         <div class="toolbar">
           <div class="toolbar-left">
             <div class="filter-grid">
-              <div class="select">
-                <span class="select-prefix">거래처</span>
-                <select id="clientSelector" v-model="filterState.client" aria-label="거래처 필터">
-                  <option value="ALL">전체</option>
-                  <option value="C001">대상팜</option>
-                  <option value="C002">그린농원</option>
-                  <option value="C003">해오름농장</option>
-                </select>
+              <div class="filter-popover">
+                <CdrButton
+                  type="button"
+                  modifier="secondary"
+                  icon-only
+                  with-background
+                  class="filter-icon-btn"
+                  :aria-expanded="showClientFilterMenu"
+                  :aria-label="`거래처 필터 (${selectedClientLabel})`"
+                  @click.stop="toggleClientFilterMenu"
+                >
+                  <IconLocationPinStroke />
+                </CdrButton>
+                <div v-if="showClientFilterMenu" class="filter-dropdown" @click.stop>
+                  <button
+                    v-for="option in clientFilterOptions"
+                    :key="option.value"
+                    type="button"
+                    class="filter-dropdown-item"
+                    :class="{ active: filterState.client === option.value }"
+                    @click="applyClientFilter(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
               </div>
 
-              <div v-if="isSalesRep" class="select">
-                <span class="select-prefix">일정</span>
-                <select id="scheduleTypeSelector" v-model="filterState.scheduleType" aria-label="일정 구분 필터">
-                  <option value="ALL">전체</option>
-                  <option value="DOCUMENT">문서 일정</option>
-                  <option value="PERSONAL">개인 일정</option>
-                  <option value="GROWING_SEASON">재배적기</option>
-                  <option value="HARVEST">수확 일정</option>
-                </select>
+              <div v-if="isAdmin" class="filter-popover">
+                <CdrButton
+                  type="button"
+                  modifier="secondary"
+                  icon-only
+                  with-background
+                  class="filter-icon-btn"
+                  :aria-expanded="showEmployeeFilterMenu"
+                  :aria-label="`사원 필터 (${selectedEmployeeLabel})`"
+                  @click.stop="toggleEmployeeFilterMenu"
+                >
+                  <IconAccountProfile />
+                </CdrButton>
+                <div v-if="showEmployeeFilterMenu" class="filter-dropdown" @click.stop>
+                  <button
+                    v-for="option in employeeFilterOptions"
+                    :key="option.value"
+                    type="button"
+                    class="filter-dropdown-item"
+                    :class="{ active: filterState.employee === option.value }"
+                    @click="applyEmployeeFilter(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
               </div>
 
-              <div v-if="isAdmin" class="select">
-                <span class="select-prefix">사원</span>
-                <select id="employeeSelector" v-model="filterState.employee" aria-label="사원 필터">
-                  <option value="ALL">전체</option>
-                  <option value="E001">김영업</option>
-                  <option value="E002">이영업</option>
-                  <option value="E003">박영업</option>
-                </select>
+              <div v-if="canUseScheduleTypeFilter" class="schedule-filter" role="group" aria-label="일정 구분 필터">
+                <CdrButton
+                  type="button"
+                  size="small"
+                  modifier="secondary"
+                  class="schedule-filter-btn"
+                  :class="{ 'is-active': filterState.scheduleType === 'ALL' }"
+                  :aria-pressed="filterState.scheduleType === 'ALL'"
+                  @click="filterState.scheduleType = 'ALL'"
+                >
+                  전체
+                </CdrButton>
+                <CdrButton
+                  type="button"
+                  size="small"
+                  modifier="secondary"
+                  class="schedule-filter-btn"
+                  :class="{ 'is-active': filterState.scheduleType === 'BUSINESS' }"
+                  :aria-pressed="filterState.scheduleType === 'BUSINESS'"
+                  @click="filterState.scheduleType = 'BUSINESS'"
+                >
+                  거래 일정
+                </CdrButton>
+                <CdrButton
+                  type="button"
+                  size="small"
+                  modifier="secondary"
+                  class="schedule-filter-btn"
+                  :class="{ 'is-active': filterState.scheduleType === 'PERSONAL' }"
+                  :aria-pressed="filterState.scheduleType === 'PERSONAL'"
+                  @click="filterState.scheduleType = 'PERSONAL'"
+                >
+                  개인 일정
+                </CdrButton>
               </div>
             </div>
           </div>
@@ -471,10 +690,10 @@ onBeforeUnmount(() => {
               >
                 <div class="day-num">{{ cell.day }}</div>
                 <div class="badge-row">
-                  <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id" class="badge" :class="ev.type">
-                    {{ ev.type === 'history' ? `${historyLabelWithOwner(ev)} · ${ev.title}` : `${eventTypeLabel(ev)} · ${ev.title}` }}
+                  <div v-for="ev in getVisibleBadges(cell.events)" :key="ev.id" class="badge" :class="ev.type">
+                    {{ truncateBadgeText(ev.type === 'history' ? `${historyLabelWithOwner(ev)} · ${ev.title}` : `${eventTypeLabel(ev)} · ${ev.title}`) }}
                   </div>
-                  <div v-if="cell.events.length > 3" class="badge">+{{ cell.events.length - 3 }}</div>
+                  <div v-if="shouldShowMoreBadge(cell.events)" class="badge more">...</div>
                 </div>
               </div>
             </div>
@@ -483,57 +702,78 @@ onBeforeUnmount(() => {
       </div>
 
       <aside class="calendar-right">
-        <div v-if="isSalesRep" class="harvest-card">
-          <div class="harvest-card-header">
-            <div class="harvest-card-title">수확 시즌 알림</div>
-            <div class="harvest-card-subtitle">수확월 도달 품종</div>
-          </div>
-          <div v-if="harvestAlerts.length === 0" class="harvest-empty">이번 달 수확 예정 품종이 없습니다.</div>
-          <div v-else class="harvest-list">
-            <div v-for="item in harvestAlerts" :key="item.sourceKey" class="harvest-item">
-              <div class="harvest-item-main">
-                <div class="harvest-variety">{{ item.varietyName }}</div>
-                <div class="harvest-month">예상 수확월: {{ item.expectedHarvestMonth }}월</div>
-              </div>
-              <button class="btn btn-primary harvest-cta" type="button" @click="goToClientDetail(item.clientId)">거래처 이동</button>
-            </div>
-          </div>
-        </div>
-
         <div class="side-card">
           <div class="side-header">
-            <div class="side-title">이번달 판매 추천</div>
+            <div class="side-title">이번달 추천 품종</div>
             <span style="font-size:12px;color:#6b7a8c;">자동 슬라이드</span>
           </div>
 
           <div v-if="currentRecommendation" class="carousel">
-            <div
-              class="carousel-img"
-              role="button"
-              tabindex="0"
-              :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
-              @click="goToRecommendationDetail(currentRecommendation)"
-              @keydown.enter="goToRecommendationDetail(currentRecommendation)"
-              @keydown.space.prevent="goToRecommendationDetail(currentRecommendation)"
-            >
-              <div class="carousel-main-text">{{ currentRecommendation.name }}</div>
+            <div class="carousel-img-wrap">
+              <CdrButton
+                class="carousel-arrow left"
+                type="button"
+                modifier="secondary"
+                icon-only
+                with-background
+                aria-label="이전 추천 품종"
+                @click.stop="prevRecommendation"
+              >
+                <IconArrowLeft />
+              </CdrButton>
+              <div
+                class="carousel-img"
+                role="button"
+                tabindex="0"
+                :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
+                @click="goToRecommendationDetail(currentRecommendation)"
+                @keydown.enter="goToRecommendationDetail(currentRecommendation)"
+                @keydown.space.prevent="goToRecommendationDetail(currentRecommendation)"
+              >
+                <div class="carousel-main-text">{{ currentRecommendation.name }}</div>
+              </div>
+              <CdrButton
+                class="carousel-arrow right"
+                type="button"
+                modifier="secondary"
+                icon-only
+                with-background
+                aria-label="다음 추천 품종"
+                @click.stop="nextRecommendation"
+              >
+                <IconArrowRight />
+              </CdrButton>
             </div>
             <div class="carousel-caption">{{ currentRecommendation.name }}</div>
+            <div class="carousel-dots" role="tablist" aria-label="추천 품종 슬라이드 선택">
+              <button
+                v-for="(item, index) in recommendations"
+                :key="item.id"
+                type="button"
+                class="carousel-dot"
+                :class="{ active: index === recommendIdx }"
+                :aria-label="`${item.name} 보기`"
+                :aria-current="index === recommendIdx ? 'true' : 'false'"
+                @click="recommendIdx = index"
+              />
+            </div>
           </div>
+        </div>
 
-          <div class="recommend-list">
-            <div
-              v-for="(item, index) in recommendations"
-              :key="item.id"
-              class="recommend-item"
-              role="button"
-              tabindex="0"
-              @click="goToRecommendationDetail(item, index)"
-              @keydown.enter="goToRecommendationDetail(item, index)"
-              @keydown.space.prevent="goToRecommendationDetail(item, index)"
-            >
-              <div class="recommend-name">{{ item.name }}</div>
-              <div class="recommend-tag">{{ item.tag }}</div>
+        <div v-if="isSalesRep" class="harvest-card">
+          <div class="harvest-card-header">
+            <div class="harvest-card-title">수확 임박</div>
+          </div>
+          <div class="harvest-list">
+            <div v-for="item in harvestItems" :key="item.sourceKey" class="harvest-item">
+              <div class="harvest-item-main">
+                <div class="harvest-variety">{{ item.varietyName }}</div>
+                <div class="harvest-meta">
+                  <span class="harvest-month">수확 {{ item.expectedHarvestMonth }}월</span>
+                  <span class="harvest-client">{{ item.clientName }}</span>
+                </div>
+              </div>
+              <button class="btn btn-primary harvest-cta" type="button" @click="goToClientDetail(item.clientId)">거래처 이동</button>
             </div>
           </div>
         </div>
@@ -592,29 +832,61 @@ onBeforeUnmount(() => {
           <button class="modal-close" type="button" @click="editModalOpen = false">×</button>
         </div>
         <div class="modal-body">
-          <div class="modal-section-title">요청 정보</div>
-          <div class="form-grid">
-            <div class="field">
-              <label for="editDate">날짜</label>
-              <input id="editDate" v-model="editDate" type="date">
+          <p class="schedule-modal-note">
+            개인 일정 생성 요청 스펙에 맞게 입력하세요. (제목 200자 이하, 종료 일시는 시작 이후)
+          </p>
+          <div class="schedule-modal-grid">
+            <div class="schedule-field">
+              <label for="editStartAt" class="schedule-label">시작 일시 *</label>
+              <input id="editStartAt" v-model="editStartAt" type="datetime-local" class="schedule-control" required>
             </div>
-            <div class="field">
-              <label for="editTime">시간</label>
-              <input id="editTime" v-model="editTime" type="time">
+            <div class="schedule-field">
+              <label for="editEndAt" class="schedule-label">종료 일시 *</label>
+              <input id="editEndAt" v-model="editEndAt" type="datetime-local" class="schedule-control" required>
             </div>
-            <div class="field full">
-              <label for="editTitle">제목</label>
-              <input id="editTitle" v-model="editTitle" type="text" placeholder="예: 거래처 미팅 준비">
+            <div class="schedule-field schedule-modal-wide">
+              <label for="editTitle" class="schedule-label">제목 *</label>
+              <input
+                id="editTitle"
+                v-model="editTitle"
+                type="text"
+                maxlength="200"
+                class="schedule-control"
+                placeholder="예: 거래처 미팅 준비"
+                required
+              >
             </div>
-            <div class="field full">
-              <label for="editDesc">설명</label>
-              <textarea id="editDesc" v-model="editDesc" placeholder="예: 자료 정리, 방문 일정 확정 등"></textarea>
+            <div class="schedule-field schedule-modal-wide">
+              <label for="editDesc" class="schedule-label">설명</label>
+              <textarea id="editDesc" v-model="editDesc" class="schedule-control schedule-textarea" placeholder="예: 자료 정리, 방문 일정 확정 등" />
+            </div>
+            <div class="schedule-inline-fields schedule-modal-wide">
+              <div class="schedule-field">
+                <label for="editStatus" class="schedule-label">상태 *</label>
+                <select id="editStatus" v-model="editStatus" class="schedule-control" required>
+                  <option v-for="option in scheduleStatusOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="schedule-field">
+                <label for="editVisibility" class="schedule-label">공개 범위 *</label>
+                <select id="editVisibility" v-model="editVisibility" class="schedule-control" required>
+                  <option v-for="option in scheduleVisibilityOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="schedule-modal-checkbox">
+                <input id="editAllDay" v-model="editAllDay" type="checkbox" class="schedule-checkbox">
+                <label for="editAllDay" class="schedule-checkbox-label">종일 일정</label>
+              </div>
             </div>
           </div>
 
           <div class="modal-actions">
             <button class="btn" type="button" @click="editModalOpen = false">취소</button>
-            <button class="btn btn-primary" type="button" @click="saveEdit">저장</button>
+            <button class="btn btn-primary schedule-save-btn" type="button" @click="saveEdit">저장</button>
           </div>
         </div>
       </div>
@@ -669,58 +941,117 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
 }
 
-.select {
+.filter-popover {
+  position: relative;
+}
+
+.filter-icon-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--color-text-body, #6B5F50);
-  width: 220px;
-  min-width: 220px;
-  flex: 0 0 220px;
-}
-
-.select-prefix {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text-sub, #9A8C7E);
-  white-space: nowrap;
-}
-
-.select select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  border-radius: 8px;
-  background-color: var(--color-bg-input, #FAF7F3);
-  padding: 0 34px 0 10px;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   height: 44px;
-  font-size: 13px;
+  padding: 0;
+  border-radius: 10px;
+  border: none;
+  background: rgba(122, 140, 66, 0.28);
+  color: var(--color-olive-dark, #586830);
+  box-shadow: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.filter-icon-btn:hover,
+.filter-icon-btn:focus {
+  background: var(--color-olive, #7A8C42);
+  color: #fff;
+}
+
+.filter-icon-btn:active {
+  background: var(--color-olive-dark, #586830);
+  color: #fff;
+}
+
+.filter-icon-btn :deep(svg) {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  fill: currentColor;
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 130px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-card, #DDD7CE);
+  background: var(--color-bg-input, #FAF7F3);
+  box-shadow: 0 6px 16px rgba(61, 53, 41, 0.12);
+}
+
+.filter-dropdown-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 12px;
+  color: var(--color-text-body, #6B5F50);
+  text-align: left;
+  cursor: pointer;
+}
+
+.filter-dropdown-item:hover {
+  background: var(--color-bg-section, #EFEADF);
+  color: var(--color-text-strong, #3D3529);
+}
+
+.filter-dropdown-item.active {
+  background: var(--color-olive-light, #C8D4A0);
+  color: var(--color-olive-dark, #586830);
+  font-weight: 700;
+}
+
+.schedule-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px;
+  flex-wrap: wrap;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(239, 234, 223, 0.92) 0%, rgba(247, 243, 236, 0.92) 100%);
+  box-shadow: inset 0 0 0 1px rgba(221, 215, 206, 0.45);
+}
+
+.schedule-filter :deep(.schedule-filter-btn) {
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, rgba(250, 247, 243, 0.96) 0%, rgba(239, 234, 223, 0.96) 100%);
   color: var(--color-text-body, #6B5F50);
   font-weight: 500;
-  cursor: pointer;
-  flex: 1 1 auto;
-  min-width: 0;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%239A8C7E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-position: right 12px center;
-  background-size: 12px 8px;
-  background-repeat: no-repeat;
+  box-shadow: 0 1px 2px rgba(61, 53, 41, 0.08);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
 }
 
-.select select::-ms-expand {
-  display: none;
+.schedule-filter :deep(.schedule-filter-btn:hover),
+.schedule-filter :deep(.schedule-filter-btn:focus-visible) {
+  background: linear-gradient(135deg, rgba(239, 234, 223, 0.95) 0%, rgba(200, 212, 160, 0.55) 100%);
+  color: var(--color-text-strong, #3D3529);
+  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.12), 0 6px 14px rgba(61, 53, 41, 0.14);
 }
 
-.select select:hover {
-  border-color: var(--color-text-sub, #9A8C7E);
+.schedule-filter :deep(.schedule-filter-btn.is-active) {
+  background: linear-gradient(120deg, rgba(200, 212, 160, 0.92) 0%, rgba(122, 140, 66, 0.48) 100%);
+  color: var(--color-text-strong, #3D3529);
+  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.16), 0 6px 14px rgba(88, 104, 48, 0.2);
 }
 
-.select select:focus {
-  outline: none;
-  border-color: var(--color-border-focus, #6B7C45);
-  box-shadow: 0 0 0 3px rgba(107, 124, 69, 0.16);
+.schedule-filter :deep(.schedule-filter-btn:active) {
+  transform: translateY(1px);
 }
 
 .btn {
@@ -866,9 +1197,23 @@ onBeforeUnmount(() => {
 }
 
 .day-num { font-size: 13px; font-weight: 800; color: inherit; }
-.badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.badge-row {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 38px;
+  bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  overflow: hidden;
+}
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 999px;
@@ -879,6 +1224,10 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.badge.more {
+  font-weight: 800;
 }
 
 .badge.history {
@@ -906,21 +1255,23 @@ onBeforeUnmount(() => {
 }
 
 .harvest-card {
-  border: 1px solid var(--color-orange-light, #F0C9A8);
+  border: 1px solid var(--color-border-card, #DDD7CE);
   border-radius: 12px;
-  background: var(--color-orange-light, #F0C9A8);
-  margin-bottom: 14px;
+  background: var(--color-bg-input, #FAF7F3);
+  margin-top: 14px;
+  overflow: hidden;
 }
 
 .harvest-card-header {
   padding: 14px 16px 10px;
   border-bottom: 1px solid var(--color-border-divider, #E8E3D8);
+  background: var(--color-bg-section, #EFEADF);
 }
 
 .harvest-card-title {
   font-size: 15px;
   font-weight: 800;
-  color: var(--color-orange-dark, #A34E20);
+  color: var(--color-text-strong, #3D3529);
 }
 
 .harvest-card-subtitle {
@@ -932,12 +1283,18 @@ onBeforeUnmount(() => {
 .harvest-list { padding: 10px; display: grid; gap: 8px; }
 
 .harvest-item {
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  background: var(--color-bg-input, #FAF7F3);
-  border-radius: 10px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
   padding: 10px;
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.harvest-item:hover {
+  background: var(--color-bg-base, #EDE8DF);
 }
 
 .harvest-variety {
@@ -946,18 +1303,55 @@ onBeforeUnmount(() => {
   color: var(--color-text-strong, #3D3529);
 }
 
+.harvest-meta {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .harvest-month {
-  font-size: 12px;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-olive-light, #C8D4A0);
+  background: var(--color-olive-light, #C8D4A0);
+  color: var(--color-olive-dark, #586830);
+}
+
+.harvest-client {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-card, #DDD7CE);
+  background: var(--color-bg-input, #FAF7F3);
   color: var(--color-text-sub, #9A8C7E);
 }
 
 .harvest-empty {
   padding: 12px 14px;
-  color: var(--color-orange-dark, #A34E20);
+  color: var(--color-text-sub, #9A8C7E);
   font-size: 12px;
 }
 
-.harvest-cta { width: 100%; }
+.harvest-cta {
+  width: auto;
+  min-width: 86px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-color: var(--color-orange-light, #F0C9A8);
+  background: var(--color-orange-light, #F0C9A8);
+  color: var(--color-orange-dark, #A34E20);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.harvest-cta:hover {
+  border-color: var(--color-orange, #C8622A);
+  background: var(--color-orange, #C8622A);
+  color: #fff;
+}
 
 .side-card {
   border: 1px solid var(--color-border-card, #DDD7CE);
@@ -981,7 +1375,11 @@ onBeforeUnmount(() => {
   color: var(--color-text-strong, #3D3529);
 }
 
-.carousel { padding: 12px 16px 0; }
+.carousel { padding: 12px 16px 14px; }
+
+.carousel-img-wrap {
+  position: relative;
+}
 
 .carousel-img {
   width: 100%;
@@ -1003,43 +1401,64 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(61, 53, 41, 0.36);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.carousel-arrow.left { left: 8px; }
+.carousel-arrow.right { right: 8px; }
+
+.carousel-arrow:hover {
+  background: rgba(61, 53, 41, 0.56);
+}
+
+.carousel-arrow :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
 .carousel-caption {
   margin-top: 10px;
   font-weight: 800;
   color: var(--color-text-strong, #3D3529);
   font-size: 13px;
+  text-align: center;
 }
 
-.recommend-list { padding: 10px 10px 14px; }
-
-.recommend-item {
-  padding: 10px 10px;
-  border-radius: 10px;
+.carousel-dots {
+  margin-top: 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  cursor: pointer;
+  justify-content: center;
+  gap: 6px;
 }
 
-.recommend-item:hover { background: var(--color-bg-base, #EDE8DF); }
-
-.recommend-name {
-  font-weight: 800;
-  color: var(--color-text-strong, #3D3529);
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.recommend-tag {
-  font-size: 11px;
-  padding: 4px 8px;
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border: none;
   border-radius: 999px;
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  background: var(--color-bg-section, #EFEADF);
-  color: var(--color-text-sub, #9A8C7E);
+  background: var(--color-border-card, #DDD7CE);
+  cursor: pointer;
+  padding: 0;
+}
+
+.carousel-dot.active {
+  width: 18px;
+  background: var(--color-olive, #7A8C42);
 }
 
 .modal-backdrop {
@@ -1162,29 +1581,98 @@ onBeforeUnmount(() => {
   color: var(--color-orange-dark, #A34E20);
 }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.form-grid .full { grid-column: 1 / -1; }
-.field { display: grid; gap: 6px; }
-
-.field label {
+.schedule-modal-note {
+  margin: 0 0 12px;
   font-size: 12px;
-  font-weight: 900;
   color: var(--color-text-sub, #9A8C7E);
 }
 
-.field input, .field textarea {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  font-size: 13px;
-  color: var(--color-text-body, #6B5F50);
-  background: var(--color-bg-input, #FAF7F3);
+.schedule-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
 }
 
-.field textarea { min-height: 92px; resize: vertical; }
+.schedule-field {
+  display: grid;
+  gap: 6px;
+}
+
+.schedule-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-sub, #9A8C7E);
+}
+
+.schedule-modal-wide {
+  grid-column: 1 / -1;
+}
+
+.schedule-control {
+  width: 100%;
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-card, #DDD7CE);
+  border-radius: 10px;
+  background: var(--color-bg-input, #FAF7F3);
+  color: var(--color-text-body, #6B5F50);
+  font-size: 13px;
+  outline: none;
+}
+
+.schedule-control:focus {
+  border-color: var(--color-olive, #7A8C42);
+  box-shadow: 0 0 0 3px rgba(122, 140, 66, 0.16);
+}
+
+.schedule-textarea {
+  height: 96px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.schedule-modal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.schedule-inline-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.schedule-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.schedule-checkbox-label {
+  font-size: 13px;
+  color: var(--color-text-body, #6B5F50);
+  font-weight: 600;
+}
 
 .modal-actions { margin-top: 12px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+.schedule-save-btn {
+  border-color: var(--color-orange, #C8622A);
+  background: var(--color-orange, #C8622A);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(200, 98, 42, 0.28);
+}
+
+.schedule-save-btn:hover,
+.schedule-save-btn:focus {
+  border-color: var(--color-orange-dark, #A34E20);
+  background: var(--color-orange-dark, #A34E20);
+  color: #fff;
+}
 
 .info-box {
   display: grid;
@@ -1223,7 +1711,6 @@ onBeforeUnmount(() => {
 .dark .modal-header { background: #252525; }
 
 .dark .calendar-wrapper .day-cell:hover,
-.dark .recommend-item:hover,
 .dark .icon-btn:hover { background: #2C2C2C; }
 
 @media (max-width: 1120px) {
@@ -1246,6 +1733,7 @@ onBeforeUnmount(() => {
     justify-content: flex-end;
   }
 
-  .form-grid { grid-template-columns: 1fr; }
+  .schedule-modal-grid { grid-template-columns: 1fr; }
+  .schedule-inline-fields { grid-template-columns: 1fr; }
 }
 </style>
