@@ -94,7 +94,7 @@ pipeline {
                                     sleep 2
                                 done
                                 git push origin main
-                                echo "Manifest updated in beyond-team3/final-manifests frontend"
+                                echo "Manifest update stage completed for beyond-team3/final-manifests frontend"
                             fi
                         """
                     }
