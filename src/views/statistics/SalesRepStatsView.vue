@@ -774,8 +774,8 @@ onBeforeUnmount(() => {
         <div v-if="viewType === 'employee'" class="min-w-[280px] flex flex-col gap-2">
           <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">사원 선택</label>
           <div class="relative min-w-[250px]">
-            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="employeeDropdownOpen = !employeeDropdownOpen">{{ selectedEmployeeText }}</button>
-            <div v-if="employeeDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
+            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="employeeDropdownOpen = !employeeDropdownOpen">{{ selectedEmployeeText }}</button>
+            <div v-if="employeeDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
               <div v-for="item in employees" :key="item.id" class="flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-seed-bg-section">
                 <CedarCheckbox
                   :id="`employee-option-${item.id}`"
@@ -791,8 +791,8 @@ onBeforeUnmount(() => {
         <div v-if="viewType === 'client'" class="min-w-[280px] flex flex-col gap-2">
           <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">거래처 선택</label>
           <div class="relative min-w-[250px]">
-            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="clientDropdownOpen = !clientDropdownOpen">{{ selectedClientText }}</button>
-            <div v-if="clientDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
+            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="clientDropdownOpen = !clientDropdownOpen">{{ selectedClientText }}</button>
+            <div v-if="clientDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
               <div v-for="item in clients" :key="item.id" class="flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-seed-bg-section">
                 <CedarCheckbox
                   :id="`client-option-${item.id}`"
@@ -808,8 +808,8 @@ onBeforeUnmount(() => {
         <div v-if="viewType === 'variety'" class="min-w-[280px] flex flex-col gap-2">
           <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">품종 선택</label>
           <div class="relative min-w-[250px]">
-            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="varietyDropdownOpen = !varietyDropdownOpen">{{ selectedVarietyText }}</button>
-            <div v-if="varietyDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
+            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="varietyDropdownOpen = !varietyDropdownOpen">{{ selectedVarietyText }}</button>
+            <div v-if="varietyDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
               <div v-for="item in varieties" :key="item.id" class="flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-seed-bg-section">
                 <CedarCheckbox
                   :id="`variety-option-${item.id}`"
