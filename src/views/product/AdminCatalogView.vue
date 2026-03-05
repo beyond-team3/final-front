@@ -25,7 +25,7 @@ const filterFields = computed(() => [
     key: 'category',
     label: '품목',
     type: 'select',
-    options: (productStore.categoryOptions || []).map((item) => ({ label: item, value: item })),
+    options: (productStore.categoryOptions || []).map((item) => ({ label: item.name, value: item.code })),
   },
   {
     key: 'env',
