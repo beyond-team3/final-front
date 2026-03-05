@@ -139,6 +139,11 @@ const editVisibility = ref('PRIVATE')
 const editingId = ref(null)
 const harvestAlerts = ref([])
 const generatedEvents = ref([])
+const harvestDummyItems = [
+  { sourceKey: 'DUMMY-001', varietyName: '샤인토마토 F1', expectedHarvestMonth: 3, clientId: 'C001', clientName: '대상팜' },
+  { sourceKey: 'DUMMY-002', varietyName: '프라임오이', expectedHarvestMonth: 3, clientId: 'C002', clientName: '그린농원' },
+  { sourceKey: 'DUMMY-003', varietyName: '골드파프리카', expectedHarvestMonth: 4, clientId: 'C003', clientName: '해오름농장' },
+]
 
 const labelHistory = (cat) => ({
   RFQ: '견적요청',
@@ -356,64 +361,102 @@ const calendarCells = computed(() => {
 
 const selectedDayEvents = computed(() => eventsByDate(selectedDate.value))
 const currentRecommendation = computed(() => recommendations.value[recommendIdx.value])
-const recommendationGradientClass = computed(() => {
-  const currentId = currentRecommendation.value?.id
-  if (currentId === 1) return 'bg-gradient-to-br from-[#f5f7fb] to-[#e6eefb]'
-  if (currentId === 2) return 'bg-gradient-to-br from-[#f8fbf2] to-[#e2f4d9]'
-  if (currentId === 3) return 'bg-gradient-to-br from-[#f4fbfd] to-[#d9f0f7]'
-  if (currentId === 4) return 'bg-gradient-to-br from-[#fff7ef] to-[#ffe6cd]'
-  return 'bg-gradient-to-br from-[var(--color-bg-input)] to-[var(--color-bg-section)]'
-})
 const hasHarvestAlerts = computed(() => harvestAlerts.value.length > 0)
-const harvestItems = computed(() => (hasHarvestAlerts.value ? harvestAlerts.value : []))
+const harvestItems = computed(() => (hasHarvestAlerts.value ? harvestAlerts.value : harvestDummyItems))
 const selectedClientLabel = computed(
   () => clientFilterOptions.find((item) => item.value === filterState.value.client)?.label || '전체',
 )
 const selectedEmployeeLabel = computed(
   () => employeeFilterOptions.find((item) => item.value === filterState.value.employee)?.label || '전체',
 )
-const scheduleSearchCondition = computed(() => {
-  const baseDate = selectedDate.value || ymd(new Date())
-  return {
-    rangeStart: `${baseDate}T00:00:00`,
-    rangeEnd: `${baseDate}T23:59:59`,
-    ownerId: authStore.me?.id ?? null,
-    assigneeUserId: isAdmin.value && filterState.value.employee !== 'ALL' ? filterState.value.employee : null,
-    clientId: filterState.value.client !== 'ALL' ? filterState.value.client : null,
-    dealId: null,
-    actorRole: authStore.currentRole ?? null,
-    actorUserId: authStore.me?.id ?? null,
-    actorClientId: authStore.currentRole === ROLES.CLIENT ? authStore.me?.refId ?? null : null,
-    includePersonal: filterState.value.scheduleType !== 'BUSINESS',
-    includeDeal: filterState.value.scheduleType !== 'PERSONAL',
-  }
-})
-const scheduleDetailItems = computed(() => {
+const scheduleDetailCoreItems = computed(() => {
   const eventItem = detailEvent.value
   if (!eventItem) {
     return []
   }
 
   return [
-    { key: 'id', label: 'ID', value: eventItem.id ?? '-' },
-    { key: 'type', label: '타입(type)', value: eventItem.type ?? '-' },
-    { key: 'title', label: '제목(title)', value: eventItem.title ?? '-' },
-    { key: 'description', label: '설명(description)', value: getEventDescription(eventItem) },
-    { key: 'startAt', label: '시작(startAt)', value: formatDateTimeText(eventItem.startAt) },
-    { key: 'endAt', label: '종료(endAt)', value: formatDateTimeText(eventItem.endAt) },
-    { key: 'allDay', label: '종일(allDay)', value: eventItem.allDay == null ? '-' : (eventItem.allDay ? 'true' : 'false') },
-    { key: 'status', label: '상태(status)', value: eventItem.status ?? '-' },
-    { key: 'ownerUserId', label: '소유자(ownerUserId)', value: eventItem.ownerUserId ?? '-' },
-    { key: 'assigneeUserId', label: '담당자(assigneeUserId)', value: eventItem.assigneeUserId ?? '-' },
-    { key: 'clientId', label: '거래처(clientId)', value: eventItem.clientId ?? '-' },
-    { key: 'dealId', label: '딜(dealId)', value: eventItem.dealId ?? '-' },
-    { key: 'eventType', label: '이벤트 타입(eventType)', value: eventItem.eventType ?? '-' },
-    { key: 'docType', label: '문서 타입(docType)', value: eventItem.docType ?? '-' },
-    { key: 'refDocId', label: '참조 문서(refDocId)', value: eventItem.refDocId ?? '-' },
-    { key: 'refDealLogId', label: '참조 딜로그(refDealLogId)', value: eventItem.refDealLogId ?? '-' },
-    { key: 'externalKey', label: '외부 키(externalKey)', value: eventItem.externalKey ?? '-' },
+    { key: 'title', label: '제목', value: eventItem.title ?? '-' },
+    { key: 'type', label: '구분', value: eventTypeDetailLabel(eventItem) },
+    { key: 'status', label: '상태', value: eventItem.status ?? '-' },
+    { key: 'description', label: '설명', value: getEventDescription(eventItem) },
   ]
 })
+
+const scheduleDetailTimeItems = computed(() => {
+  const eventItem = detailEvent.value
+  if (!eventItem) {
+    return []
+  }
+
+  return [
+    { key: 'startAt', label: '시작(startAt)', value: formatDateTimeText(eventItem.startAt) },
+    { key: 'endAt', label: '종료(endAt)', value: formatDateTimeText(eventItem.endAt) },
+    { key: 'allDay', label: '종일', value: eventItem.allDay == null ? '-' : (eventItem.allDay ? '예' : '아니오') },
+  ]
+})
+
+const scheduleDetailLinkItems = computed(() => {
+  const eventItem = detailEvent.value
+  if (!eventItem) {
+    return []
+  }
+
+  return [
+    { key: 'ownerUserId', label: '소유자', value: eventItem.ownerUserId },
+    { key: 'assigneeUserId', label: '담당자', value: eventItem.assigneeUserId },
+    { key: 'clientId', label: '거래처', value: eventItem.clientId },
+    { key: 'dealId', label: '딜', value: eventItem.dealId },
+    { key: 'docType', label: '문서 타입', value: eventItem.docType },
+    { key: 'eventType', label: '이벤트 타입', value: eventItem.eventType },
+  ].filter((item) => item.value !== null && item.value !== undefined && item.value !== '')
+})
+
+const scheduleDetailReferenceItems = computed(() => {
+  const eventItem = detailEvent.value
+  if (!eventItem) {
+    return []
+  }
+
+  return [
+    { key: 'refDocId', label: '참조 문서 ID', value: eventItem.refDocId },
+    { key: 'refDealLogId', label: '참조 딜로그 ID', value: eventItem.refDealLogId },
+    { key: 'externalKey', label: '외부 키', value: eventItem.externalKey },
+  ].filter((item) => item.value !== null && item.value !== undefined && item.value !== '')
+})
+
+const scheduleItemIdText = computed(() => {
+  const eventItem = detailEvent.value
+  if (!eventItem) {
+    return '-'
+  }
+  return eventItem.id ?? '-'
+})
+
+const scheduleItemTypeText = computed(() => {
+  const eventItem = detailEvent.value
+  if (!eventItem) {
+    return '-'
+  }
+  return eventItem.type ?? '-'
+})
+
+const scheduleItemDisplayDate = computed(() => {
+  const eventItem = detailEvent.value
+  if (!eventItem) {
+    return '-'
+  }
+  if (eventItem.startAt) {
+    return formatDateTimeText(eventItem.startAt)
+  }
+  return eventItem.date ?? '-'
+})
+
+const hasReferenceItems = computed(() => scheduleDetailReferenceItems.value.length > 0)
+
+const hasLinkItems = computed(() => scheduleDetailLinkItems.value.length > 0)
+
+const canEditCurrentEvent = computed(() => detailEvent.value?.type === 'personal')
 
 const openDayModal = (date) => {
   selectedDate.value = date
@@ -775,16 +818,16 @@ onBeforeUnmount(() => {
       </div>
 
       <aside class="calendar-right">
-        <div class="overflow-hidden rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)]">
-          <div class="flex items-center justify-between border-b border-[var(--color-border-divider)] bg-[var(--color-bg-section)] px-4 py-[14px]">
-            <div class="text-[15px] font-extrabold text-[var(--color-text-strong)]">이번달 추천 품종</div>
-            <span class="text-xs text-[var(--color-text-sub)]">자동 슬라이드</span>
+        <div class="side-card">
+          <div class="side-header">
+            <div class="side-title">이번달 추천 품종</div>
+            <span style="font-size:12px;color:#6b7a8c;">자동 슬라이드</span>
           </div>
 
-          <div v-if="currentRecommendation" class="px-4 pb-[14px] pt-3">
-            <div class="relative">
+          <div v-if="currentRecommendation" class="carousel">
+            <div class="carousel-img-wrap">
               <CdrButton
-                class="!absolute left-2 top-1/2 z-[2] !h-[34px] !w-[34px] -translate-y-1/2 !rounded-full !border-0 !bg-[rgba(61,53,41,0.36)] !p-0 !text-white hover:!bg-[rgba(61,53,41,0.56)]"
+                class="carousel-arrow left"
                 type="button"
                 modifier="secondary"
                 icon-only
@@ -795,18 +838,18 @@ onBeforeUnmount(() => {
                 <IconArrowLeft />
               </CdrButton>
               <div
-                class="flex h-[190px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-[var(--color-border-divider)]"
+                class="carousel-img"
                 role="button"
                 tabindex="0"
-                :class="recommendationGradientClass"
+                :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
                 @click="goToRecommendationDetail(currentRecommendation)"
                 @keydown.enter="goToRecommendationDetail(currentRecommendation)"
                 @keydown.space.prevent="goToRecommendationDetail(currentRecommendation)"
               >
-                <div class="px-4 text-center text-[20px] font-extrabold text-[var(--color-text-strong)]">{{ currentRecommendation.name }}</div>
+                <div class="carousel-main-text">{{ currentRecommendation.name }}</div>
               </div>
               <CdrButton
-                class="!absolute right-2 top-1/2 z-[2] !h-[34px] !w-[34px] -translate-y-1/2 !rounded-full !border-0 !bg-[rgba(61,53,41,0.36)] !p-0 !text-white hover:!bg-[rgba(61,53,41,0.56)]"
+                class="carousel-arrow right"
                 type="button"
                 modifier="secondary"
                 icon-only
@@ -817,14 +860,14 @@ onBeforeUnmount(() => {
                 <IconArrowRight />
               </CdrButton>
             </div>
-            <div class="mt-[10px] text-center text-[13px] font-extrabold text-[var(--color-text-strong)]">{{ currentRecommendation.name }}</div>
-            <div class="mt-[10px] flex items-center justify-center gap-1.5" role="group" aria-label="추천 품종 슬라이드 선택">
+            <div class="carousel-caption">{{ currentRecommendation.name }}</div>
+            <div class="carousel-dots" role="group" aria-label="추천 품종 슬라이드 선택">
               <button
                 v-for="(item, index) in recommendations"
                 :key="item.id"
                 type="button"
-                class="h-2 rounded-full bg-[var(--color-border-card)] p-0 transition-all"
-                :class="index === recommendIdx ? 'w-[18px] bg-[var(--color-olive)]' : 'w-2'"
+                class="carousel-dot"
+                :class="{ active: index === recommendIdx }"
                 :aria-label="`${item.name} 보기`"
                 :aria-pressed="index === recommendIdx ? 'true' : 'false'"
                 @click="recommendIdx = index"
@@ -879,27 +922,55 @@ onBeforeUnmount(() => {
     <div v-if="detailModalOpen" class="modal-backdrop offset-header" @click.self="detailModalOpen = false">
       <div class="modal" role="dialog" aria-modal="true">
         <div class="modal-header">
-          <div class="modal-title">일정 상세 · {{ detailEvent?.date }}</div>
+          <div class="modal-title">일정 상세 · {{ scheduleItemDisplayDate }}</div>
           <button class="modal-close" type="button" @click="detailModalOpen = false">×</button>
         </div>
         <div class="modal-body" style="display: grid; gap: 10px;">
-          <div class="info-box"><div class="k">구분(가독용)</div><div class="v">{{ eventTypeDetailLabel(detailEvent) }}</div></div>
-          <div class="info-box"><div class="k">조회 시간(가독용)</div><div class="v">{{ getEventDisplayTime(detailEvent) }}</div></div>
-          <div v-for="item in scheduleDetailItems" :key="item.key" class="info-box">
-            <div class="k">{{ item.label }}</div>
-            <div class="v">{{ item.value }}</div>
-          </div>
-          <div class="info-box">
-            <div class="k">조회 조건(ScheduleSearchCondition)</div>
-            <pre class="v">{{ JSON.stringify(scheduleSearchCondition, null, 2) }}</pre>
+          <div class="modal-section-title">기본 정보</div>
+          <div class="schedule-modal-grid">
+            <div class="info-box"><div class="k">일정 ID</div><div class="v">{{ scheduleItemIdText }}</div></div>
+            <div class="info-box"><div class="k">ScheduleItemType</div><div class="v">{{ scheduleItemTypeText }}</div></div>
+            <div class="info-box schedule-modal-wide"><div class="k">표시 시간</div><div class="v">{{ getEventDisplayTime(detailEvent) }}</div></div>
+            <div v-for="item in scheduleDetailCoreItems" :key="item.key" class="info-box" :class="{ 'schedule-modal-wide': item.key === 'description' }">
+              <div class="k">{{ item.label }}</div>
+              <div class="v">{{ item.value }}</div>
+            </div>
           </div>
 
+          <div class="modal-section-title">일정 정보</div>
+          <div class="schedule-modal-grid">
+            <div v-for="item in scheduleDetailTimeItems" :key="item.key" class="info-box">
+              <div class="k">{{ item.label }}</div>
+              <div class="v">{{ item.value }}</div>
+            </div>
+          </div>
+
+          <template v-if="hasLinkItems">
+            <div class="modal-section-title">연관 정보</div>
+            <div class="schedule-modal-grid">
+              <div v-for="item in scheduleDetailLinkItems" :key="item.key" class="info-box">
+                <div class="k">{{ item.label }}</div>
+                <div class="v">{{ item.value }}</div>
+              </div>
+            </div>
+          </template>
+
+          <template v-if="hasReferenceItems">
+            <div class="modal-section-title">참조 정보</div>
+            <div class="schedule-modal-grid">
+              <div v-for="item in scheduleDetailReferenceItems" :key="item.key" class="info-box">
+                <div class="k">{{ item.label }}</div>
+                <div class="v">{{ item.value }}</div>
+              </div>
+            </div>
+          </template>
+
           <div class="modal-actions">
-            <template v-if="detailEvent?.type === 'personal'">
+            <template v-if="canEditCurrentEvent">
               <button class="btn" type="button" @click="openEditModal(detailEvent)">수정</button>
-              <button class="btn" type="button" @click="deletePersonal(detailEvent.id)">삭제</button>
+              <button class="btn schedule-delete-btn" type="button" @click="deletePersonal(detailEvent.id)">삭제</button>
             </template>
-            <div v-else style="color:#6b7a8c;font-size:12px;font-weight:700;">※ 문서/재배적기/수확 일정은 자동 생성 일정입니다.</div>
+            <div v-else class="text-xs font-bold text-[var(--color-text-sub)]">※ 문서/재배적기/수확 일정은 자동 생성 일정입니다.</div>
           </div>
         </div>
       </div>
@@ -1433,6 +1504,114 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
+.side-card {
+  border: 1px solid var(--color-border-card, #DDD7CE);
+  border-radius: 12px;
+  background: var(--color-bg-input, #FAF7F3);
+  overflow: hidden;
+}
+
+.side-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border-divider, #E8E3D8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--color-bg-section, #EFEADF);
+}
+
+.side-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-strong, #3D3529);
+}
+
+.carousel { padding: 12px 16px 14px; }
+
+.carousel-img-wrap {
+  position: relative;
+}
+
+.carousel-img {
+  width: 100%;
+  height: 190px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-divider, #E8E3D8);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.carousel-main-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text-strong, #3D3529);
+  padding: 0 16px;
+  text-align: center;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(61, 53, 41, 0.36);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.carousel-arrow.left { left: 8px; }
+.carousel-arrow.right { right: 8px; }
+
+.carousel-arrow:hover {
+  background: rgba(61, 53, 41, 0.56);
+}
+
+.carousel-arrow :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
+.carousel-caption {
+  margin-top: 10px;
+  font-weight: 800;
+  color: var(--color-text-strong, #3D3529);
+  font-size: 13px;
+  text-align: center;
+}
+
+.carousel-dots {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-border-card, #DDD7CE);
+  cursor: pointer;
+  padding: 0;
+}
+
+.carousel-dot.active {
+  width: 18px;
+  background: var(--color-olive, #7A8C42);
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1646,6 +1825,19 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
+.schedule-delete-btn {
+  border-color: var(--color-orange-light, #F0C9A8);
+  background: var(--color-orange-light, #F0C9A8);
+  color: var(--color-orange-dark, #A34E20);
+}
+
+.schedule-delete-btn:hover,
+.schedule-delete-btn:focus {
+  border-color: var(--color-orange, #C8622A);
+  background: var(--color-orange, #C8622A);
+  color: #fff;
+}
+
 .info-box {
   display: grid;
   gap: 6px;
@@ -1675,12 +1867,14 @@ onBeforeUnmount(() => {
 
 .dark .calendar-wrapper,
 .dark .toolbar,
+.dark .side-card,
 .dark .modal { background: #1E1E1E; }
 
 .dark .calendar-wrapper .calendar-header,
 .dark .calendar-wrapper .dow,
 .dark .calendar-wrapper .day-cell,
 .dark .calendar-wrapper .day-cell.muted,
+.dark .side-header,
 .dark .modal-header { background: #252525; }
 
 .dark .calendar-wrapper .day-cell:hover,
