@@ -48,12 +48,13 @@ pipeline {
 			}
 		}
 
-	    stage('Update Manifest (CD)') {
-            when { branch 'main' }
+	    stage('Update Manifest') {
+            when {
+             branch 'main'
+             }
             steps {
                 script {
-                    // 1. 설정 변수
-                    def manifestRepoUrl = "github.com/beyond-team3/monsoon-manifests.git"
+                    def manifestRepoUrl = "github.com/beyond-team3/final-manifests.git"
                     def targetFile = "frontend/deployment.yml"
                     def imageName = "21monsoon/monsoon-frontend"
                     def newTag = "${env.APP_VERSION_PREFIX}.${env.BUILD_ID}"
@@ -76,20 +77,21 @@ pipeline {
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
 
-                            # 파일 수정 (sed)
+                            # 파일 수정
                             sed -i "s|image: ${imageName}:.*|image: ${imageName}:${newTag}|g" ${targetFile}
 
                             # Commit & Push
                             git add "${targetFile}"
-                            # Push 할 때만 일회성으로 비밀번호를 다시 조합해서 사용
-                            git diff-index --quiet HEAD || (git commit -m "🚀 [CD] Update ${imageName} to ${newTag}" && git push https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} main)
+
+                            git diff-index --quiet HEAD || (git commit -m "🚀 [CD] Update ${imageName} to ${newTag} [skip ci]" && git push https://${GIT_USER}:${GIT_PASS}@${manifestRepoUrl} main)
 
                             set -x
                         """
                     }
                 }
+                echo "✅ Manifest updated in beyond-team3/final-manifests frontend"
             }
-            // 빌드가 성공하든 실패하든 무조건 임시 폴더 삭제
+            // 빌드 성공,실패 여부 상관없이 무조건 임시 폴더 삭제
             post {
                 always {
                     sh 'rm -rf temp-manifests'
