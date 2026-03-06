@@ -47,6 +47,9 @@ const getProductCategories = () => {
   return categories.map((name) => ({ name }))
 }
 
+server.use(middlewares)
+server.use(customMiddleware)
+
 server.get(['/api/auth/me', '/auth/me'], (req, res) => {
   res.status(200).jsonp(getCurrentUser())
 })
@@ -57,6 +60,24 @@ server.get(['/api/products/categories', '/products/categories'], (req, res) => {
 
 server.get('/api/notifications', (req, res) => {
   res.status(200).jsonp(getNotifications(req))
+})
+
+server.post('/api/products/:id/bookmark', (req, res) => {
+  const productId = parseId(req.params.id)
+  const userId = 1 // Mock user id
+  const favoritesData = router.db.get('favorites').value() || []
+  const existing = favoritesData.find((item) => item.productId === productId && item.userId === userId)
+
+  if (existing) {
+    const next = favoritesData.filter((item) => item.id !== existing.id)
+    router.db.set('favorites', next).write()
+    res.status(200).jsonp({ ok: true, removed: true })
+  } else {
+    const nextId = favoritesData.reduce((maxId, item) => Math.max(maxId, item.id || 0), 0) + 1
+    const next = [...favoritesData, { id: nextId, productId, userId }]
+    router.db.set('favorites', next).write()
+    res.status(201).jsonp({ ok: true, added: true })
+  }
 })
 
 server.get('/notifications', (req, res) => {
@@ -84,9 +105,7 @@ server.put('/api/notifications/:id/read', (req, res) => {
   res.status(200).jsonp(target.value())
 })
 
-server.use(middlewares)
 server.use(jsonServer.rewriter(customRoutes))
-server.use(customMiddleware)
 server.use(router)
 
 server.listen(3001, () => {
