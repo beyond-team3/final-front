@@ -111,7 +111,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
               </tr>
 
               <!-- empty -->
-              <tr v-if="contracts.length === 0">
+              <tr v-if="!contracts?.length">
                 <td
                     colspan="5"
                     class="px-4 py-10 text-center italic text-[#BFB3A5]"
