@@ -14,6 +14,7 @@ import {
   Tooltip,
 } from 'chart.js'
 import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
+import { useLayoutState } from '@/composables/layoutState'
 
 Chart.register(
   CategoryScale,
@@ -39,6 +40,7 @@ const props = defineProps({
   },
 })
 
+const layoutState = useLayoutState()
 const viewType = ref('personal')
 
 const clients = [
@@ -65,7 +67,23 @@ const employees = [
   { id: 5, name: '최동욱' },
 ]
 
-const palette = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6']
+const CHART_COLORS = {
+  primary: '#7A8C42',
+  secondary: '#C8622A',
+  info: '#8A9BAE',
+  error: '#B85C5C',
+  neutral: '#9A8C7E',
+  placeholderLine: '#BFB3A5',
+  placeholderFill: '#E8E3D8',
+}
+
+const palette = [
+  CHART_COLORS.primary,
+  CHART_COLORS.secondary,
+  CHART_COLORS.info,
+  CHART_COLORS.error,
+  CHART_COLORS.neutral,
+]
 
 // TODO: API 연결
 const personalSales = {
@@ -328,6 +346,26 @@ const selectedEmployeeText = computed(() => {
   return names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}개`
 })
 
+const hexToRgb = (hexColor) => {
+  const normalized = hexColor.replace('#', '')
+  const fullHex = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized
+
+  const value = Number.parseInt(fullHex, 16)
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  }
+}
+
+const getLightenedColor = (hexColor, ratio = 0.35) => {
+  const { r, g, b } = hexToRgb(hexColor)
+  const lighten = (channel) => Math.round(channel + ((255 - channel) * ratio))
+  return `rgb(${lighten(r)}, ${lighten(g)}, ${lighten(b)})`
+}
+
 const toggleSelectedItem = (listRef, id, checked) => {
   const numericId = Number(id)
   if (checked) {
@@ -337,6 +375,18 @@ const toggleSelectedItem = (listRef, id, checked) => {
     return
   }
   listRef.value = listRef.value.filter((itemId) => itemId !== numericId)
+}
+
+const toggleEmployeeSelection = (id, checked) => {
+  toggleSelectedItem(selectedEmployees, id, checked)
+}
+
+const toggleClientSelection = (id, checked) => {
+  toggleSelectedItem(selectedClients, id, checked)
+}
+
+const toggleVarietySelection = (id, checked) => {
+  toggleSelectedItem(selectedVarieties, id, checked)
 }
 
 const createLineOrBarDatasets = (items, source, periodType, range, compareYear, chartType) => {
@@ -350,8 +400,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
       datasets: [{
         label: '항목을 선택하세요',
         data: emptyValues,
-        borderColor: '#d1d5db',
-        backgroundColor: '#e5e7eb',
+        borderColor: CHART_COLORS.placeholderLine,
+        backgroundColor: CHART_COLORS.placeholderFill,
       }],
     }
   }
@@ -386,8 +436,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
         {
           label: '조회 기간',
           data: currentTotals.map((item) => item.amount),
-          backgroundColor: '#3498db',
-          borderColor: '#3498db',
+          backgroundColor: CHART_COLORS.primary,
+          borderColor: CHART_COLORS.primary,
           borderWidth: 2,
         },
         {
@@ -419,6 +469,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
     })
 
     if (compareYear) {
+      const baseColor = palette[index % palette.length]
+      const compareColor = getLightenedColor(baseColor)
       const previous = getValuesByContexts(
         contexts,
         periodType,
@@ -428,8 +480,8 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
       datasets.push({
         label: `${item.name} (전년도 동기간)`,
         data: previous,
-        borderColor: '#9ca3af',
-        backgroundColor: '#9ca3af33',
+        borderColor: compareColor,
+        backgroundColor: `${compareColor.replace('rgb', 'rgba').replace(')', ', 0.22)')}`,
         tension: 0.35,
         borderWidth: 2,
         borderDash: [6, 6],
@@ -458,8 +510,8 @@ const renderPersonalChart = () => {
         {
           label: '조회 구간',
           data: data.current,
-          borderColor: '#3498db',
-          backgroundColor: '#3498db33',
+          borderColor: CHART_COLORS.primary,
+          backgroundColor: `${CHART_COLORS.primary}33`,
           tension: 0.35,
           borderWidth: 3,
         },
@@ -467,8 +519,8 @@ const renderPersonalChart = () => {
           ? [{
             label: '전년도',
             data: data.previous,
-            borderColor: '#9ca3af',
-            backgroundColor: '#9ca3af33',
+            borderColor: CHART_COLORS.info,
+            backgroundColor: `${CHART_COLORS.info}33`,
             borderDash: [6, 6],
             tension: 0.35,
             borderWidth: 2,
@@ -626,6 +678,24 @@ const renderEmployeeChart = () => {
   })
 }
 
+const renderCurrentChart = () => {
+  if (viewType.value === 'personal') {
+    renderPersonalChart()
+    return
+  }
+  if (viewType.value === 'client') {
+    renderClientChart()
+    return
+  }
+  if (viewType.value === 'variety') {
+    renderVarietyChart()
+    return
+  }
+  if (viewType.value === 'employee') {
+    renderEmployeeChart()
+  }
+}
+
 watch([
   personalUnit,
   personalStartYear,
@@ -666,18 +736,11 @@ watch([
 ], renderEmployeeChart, { deep: true })
 watch(viewType, async () => {
   await nextTick()
-  if (viewType.value === 'personal') {
-    renderPersonalChart()
-  }
-  if (viewType.value === 'client') {
-    renderClientChart()
-  }
-  if (viewType.value === 'variety') {
-    renderVarietyChart()
-  }
-  if (viewType.value === 'employee') {
-    renderEmployeeChart()
-  }
+  renderCurrentChart()
+})
+watch(() => layoutState?.resizeTick?.value, async () => {
+  await nextTick()
+  renderCurrentChart()
 })
 
 onMounted(() => {
@@ -694,65 +757,65 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="screen-content">
-    <h2 class="screen-title">{{ title }}</h2>
+    <h2 class="mb-5 border-b-2 border-seed-border-divider pb-[15px] text-2xl font-semibold text-seed-text-strong">{{ title }}</h2>
 
-    <div class="filter-section">
-      <div class="filter-row">
-        <div class="filter-group">
-          <label class="filter-label">조회 타입</label>
-          <div class="radio-group">
-            <label class="radio-option"><input v-model="viewType" type="radio" value="personal"> 개인 매출</label>
-            <label v-if="includeEmployeeOption" class="radio-option"><input v-model="viewType" type="radio" value="employee"> 사원별</label>
-            <label class="radio-option"><input v-model="viewType" type="radio" value="client"> 거래처별</label>
-            <label class="radio-option"><input v-model="viewType" type="radio" value="variety"> 품종별</label>
+    <div class="mb-5 rounded-[10px] border border-seed-border-card bg-seed-bg-section p-[18px] shadow-[0_1px_2px_rgba(61,53,41,0.06)]">
+      <div class="flex flex-wrap items-center gap-5 max-md:flex-col max-md:items-stretch">
+        <div class="flex flex-col gap-2">
+          <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">조회 타입</label>
+          <div class="flex gap-3.5 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 py-2.5 max-md:flex-col max-md:items-start">
+            <label class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="personal"> 개인 매출</label>
+            <label v-if="includeEmployeeOption" class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="employee"> 사원별</label>
+            <label class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="client"> 거래처별</label>
+            <label class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="variety"> 품종별</label>
           </div>
         </div>
 
-        <div v-if="viewType === 'employee'" class="filter-group" style="min-width: 280px;">
-          <label class="filter-label">사원 선택</label>
-          <div class="multi-select">
-            <button type="button" class="multi-select-trigger" @click="employeeDropdownOpen = !employeeDropdownOpen">{{ selectedEmployeeText }}</button>
-            <div v-if="employeeDropdownOpen" class="multi-select-dropdown">
-              <div v-for="item in employees" :key="item.id" class="multi-select-option">
+        <div v-if="viewType === 'employee'" class="min-w-[280px] flex flex-col gap-2">
+          <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">사원 선택</label>
+          <div class="relative min-w-[250px]">
+            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="employeeDropdownOpen = !employeeDropdownOpen">{{ selectedEmployeeText }}</button>
+            <div v-if="employeeDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
+              <div v-for="item in employees" :key="item.id" class="flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-seed-bg-section">
                 <CedarCheckbox
                   :id="`employee-option-${item.id}`"
                   :label="item.name"
                   :model-value="selectedEmployees.includes(item.id)"
-                  @update:model-value="(checked) => toggleSelectedItem(selectedEmployees, item.id, checked)"
+                  @update:model-value="(checked) => toggleEmployeeSelection(item.id, checked)"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div v-if="viewType === 'client'" class="filter-group" style="min-width: 280px;">
-          <label class="filter-label">거래처 선택</label>
-          <div class="multi-select">
-            <button type="button" class="multi-select-trigger" @click="clientDropdownOpen = !clientDropdownOpen">{{ selectedClientText }}</button>
-            <div v-if="clientDropdownOpen" class="multi-select-dropdown">
-              <div v-for="item in clients" :key="item.id" class="multi-select-option">
+        <div v-if="viewType === 'client'" class="min-w-[280px] flex flex-col gap-2">
+          <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">거래처 선택</label>
+          <div class="relative min-w-[250px]">
+            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="clientDropdownOpen = !clientDropdownOpen">{{ selectedClientText }}</button>
+            <div v-if="clientDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
+              <div v-for="item in clients" :key="item.id" class="flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-seed-bg-section">
                 <CedarCheckbox
                   :id="`client-option-${item.id}`"
                   :label="item.name"
                   :model-value="selectedClients.includes(item.id)"
-                  @update:model-value="(checked) => toggleSelectedItem(selectedClients, item.id, checked)"
+                  @update:model-value="(checked) => toggleClientSelection(item.id, checked)"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div v-if="viewType === 'variety'" class="filter-group" style="min-width: 280px;">
-          <label class="filter-label">품종 선택</label>
-          <div class="multi-select">
-            <button type="button" class="multi-select-trigger" @click="varietyDropdownOpen = !varietyDropdownOpen">{{ selectedVarietyText }}</button>
-            <div v-if="varietyDropdownOpen" class="multi-select-dropdown">
-              <div v-for="item in varieties" :key="item.id" class="multi-select-option">
+        <div v-if="viewType === 'variety'" class="min-w-[280px] flex flex-col gap-2">
+          <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">품종 선택</label>
+          <div class="relative min-w-[250px]">
+            <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="varietyDropdownOpen = !varietyDropdownOpen">{{ selectedVarietyText }}</button>
+            <div v-if="varietyDropdownOpen" class="absolute left-0 right-0 top-[calc(100%+4px)] z-[100] max-h-[220px] overflow-y-auto rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] shadow-[0_8px_20px_rgba(41,37,36,0.12)]">
+              <div v-for="item in varieties" :key="item.id" class="flex cursor-pointer items-center gap-2 px-3 py-2.5 hover:bg-seed-bg-section">
                 <CedarCheckbox
                   :id="`variety-option-${item.id}`"
                   :label="item.name"
                   :model-value="selectedVarieties.includes(item.id)"
-                  @update:model-value="(checked) => toggleSelectedItem(selectedVarieties, item.id, checked)"
+                  @update:model-value="(checked) => toggleVarietySelection(item.id, checked)"
                 />
               </div>
             </div>
@@ -761,142 +824,119 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="viewType === 'personal'" class="section-block">
-      <div class="control-row">
-        <div class="inline-row">
-          <label>기간 단위</label>
-          <select v-model="personalUnit"><option value="month">월별</option><option value="quarter">분기별</option></select>
-          <select v-model.number="personalStartYear">
+    <div v-if="viewType === 'personal'" class="mt-2.5">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2 rounded-[10px] border border-seed-border-card bg-seed-bg-input px-3 py-2.5">
+          <label class="mr-0.5 text-[13px] font-bold text-seed-text-body">기간 단위</label>
+          <select v-model="personalUnit" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20"><option value="month">월별</option><option value="quarter">분기별</option></select>
+          <select v-model.number="personalStartYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`personal-start-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="personalStartMonth">
+          <select v-model.number="personalStartMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`personal-start-month-${month}`" :value="month">{{ month }}월</option>
           </select>
-          <span>~</span>
-          <select v-model.number="personalEndYear">
+          <span class="font-semibold text-seed-text-sub">~</span>
+          <select v-model.number="personalEndYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`personal-end-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="personalEndMonth">
+          <select v-model.number="personalEndMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`personal-end-month-${month}`" :value="month">{{ month }}월</option>
           </select>
         </div>
-        <button class="compare-btn" :class="{ active: personalCompareYear }" type="button" @click="personalCompareYear = !personalCompareYear">전년도 대비</button>
+        <button class="rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors" :class="personalCompareYear ? 'border-seed-olive bg-seed-olive-light text-seed-olive-dark' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:border-seed-olive-light hover:bg-seed-bg-section'" type="button" @click="personalCompareYear = !personalCompareYear">전년도 대비</button>
       </div>
-      <div class="chart-container"><canvas ref="personalCanvas" /></div>
+      <div class="chart-canvas-full relative h-[420px] overflow-hidden rounded-xl border border-seed-border-card p-3"><canvas ref="personalCanvas" /></div>
     </div>
 
-    <div v-if="viewType === 'client'" class="section-block">
-      <div class="control-row">
-        <div class="inline-row">
-          <label>기간 단위</label>
-          <select v-model="clientPeriodType"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
-          <select v-model.number="clientStartYear">
+    <div v-if="viewType === 'client'" class="mt-2.5">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2 rounded-[10px] border border-seed-border-card bg-seed-bg-input px-3 py-2.5">
+          <label class="mr-0.5 text-[13px] font-bold text-seed-text-body">기간 단위</label>
+          <select v-model="clientPeriodType" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
+          <select v-model.number="clientStartYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`client-start-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="clientStartMonth">
+          <select v-model.number="clientStartMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`client-start-month-${month}`" :value="month">{{ month }}월</option>
           </select>
-          <span>~</span>
-          <select v-model.number="clientEndYear">
+          <span class="font-semibold text-seed-text-sub">~</span>
+          <select v-model.number="clientEndYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`client-end-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="clientEndMonth">
+          <select v-model.number="clientEndMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`client-end-month-${month}`" :value="month">{{ month }}월</option>
           </select>
         </div>
-        <button class="compare-btn" :class="{ active: clientCompareYear }" type="button" @click="clientCompareYear = !clientCompareYear">전년도 대비</button>
+        <button class="rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors" :class="clientCompareYear ? 'border-seed-olive bg-seed-olive-light text-seed-olive-dark' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:border-seed-olive-light hover:bg-seed-bg-section'" type="button" @click="clientCompareYear = !clientCompareYear">전년도 대비</button>
       </div>
-      <div class="chart-toggle">
-        <button class="chart-toggle-btn" :class="{ active: clientChartType === 'line' }" @click="clientChartType = 'line'">추이 보기</button>
-        <button class="chart-toggle-btn" :class="{ active: clientChartType === 'bar' }" @click="clientChartType = 'bar'">순위 비교</button>
+      <div class="mb-4 flex gap-2.5 max-md:flex-col">
+        <button class="rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors" :class="clientChartType === 'line' ? 'border-seed-olive-dark bg-seed-olive text-white' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:bg-seed-bg-section'" @click="clientChartType = 'line'">추이 보기</button>
+        <button class="rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors" :class="clientChartType === 'bar' ? 'border-seed-olive-dark bg-seed-olive text-white' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:bg-seed-bg-section'" @click="clientChartType = 'bar'">순위 비교</button>
       </div>
-      <div class="chart-container"><canvas ref="clientCanvas" /></div>
+      <div class="chart-canvas-full relative h-[420px] overflow-hidden rounded-xl border border-seed-border-card p-3"><canvas ref="clientCanvas" /></div>
     </div>
 
-    <div v-if="viewType === 'employee'" class="section-block">
-      <div class="control-row">
-        <div class="inline-row">
-          <label>기간 단위</label>
-          <select v-model="employeePeriodType"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
-          <select v-model.number="employeeStartYear">
+    <div v-if="viewType === 'employee'" class="mt-2.5">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2 rounded-[10px] border border-seed-border-card bg-seed-bg-input px-3 py-2.5">
+          <label class="mr-0.5 text-[13px] font-bold text-seed-text-body">기간 단위</label>
+          <select v-model="employeePeriodType" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
+          <select v-model.number="employeeStartYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`employee-start-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="employeeStartMonth">
+          <select v-model.number="employeeStartMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`employee-start-month-${month}`" :value="month">{{ month }}월</option>
           </select>
-          <span>~</span>
-          <select v-model.number="employeeEndYear">
+          <span class="font-semibold text-seed-text-sub">~</span>
+          <select v-model.number="employeeEndYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`employee-end-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="employeeEndMonth">
+          <select v-model.number="employeeEndMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`employee-end-month-${month}`" :value="month">{{ month }}월</option>
           </select>
         </div>
-        <button class="compare-btn" :class="{ active: employeeCompareYear }" type="button" @click="employeeCompareYear = !employeeCompareYear">전년도 대비</button>
+        <button class="rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors" :class="employeeCompareYear ? 'border-seed-olive bg-seed-olive-light text-seed-olive-dark' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:border-seed-olive-light hover:bg-seed-bg-section'" type="button" @click="employeeCompareYear = !employeeCompareYear">전년도 대비</button>
       </div>
-      <div class="chart-toggle">
-        <button class="chart-toggle-btn" :class="{ active: employeeChartType === 'line' }" @click="employeeChartType = 'line'">추이 보기</button>
-        <button class="chart-toggle-btn" :class="{ active: employeeChartType === 'bar' }" @click="employeeChartType = 'bar'">순위 비교</button>
+      <div class="mb-4 flex gap-2.5 max-md:flex-col">
+        <button class="rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors" :class="employeeChartType === 'line' ? 'border-seed-olive-dark bg-seed-olive text-white' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:bg-seed-bg-section'" @click="employeeChartType = 'line'">추이 보기</button>
+        <button class="rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors" :class="employeeChartType === 'bar' ? 'border-seed-olive-dark bg-seed-olive text-white' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:bg-seed-bg-section'" @click="employeeChartType = 'bar'">순위 비교</button>
       </div>
-      <div class="chart-container"><canvas ref="employeeCanvas" /></div>
+      <div class="chart-canvas-full relative h-[420px] overflow-hidden rounded-xl border border-seed-border-card p-3"><canvas ref="employeeCanvas" /></div>
     </div>
 
-    <div v-if="viewType === 'variety'" class="section-block">
-      <div class="control-row">
-        <div class="inline-row">
-          <label>기간 단위</label>
-          <select v-model="varietyPeriodType"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
-          <select v-model.number="varietyStartYear">
+    <div v-if="viewType === 'variety'" class="mt-2.5">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2 rounded-[10px] border border-seed-border-card bg-seed-bg-input px-3 py-2.5">
+          <label class="mr-0.5 text-[13px] font-bold text-seed-text-body">기간 단위</label>
+          <select v-model="varietyPeriodType" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20"><option value="monthly">월별</option><option value="quarterly">분기별</option></select>
+          <select v-model.number="varietyStartYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`variety-start-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="varietyStartMonth">
+          <select v-model.number="varietyStartMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`variety-start-month-${month}`" :value="month">{{ month }}월</option>
           </select>
-          <span>~</span>
-          <select v-model.number="varietyEndYear">
+          <span class="font-semibold text-seed-text-sub">~</span>
+          <select v-model.number="varietyEndYear" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="year in yearOptions" :key="`variety-end-year-${year}`" :value="year">{{ year }}년</option>
           </select>
-          <select v-model.number="varietyEndMonth">
+          <select v-model.number="varietyEndMonth" class="h-9 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 text-[13px] text-seed-text-body transition-colors hover:border-seed-olive-light focus:border-seed-olive focus:outline-none focus:ring-4 focus:ring-seed-olive/20">
             <option v-for="month in monthOptions" :key="`variety-end-month-${month}`" :value="month">{{ month }}월</option>
           </select>
         </div>
-        <button class="compare-btn" :class="{ active: varietyCompareYear }" type="button" @click="varietyCompareYear = !varietyCompareYear">전년도 대비</button>
+        <button class="rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors" :class="varietyCompareYear ? 'border-seed-olive bg-seed-olive-light text-seed-olive-dark' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:border-seed-olive-light hover:bg-seed-bg-section'" type="button" @click="varietyCompareYear = !varietyCompareYear">전년도 대비</button>
       </div>
-      <div class="chart-toggle">
-        <button class="chart-toggle-btn" :class="{ active: varietyChartType === 'line' }" @click="varietyChartType = 'line'">추이 보기</button>
-        <button class="chart-toggle-btn" :class="{ active: varietyChartType === 'bar' }" @click="varietyChartType = 'bar'">순위 비교</button>
+      <div class="mb-4 flex gap-2.5 max-md:flex-col">
+        <button class="rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors" :class="varietyChartType === 'line' ? 'border-seed-olive-dark bg-seed-olive text-white' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:bg-seed-bg-section'" @click="varietyChartType = 'line'">추이 보기</button>
+        <button class="rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors" :class="varietyChartType === 'bar' ? 'border-seed-olive-dark bg-seed-olive text-white' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:bg-seed-bg-section'" @click="varietyChartType = 'bar'">순위 비교</button>
       </div>
-      <div class="chart-container"><canvas ref="varietyCanvas" /></div>
+      <div class="chart-canvas-full relative h-[420px] overflow-hidden rounded-xl border border-seed-border-card p-3"><canvas ref="varietyCanvas" /></div>
     </div>
   </section>
 </template>
-
-<style scoped>.screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
-.filter-section { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-.filter-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-.filter-group { display: flex; flex-direction: column; gap: 8px; }
-.filter-label { font-size: 13px; font-weight: 600; color: #555; }
-.radio-group { display: flex; gap: 15px; background-color: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #ddd; }
-.radio-option { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #333; cursor: pointer; }
-.multi-select { position: relative; min-width: 250px; }
-.multi-select-trigger { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; background-color: #fff; text-align: left; cursor: pointer; }
-.multi-select-dropdown { position: absolute; top: 100%; left: 0; right: 0; background-color: #fff; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
-.multi-select-option { display: flex; gap: 8px; align-items: center; padding: 10px 12px; cursor: pointer; }
-.multi-select-option:hover { background-color: #f8f9fa; }
-.section-block { margin-top: 10px; }
-.control-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.inline-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.inline-row label { font-weight: 600; color: #2c3e50; }
-.inline-row select, .inline-row input { padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
-.compare-btn { border: 1px solid #d1d5db; background: #fff; color: #1f2937; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.compare-btn.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
-.chart-toggle { display: flex; gap: 10px; margin-bottom: 16px; }
-.chart-toggle-btn { padding: 10px 20px; background-color: #f8f9fa; border: 2px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
-.chart-toggle-btn.active { background-color: #3498db; border-color: #3498db; color: #fff; }
-.chart-container { position: relative; height: 420px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
-@media (max-width: 768px) {
-  .filter-row { flex-direction: column; align-items: stretch; }
-  .radio-group { flex-direction: column; align-items: flex-start; }
-  .chart-toggle { flex-direction: column; }
+<style scoped>
+.chart-canvas-full :deep(canvas) {
+  display: block;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 </style>
