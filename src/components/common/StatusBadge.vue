@@ -74,87 +74,55 @@ const displayLabel = computed(() => {
 
 <style scoped>
 .status-badge {
-  --status-neutral-bg: #f1f5f9;
-  --status-neutral-text: #475569;
-  --status-neutral-border: #cbd5e1;
-  --status-requested-bg: #dbeafe;
-  --status-requested-text: #1d4ed8;
-  --status-requested-border: #93c5fd;
-  --status-approved-bg: #e7f4ed;
-  --status-approved-text: #1f5e3b;
-  --status-approved-border: #7fb89a;
-  --status-rejected-bg: #fbe9e7;
-  --status-rejected-text: #c44536;
-  --status-rejected-border: #e3a29a;
-  --status-canceled-bg: #e2e8f0;
-  --status-canceled-text: #64748b;
-  --status-canceled-border: #cbd5e1;
-  --status-success-bg: #dcfce7;
-  --status-success-text: #166534;
-  --status-success-border: #86efac;
-  --status-warning-bg: #fef3c7;
-  --status-warning-text: #92400e;
-  --status-warning-border: #fcd34d;
-  --status-danger-bg: #ffe4e6;
-  --status-danger-text: #be123c;
-  --status-danger-border: #fda4af;
-  --status-info-bg: #e0f2fe;
-  --status-info-text: #0369a1;
-  --status-info-border: #7dd3fc;
+  /* ── Status Base Styles ── */
+  background-color: var(--status-bg);
+  color: var(--status-text);
+  border: 1px solid var(--status-border);
 }
 
 .status-default,
 .status-draft {
-  background-color: var(--status-neutral-bg);
-  border: 1px solid var(--status-neutral-border);
-  color: var(--status-neutral-text);
+  --status-bg: var(--color-bg-section);
+  --status-text: var(--color-text-body);
+  --status-border: var(--color-border-card);
 }
 
 .status-requested {
-  background-color: var(--status-requested-bg);
-  border: 1px solid var(--status-requested-border);
-  color: var(--status-requested-text);
+  --status-bg: var(--color-orange-light);
+  --status-text: var(--color-orange-dark);
+  --status-border: var(--color-orange);
 }
 
-.status-approved {
-  background-color: var(--status-approved-bg);
-  border: 1px solid var(--status-approved-border);
-  color: var(--status-approved-text);
+.status-approved,
+.status-success {
+  --status-bg: var(--color-olive-light);
+  --status-text: var(--color-olive-dark);
+  --status-border: var(--color-olive);
 }
 
-.status-rejected {
-  background-color: var(--status-rejected-bg);
-  border: 1px solid var(--status-rejected-border);
-  color: var(--status-rejected-text);
+.status-rejected,
+.status-danger,
+.status-error {
+  --status-bg: #F0D4D4; /* DESIGN.md: Status Error Background */
+  --status-text: var(--color-status-error);
+  --status-border: var(--color-status-error);
 }
 
 .status-canceled {
-  background-color: var(--status-canceled-bg);
-  border: 1px solid var(--status-canceled-border);
-  color: var(--status-canceled-text);
-}
-
-.status-success {
-  background-color: var(--status-success-bg);
-  border: 1px solid var(--status-success-border);
-  color: var(--status-success-text);
+  --status-bg: var(--color-bg-base);
+  --status-text: var(--color-text-placeholder);
+  --status-border: var(--color-border-card);
 }
 
 .status-warning {
-  background-color: var(--status-warning-bg);
-  border: 1px solid var(--status-warning-border);
-  color: var(--status-warning-text);
-}
-
-.status-danger {
-  background-color: var(--status-danger-bg);
-  border: 1px solid var(--status-danger-border);
-  color: var(--status-danger-text);
+  --status-bg: var(--color-orange-light);
+  --status-text: var(--color-orange-dark);
+  --status-border: var(--color-status-warning);
 }
 
 .status-info {
-  background-color: var(--status-info-bg);
-  border: 1px solid var(--status-info-border);
-  color: var(--status-info-text);
+  --status-bg: #D6DDE6; /* DESIGN.md: Status Info Background */
+  --status-text: var(--color-status-info);
+  --status-border: var(--color-status-info);
 }
 </style>

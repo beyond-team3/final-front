@@ -55,6 +55,7 @@ const columns = [
   { key: 'email', label: '이메일' },
   { key: 'status', label: '상태' },
   { key: 'lastLogin', label: '최근 로그인' },
+  { key: 'actions', label: '조회' },
 ]
 
 const rows = computed(() => {
@@ -77,40 +78,57 @@ const openDetail = (row) => {
 </script>
 
 <template>
-  <section>
-    <PageHeader title="계정 목록" subtitle="사원/거래처 계정을 조회합니다.">
-      <template #actions>
-        <button
-          type="button"
-          class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          @click="router.push('/users/register')"
+  <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8 text-[var(--font-body)]">
+    <div class="mx-auto max-w-[1200px] space-y-6">
+      <PageHeader title="계정 목록" subtitle="서비스에 등록된 사원 및 거래처 계정을 관리합니다.">
+        <template #actions>
+          <button
+              type="button"
+              class="rounded-lg bg-[var(--color-olive)] px-6 py-2 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-olive-dark)] active:scale-95"
+              @click="router.push('/users/register')"
+          >
+            + 신규 계정 등록
+          </button>
+        </template>
+      </PageHeader>
+
+      <SearchFilter
+          v-model="filters"
+          :fields="filterFields"
+          search-label="계정 조회"
+          :show-search="false"
+          :show-reset="false"
+          @search="() => {}"
+          @reset="() => {}"
+      />
+
+      <div class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-sm overflow-hidden">
+        <DataTable
+            :columns="columns"
+            :rows="rows"
+            row-key="id"
+            empty-text="조회된 계정이 없습니다."
+            @row-click="openDetail"
         >
-          계정 등록
-        </button>
-      </template>
-    </PageHeader>
+          <template #cell-type="{ value }">
+            <StatusBadge :status="value === 'EMPLOYEE' ? 'info' : 'success'" :label="typeLabel(value)" />
+          </template>
 
-    <SearchFilter
-      v-model="filters"
-      :fields="filterFields"
-      search-label="조회"
-      reset-label="초기화"
-    />
+          <template #cell-status="{ value }">
+            <StatusBadge :status="value === 'ACTIVE' ? 'success' : 'danger'" :label="statusLabel(value)" />
+          </template>
 
-    <DataTable
-      :columns="columns"
-      :rows="rows"
-      row-key="id"
-      empty-text="조회된 계정이 없습니다."
-      @row-click="openDetail"
-    >
-      <template #cell-type="{ value }">
-        <StatusBadge :status="value === 'EMPLOYEE' ? 'info' : 'success'" :label="typeLabel(value)" />
-      </template>
-
-      <template #cell-status="{ value }">
-        <StatusBadge :status="value === 'ACTIVE' ? 'success' : 'danger'" :label="statusLabel(value)" />
-      </template>
-    </DataTable>
+          <template #cell-actions="{ row }">
+            <button
+                type="button"
+                class="rounded-full bg-[var(--color-bg-base)] px-4 py-1.5 text-xs font-bold text-[var(--color-text-body)] transition-all hover:bg-[var(--color-olive)] hover:text-white"
+                @click.stop="openDetail(row)"
+            >
+              조회
+            </button>
+          </template>
+        </DataTable>
+      </div>
+    </div>
   </section>
 </template>

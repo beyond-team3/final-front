@@ -389,24 +389,34 @@ const submitContract = async () => {
               <table class="w-full text-sm text-left border-collapse">
                 <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50;">
                 <tr>
-                  <th class="px-3 py-2">상품명</th>
+                  <th class="px-3 py-2 text-left">상품명</th>
                   <th class="px-3 py-2 w-24 text-center">수량</th>
-                  <th class="px-3 py-2">단위</th>
+                  <th class="px-3 py-2 text-center">단위</th>
                   <th class="px-3 py-2 text-right">단가</th>
                   <th v-if="isNewMode" class="px-3 py-2 text-center">작업</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr v-for="item in selectedItems" :key="item.uid" class="border-t transition-colors hover:bg-white/50" style="border-color: #E8E3D8; color: #3D3529;">
-                  <td class="px-3 py-2 font-medium">{{ item.name }}</td>
+                  <td class="px-3 py-2 text-left font-medium">{{ item.name }}</td>
                   <td class="px-3 py-2 text-center">
                     <input v-if="isNewMode" type="number" min="1" class="w-20 p-1 border rounded text-center font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.qty" @input="updateQty(item, $event.target.value)">
                     <span v-else class="font-bold">{{ item.qty }}</span>
                   </td>
-                  <td class="px-3 py-2 text-xs font-bold" style="color: #9A8C7E;">{{ item.unit }}</td>
+                  <td class="px-3 py-2 text-center text-xs font-bold" style="color: #9A8C7E;">{{ item.unit }}</td>
                   <td class="px-3 py-2 text-right font-mono">{{ Number(item.price || 0).toLocaleString() }}</td>
                   <td v-if="isNewMode" class="px-3 py-2 text-center">
-                    <button type="button" class="rounded px-2 py-1 text-[10px] text-white font-bold" style="background-color: #B85C5C;" @click="removeItem(item.uid)">삭제</button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-lg p-2 text-white transition-all hover:bg-[#A64D4D] active:scale-95 shadow-sm"
+                        style="background-color: #B85C5C;"
+                        title="삭제"
+                        @click="removeItem(item.uid)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                      </svg>
+                    </button>
                   </td>
                 </tr>
                 <tr v-if="selectedItems.length === 0">
