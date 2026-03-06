@@ -23,17 +23,32 @@ function normalizeClientAssignments(raw = {}) {
 
     return source
         .map((item) => ({
-            id: item?.id ?? item?.clientId ?? null,
-            name: item?.name ?? item?.clientName ?? '거래처',
-            recentActivity: item?.recentActivity ?? item?.lastActivity ?? item?.activity ?? item?.updatedAt ?? item?.lastUpdatedAt ?? '-',
+            clientId: item?.clientId ?? item?.id ?? null,
+            clientCode: item?.clientCode ?? item?.code ?? '-',
+            clientName: item?.clientName ?? item?.name ?? '거래처',
+            accountStatus: item?.accountStatus ?? (item?.isActive === false ? 'INACTIVE' : 'ACTIVE'),
+            lastLoginAt: item?.lastLoginAt ?? item?.recentActivity ?? item?.lastActivity ?? '-',
         }))
-        .filter((item) => item.id !== null && item.id !== undefined)
+        .filter((item) => item.clientId !== null)
 }
 
 /**
  * 데이터 정규화 함수
  * Whitelist 방식으로 필요한 필드만 정의하여 유저 정보 유입을 차단
  */
+function parseAddress(addressInput) {
+    if (!addressInput) return { sido: '', address: '', zonecode: '' }
+    if (addressInput.includes('/')) {
+        const parts = addressInput.split('/')
+        return {
+            sido: parts[0] || '',
+            address: parts[1] || '',
+            zonecode: parts[2] || ''
+        }
+    }
+    return { sido: '', address: addressInput, zonecode: '' }
+}
+
 function normalizeEmployee(raw = {}) {
     const data = raw.data || raw;
 
@@ -43,14 +58,20 @@ function normalizeEmployee(raw = {}) {
     }
 
     const isActive = getIsActive(data)
+    const parsedAddr = parseAddress(data.address)
 
     return {
         id: data.id,
+        employeeCode: data.employeeCode || data.id,
         name: data.name || '이름 없음',
         role: data.role || data.position || 'SALES_REP',
         email: data.email || '-',
         phone: data.phone || data.contact || '-',
-        address: data.address || data.region || '-',
+        address: data.address || '-',
+        displaySido: parsedAddr.sido,
+        displayAddressOnly: parsedAddr.address,
+        displayZonecode: parsedAddr.zonecode,
+        displayAddress: `${parsedAddr.sido} ${parsedAddr.address}`.trim() || '-',
         createdAt: data.createdAt || data.joinedAt || '-',
         isActive,
         status: isActive ? 'ACTIVE' : 'INACTIVE',

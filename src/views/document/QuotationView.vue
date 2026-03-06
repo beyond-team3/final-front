@@ -344,15 +344,18 @@ const submitDoc = async () => {
               <table class="w-full text-sm text-left border-collapse">
                 <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
                 <tr>
-                  <th class="p-3 w-[15%]">품종명</th><th class="p-3 w-[25%]">상품명</th>
-                  <th class="p-3 w-[15%] text-center">수량</th><th class="p-3 w-[15%] text-center">단위</th>
-                  <th class="p-3 w-[20%] text-right">단가</th><th class="p-3 w-[10%] text-center">작업</th>
+                  <th class="p-3 w-[15%] text-left">품종명</th>
+                  <th class="p-3 w-[25%] text-left">상품명</th>
+                  <th class="p-3 w-[15%] text-center">수량</th>
+                  <th class="p-3 w-[15%] text-center">단위</th>
+                  <th class="p-3 w-[20%] text-right">단가</th>
+                  <th class="p-3 w-[10%] text-center">작업</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr v-for="item in selectedItems" :key="item.uid" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;">
-                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ item.variety }}</td>
-                  <td class="p-3 font-bold" style="color: #3D3529;">{{ item.name }}</td>
+                  <td class="p-3 text-xs text-left" style="color: #6B5F50;">{{ item.variety }}</td>
+                  <td class="p-3 font-bold text-left" style="color: #3D3529;">{{ item.name }}</td>
                   <td class="p-3 text-center">
                     <input type="number" min="1" class="w-full rounded text-center p-1 font-bold outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.count" @input="updateItem(item, 'count', $event.target.value)">
                   </td>
@@ -363,7 +366,16 @@ const submitDoc = async () => {
                     <input type="number" min="0" class="w-full rounded text-right p-1 font-mono outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.price" @input="updateItem(item, 'price', $event.target.value)">
                   </td>
                   <td class="p-3 text-center">
-                    <button class="text-white px-2 py-1 rounded text-[10px] font-bold" style="background-color: #B85C5C;" @click="removeItem(item.uid)">삭제</button>
+                    <button
+                        class="inline-flex items-center justify-center rounded-lg p-2 text-white transition-all hover:bg-[#A64D4D] active:scale-95 shadow-sm"
+                        style="background-color: #B85C5C;"
+                        title="삭제"
+                        @click="removeItem(item.uid)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                      </svg>
+                    </button>
                   </td>
                 </tr>
                 <tr v-if="selectedItems.length === 0"><td colspan="6" class="p-10 text-center italic" style="color: #9A8C7E;">상품 정보를 입력해 주세요.</td></tr>
@@ -383,10 +395,10 @@ const submitDoc = async () => {
             <p class="text-[11px] mt-2 font-medium" style="color: #9A8C7E;">* 위 내용은 참고용이며, 발행되는 PDF 견적서에는 포함되지 않습니다.</p>
           </div>
 
-          <div class="card border p-5 rounded-lg shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
-            <h3 class="text-base font-bold" style="color: #3D3529;">내부 비고</h3>
-            <textarea v-model="internalMemo" rows="3" class="w-full rounded p-3 mt-3 text-sm resize-none outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="비고는 PDF에 표시되지 않습니다."></textarea>
-          </div>
+          <article class="rounded-lg border p-5 shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
+            <h3 class="text-lg font-bold" style="color: #3D3529;">내부 비고</h3>
+            <textarea v-model="internalMemo" rows="3" class="w-full p-2 border border-l-4 rounded text-sm mt-3 resize-none outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; border-left-color: #C8622A; color: #3D3529;" placeholder="내부 관리용 메모"></textarea>
+          </article>
 
           <button
               class="w-full text-white py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:opacity-90"
