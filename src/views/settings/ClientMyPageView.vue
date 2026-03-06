@@ -1,58 +1,97 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ModalBase from '@/components/common/ModalBase.vue'
 import UnifiedHistoryPanel from '@/components/history/UnifiedHistoryPanel.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import TabNav from '@/components/common/TabNav.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const activeTab = ref('info')
+const isPwModalOpen = ref(false)
+const pwForm = ref({ current: '', next: '', nextConfirm: '' })
+const pwHint = ref('')
 
 const profile = reactive({
+  id: null,
   name: '',
   code: '',
-  summary: '',
-  businessNumber: '',
-  ceo: '',
-  phone: '',
+  bizNo: '',
+  ceoName: '',
+  companyPhone: '',
   address: '',
-  type: '',
-  manager: '',
-  mobile: '',
-  email: '',
+  zonecode: '',
+  typeLabel: '',
+  managerName: '',
+  managerPhone: '',
+  managerEmail: '',
   crops: [],
+  isActive: true,
+  monthlyAmount: 0,
+  monthlyInProgress: 0,
+  monthlyDone: 0,
 })
+
+const isClientActive = computed(() => Boolean(profile.isActive))
+const clientStatusText = computed(() => (isClientActive.value ? '활성' : '비활성'))
+
+const toCurrency = (value) => {
+  if (value === undefined || value === null) return '0원'
+  return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)
+}
 
 onMounted(() => {
   if (authStore.me) {
     const data = authStore.me
+    profile.id = data.id
     profile.name = data.name || ''
     profile.code = data.code || ''
-    const region = data.address ? data.address.split(' ')[0] : '지역미정'
-    profile.summary = `${data.typeLabel || '거래처'} | ${data.isActive ? '사용중' : '중지'} | ${region}`
+    profile.bizNo = data.bizNo || ''
+    profile.ceoName = data.ceoName || ''
+    profile.companyPhone = data.companyPhone || ''
 
-    profile.businessNumber = data.bizNo || ''
-    profile.ceo = data.ceoName || ''
-    profile.phone = data.companyPhone || ''
-    profile.address = data.address || ''
-    profile.type = data.typeLabel || '거래처'
-    profile.manager = data.managerName || ''
-    profile.mobile = data.managerPhone || ''
-    profile.email = data.managerEmail || ''
+    // 주소 파싱 (sido/address/zonecode)
+    const rawAddr = data.address || ''
+    if (rawAddr.includes('/')) {
+      const parts = rawAddr.split('/')
+      profile.address = parts[1] || parts[0]
+      profile.zonecode = parts[2] || ''
+    } else {
+      profile.address = rawAddr
+      profile.zonecode = ''
+    }
+
+    profile.typeLabel = data.typeLabel || '거래처'
+    profile.managerName = data.managerName || ''
+    profile.managerPhone = data.managerPhone || ''
+    profile.managerEmail = data.managerEmail || ''
     profile.crops = data.crops || []
+    profile.isActive = data.isActive ?? true
+
+    // 모의 데이터 (거래 요약)
+    profile.monthlyAmount = data.monthlyAmount || 12500000
+    profile.monthlyInProgress = data.monthlyInProgress || 3
+    profile.monthlyDone = data.monthlyDone || 12
   } else {
     router.push('/login')
   }
 })
 
-// 파이프라인 데이터 (생략 가능하나 유지함돠)
+const tabOptions = computed(() => [
+  { key: 'info', label: '마이 페이지 정보' },
+  { key: 'history', label: '거래 히스토리', badge: 2 },
+])
+
+// 팝업 가상 파이프라인 데이터
 const pipelines = ref([
   {
     id: 8,
-    title: '파이프라인 #8',
-    startDate: '2026-01-29',
+    title: '동계 시즌 대량 주문',
+    startDate: '2026-02-15',
     amount: 15000000,
     statusText: '주문 진행',
     statusTone: 'primary',
@@ -61,33 +100,9 @@ const pipelines = ref([
       { name: '견적서', state: 'completed', statusText: '완료' },
       { name: '계약서', state: 'completed', statusText: '완료' },
       { name: '주문서', state: 'in-progress', statusText: '진행' },
-      { name: '명세서', state: 'waiting', statusText: '대기' },
-      { name: '청구서', state: 'waiting', statusText: '대기' },
-      { name: '결제완료', state: 'waiting', statusText: '대기' },
-    ],
-  },
-  {
-    id: 7,
-    title: '파이프라인 #7',
-    startDate: '2026-01-15',
-    amount: 8500000,
-    statusText: '결제 완료',
-    statusTone: 'success',
-    steps: [
-      { name: '견적요청', state: 'completed', statusText: '완료' },
-      { name: '견적서', state: 'completed', statusText: '완료' },
-      { name: '계약서', state: 'completed', statusText: '완료' },
-      { name: '주문서', state: 'completed', statusText: '완료' },
-      { name: '명세서', state: 'completed', statusText: '완료' },
-      { name: '청구서', state: 'completed', statusText: '완료' },
-      { name: '결제완료', state: 'completed', statusText: '완료' },
     ],
   },
 ])
-
-const isPwModalOpen = ref(false)
-const pwForm = ref({ current: '', next: '', nextConfirm: '' })
-const pwHint = ref('')
 
 const openPwModal = () => {
   pwForm.value = { current: '', next: '', nextConfirm: '' }
@@ -102,7 +117,6 @@ const closePwModal = () => {
 
 const submitPassword = async () => {
   const { current, next, nextConfirm } = pwForm.value
-
   if (!current || !next || !nextConfirm) {
     pwHint.value = '모든 항목을 입력해주세요.'
     return
@@ -125,20 +139,13 @@ const submitPassword = async () => {
     const response = await fetch(`http://localhost:3001/users/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      // [오타 수정] passwordForm -> pwForm
       body: JSON.stringify({ password: next }),
     })
-
     if (!response.ok) throw new Error('비밀번호 수정 실패')
-
     authStore.me.password = next
     pwHint.value = '비밀번호가 성공적으로 수정되었습니다.'
-
-    setTimeout(() => {
-      closePwModal()
-    }, 1000)
+    setTimeout(() => { closePwModal() }, 1000)
   } catch (error) {
-    console.error('비밀번호 변경 오류:', error)
     pwHint.value = '서버 통신 오류가 발생했습니다.'
   }
 }
@@ -149,108 +156,137 @@ const openPipelineDetail = (pipelineId) => {
 </script>
 
 <template>
-  <section class="screen-content">
-    <header class="detail-header">
-      <div class="header-info">
-        <h2>🏢 {{ profile.name }} <span class="muted">({{ profile.code }})</span></h2>
-        <p>{{ profile.summary }}</p>
+  <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-5">
+    <div class="mx-auto max-w-6xl space-y-4">
+      <PageHeader class="!bg-transparent !p-0 !mb-4">
+        <template #title>
+          <div class="flex items-center gap-3">
+            <h2 class="text-2xl font-bold text-[var(--color-text-strong)]">{{ profile.name }}</h2>
+            <StatusBadge status="info" :label="profile.typeLabel" />
+          </div>
+        </template>
+        <template #subtitle>
+          <span class="text-sm font-medium text-[var(--color-text-sub)]">거래처 코드: {{ profile.code }}</span>
+        </template>
+        <template #actions>
+          <button type="button" class="rounded-lg bg-[var(--color-olive)] px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-olive-dark)] active:scale-95" @click="openPwModal"> 비밀번호 변경 </button>
+        </template>
+      </PageHeader>
+
+      <div class="flex items-center justify-between border-b border-[var(--color-border-divider)] mb-6">
+        <TabNav v-model="activeTab" :tabs="tabOptions" class="!border-0 !pb-0" />
       </div>
-      <button type="button" class="btn-primary" @click="openPwModal">비밀번호 변경</button>
-    </header>
 
-    <div class="tabs">
-      <div class="tab-buttons">
-        <button type="button" class="tab-btn" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">기본 정보</button>
-        <button type="button" class="tab-btn" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">영업 히스토리</button>
+      <div v-if="activeTab === 'info'" class="grid gap-6 lg:grid-cols-2">
+        <!-- 거래처 정보 -->
+        <article class="flex flex-col rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <div class="mb-6 flex items-center justify-between gap-2 border-b border-[var(--color-border-divider)] pb-4">
+            <h3 class="text-xl font-bold text-[var(--color-text-strong)]">기본 정보</h3>
+            <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold" :class="isClientActive ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]' : 'bg-[#F0D4D4] text-[var(--color-status-error)]'">
+              <span class="h-2 w-2 rounded-full" :class="isClientActive ? 'bg-[var(--color-olive)]' : 'bg-[var(--color-status-error)]'" />
+              <span>{{ clientStatusText }}</span>
+            </div>
+          </div>
+          <dl class="space-y-4">
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">법인명</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ profile.name }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">사업자번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.bizNo }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">대표이름</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.ceoName }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">회사 유선번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.companyPhone }}</dd></div>
+            <div class="flex flex-col gap-1">
+              <dt class="text-[var(--color-text-sub)]">주소</dt>
+              <dd class="flex items-center justify-between gap-2 w-full text-sm font-medium leading-relaxed text-[var(--color-text-body)]">
+                <span class="truncate">{{ profile.address }}</span>
+                <span v-if="profile.zonecode" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white border border-[var(--color-border-card)] px-2 py-1 text-xs font-bold text-[var(--color-text-strong)] shadow-sm">
+                  <span class="text-[10px] text-[var(--color-text-sub)] font-medium">우편번호</span>
+                  {{ profile.zonecode }}
+                </span>
+              </dd>
+            </div>
+          </dl>
+        </article>
+
+        <!-- 담당자 정보 -->
+        <article class="flex flex-col rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <h3 class="mb-6 border-b border-[var(--color-border-divider)] pb-4 text-xl font-bold text-[var(--color-text-strong)]">담당자 정보</h3>
+          <dl class="space-y-4">
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이름</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ profile.managerName }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">연락처</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.managerPhone }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이메일</dt><dd class="font-medium text-[var(--color-text-body)] underline underline-offset-4">{{ profile.managerEmail }}</dd></div>
+          </dl>
+        </article>
+
+        <!-- 거래 정보 (여신 정보 제외) -->
+        <article class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm lg:col-span-1">
+          <h3 class="mb-6 border-b border-[var(--color-border-divider)] pb-4 text-xl font-bold text-[var(--color-text-strong)]">거래 현황</h3>
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-4">
+            <h4 class="mb-2 text-sm font-bold text-[var(--color-text-sub)] uppercase tracing-wider">이번달 거래 요약</h4>
+            <p class="text-3xl font-black text-[var(--color-olive)]">{{ toCurrency(profile.monthlyAmount) }}</p>
+            <div class="mt-3 flex gap-4 text-xs font-semibold text-[var(--color-text-body)]">
+              <span>진행: <span class="text-[var(--color-orange)]">{{ profile.monthlyInProgress }}건</span></span>
+              <span>완료: <span class="text-[var(--color-olive)]">{{ profile.monthlyDone }}건</span></span>
+            </div>
+          </div>
+          <p class="mt-4 text-xs text-[var(--color-text-placeholder)]">* 상세 거래 내역은 거래 히스토리 탭에서 확인 가능합니다.</p>
+        </article>
+
+        <!-- 취급 품종 -->
+        <article class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm lg:col-span-1">
+          <h3 class="mb-6 border-b border-[var(--color-border-divider)] pb-4 text-xl font-bold text-[var(--color-text-strong)]">취급 품종</h3>
+          <div class="flex flex-wrap gap-2">
+            <div v-for="crop in profile.crops" :key="crop" class="rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)]">
+              {{ crop }}
+            </div>
+            <div v-if="profile.crops.length === 0" class="flex w-full flex-col items-center justify-center py-4 text-sm text-[var(--color-text-placeholder)]">
+              <span class="mb-1 text-2xl">🌿</span>
+              등록된 품종이 없습니다.
+            </div>
+          </div>
+        </article>
       </div>
 
-      <section v-if="activeTab === 'info'" class="tab-content">
-        <div class="info-grid">
-          <article class="info-card">
-            <h3>기본 정보</h3>
-            <div class="info-item">
-              <span class="info-label">법인명</span>
-              <p class="info-value">{{ profile.name }}</p>
-            </div>
-            <div class="info-item">
-              <span class="info-label">사업자번호</span>
-              <p class="info-value">{{ profile.businessNumber }}</p>
-            </div>
-            <div class="info-item">
-              <span class="info-label">대표이름</span>
-              <p class="info-value">{{ profile.ceo }}</p>
-            </div>
-            <div class="info-item">
-              <span class="info-label">회사유선번호</span>
-              <p class="info-value">{{ profile.phone }}</p>
-            </div>
-            <div class="info-item">
-              <span class="info-label">주소</span>
-              <p class="info-value">{{ profile.address }}</p>
-            </div>
-            <div class="info-item">
-              <span class="info-label">거래처 유형</span>
-              <p class="info-value badge badge-blue">{{ profile.type }}</p>
-            </div>
-          </article>
-
-          <article class="info-card">
-            <h3>담당자 정보</h3>
-            <div class="info-item">
-              <span class="info-label">담당자명</span>
-              <p class="info-value">{{ profile.manager }}</p>
-            </div>
-            <div class="info-item">
-              <span class="info-label">연락처</span>
-              <p class="info-value">{{ profile.mobile }}</p>
-            </div>
-            <div class="info-item">
-              <span class="info-label">이메일</span>
-              <p class="info-value">{{ profile.email }}</p>
-            </div>
-          </article>
-
-          <article class="info-card">
-            <h3>취급 품종</h3>
-            <div class="crops-list">
-              <span v-for="crop in profile.crops" :key="crop" class="crop-badge">{{ crop }}</span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section v-else class="tab-content">
+      <div v-else class="space-y-4">
         <UnifiedHistoryPanel
-            :title="`${profile.name}의 영업 파이프라인`"
+            :title="`${profile.name}의 거래 히스토리`"
             :pipelines="pipelines"
             :show-client-name="false"
             :show-edit-button="false"
             @detail="openPipelineDetail"
+            class="!bg-[var(--color-bg-card)] !border-[var(--color-border-card)]"
         />
-      </section>
+      </div>
     </div>
 
+    <!-- 비밀번호 수정 모달 -->
     <ModalBase v-model="isPwModalOpen" title="비밀번호 수정" width-class="max-w-xl">
-      <div class="grid gap-3">
-        <label class="form-group">
-          <span class="form-label">기존 비밀번호</span>
-          <input v-model="pwForm.current" class="form-input" type="password" autocomplete="current-password" placeholder="기존 비밀번호를 입력하세요">
+      <div class="grid gap-4 p-2">
+        <label class="block text-sm font-bold text-[var(--color-text-sub)]">기존 비밀번호
+          <input v-model="pwForm.current" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="password" autocomplete="current-password" />
         </label>
-        <label class="form-group">
-          <span class="form-label">새 비밀번호</span>
-          <input v-model="pwForm.next" class="form-input" type="password" autocomplete="new-password" placeholder="새 비밀번호를 입력하세요">
+        <label class="block text-sm font-bold text-[var(--color-text-sub)]">새 비밀번호
+          <input v-model="pwForm.next" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="password" autocomplete="new-password" placeholder="8자 이상 입력" />
         </label>
-        <label class="form-group">
-          <span class="form-label">새 비밀번호 확인</span>
-          <input v-model="pwForm.nextConfirm" class="form-input" type="password" autocomplete="new-password" placeholder="새 비밀번호를 다시 입력하세요">
+        <label class="block text-sm font-bold text-[var(--color-text-sub)]">새 비밀번호 확인
+          <input v-model="pwForm.nextConfirm" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="password" autocomplete="new-password" placeholder="한 번 더 입력" />
         </label>
-        <p class="form-hint">{{ pwHint }}</p>
+        <p v-if="pwHint" class="text-sm font-medium text-[var(--color-orange)] animate-in fade-in duration-300">{{ pwHint }}</p>
       </div>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <button type="button" class="btn-sub" @click="closePwModal">취소</button>
-          <button type="button" class="btn-primary" @click="submitPassword">수정</button>
+        <div class="flex w-full justify-end gap-3 p-2">
+          <button
+              type="button"
+              class="h-11 px-6 rounded-lg border border-[var(--color-border-card)] bg-transparent text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)] whitespace-nowrap"
+              @click="closePwModal"
+          >
+            취소
+          </button>
+          <button
+              type="button"
+              class="h-11 px-10 rounded-lg bg-[var(--color-olive)] text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-olive-dark)] active:scale-95 whitespace-nowrap"
+              @click="submitPassword"
+          >
+            변경 완료
+          </button>
         </div>
       </template>
     </ModalBase>
@@ -258,29 +294,5 @@ const openPipelineDetail = (pipelineId) => {
 </template>
 
 <style scoped>
-.detail-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-.header-info { flex: 1; }
-.header-info h2 { font-size: 24px; font-weight: 700; color: #111827; }
-.header-info p { margin-top: 4px; color: #6b7280; font-size: 14px; }
-.muted { color: #95a5a6; font-size: 14px; font-weight: 400; }
-.tabs { margin-top: 20px; }
-.tab-buttons { display: flex; border-bottom: 1px solid #e5e7eb; margin-bottom: 25px; }
-.tab-btn { padding: 12px 24px; background: none; border: none; font-size: 15px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; }
-.tab-btn.active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
-.info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.info-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; background-color: #fff; }
-.info-card h3 { font-size: 16px; font-weight: 600; color: #2c3e50; margin-bottom: 15px; }
-.info-item { margin-bottom: 12px; }
-.info-label { font-size: 13px; color: #7f8c8d; display: block; margin-bottom: 4px; }
-.info-value { font-weight: 500; color: #2c3e50; font-size: 15px; }
-.badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
-.badge-blue { background-color: #fdf0ea; color: var(--color-accent); }
-.crops-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.crop-badge { padding: 4px 12px; background-color: #f1f3f5; color: #495057; border: 1px solid #dee2e6; border-radius: 6px; font-size: 13px; }
-.form-group { display: grid; gap: 6px; }
-.form-label { font-size: 13px; font-weight: 600; color: #2c3e50; }
-.form-input { height: 40px; border: 1px solid #dfe6e9; border-radius: 8px; padding: 0 12px; outline: none; font-size: 14px; }
-.form-input:focus { border-color: var(--color-border-focus); box-shadow: 0 0 0 3px rgba(107, 124, 69, 0.15); }
-.form-hint { min-height: 18px; font-size: 12px; color: #7f8c8d; }
-@media (max-width: 1024px) { .info-grid { grid-template-columns: 1fr; } }
+/* 유틸리티 클래스로 대체하여 스타일 태그 최소화 */
 </style>

@@ -1,11 +1,48 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import PageHeader from '@/components/common/PageHeader.vue'
 
 const router = useRouter()
 const route = useRoute()
+
+const activeDropdown = ref(null) // 'role', 'target', 'sales'
+const dropdownContainer = ref(null)
+
+const roleOptions = [
+  { label: '거래처 (Client)', value: 'CLIENT' },
+  { label: '영업사원 (Sales)', value: 'SALES' },
+  { label: '관리자 (Admin)', value: 'ADMIN' },
+]
+
+const toggleDropdown = (name) => {
+  if (isLocked.value && name === 'role') return
+  activeDropdown.value = activeDropdown.value === name ? null : name
+}
+
+const selectRole = (value) => {
+  form.accountType = value
+  activeDropdown.value = null
+  onTypeChange()
+}
+
+const selectTarget = (opt) => {
+  form.targetId = opt.id
+  form.targetPerson = opt.name
+  activeDropdown.value = null
+}
+
+const selectSales = (opt) => {
+  form.salesPersonId = opt.id
+  activeDropdown.value = null
+}
+
+const handleClickOutside = (event) => {
+  if (dropdownContainer.value && !dropdownContainer.value.contains(event.target)) {
+    activeDropdown.value = null
+  }
+}
 
 const unassignedData = ref({ CLIENT: [], SALES: [], ADMIN: [] })
 const allEmployees = ref([]) // { id, name } 객체 배열로 변경
@@ -127,51 +164,166 @@ const onSubmit = async () => {
 </script>
 
 <template>
-  <section>
-    <PageHeader title="계정 등록" subtitle="계정 생성 시 관련 정보가 자동 활성화됨돠." />
+  <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
+    <div class="mx-auto max-w-xl space-y-6">
+      <header class="text-center">
+        <h1 class="text-3xl font-black text-[var(--color-text-strong)]">계정 등록</h1>
+        <p class="mt-2 text-sm text-[var(--color-text-sub)]">
+          새로운 서비스 사용자를 위한 계정을 생성합니다.<br/>
+          계정 생성 시 관련 정보가 자동으로 활성화됩니다.
+        </p>
+      </header>
 
-    <div class="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-6">
-      <form class="space-y-4" @submit.prevent="onSubmit">
-        <label class="block text-sm font-medium text-slate-700">
-          계정 역할
-          <select v-model="form.accountType" :disabled="isLocked" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" required @change="onTypeChange">
-            <option disabled value="">역할을 선택하세요</option>
-            <option value="CLIENT">거래처 (Client)</option>
-            <option value="SALES">영업사원 (Sales)</option>
-            <option value="ADMIN">관리자 (Admin)</option>
-          </select>
-        </label>
+      <div class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-8 shadow-sm">
+        <form class="space-y-6" @submit.prevent="onSubmit">
+          <div class="space-y-4" ref="dropdownContainer">
+            <!-- 계정 역할 -->
+            <div class="block relative">
+              <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">계정 역할</span>
+              <div
+                  class="h-11 w-full rounded-lg border bg-[var(--color-bg-input)] px-4 flex items-center justify-between transition-all shadow-sm"
+                  :class="[
+                  activeDropdown === 'role' ? 'border-[var(--color-olive)] ring-1 ring-[var(--color-olive)]' : 'border-[var(--color-border-card)]',
+                  isLocked ? 'opacity-60 cursor-not-allowed text-[var(--color-text-placeholder)]' : 'cursor-pointer'
+                ]"
+                  @click="toggleDropdown('role')"
+              >
+                <span
+                    class="font-bold"
+                    :class="form.accountType ? 'text-[var(--color-text-strong)]' : 'text-[var(--color-text-placeholder)]'"
+                >
+                  {{ roleOptions.find(o => o.value === form.accountType)?.label || '역할을 선택하세요' }}
+                </span>
+                <span class="text-[var(--color-text-sub)] text-xs transition-transform duration-200" :class="{ 'rotate-180': activeDropdown === 'role' }">▼</span>
+              </div>
+              <ul
+                  v-if="activeDropdown === 'role'"
+                  class="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0"
+              >
+                <li
+                    v-for="opt in roleOptions"
+                    :key="opt.value"
+                    class="px-4 py-2.5 text-sm cursor-pointer transition-colors"
+                    :class="form.accountType === opt.value ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'"
+                    @click="selectRole(opt.value)"
+                >
+                  {{ opt.label }}
+                </li>
+              </ul>
+            </div>
 
-        <label v-if="showTargetArea" class="block text-sm font-medium text-slate-700">
-          미등록 대상자 선택
-          <select v-model="form.targetId" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" required @change="onTargetSelect">
-            <option :value="null" disabled>{{ targetOptions.length ? '대상자를 선택하세요' : '미등록자가 없슴돠.' }}</option>
-            <option v-for="opt in targetOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
-          </select>
-        </label>
+            <!-- 미등록 대상자 선택 -->
+            <div v-if="showTargetArea" class="block relative animate-in fade-in slide-in-from-top-2 duration-300">
+              <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">미등록 대상자 선택</span>
+              <div
+                  class="h-11 w-full rounded-lg border bg-[var(--color-bg-input)] px-4 flex items-center justify-between cursor-pointer transition-all shadow-sm"
+                  :class="activeDropdown === 'target' ? 'border-[var(--color-olive)] ring-1 ring-[var(--color-olive)]' : 'border-[var(--color-border-card)]'"
+                  @click="toggleDropdown('target')"
+              >
+                <span
+                    class="font-bold"
+                    :class="form.targetId ? 'text-[var(--color-text-strong)]' : 'text-[var(--color-text-placeholder)]'"
+                >
+                  {{ targetOptions.find(o => o.id === form.targetId)?.name || (targetOptions.length ? '대상자를 선택하세요' : '미등록자가 없습니다.') }}
+                </span>
+                <span class="text-[var(--color-text-sub)] text-xs transition-transform duration-200" :class="{ 'rotate-180': activeDropdown === 'target' }">▼</span>
+              </div>
+              <ul
+                  v-if="activeDropdown === 'target'"
+                  class="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0"
+              >
+                <li
+                    v-for="opt in targetOptions"
+                    :key="opt.id"
+                    class="px-4 py-2.5 text-sm cursor-pointer transition-colors"
+                    :class="form.targetId === opt.id ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'"
+                    @click="selectTarget(opt)"
+                >
+                  {{ opt.name }}
+                </li>
+              </ul>
+            </div>
 
-        <label v-if="showSalesArea" class="block text-sm font-medium text-slate-700">
-          담당 영업사원 매칭
-          <select v-model="form.salesPersonId" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" :required="showSalesArea">
-            <option :value="null" disabled>담당 사원을 선택하세요</option>
-            <option v-for="emp in allEmployees" :key="emp.id" :value="emp.id">{{ emp.name }}</option>
-          </select>
-        </label>
+            <!-- 담당 영업사원 매칭 -->
+            <div v-if="showSalesArea" class="block relative animate-in fade-in slide-in-from-top-2 duration-300">
+              <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">담당 영업사원 매칭</span>
+              <div
+                  class="h-11 w-full rounded-lg border bg-[var(--color-bg-input)] px-4 flex items-center justify-between cursor-pointer transition-all shadow-sm"
+                  :class="activeDropdown === 'sales' ? 'border-[var(--color-olive)] ring-1 ring-[var(--color-olive)]' : 'border-[var(--color-border-card)]'"
+                  @click="toggleDropdown('sales')"
+              >
+                <span
+                    class="font-bold"
+                    :class="form.salesPersonId ? 'text-[var(--color-text-strong)]' : 'text-[var(--color-text-placeholder)]'"
+                >
+                  {{ allEmployees.find(o => o.id === form.salesPersonId)?.name || '담당 사원을 선택하세요' }}
+                </span>
+                <span class="text-[var(--color-text-sub)] text-xs transition-transform duration-200" :class="{ 'rotate-180': activeDropdown === 'sales' }">▼</span>
+              </div>
+              <ul
+                  v-if="activeDropdown === 'sales'"
+                  class="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0"
+              >
+                <li
+                    v-for="emp in allEmployees"
+                    :key="emp.id"
+                    class="px-4 py-2.5 text-sm cursor-pointer transition-colors"
+                    :class="form.salesPersonId === emp.id ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'"
+                    @click="selectSales(emp)"
+                >
+                  {{ emp.name }}
+                </li>
+              </ul>
+            </div>
 
-        <label class="block text-sm font-medium text-slate-700">
-          로그인 ID
-          <input v-model="form.loginId" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" type="text" required />
-        </label>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label class="block">
+                <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">로그인 ID</span>
+                <input
+                    v-model="form.loginId"
+                    class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] transition-all shadow-sm placeholder:[var(--color-text-placeholder)]"
+                    type="text"
+                    placeholder="아이디 입력"
+                    required
+                />
+              </label>
 
-        <label class="block text-sm font-medium text-slate-700">
-          로그인 PW
-          <input v-model="form.loginPw" class="mt-1 h-11 w-full rounded border border-slate-300 px-3" type="password" required />
-        </label>
+              <label class="block">
+                <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">로그인 PW</span>
+                <input
+                    v-model="form.loginPw"
+                    class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] transition-all shadow-sm placeholder:[var(--color-text-placeholder)]"
+                    type="password"
+                    placeholder="비밀번호 입력"
+                    required
+                />
+              </label>
+            </div>
+          </div>
 
-        <button type="submit" class="h-11 w-full rounded bg-slate-800 text-sm font-semibold text-white hover:bg-slate-700">
-          등록 및 활성화 완료
-        </button>
-      </form>
+          <div class="pt-4">
+            <button
+                type="submit"
+                class="h-12 w-full rounded-lg bg-[var(--color-olive)] text-base font-bold text-white shadow-md transition-all hover:bg-[var(--color-olive-dark)] active:scale-[0.98]"
+            >
+              계정 생성 및 활성화
+            </button>
+            <button
+                type="button"
+                class="mt-3 h-12 w-full rounded-lg border border-[var(--color-border-card)] bg-transparent text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)]"
+                @click="router.back()"
+            >
+              취소
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+h1 {
+  font-family: var(--font-body);
+}
+</style>

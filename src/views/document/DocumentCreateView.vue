@@ -93,7 +93,7 @@ const cards = computed(() => {
   ]
 })
 
-const pageTitle = computed(() => (isClient.value ? '문서 작성' : '영업 문서 작성'))
+const pageTitle = computed(() => '문서 작성')
 const subtitle = computed(() => (isClient.value ? '견적 요청서 또는 주문서를 선택하세요.' : '작성할 문서 유형을 선택하세요.'))
 
 const handleCardClick = (card) => {

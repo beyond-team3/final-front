@@ -175,13 +175,13 @@ function normalizeClientDashboard(payload) {
 }
 
 export function getSalesRepDashboard() {
-  return api.get('/dashboard/sales-rep').then(normalizeSalesRepDashboard)
+    return api.get('/api/dashboard/sales-rep').then(normalizeSalesRepDashboard)
 }
 
 export function getAdminDashboard() {
-  return api.get('/dashboard/admin').then(normalizeAdminDashboard)
+    return api.get('/api/dashboard/admin').then(normalizeAdminDashboard)
 }
 
 export function getClientDashboard() {
-  return api.get('/dashboard/client').then(normalizeClientDashboard)
+    return api.get('/api/dashboard/client').then(normalizeClientDashboard)
 }

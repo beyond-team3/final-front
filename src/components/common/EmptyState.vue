@@ -12,8 +12,8 @@ defineProps({
 </script>
 
 <template>
-  <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-    <p class="text-base font-semibold text-slate-700">{{ title }}</p>
-    <p class="mt-2 text-sm text-slate-500">{{ description }}</p>
+  <div class="rounded-xl border border-dashed border-[var(--color-border-card)] bg-[var(--color-bg-section)] p-12 text-center shadow-sm">
+    <p class="text-lg font-bold text-[var(--color-text-strong)]">{{ title }}</p>
+    <p class="mt-2 text-sm text-[var(--color-text-sub)]">{{ description }}</p>
   </div>
 </template>
