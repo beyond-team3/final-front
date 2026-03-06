@@ -299,9 +299,7 @@ const onSelectContract = (contract) => {
 
             <!-- 액션 바 -->
             <div class="action-bar">
-              <div class="action-bar-left">
-                <span class="autosave-hint">작성 중 · 마지막 자동저장 <strong>방금 전</strong></span>
-              </div>
+              <div class="action-bar-left"></div>
               <div class="action-bar-right">
                 <button class="btn btn-cancel" @click="router.back()">
                   취소

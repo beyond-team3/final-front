@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { onMounted, onBeforeUnmount } from 'vue'
+
+const props = defineProps({
   modelValue: {
     type: Boolean,
     default: false,
@@ -17,6 +19,13 @@ const selectContract = (contract) => {
   emit('select', contract)
   close()
 }
+
+const onEsc = (event) => {
+  if (event.key === 'Escape' && props.modelValue) close()
+}
+
+onMounted(() => window.addEventListener('keydown', onEsc))
+onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
 </script>
 
 <template>
@@ -37,6 +46,7 @@ const selectContract = (contract) => {
           <button
               type="button"
               class="text-2xl font-bold text-white hover:opacity-75 transition-opacity"
+              aria-label="닫기"
               @click="close"
           >×</button>
         </div>
