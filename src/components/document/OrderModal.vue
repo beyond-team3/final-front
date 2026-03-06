@@ -68,10 +68,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
               <tr
                   v-for="contract in contracts"
                   :key="contract.id"
-                  class="border-t"
+                  class="border-t transition-colors hover:bg-[`#FAF7F3`]"
                   style="border-color: #E8E3D8;"
-                  @mouseenter="$event.currentTarget.style.backgroundColor='#FAF7F3'"
-                  @mouseleave="$event.currentTarget.style.backgroundColor=''"
               >
                 <td class="px-4 py-3 font-bold" style="color: #C8622A;">
                   {{ contract.contractCode || contract.id }}
