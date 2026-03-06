@@ -120,21 +120,21 @@ onMounted(async () => {
       <template #actions>
         <button
           type="button"
-          class="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100"
+          class="rounded border border-[var(--color-orange)] bg-[var(--color-orange-light)] px-3 py-2 text-sm font-semibold text-[var(--color-orange-dark)] hover:opacity-80"
           @click="router.push('/products/favorites')"
         >
           ★ 즐겨찾기
         </button>
         <button
           type="button"
-          class="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+          class="rounded border border-[var(--color-olive)] bg-[var(--color-olive-light)] px-3 py-2 text-sm font-semibold text-[var(--color-olive-dark)] hover:opacity-80"
           @click="openCompare"
         >
           비교함 ({{ (productStore.compareItems || []).length }}/3)
         </button>
         <button
           type="button"
-          class="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          class="rounded bg-[var(--color-olive)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]"
           @click="router.push('/products/register')"
         >
           + 상품 등록
@@ -163,7 +163,7 @@ onMounted(async () => {
 
         <div
           v-if="filteredProducts.length === 0"
-          class="col-span-full rounded-xl border border-dashed border-slate-300 bg-white py-14 text-center text-sm text-slate-500"
+          class="col-span-full rounded-xl border border-dashed border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-14 text-center text-sm text-[var(--color-text-sub)]"
         >
           검색 결과가 없습니다.
         </div>
@@ -172,7 +172,7 @@ onMounted(async () => {
       <div v-if="hasMoreProducts" class="mt-6 text-center">
         <button
           type="button"
-          class="rounded-full border border-slate-300 bg-white px-10 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          class="rounded-full border border-[var(--color-border-card)] bg-[var(--color-bg-card)] px-10 py-3 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]"
           @click="loadMore"
         >
           더 보기 +

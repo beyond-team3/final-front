@@ -151,10 +151,10 @@ const submitForm = async () => {
   <section class="pb-10">
     <PageHeader :title="isEdit ? '품종 정보 수정' : '신규 품종 등록'">
       <template #actions>
-        <button type="button" class="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" @click="router.back()">
+        <button type="button" class="rounded border border-[var(--color-border-card)] px-4 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]" @click="router.back()">
           취소
         </button>
-        <button type="button" class="rounded bg-blue-600 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-700" @click="submitForm">
+        <button type="button" class="rounded bg-[var(--color-olive)] px-6 py-2 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]" @click="submitForm">
           {{ isEdit ? '수정 완료' : '등록하기' }}
         </button>
       </template>
@@ -163,17 +163,17 @@ const submitForm = async () => {
     <div class="grid gap-6 lg:grid-cols-3">
       <div class="space-y-6 lg:col-span-2">
         <!-- 기본 정보 -->
-        <article class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-base font-bold text-slate-800">기본 정보</h3>
+        <article class="space-y-4 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <h3 class="text-base font-bold text-[var(--color-text-strong)]">기본 정보</h3>
           
           <div class="grid gap-4 md:grid-cols-2">
             <label class="block space-y-1">
-              <span class="text-sm font-semibold text-slate-700">품종명 <span class="text-red-500">*</span></span>
-              <input v-model="form.name" type="text" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none" placeholder="예: 신녹광고추" />
+              <span class="text-sm font-semibold text-[var(--color-text-body)]">품종명 <span class="text-red-500">*</span></span>
+              <input v-model="form.name" type="text" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none" placeholder="예: 신녹광고추" />
             </label>
             <label class="block space-y-1">
-              <span class="text-sm font-semibold text-slate-700">품목(카테고리) <span class="text-red-500">*</span></span>
-              <select v-model="form.category" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none">
+              <span class="text-sm font-semibold text-[var(--color-text-body)]">품목(카테고리) <span class="text-red-500">*</span></span>
+              <select v-model="form.category" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none">
                 <option value="">선택하세요</option>
                 <option v-for="cat in productStore.categoryOptions" :key="cat.code" :value="cat.code">{{ cat.name }}</option>
               </select>
@@ -182,12 +182,12 @@ const submitForm = async () => {
 
           <div class="grid gap-4 md:grid-cols-2">
             <label class="block space-y-1">
-              <span class="text-sm font-semibold text-slate-700">판매 단가(원)</span>
-              <input v-model="form.price" type="number" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none" placeholder="50000" />
+              <span class="text-sm font-semibold text-[var(--color-text-body)]">판매 단가(원)</span>
+              <input v-model="form.price" type="number" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none" placeholder="50000" />
             </label>
             <label class="block space-y-1">
-              <span class="text-sm font-semibold text-slate-700">판매 단위</span>
-              <select v-model="form.unit" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none">
+              <span class="text-sm font-semibold text-[var(--color-text-body)]">판매 단위</span>
+              <select v-model="form.unit" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none">
                 <option value="립">립(seed)</option>
                 <option value="kg">kg</option>
                 <option value="g">g</option>
@@ -198,12 +198,12 @@ const submitForm = async () => {
 
           <div class="grid gap-4 md:grid-cols-2">
             <label class="block space-y-1">
-              <span class="text-sm font-semibold text-slate-700">수량(재고) <span class="text-red-500">*</span></span>
-              <input v-model="form.amount" type="number" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none" placeholder="100" />
+              <span class="text-sm font-semibold text-[var(--color-text-body)]">수량(재고) <span class="text-red-500">*</span></span>
+              <input v-model="form.amount" type="number" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none" placeholder="100" />
             </label>
             <label class="block space-y-1">
-              <span class="text-sm font-semibold text-slate-700">판매 상태 <span class="text-red-500">*</span></span>
-              <select v-model="form.status" class="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none">
+              <span class="text-sm font-semibold text-[var(--color-text-body)]">판매 상태 <span class="text-red-500">*</span></span>
+              <select v-model="form.status" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none">
                 <option value="ACTIVE">판매 가능 (ACTIVE)</option>
                 <option value="OUT_OF_STOCK">일시 품절 (OUT_OF_STOCK)</option>
                 <option value="DISCONTINUED">단종 (DISCONTINUED)</option>
@@ -212,14 +212,14 @@ const submitForm = async () => {
           </div>
 
           <label class="block space-y-1">
-            <span class="text-sm font-semibold text-slate-700">상세 설명</span>
-            <textarea v-model="form.desc" class="min-h-32 w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none" placeholder="품종의 주요 특징을 입력하세요." />
+            <span class="text-sm font-semibold text-[var(--color-text-body)]">상세 설명</span>
+            <textarea v-model="form.desc" class="min-h-32 w-full rounded-lg border border-[var(--color-border-card)] p-3 text-sm focus:border-[var(--color-olive)] focus:outline-none" placeholder="품종의 주요 특징을 입력하세요." />
           </label>
         </article>
 
         <!-- 특징 태그 설정 -->
-        <article class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="text-base font-bold text-slate-800">주요 특징 설정</h3>
+        <article class="space-y-4 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <h3 class="text-base font-bold text-[var(--color-text-strong)]">주요 특징 설정</h3>
           <div v-for="group in tagSchema" :key="group.key" class="space-y-3 border-b border-slate-100 pb-4 last:border-0">
             <div class="flex items-center justify-between">
               <span class="text-sm font-bold text-slate-600">{{ group.label }}</span>
@@ -231,7 +231,7 @@ const submitForm = async () => {
                 :key="tag"
                 type="button"
                 class="rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors"
-                :class="form.tags[group.key].includes(tag) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'"
+                :class="form.tags[group.key].includes(tag) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-[var(--color-border-card)] bg-[var(--color-bg-card)] text-slate-500 hover:border-[var(--color-border-card)]'"
                 @click="toggleTag(group.key, tag)"
               >
                 {{ tag }}
@@ -243,12 +243,12 @@ const submitForm = async () => {
 
       <!-- 이미지 업로드 -->
       <div class="space-y-6">
-        <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="mb-4 text-base font-bold text-slate-800">대표 이미지</h3>
+        <article class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <h3 class="mb-4 text-base font-bold text-[var(--color-text-strong)]">대표 이미지</h3>
           
           <div
             class="group relative flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors"
-            :class="isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'"
+            :class="isDragging ? 'border-blue-500 bg-blue-50' : 'border-[var(--color-border-card)] hover:border-slate-400 bg-[var(--color-bg-section)]'"
             @dragover.prevent="isDragging = true"
             @dragleave.prevent="isDragging = false"
             @drop.prevent="handleDrop"

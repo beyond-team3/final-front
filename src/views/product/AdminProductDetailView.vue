@@ -57,7 +57,7 @@ const toggleCompare = async () => {
       <template #actions>
         <button
           type="button"
-          class="rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+          class="rounded border border-[var(--color-border-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]"
           @click="router.push('/products/catalog')"
         >
           목록으로
@@ -71,7 +71,7 @@ const toggleCompare = async () => {
         </button>
         <button
           type="button"
-          class="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          class="rounded bg-[var(--color-olive)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]"
           @click="router.push(`/products/register?id=${product.id}`)"
         >
           수정
@@ -79,26 +79,26 @@ const toggleCompare = async () => {
       </template>
     </PageHeader>
 
-    <div class="grid gap-6 rounded-xl border border-slate-200 bg-white p-6 lg:grid-cols-[380px_1fr]">
-      <div class="overflow-hidden rounded-xl bg-slate-100 h-[380px]">
+    <div class="grid gap-6 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 lg:grid-cols-[380px_1fr]">
+      <div class="overflow-hidden rounded-xl bg-[var(--color-bg-section)] h-[380px]">
         <img :src="product.imageUrl" :alt="product.name" class="h-full w-full object-cover" />
       </div>
 
       <div class="flex flex-col">
-        <div class="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
+        <div class="flex items-start justify-between gap-3 border-b border-[var(--color-border-card)] pb-4">
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-blue-600">{{ product.category }}</p>
-            <h3 class="mt-2 text-3xl font-bold text-slate-800">{{ product.name }}</h3>
+            <h3 class="mt-2 text-3xl font-bold text-[var(--color-text-strong)]">{{ product.name }}</h3>
             
             <!-- 단가 정보 추가 -->
             <div class="mt-3 flex items-baseline gap-2">
-              <span class="text-2xl font-bold text-slate-900">₩{{ (product.price || 0).toLocaleString() }}</span>
-              <span class="text-sm text-slate-500">/ {{ product.unit || '단위 미정' }}</span>
+              <span class="text-2xl font-bold text-[var(--color-text-strong)]">₩{{ (product.price || 0).toLocaleString() }}</span>
+              <span class="text-sm text-[var(--color-text-sub)]">/ {{ product.unit || '단위 미정' }}</span>
             </div>
 
             <div class="mt-2 flex items-center gap-3">
               <span class="rounded px-2 py-1 text-xs font-semibold"
-                :class="product.status === 'ACTIVE' || !product.status ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-600'"
+                :class="product.status === 'ACTIVE' || !product.status ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]' : 'bg-[#F0D4D4] text-[var(--color-status-error)]'"
               >
                 {{ product.status === 'OUT_OF_STOCK' ? '일시 품절' : (product.status === 'DISCONTINUED' ? '단종' : '판매 중') }}
               </span>
@@ -109,7 +109,7 @@ const toggleCompare = async () => {
             <button
               type="button"
               class="rounded-full border px-3 py-1 text-sm font-semibold"
-              :class="productStore.isInCompare(product.id) ? 'border-emerald-500 text-emerald-700 bg-emerald-50' : 'border-slate-300 text-slate-600'"
+              :class="productStore.isInCompare(product.id) ? 'border-[var(--color-olive)] text-[var(--color-olive-dark)] bg-[var(--color-olive-light)]' : 'border-[var(--color-border-card)] text-[var(--color-text-body)]'"
               @click="toggleCompare"
             >
               {{ productStore.isInCompare(product.id) ? '담기 완료' : '+ 비교담기' }}
@@ -117,7 +117,7 @@ const toggleCompare = async () => {
             <button
               type="button"
               class="rounded-full border px-3 py-1 text-sm font-semibold"
-              :class="productStore.isFavorite(product.id) ? 'border-amber-500 text-amber-600 bg-amber-50' : 'border-slate-300 text-slate-600'"
+              :class="productStore.isFavorite(product.id) ? 'border-[var(--color-orange)] text-[var(--color-orange-dark)] bg-[var(--color-orange-light)]' : 'border-[var(--color-border-card)] text-[var(--color-text-body)]'"
               @click="productStore.toggleFavoriteItem(product.id)"
             >
               {{ productStore.isFavorite(product.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
@@ -125,11 +125,11 @@ const toggleCompare = async () => {
           </div>
         </div>
 
-        <p class="mt-4 flex-1 rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-600 whitespace-pre-wrap">{{ product.desc }}</p>
+        <p class="mt-4 flex-1 rounded-lg bg-[var(--color-bg-section)] p-4 text-sm leading-6 text-[var(--color-text-body)] whitespace-pre-wrap">{{ product.desc }}</p>
 
         <div class="mt-6 space-y-3">
-          <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-slate-100 pb-3 md:grid-cols-[100px_1fr]">
-            <p class="text-sm font-semibold text-slate-500">{{ row.label }}</p>
+          <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-[var(--color-border-divider)] pb-3 md:grid-cols-[100px_1fr]">
+            <p class="text-sm font-semibold text-[var(--color-text-sub)]">{{ row.label }}</p>
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="tag in (product.tags?.[row.key] || [])"
@@ -145,7 +145,7 @@ const toggleCompare = async () => {
     </div>
   </section>
 
-  <section v-else class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+  <section v-else class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-8 text-center text-sm text-[var(--color-text-sub)]">
     상품 정보가 없습니다.
   </section>
 </template>
