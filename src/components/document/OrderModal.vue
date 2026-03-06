@@ -68,32 +68,43 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
               <tr
                   v-for="contract in contracts"
                   :key="contract.id"
-                  class="border-t"
-                  style="border-color: #E8E3D8;"
-                  @mouseenter="$event.currentTarget.style.backgroundColor='#FAF7F3'"
-                  @mouseleave="$event.currentTarget.style.backgroundColor=''"
+                  class="group border-t transition-colors"
+                  style="border-color: var(--color-border-divider);"
               >
-                <td class="px-4 py-3 font-bold" style="color: #C8622A;">
+                <td
+                    class="px-4 py-3 font-bold group-hover:bg-[#FAF7F3]"
+                    style="color: #C8622A;"
+                >
                   {{ contract.contractCode || contract.id }}
                 </td>
-                <td class="px-4 py-3" style="color: #6B5F50;">
+
+                <td
+                    class="px-4 py-3 group-hover:bg-[#FAF7F3]"
+                    style="color: #6B5F50;"
+                >
                   {{ contract.startDate }} ~ {{ contract.endDate }}
                 </td>
-                <td class="px-4 py-3" style="color: #6B5F50;">
+
+                <td
+                    class="px-4 py-3 group-hover:bg-[#FAF7F3]"
+                    style="color: #6B5F50;"
+                >
                   {{ contract.salesRepName || contract.salesRep?.name || '-' }}
                 </td>
-                <td class="px-4 py-3">
-                  <span
-                      class="rounded-full px-2 py-0.5 text-xs font-bold"
-                      style="background-color: #C8D4A0; color: #3D3529;"
-                  >
-                    체결
-                  </span>
+
+                <td class="px-4 py-3 group-hover:bg-[#FAF7F3]">
+      <span
+          class="rounded-full px-2 py-0.5 text-xs font-bold"
+          style="background-color: #C8D4A0; color: #3D3529;"
+      >
+        체결
+      </span>
                 </td>
-                <td class="px-4 py-3">
+
+                <td class="px-4 py-3 group-hover:bg-[#FAF7F3]">
                   <button
                       type="button"
-                      class="rounded px-3 py-1 text-xs font-bold text-white transition-colors hover:opacity-90"
+                      class="rounded px-3 py-1 text-xs font-bold text-white transition-opacity hover:opacity-90 active:scale-95"
                       style="background-color: #C8622A;"
                       @click="selectContract(contract)"
                   >
@@ -101,8 +112,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
                   </button>
                 </td>
               </tr>
+
               <tr v-if="contracts.length === 0">
-                <td colspan="5" class="px-4 py-10 text-center italic" style="color: #BFB3A5;">
+                <td
+                    colspan="5"
+                    class="px-4 py-10 text-center italic"
+                    style="color: #BFB3A5;"
+                >
                   선택 가능한 계약이 없습니다.
                 </td>
               </tr>
