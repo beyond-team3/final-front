@@ -80,6 +80,8 @@ const onKeyActivate = (event, id) => {
           type="button"
           class="rounded-full bg-[var(--color-bg-card)]/90 px-2 py-1 text-xs font-semibold"
           :class="favoriteActive ? 'text-[var(--color-orange-dark)]' : 'text-[var(--color-text-sub)]'"
+          :aria-label="favoriteActive ? '즐겨찾기 해제' : '즐겨찾기 추가'"
+          :aria-pressed="favoriteActive"
           @click.stop="emit('toggle-favorite', item.id)"
         >
           {{ favoriteActive ? '★' : '☆' }}

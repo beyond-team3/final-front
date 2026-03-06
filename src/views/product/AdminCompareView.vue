@@ -125,13 +125,13 @@ const deleteHistory = async (id) => {
 
           <div v-for="row in labelRows" :key="`${product.id}-${row.key}`" class="flex min-h-20 flex-wrap items-center gap-2 border-t border-[var(--color-border-divider)] py-2">
             <span
-              v-for="tag in product.tags[row.key]"
+              v-for="tag in (product.tags?.[row.key] || [])"
               :key="`${product.id}-${row.key}-${tag}`"
               class="rounded-full bg-[var(--color-bg-section)] px-3 py-1 text-xs font-semibold text-[var(--color-text-body)]"
             >
               {{ tag }}
             </span>
-            <span v-if="(product.tags[row.key] || []).length === 0" class="text-xs text-[var(--color-text-placeholder)]">-</span>
+            <span v-if="(product.tags?.[row.key] || []).length === 0" class="text-xs text-[var(--color-text-placeholder)]">-</span>
           </div>
         </div>
 
