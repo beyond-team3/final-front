@@ -26,55 +26,55 @@ defineEmits(['row-click'])
 </script>
 
 <template>
-  <div class="app-data-table overflow-hidden rounded-lg border" style="border-color: var(--color-border); background: var(--color-surface);">
+  <div class="app-data-table overflow-hidden rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-sm">
     <div class="overflow-x-auto">
       <table class="table min-w-full">
         <thead>
-          <tr>
-            <th
+        <tr>
+          <th
               v-for="column in columns"
               :key="column.key"
               :style="column.width ? { width: column.width } : undefined"
-            >
-              {{ column.label }}
-            </th>
-          </tr>
+          >
+            {{ column.label }}
+          </th>
+        </tr>
         </thead>
 
         <tbody>
-          <tr v-if="loading">
-            <td :colspan="columns.length || 1" class="px-4 py-8 text-center" style="color: var(--color-muted);">
-              로딩 중...
-            </td>
-          </tr>
+        <tr v-if="loading">
+          <td :colspan="columns.length || 1" class="px-4 py-8 text-center" style="color: var(--color-muted);">
+            로딩 중...
+          </td>
+        </tr>
 
-          <tr v-else-if="rows.length === 0">
-            <td :colspan="columns.length || 1" class="px-4 py-8 text-center" style="color: var(--color-faint);">
-              {{ emptyText }}
-            </td>
-          </tr>
+        <tr v-else-if="rows.length === 0">
+          <td :colspan="columns.length || 1" class="px-4 py-8 text-center" style="color: var(--color-faint);">
+            {{ emptyText }}
+          </td>
+        </tr>
 
-          <tr
+        <tr
             v-for="(row, rowIndex) in rows"
             v-else
             :key="row[rowKey] ?? rowIndex"
             @click="$emit('row-click', row)"
-          >
-            <td
+        >
+          <td
               v-for="column in columns"
               :key="column.key"
-            >
-              <slot
+          >
+            <slot
                 :name="`cell-${column.key}`"
                 :row="row"
                 :column="column"
                 :value="row[column.key]"
                 :row-index="rowIndex"
-              >
-                {{ row[column.key] }}
-              </slot>
-            </td>
-          </tr>
+            >
+              {{ row[column.key] }}
+            </slot>
+          </td>
+        </tr>
         </tbody>
       </table>
     </div>

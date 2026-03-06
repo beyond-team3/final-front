@@ -25,12 +25,40 @@ function getClientActiveValue(client = {}) {
     return true
 }
 
+function parseAddress(addressInput) {
+    if (!addressInput) return { sido: '', address: '', zonecode: '' }
+
+    // sido/address/zonecode 형식 파싱
+    if (addressInput.includes('/')) {
+        const parts = addressInput.split('/')
+        return {
+            sido: parts[0] || '',
+            address: parts[1] || '',
+            zonecode: parts[2] || ''
+        }
+    }
+
+    // 기존 데이터나 다른 형식일 경우 기본값 반환
+    return {
+        sido: '',
+        address: addressInput,
+        zonecode: ''
+    }
+}
+
 function normalizeClient(client = {}) {
     const isActive = getClientActiveValue(client)
+    const parsedAddr = parseAddress(client.address)
+
     return {
         ...client,
         isActive,
         status: isActive ? 'active' : 'inactive',
+        displaySido: parsedAddr.sido,
+        displayAddressOnly: parsedAddr.address,
+        displayZonecode: parsedAddr.zonecode,
+        // 기존 호환성 유지용 (시도 주소 합침)
+        displayAddress: `${parsedAddr.sido} ${parsedAddr.address}`.trim(),
     }
 }
 
@@ -49,6 +77,10 @@ function makeTempClient(payload = {}) {
         ceoName: payload.ceoName,
         companyPhone: payload.companyPhone || '-',
         address: payload.address,
+        sido: payload.sido,
+        sigungu: payload.sigungu,
+        query: payload.query,
+        zonecode: payload.zonecode,
         managerName: payload.managerName,
         managerPhone: payload.managerPhone,
         managerEmail: payload.managerEmail,

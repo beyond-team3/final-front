@@ -1,7 +1,7 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -23,6 +23,64 @@ const activeTab = ref('info')
 const isEditModalOpen = ref(false)
 const isActivationModalOpen = ref(false)
 const nextActivationStatus = ref('ACTIVE')
+const displayAddress = ref('')
+const isCropDropdownOpen = ref(false)
+const cropDropdownContainer = ref(null)
+
+const toggleCropDropdown = (e) => {
+  e.stopPropagation()
+  isCropDropdownOpen.value = !isCropDropdownOpen.value
+}
+
+const selectCrop = (crop) => {
+  selectedCrop.value = crop
+  addCrop()
+  isCropDropdownOpen.value = false
+}
+
+const isCropEditing = ref(false)
+const tempCrops = ref([])
+
+const isCropsDirty = computed(() => {
+  return JSON.stringify(tempCrops.value) !== JSON.stringify(clientCrops.value)
+})
+
+const handleEditCrops = () => {
+  tempCrops.value = [...clientCrops.value]
+  isCropEditing.value = true
+}
+
+const handleSaveCrops = async () => {
+  if (!currentClient.value) return
+  try {
+    await clientStore.updateClient(currentClient.value.id, {
+      crops: tempCrops.value
+    })
+    isCropEditing.value = false
+  } catch (e) {
+    alert('저장 중 오류가 발생했습니다.')
+  }
+}
+
+const handleCancelEditCrops = () => {
+  isCropEditing.value = false
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (isCropEditing.value && isCropsDirty.value) {
+    const answer = window.confirm('저장되지 않은 변경사항이 있습니다. 페이지를 벗어나시겠습니까?')
+    if (answer) next()
+    else next(false)
+  } else {
+    next()
+  }
+})
+
+const handleClickOutsideDropdown = (event) => {
+  if (cropDropdownContainer.value && !cropDropdownContainer.value.contains(event.target)) {
+    isCropDropdownOpen.value = false
+  }
+}
 
 const currentClientId = computed(() => route.params.id)
 const { currentClient, loading, error } = storeToRefs(clientStore)
@@ -41,11 +99,41 @@ const handleBriefing = () => {
 }
 
 const editForm = ref({
-  name: '', bizNo: '', ceoName: '', companyPhone: '', address: '', managerName: '', managerPhone: '', managerEmail: '',
+  name: '',
+  bizNo: '',
+  ceoName: '',
+  companyPhone: '',
+  address: '',
+  sido: '',
+  sigungu: '',
+  query: '',
+  zonecode: '',
+  managerName: '',
+  managerPhone: '',
+  managerEmail: '',
 })
 
+const execDaumPostcode = () => {
+  new window.daum.Postcode({
+    oncomplete: (data) => {
+      const addr = data.userSelectedType === 'R' ? data.roadAddress : data.jibunAddress
+      // [사용자 요청] sido/address/zonecode 형식으로 저장
+      editForm.value.address = `${data.sido}/${addr}/${data.zonecode}`
+
+      // UI 표시용 (주소 부분만)
+      displayAddress.value = addr
+
+      // 개별 필드 업데이트
+      editForm.value.sido = data.sido
+      editForm.value.sigungu = data.sigungu
+      editForm.value.query = data.query
+      editForm.value.zonecode = data.zonecode
+    },
+  }).open()
+}
+
 const tabOptions = computed(() => [
-  { key: 'info', label: '기본 정보' },
+  { key: 'info', label: '거래처 정보' },
   { key: 'history', label: '영업 히스토리', badge: currentClient.value?.pipelines?.length || 0 },
 ])
 
@@ -58,12 +146,27 @@ const clientStatusSubtitle = computed(() => (isClientActive.value ? '사용중' 
 
 const openEditModal = () => {
   if (!currentClient.value || !isAdmin.value) return
+
+  // 기존 주소 데이터 파싱하여 표시용으로 변환 (sido/address/zonecode)
+  const rawAddr = currentClient.value.address || ''
+  if (rawAddr.includes('/')) {
+    const parts = rawAddr.split('/')
+    // 상세 수정 모달에서는 '주소' 부분만 노출
+    displayAddress.value = parts[1] || parts[0]
+  } else {
+    displayAddress.value = rawAddr
+  }
+
   editForm.value = {
     name: currentClient.value.name,
     bizNo: currentClient.value.bizNo,
     ceoName: currentClient.value.ceoName,
     companyPhone: currentClient.value.companyPhone,
     address: currentClient.value.address,
+    sido: currentClient.value.sido || '',
+    sigungu: currentClient.value.sigungu || '',
+    query: currentClient.value.query || '',
+    zonecode: currentClient.value.zonecode || '',
     managerName: currentClient.value.managerName,
     managerPhone: currentClient.value.managerPhone,
     managerEmail: currentClient.value.managerEmail,
@@ -96,25 +199,20 @@ const applyActivation = () => {
 }
 
 const addCrop = () => {
-  if (isAdmin.value) return
+  if (isAdmin.value || !isCropEditing.value) return
   const crop = selectedCrop.value
-  if (!crop || !currentClient.value) return
-  const crops = clientCrops.value
-  if (crops.includes(crop)) {
+  if (!crop) return
+  if (tempCrops.value.includes(crop)) {
     selectedCrop.value = ''
     return
   }
-  clientStore.updateClient(currentClient.value.id, {
-    crops: [...crops, crop],
-  })
+  tempCrops.value.push(crop)
   selectedCrop.value = ''
 }
 
 const removeCrop = (crop) => {
-  if (isAdmin.value || !currentClient.value) return
-  clientStore.updateClient(currentClient.value.id, {
-    crops: clientCrops.value.filter((item) => item !== crop),
-  })
+  if (isAdmin.value || !isCropEditing.value) return
+  tempCrops.value = tempCrops.value.filter((item) => item !== crop)
 }
 
 const openPipelineDetail = (pipelineId) => {
@@ -128,155 +226,304 @@ const fetchClientDetail = async () => {
   } catch (e) { /* error managed by store */ }
 }
 
-onMounted(fetchClientDetail)
+onMounted(() => {
+  fetchClientDetail()
+  window.addEventListener('click', handleClickOutsideDropdown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutsideDropdown)
+})
 </script>
 
 <template>
-  <section v-if="loading">
+  <section v-if="loading" class="flex min-h-[400px] items-center justify-center rounded-xl bg-[var(--color-bg-card)] border border-[var(--color-border-card)]">
     <LoadingSpinner text="거래처 상세를 불러오는 중입니다." />
   </section>
 
-  <section v-else-if="error">
+  <section v-else-if="error" class="p-6">
     <ErrorMessage :message="error" @retry="fetchClientDetail" />
   </section>
 
-  <section v-else-if="!currentClient">
+  <section v-else-if="!currentClient" class="p-6">
     <EmptyState title="거래처 정보를 찾을 수 없습니다." description="목록에서 다시 선택해 주세요." />
   </section>
 
-  <section v-else>
-    <div v-if="currentClient">
-      <PageHeader :title="`${currentClient.name} (${currentClient.id})`" :subtitle="`${currentClient.typeLabel} | ${clientStatusSubtitle}`">
+  <section v-else class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-5">
+    <div v-if="currentClient" class="mx-auto max-w-6xl space-y-4">
+      <PageHeader class="!bg-transparent !p-0 !mb-4">
+        <template #title>
+          <div class="flex items-center gap-3">
+            <h2 class="text-2xl font-bold text-[var(--color-text-strong)]">{{ currentClient.name }}</h2>
+            <StatusBadge status="info" :label="currentClient.typeLabel" />
+          </div>
+        </template>
+        <template #subtitle>
+          <span class="text-sm font-medium text-[var(--color-text-sub)]">거래처 코드: {{ currentClient.code }}</span>
+        </template>
         <template #actions>
-          <template v-if="isAdmin">
-            <button type="button" class="rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="router.push('/clients')"> 목록으로 </button>
-            <button type="button" class="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700" @click="openEditModal"> 거래처 수정 </button>
-            <button type="button" class="rounded bg-slate-800 px-3 py-2 text-sm font-bold text-white hover:bg-slate-700" @click="openActivationModal"> 활성화 관리 </button>
-          </template>
-          <template v-else>
-            <button type="button" class="rounded bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 shadow-md transition-all active:scale-95" @click="handleBriefing"> 📊 영업 브리핑 </button>
-          </template>
+          <div class="flex flex-wrap gap-2">
+            <template v-if="isAdmin">
+              <button type="button" class="rounded-lg border border-[var(--color-border-card)] bg-transparent px-4 py-2 text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)]" @click="router.push('/clients')"> 목록으로 </button>
+              <button type="button" class="rounded-lg bg-[var(--color-olive)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[var(--color-olive-dark)] active:scale-95" @click="openEditModal"> 거래처 수정 </button>
+              <button type="button" class="rounded-lg bg-[var(--color-text-strong)] px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:opacity-90 active:scale-95" @click="openActivationModal"> 활성화 관리 </button>
+            </template>
+            <template v-else>
+              <button type="button" class="rounded-lg bg-[var(--color-orange)] px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-orange-dark)] active:scale-95" @click="handleBriefing"> 영업 브리핑 </button>
+            </template>
+          </div>
         </template>
       </PageHeader>
 
-      <TabNav v-model="activeTab" :tabs="tabOptions" />
+      <div class="flex items-center justify-between border-b border-[var(--color-border-divider)] mb-6">
+        <TabNav v-model="activeTab" :tabs="tabOptions" class="!border-0 !pb-0" />
+      </div>
 
-      <div v-if="activeTab === 'info'" class="grid gap-4 lg:grid-cols-2">
-        <article class="rounded-lg border border-slate-200 bg-white p-5">
-          <div class="mb-4 flex items-center justify-between gap-2">
-            <h3 class="text-lg font-semibold text-slate-800">기본 정보</h3>
-            <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold" :class="isClientActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'">
-              <span class="h-2 w-2 rounded-full" :class="isClientActive ? 'bg-emerald-500' : 'bg-rose-500'" />
+      <div v-if="activeTab === 'info'" class="grid gap-6 lg:grid-cols-2">
+        <article class="flex flex-col rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <div class="mb-6 flex items-center justify-between gap-2 border-b border-[var(--color-border-divider)] pb-4">
+            <h3 class="text-xl font-bold text-[var(--color-text-strong)]">거래처 정보</h3>
+            <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold" :class="isClientActive ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]' : 'bg-[#F0D4D4] text-[var(--color-status-error)]'">
+              <span class="h-2 w-2 rounded-full" :class="isClientActive ? 'bg-[var(--color-olive)]' : 'bg-[var(--color-status-error)]'" />
               <span>{{ clientStatusText }}</span>
             </div>
           </div>
-          <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">법인명</dt><dd class="font-medium">{{ currentClient.name }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">사업자번호</dt><dd class="font-medium">{{ currentClient.bizNo }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">대표이름</dt><dd class="font-medium">{{ currentClient.ceoName }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">회사유선번호</dt><dd class="font-medium">{{ currentClient.companyPhone }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">주소</dt><dd class="text-right font-medium">{{ currentClient.address }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">거래처 유형</dt><dd><StatusBadge status="info" :label="currentClient.typeLabel" /></dd></div>
+          <dl class="space-y-4">
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">법인명</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ currentClient.name }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">사업자번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ currentClient.bizNo }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">대표이름</dt><dd class="font-medium text-[var(--color-text-body)]">{{ currentClient.ceoName }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">회사 유선번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ currentClient.companyPhone }}</dd></div>
+            <div class="flex flex-col gap-1">
+              <dt class="text-[var(--color-text-sub)]">주소</dt>
+              <dd class="flex items-center justify-between gap-2 w-full text-sm font-medium leading-relaxed text-[var(--color-text-body)]">
+                <span class="truncate">{{ currentClient.displayAddressOnly }}</span>
+                <span class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white border border-[var(--color-border-card)] px-2 py-1 text-xs font-bold text-[var(--color-text-strong)] shadow-sm">
+                  <span class="text-[10px] text-[var(--color-text-sub)] font-medium">우편번호</span>
+                  {{ currentClient.displayZonecode }}
+                </span>
+              </dd>
+            </div>
           </dl>
         </article>
 
-        <article class="rounded-lg border border-slate-200 bg-white p-5">
-          <h3 class="mb-4 text-lg font-semibold text-slate-800">담당자 정보</h3>
-          <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이름</dt><dd class="font-medium">{{ currentClient.managerName }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">연락처</dt><dd class="font-medium">{{ currentClient.managerPhone }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이메일</dt><dd class="font-medium">{{ currentClient.managerEmail }}</dd></div>
+        <article class="flex flex-col rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <h3 class="mb-6 border-b border-[var(--color-border-divider)] pb-4 text-xl font-bold text-[var(--color-text-strong)]">거래처 담당자 정보</h3>
+          <dl class="space-y-4">
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이름</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ currentClient.managerName }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">연락처</dt><dd class="font-medium text-[var(--color-text-body)]">{{ currentClient.managerPhone }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이메일</dt><dd class="font-medium text-[var(--color-text-body)] underline underline-offset-4">{{ currentClient.managerEmail }}</dd></div>
           </dl>
         </article>
 
-        <article class="rounded-lg border border-slate-200 bg-white p-5">
-          <h3 class="mb-4 text-lg font-semibold text-slate-800">이번달 거래 현황</h3>
-          <p class="text-2xl font-bold text-blue-600">{{ toCurrency(currentClient.monthlyAmount) }}</p>
-          <dl class="mt-4 space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이번 달 진행</dt><dd class="font-medium">{{ currentClient.monthlyInProgress }}건</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이번 달 완료</dt><dd class="font-medium">{{ currentClient.monthlyDone }}건</dd></div>
+        <article class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm lg:col-span-1">
+          <h3 class="mb-6 border-b border-[var(--color-border-divider)] pb-4 text-xl font-bold text-[var(--color-text-strong)]">거래 정보</h3>
+
+          <div class="mb-6 rounded-lg bg-[var(--color-bg-section)] p-4">
+            <h4 class="mb-2 text-sm font-bold text-[var(--color-text-sub)] uppercase tracing-wider">이번달 거래 요약</h4>
+            <p class="text-3xl font-black text-[var(--color-olive)]">{{ toCurrency(currentClient.monthlyAmount) }}</p>
+            <div class="mt-3 flex gap-4 text-xs font-semibold text-[var(--color-text-body)]">
+              <span>진행: <span class="text-[var(--color-orange)]">{{ currentClient.monthlyInProgress }}건</span></span>
+              <span>완료: <span class="text-[var(--color-olive)]">{{ currentClient.monthlyDone }}건</span></span>
+            </div>
+          </div>
+
+          <dl class="space-y-4 border-t border-[var(--color-border-divider)] pt-6">
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">여신 한도</dt><dd class="font-bold text-[var(--color-text-body)]">{{ toCurrency(currentClient.creditLimit) }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">현재 미수금</dt><dd class="font-bold text-[var(--color-status-error)]">{{ toCurrency(currentClient.receivable) }}</dd></div>
+            <div class="flex items-center justify-between border-t border-[var(--color-border-divider)] pt-4"><dt class="text-[var(--color-text-strong)] font-bold">잔여 여신</dt><dd class="text-lg font-black text-[var(--color-status-success)]">{{ toCurrency(currentClient.creditLimit - currentClient.receivable) }}</dd></div>
           </dl>
         </article>
 
-        <article class="rounded-lg border border-slate-200 bg-white p-5">
-          <h3 class="mb-4 text-lg font-semibold text-slate-800">거래 정보</h3>
-          <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">여신 한도</dt><dd class="font-medium">{{ toCurrency(currentClient.creditLimit) }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">현재 미수금</dt><dd class="font-medium text-orange-600">{{ toCurrency(currentClient.receivable) }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">잔여 여신</dt><dd class="font-medium text-emerald-600">{{ toCurrency(currentClient.creditLimit - currentClient.receivable) }}</dd></div>
-          </dl>
-        </article>
-
-        <article class="rounded-lg border border-slate-200 bg-white p-5 lg:col-span-2">
-          <h3 class="mb-3 text-lg font-semibold text-slate-800">취급 품종</h3>
-          <div class="flex flex-wrap gap-2">
+        <article class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm lg:col-span-1">
+          <div class="mb-6 flex items-center justify-between border-b border-[var(--color-border-divider)] pb-4">
+            <h3 class="text-xl font-bold text-[var(--color-text-strong)]">취급 품종</h3>
             <template v-if="!isAdmin">
               <button
-                  v-for="crop in clientCrops"
-                  :key="crop"
+                  v-if="!isCropEditing"
                   type="button"
-                  class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-900 hover:bg-emerald-200"
-                  title="클릭하여 삭제"
-                  @click="removeCrop(crop)"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-card)] bg-transparent px-3 py-1.5 text-xs font-bold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)]"
+                  @click="handleEditCrops"
               >
-                {{ crop }} ✕
+                수정
               </button>
-              <label class="relative inline-flex items-center rounded-full border border-dashed border-slate-300 bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-                + 추가
-                <select v-model="selectedCrop" class="absolute inset-0 cursor-pointer opacity-0" @change="addCrop">
-                  <option value="">선택하세요</option>
-                  <option v-for="crop in cropOptions" :key="crop" :value="crop">{{ crop }}</option>
-                </select>
-              </label>
+              <div v-else class="flex gap-2">
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border-card)] bg-transparent px-3 py-1.5 text-xs font-bold text-[var(--color-text-sub)] transition-colors hover:bg-[var(--color-bg-section)]"
+                    @click="handleCancelEditCrops"
+                >
+                  취소
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-olive)] px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-[var(--color-olive-dark)]"
+                    @click="handleSaveCrops"
+                >
+                  저장 완료
+                </button>
+              </div>
+            </template>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <template v-if="!isAdmin">
+              <!-- 편집 중일 때 표시 -->
+              <template v-if="isCropEditing">
+                <button
+                    v-for="crop in tempCrops"
+                    :key="crop"
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)] transition-colors hover:bg-[var(--color-olive)] hover:text-white"
+                    title="클릭하여 삭제"
+                    @click="removeCrop(crop)"
+                >
+                  {{ crop }} <span class="text-[10px] opacity-70">✕</span>
+                </button>
+
+                <!-- 커스텀 품종 드롭다운 -->
+                <div class="relative" ref="cropDropdownContainer">
+                  <button
+                      type="button"
+                      class="inline-flex items-center rounded-full border-2 border-dashed border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 py-1.5 text-sm font-bold text-[var(--color-text-sub)] transition-all hover:border-[var(--color-olive)] hover:text-[var(--color-olive)] active:scale-95"
+                      @click="toggleCropDropdown"
+                  >
+                    + 품종 추가
+                  </button>
+
+                  <transition
+                      enter-active-class="transition duration-200 ease-out"
+                      enter-from-class="translate-y-1 opacity-0"
+                      enter-to-class="translate-y-0 opacity-100"
+                      leave-active-class="transition duration-150 ease-in"
+                      leave-from-class="translate-y-0 opacity-100"
+                      leave-to-class="translate-y-1 opacity-0"
+                  >
+                    <div
+                        v-if="isCropDropdownOpen"
+                        class="absolute left-0 z-50 mt-2 min-w-[140px] max-h-[240px] overflow-y-auto rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-2 shadow-xl"
+                    >
+                      <button
+                          v-for="crop in cropOptions"
+                          :key="crop"
+                          type="button"
+                          class="flex w-full items-center px-4 py-2.5 text-left text-sm font-medium transition-colors"
+                          :class="tempCrops.includes(crop) ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)] cursor-default' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'"
+                          @click="!tempCrops.includes(crop) && selectCrop(crop)"
+                      >
+                        <span class="flex-1">{{ crop }}</span>
+                        <span v-if="tempCrops.includes(crop)" class="text-[10px] font-bold">✓</span>
+                      </button>
+                    </div>
+                  </transition>
+                </div>
+              </template>
+
+              <!-- 보기 모드일 때 표시 -->
+              <template v-else>
+                <div v-for="crop in clientCrops" :key="crop" class="rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)]">
+                  {{ crop }}
+                </div>
+              </template>
             </template>
             <template v-else>
-              <StatusBadge v-for="crop in clientCrops" :key="crop" status="success" :label="crop" />
+              <div v-for="crop in clientCrops" :key="crop" class="rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)]">
+                {{ crop }}
+              </div>
             </template>
-            <span v-if="clientCrops.length === 0" class="text-sm text-slate-400">등록된 품종이 없습니다.</span>
+            <div v-if="(isCropEditing ? tempCrops.length : clientCrops.length) === 0" class="flex w-full flex-col items-center justify-center py-4 text-sm text-[var(--color-text-placeholder)]">
+              <span class="mb-1 text-2xl">🌿</span>
+              등록된 품종이 없습니다.
+            </div>
           </div>
         </article>
       </div>
 
       <div v-else class="space-y-4">
-        <PipelineTimelineCard v-for="pipeline in (currentClient?.pipelines || [])" :key="pipeline.id" :pipeline="pipeline" :amount-formatter="toCurrency" @detail="openPipelineDetail" />
-        <article v-if="currentClient?.pipelines?.length === 0" class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-400"> 영업 히스토리가 없습니다. </article>
+        <PipelineTimelineCard v-for="pipeline in (currentClient?.pipelines || [])" :key="pipeline.id" :pipeline="pipeline" :amount-formatter="toCurrency" @detail="openPipelineDetail" class="!bg-[var(--color-bg-card)] !border-[var(--color-border-card)]" />
+        <article v-if="currentClient?.pipelines?.length === 0" class="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] text-sm text-[var(--color-text-placeholder)]">
+          <span class="mb-2 text-3xl">📋</span>
+          영업 히스토리가 없습니다.
+        </article>
       </div>
 
-      <ModalBase v-model="isEditModalOpen" title="거래처 정보 수정" width-class="max-w-2xl">
-        <form class="grid gap-3 md:grid-cols-2" @submit.prevent="submitEdit">
-          <label class="text-sm text-slate-700">법인명<input v-model="editForm.name" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="text" required /></label>
-          <label class="text-sm text-slate-700">사업자번호<input v-model="editForm.bizNo" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="text" required /></label>
-          <label class="text-sm text-slate-700">대표이름<input v-model="editForm.ceoName" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="text" required /></label>
-          <label class="text-sm text-slate-700">회사유선번호<input v-model="editForm.companyPhone" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="text" /></label>
-          <label class="text-sm text-slate-700 md:col-span-2">주소<input v-model="editForm.address" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="text" required /></label>
-          <label class="text-sm text-slate-700">담당자명<input v-model="editForm.managerName" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="text" required /></label>
-          <label class="text-sm text-slate-700">담당자 연락처<input v-model="editForm.managerPhone" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="text" required /></label>
-          <label class="text-sm text-slate-700 md:col-span-2">담당자 이메일<input v-model="editForm.managerEmail" class="mt-1 h-10 w-full rounded border border-slate-300 px-2" type="email" required /></label>
-        </form>
+      <!-- 모달 디자인 업데이트 -->
+      <ModalBase v-model="isEditModalOpen" title="거래처 정보 수정" width-class="max-w-2xl" class="!bg-[var(--color-bg-base)]">
+        <div class="p-2">
+          <form class="grid gap-5 md:grid-cols-2" @submit.prevent="submitEdit">
+            <label class="block text-sm font-bold text-[var(--color-text-sub)]">법인명
+              <input v-model="editForm.name" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="text" required />
+            </label>
+            <label class="block text-sm font-bold text-[var(--color-text-sub)]">사업자번호
+              <input v-model="editForm.bizNo" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="text" required />
+            </label>
+            <label class="block text-sm font-bold text-[var(--color-text-sub)]">대표이름
+              <input v-model="editForm.ceoName" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="text" required />
+            </label>
+            <label class="block text-sm font-bold text-[var(--color-text-sub)]">회사 유선번호
+              <input v-model="editForm.companyPhone" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="text" />
+            </label>
+            <div class="block text-sm font-bold text-[var(--color-text-sub)] md:col-span-2">
+              주소
+              <div class="mt-1.5 flex gap-2">
+                <input
+                    v-model="displayAddress"
+                    class="h-11 flex-1 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-base)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm cursor-not-allowed"
+                    type="text"
+                    placeholder="주소 검색을 이용하세요"
+                    readonly
+                    required
+                />
+                <button
+                    type="button"
+                    class="rounded-lg bg-[var(--color-text-strong)] px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
+                    @click="execDaumPostcode"
+                >
+                  주소 검색
+                </button>
+              </div>
+            </div>
+            <label class="block text-sm font-bold text-[var(--color-text-sub)]">담당자명
+              <input v-model="editForm.managerName" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="text" required />
+            </label>
+            <label class="block text-sm font-bold text-[var(--color-text-sub)]">담당자 연락처
+              <input v-model="editForm.managerPhone" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="text" required />
+            </label>
+            <label class="block text-sm font-bold text-[var(--color-text-sub)] md:col-span-2">담당자 이메일
+              <input v-model="editForm.managerEmail" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="email" required />
+            </label>
+          </form>
+        </div>
         <template #footer>
-          <div class="flex justify-end gap-2">
-            <button type="button" class="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="isEditModalOpen = false">취소</button>
-            <button type="button" class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" @click="submitEdit">저장</button>
+          <div class="flex justify-end gap-3 p-2">
+            <button type="button" class="rounded-lg border border-[var(--color-border-card)] bg-transparent px-5 py-2.5 text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)]" @click="isEditModalOpen = false">취소</button>
+            <button type="button" class="rounded-lg bg-[var(--color-olive)] px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[var(--color-olive-dark)]" @click="submitEdit"> 변경사항 저장 </button>
           </div>
         </template>
       </ModalBase>
 
       <ModalBase v-model="isActivationModalOpen" title="활성화 상태 변경" width-class="max-w-lg">
-        <div class="space-y-3">
-          <p class="text-sm text-slate-600">변경할 상태를 선택하세요.</p>
-          <label class="flex cursor-pointer items-start gap-2 rounded border border-slate-200 p-3">
-            <input v-model="nextActivationStatus" type="radio" value="ACTIVE" class="mt-1" />
-            <span> <strong class="block text-sm text-slate-800">활성</strong> </span>
-          </label>
-          <label class="flex cursor-pointer items-start gap-2 rounded border border-slate-200 p-3">
-            <input v-model="nextActivationStatus" type="radio" value="INACTIVE" class="mt-1" />
-            <span> <strong class="block text-sm text-slate-800">비활성</strong> </span>
-          </label>
+        <div class="space-y-4 p-2">
+          <p class="text-sm font-medium text-[var(--color-text-body)]">거래처의 서비스 이용 상태를 설정합니다.</p>
+          <div class="grid gap-3">
+            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-4 transition-all hover:border-[var(--color-olive)]">
+              <input v-model="nextActivationStatus" type="radio" value="ACTIVE" class="h-5 w-5 accent-[var(--color-olive)]" />
+              <div>
+                <strong class="block text-base text-[var(--color-text-strong)]">활성 상태로 변경</strong>
+                <span class="text-xs text-[var(--color-text-sub)]">시스템의 모든 기능을 정상적으로 이용할 수 있습니다.</span>
+              </div>
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-4 transition-all hover:border-[var(--color-status-error)]">
+              <input v-model="nextActivationStatus" type="radio" value="INACTIVE" class="h-5 w-5 accent-[var(--color-status-error)]" />
+              <div>
+                <strong class="block text-base text-[var(--color-text-strong)]">비활성 상태로 변경</strong>
+                <span class="text-xs text-[var(--color-text-sub)]">일부 비즈니스 기능 접근이 제한될 수 있습니다.</span>
+              </div>
+            </label>
+          </div>
         </div>
         <template #footer>
-          <div class="flex justify-end gap-2">
-            <button type="button" class="rounded border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" @click="isActivationModalOpen = false">취소</button>
-            <button type="button" class="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700" @click="applyActivation">적용</button>
+          <div class="flex justify-end gap-3 p-2">
+            <button type="button" class="rounded-lg border border-[var(--color-border-card)] bg-transparent px-5 py-2.5 text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)]" @click="isActivationModalOpen = false">취소</button>
+            <button type="button" class="rounded-lg bg-[var(--color-text-strong)] px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90" @click="applyActivation">상태 적용하기</button>
           </div>
         </template>
       </ModalBase>
