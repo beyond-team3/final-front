@@ -1,6 +1,4 @@
 <script setup>
-import ModalBase from '@/components/common/ModalBase.vue'
-
 defineProps({
   modelValue: {
     type: Boolean,
@@ -22,56 +20,108 @@ const selectContract = (contract) => {
 </script>
 
 <template>
-  <ModalBase
-      :model-value="modelValue"
-      title="계약서 선택"
-      width-class="max-w-4xl"
-      @update:model-value="emit('update:modelValue', $event)"
-  >
-    <p style="font-size:13px; color:#64748b; margin-bottom:12px;">* 주문서는 체결된 계약서를 기반으로 작성됩니다.</p>
+  <Teleport to="body">
+    <div
+        v-if="modelValue"
+        class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="close"
+    >
+      <div class="flex w-full max-w-2xl flex-col rounded-lg border shadow-2xl" style="background-color: #F7F3EC; border-color: #DDD7CE; max-height: calc(100vh - 80px);">
 
-    <div class="overflow-hidden rounded-lg border border-slate-200">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-100 text-left text-slate-700">
-        <tr>
-          <th class="px-3 py-2">계약번호</th>
-          <th class="px-3 py-2">계약기간</th>
-          <th class="px-3 py-2">담당자</th>
-          <th class="px-3 py-2">선택</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="contract in contracts" :key="contract.id" class="border-t border-slate-100">
-          <td class="px-3 py-2 font-semibold text-slate-800">{{ contract.id }}</td>
-          <td class="px-3 py-2">{{ contract.startDate }} ~ {{ contract.endDate }}</td>
-          <td class="px-3 py-2">{{ contract.salesRep?.name || (typeof contract.salesRep === 'string' ? contract.salesRep : '-') }}</td>
-          <td class="px-3 py-2">
-            <button
-                type="button"
-                class="rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-700"
-                @click="selectContract(contract)"
-            >
-              선택
-            </button>
-          </td>
-        </tr>
-        <tr v-if="contracts.length === 0">
-          <td colspan="4" class="px-3 py-8 text-center text-slate-400">선택 가능한 계약이 없습니다.</td>
-        </tr>
-        </tbody>
-      </table>
-    </div>
+        <!-- 헤더 -->
+        <div class="flex items-center justify-between rounded-t-lg px-6 py-4" style="background-color: #C8622A;">
+          <div>
+            <h3 class="text-base font-bold text-white">계약서 선택</h3>
+            <p class="mt-0.5 text-xs" style="color: rgba(255,255,255,0.75);">주문서는 체결된 계약서를 기반으로 작성됩니다.</p>
+          </div>
+          <button
+              type="button"
+              class="text-2xl font-bold text-white hover:opacity-75 transition-opacity"
+              @click="close"
+          >×</button>
+        </div>
 
-    <template #footer>
-      <div class="flex justify-end">
-        <button
-            type="button"
-            class="rounded border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-            @click="close"
-        >
-          닫기
-        </button>
+        <!-- 바디 -->
+        <div class="flex-1 overflow-y-auto p-5">
+          <div class="overflow-hidden rounded border" style="border-color: #DDD7CE;">
+            <table class="min-w-full text-sm border-collapse">
+              <thead>
+              <tr class="text-left" style="background-color: #EFEADF; color: #6B5F50;">
+                <th class="px-4 py-2.5">계약 번호</th>
+                <th class="px-4 py-2.5">계약 기간</th>
+                <th class="px-4 py-2.5">담당 영업사원</th>
+                <th class="px-4 py-2.5">상태</th>
+                <th class="px-4 py-2.5"></th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr
+                  v-for="contract in contracts"
+                  :key="contract.id"
+                  class="border-t"
+                  style="border-color: #E8E3D8;"
+                  @mouseenter="$event.currentTarget.style.backgroundColor='#FAF7F3'"
+                  @mouseleave="$event.currentTarget.style.backgroundColor=''"
+              >
+                <td class="px-4 py-3 font-bold" style="color: #C8622A;">
+                  {{ contract.contractCode || contract.id }}
+                </td>
+                <td class="px-4 py-3" style="color: #6B5F50;">
+                  {{ contract.startDate }} ~ {{ contract.endDate }}
+                </td>
+                <td class="px-4 py-3" style="color: #6B5F50;">
+                  {{ contract.salesRepName || contract.salesRep?.name || '-' }}
+                </td>
+                <td class="px-4 py-3">
+                  <span
+                      class="rounded-full px-2 py-0.5 text-xs font-bold"
+                      style="background-color: #C8D4A0; color: #3D3529;"
+                  >
+                    체결
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <button
+                      type="button"
+                      class="rounded px-3 py-1 text-xs font-bold text-white transition-colors hover:opacity-90"
+                      style="background-color: #C8622A;"
+                      @click="selectContract(contract)"
+                  >
+                    선택
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="contracts.length === 0">
+                <td colspan="5" class="px-4 py-10 text-center italic" style="color: #BFB3A5;">
+                  선택 가능한 계약이 없습니다.
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 푸터 -->
+        <div class="flex justify-end border-t px-6 py-3" style="border-color: #E8E3D8; background-color: #EFEADF;">
+          <button
+              type="button"
+              class="rounded border px-4 py-2 text-sm font-semibold transition-colors hover:opacity-90"
+              style="border-color: #DDD7CE; background-color: transparent; color: #6B5F50;"
+              @click="close"
+          >
+            닫기
+          </button>
+        </div>
+
       </div>
-    </template>
-  </ModalBase>
+    </div>
+  </Teleport>
 </template>
+
+<style scoped>
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F7F3EC; }
+::-webkit-scrollbar-thumb { background: #DDD7CE; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #C8622A; }
+button:active { transform: scale(0.98); }
+</style>
