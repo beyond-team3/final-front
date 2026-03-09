@@ -12,6 +12,10 @@ export function createProduct(data) {
   return api.post('/products', data)
 }
 
+export function getCultivationTimes(productId) {
+  return api.get(`/products/${productId}/cultivation-time`)
+}
+
 export function updateProduct(id, data) {
   return api.put(`/products/${id}`, data)
 }
@@ -56,6 +60,8 @@ export function submitFeedback(productId, data) {
   return api.post(`/products/${productId}/feedbacks`, data)
 }
 
-export function getCategories() {
-  return api.get('/products/categories')
+export async function getCategories() {
+  const products = await api.get('/products')
+  const categoryNames = [...new Set((products || []).map((item) => item?.category).filter(Boolean))]
+  return categoryNames.map((name) => ({ name }))
 }

@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
+import CultivationTimeTable from '@/components/product/CultivationTimeTable.vue'
 import { useProductStore } from '@/stores/product'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
@@ -132,6 +133,9 @@ const saveNote = () => {
         </div>
 
         <p class="mt-4 flex-1 rounded-lg bg-[var(--color-bg-section)] p-4 text-sm leading-6 text-[var(--color-text-body)] whitespace-pre-wrap">{{ product.desc }}</p>
+
+        <!-- 재배적기표 컴포넌트 -->
+        <CultivationTimeTable :productId="productId" />
 
         <div class="mt-6 space-y-3">
           <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-[var(--color-border-divider)] pb-3 md:grid-cols-[110px_1fr]">
