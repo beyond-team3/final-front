@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { CdrButton } from '@rei/cedar'
 import ModalBase from '@/components/common/ModalBase.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -25,7 +26,7 @@ const store = useNotificationStore()
 const selectedCategory = ref('전체')
 const unreadOnly = ref(false)
 const page = ref(1)
-const pageSize = 8
+const pageSize = 5
 const modalOpen = ref(false)
 const selectedId = ref(null)
 
@@ -119,20 +120,20 @@ onMounted(() => {
     </PageHeader>
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex flex-wrap gap-2" role="tablist" aria-label="알림 분류">
-        <button
+      <div class="schedule-filter" role="group" aria-label="알림 분류 필터">
+        <CdrButton
           v-for="category in categories"
           :key="category"
           type="button"
-          class="rounded-full border px-4 py-2 text-xs font-bold transition-colors"
-          :class="selectedCategory === category
-            ? 'border-[var(--color-olive)] bg-[var(--color-olive)] text-white'
-            : 'border-[var(--color-border-card)] bg-[var(--color-bg-input)] text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'"
-          :aria-selected="selectedCategory === category"
+          size="small"
+          modifier="secondary"
+          class="schedule-filter-btn"
+          :class="{ 'is-active': selectedCategory === category }"
+          :aria-pressed="selectedCategory === category"
           @click="selectedCategory = category"
         >
           {{ category }}
-        </button>
+        </CdrButton>
       </div>
 
       <div class="flex flex-wrap gap-2">
@@ -155,7 +156,7 @@ onMounted(() => {
         조건에 맞는 알림이 없습니다.
       </div>
 
-      <div v-else class="max-h-[540px] overflow-y-auto">
+      <div v-else>
         <article
           v-for="item in pagedNotifications"
           :key="item.id"
@@ -237,6 +238,44 @@ onMounted(() => {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+}
+
+.schedule-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px;
+  flex-wrap: wrap;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(239, 234, 223, 0.92) 0%, rgba(247, 243, 236, 0.92) 100%);
+  box-shadow: inset 0 0 0 1px rgba(221, 215, 206, 0.45);
+}
+
+.schedule-filter :deep(.schedule-filter-btn) {
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, rgba(250, 247, 243, 0.96) 0%, rgba(239, 234, 223, 0.96) 100%);
+  color: var(--color-text-body, #6B5F50);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(61, 53, 41, 0.08);
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+}
+
+.schedule-filter :deep(.schedule-filter-btn:hover),
+.schedule-filter :deep(.schedule-filter-btn:focus-visible) {
+  background: linear-gradient(135deg, rgba(239, 234, 223, 0.95) 0%, rgba(200, 212, 160, 0.55) 100%);
+  color: var(--color-text-strong, #3D3529);
+  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.12), 0 6px 14px rgba(61, 53, 41, 0.14);
+}
+
+.schedule-filter :deep(.schedule-filter-btn.is-active) {
+  background: linear-gradient(120deg, rgba(200, 212, 160, 0.92) 0%, rgba(122, 140, 66, 0.48) 100%);
+  color: var(--color-text-strong, #3D3529);
+  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.16), 0 6px 14px rgba(88, 104, 48, 0.2);
+}
+
+.schedule-filter :deep(.schedule-filter-btn:active) {
+  transform: translateY(1px);
 }
 
 .type-tone-neutral {
