@@ -73,9 +73,10 @@ const onSubmit = async () => {
     window.setTimeout(() => {
       router.push(`/employees/${newEmployeeId}`)
     }, 300)
-  } catch (error) {
-    showToast('등록 중 오류가 발생했습니다.', 'error')
-    console.error('등록 에러 상세:', error)
+  } catch (err) {
+    const errorMsg = err.response?.data?.error?.message || err.message || '등록 중 오류가 발생했습니다.'
+    showToast(errorMsg, 'error')
+    console.error('Registration failed:', err)
   }
 }
 </script>

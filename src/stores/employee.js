@@ -6,6 +6,7 @@ import {
     getEmployees,
     updateEmployee as updateEmployeeApi,
 } from '@/api/employee'
+import * as userApi from '@/api/user'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
     return error?.response?.data?.message || error?.message || fallback
@@ -22,13 +23,27 @@ function normalizeClientAssignments(raw = {}) {
     const source = candidateLists.find((item) => Array.isArray(item)) || []
 
     return source
-        .map((item) => ({
-            clientId: item?.clientId ?? item?.id ?? null,
-            clientCode: item?.clientCode ?? item?.code ?? '-',
-            clientName: item?.clientName ?? item?.name ?? '거래처',
-            accountStatus: item?.accountStatus ?? (item?.isActive === false ? 'INACTIVE' : 'ACTIVE'),
-            lastLoginAt: item?.lastLoginAt ?? item?.recentActivity ?? item?.lastActivity ?? '-',
-        }))
+        .map((item) => {
+            const rawStatus = String(item?.accountStatus || item?.status || '').toUpperCase()
+            let accountStatus = 'INACTIVE'
+
+            if (['ACTIVATE', 'ACTIVE', '활성화', '활성'].includes(rawStatus)) {
+                accountStatus = 'ACTIVE'
+            } else if (['DEACTIVATE', 'INACTIVE', '비활성화', '비활성'].includes(rawStatus)) {
+                accountStatus = 'INACTIVE'
+            } else {
+                // 계정 정보가 아예 없는 경우(null/undefined)나 기타 케이스
+                accountStatus = item?.isActive === true ? 'ACTIVE' : 'INACTIVE'
+            }
+
+            return {
+                clientId: item?.clientId ?? item?.id ?? null,
+                clientCode: item?.clientCode ?? item?.code ?? '-',
+                clientName: item?.clientName ?? item?.name ?? '거래처',
+                accountStatus,
+                lastLoginAt: item?.lastLoginAt ?? item?.recentActivity ?? item?.lastActivity ?? '-',
+            }
+        })
         .filter((item) => item.clientId !== null)
 }
 
@@ -54,27 +69,32 @@ function normalizeEmployee(raw = {}) {
 
     const getIsActive = (item) => {
         if (typeof item.isActive === 'boolean') return item.isActive
-        return String(item.status || 'ACTIVE').toUpperCase() !== 'INACTIVE'
+        if (!item.status) return false // 계정이 없으면 기본적으로 비활성
+        const status = String(item.status).toUpperCase()
+        if (['DEACTIVATE', 'INACTIVE', '비활성화', '비활성'].includes(status)) return false
+        if (['ACTIVATE', 'ACTIVE', '활성화', '활성'].includes(status)) return true
+        return false // 기본값도 비활성
     }
 
     const isActive = getIsActive(data)
     const parsedAddr = parseAddress(data.address)
 
     return {
-        id: data.id,
-        employeeCode: data.employeeCode || data.id,
-        name: data.name || '이름 없음',
+        id: data.id || data.employeeId,
+        employeeCode: data.employeeCode || data.id || data.employeeId,
+        name: data.name || data.employeeName || '이름 없음',
         role: data.role || data.position || 'SALES_REP',
-        email: data.email || '-',
-        phone: data.phone || data.contact || '-',
-        address: data.address || '-',
-        displaySido: parsedAddr.sido,
-        displayAddressOnly: parsedAddr.address,
-        displayZonecode: parsedAddr.zonecode,
-        displayAddress: `${parsedAddr.sido} ${parsedAddr.address}`.trim() || '-',
+        email: data.email || data.employeeEmail || '-',
+        phone: data.phone || data.employeePhone || data.contact || '-',
+        address: data.address || (data.addressSido ? `${data.addressSido}/${data.addressDetail}/${data.addressZip}` : '-'),
+        displaySido: parsedAddr.sido || data.addressSido,
+        displayAddressOnly: parsedAddr.address || data.addressDetail,
+        displayZonecode: parsedAddr.zonecode || data.addressZip,
+        displayAddress: `${parsedAddr.sido || data.addressSido || ''} ${parsedAddr.address || data.addressDetail || ''}`.trim() || '-',
         createdAt: data.createdAt || data.joinedAt || '-',
         isActive,
         status: isActive ? 'ACTIVE' : 'INACTIVE',
+        accountId: data.accountId || null,
         assignedClients: normalizeClientAssignments(data),
     }
 }
@@ -92,22 +112,16 @@ export const useEmployeeStore = defineStore('employee', () => {
         loading.value = true
         error.value = null
         try {
-            const nextId = employees.value.length > 0
-                ? Math.max(...employees.value.map(e => Number(e.id))) + 1
-                : 1
-
             const payload = {
-                id: nextId,
-                name: formData.empName,
-                email: formData.empEmail,
-                phone: formData.empPhone,
-                address: formData.empAddress,
-                isActive: false,
-                createdAt: new Date().toISOString()
+                employeeName: formData.empName,
+                employeeEmail: formData.empEmail,
+                employeePhone: formData.empPhone,
+                address: formData.empAddress
             }
 
             const result = await createEmployee(payload)
-            const finalResult = normalizeEmployee(result || payload)
+            // 백엔드가 생성된 객체(id 포함)를 반환함을 가정 (normalizeEmployee에서 처리)
+            const finalResult = normalizeEmployee(result)
             employees.value.push(finalResult)
             return finalResult.id
         } catch (e) {
@@ -124,12 +138,31 @@ export const useEmployeeStore = defineStore('employee', () => {
     }
 
     async function fetchEmployeeDetail(id) {
+        if (!id || String(id) === 'undefined' || String(id) === 'null') {
+            console.warn('[EmployeeStore] fetchEmployeeDetail called with invalid ID:', id)
+            return
+        }
+
         loading.value = true
         error.value = null
         currentEmployee.value = null
         try {
-            const result = await getEmployeeDetail(id)
-            currentEmployee.value = normalizeEmployee(result)
+            // 상세 정보와 담당 거래처 목록을 동시에 호출
+            const [detailResult, clientsResult] = await Promise.all([
+                getEmployeeDetail(id),
+                import('@/api/employee').then(m => m.getManagedClients(id)).catch(() => ({ data: [] }))
+            ])
+
+            // 두 결과를 하나로 합침 (normalizeEmployee가 managedClients 필드를 인식함)
+            const detailData = detailResult?.data || detailResult
+            const clientsData = clientsResult?.data || clientsResult || []
+
+            const mergedData = {
+                ...detailData,
+                managedClients: clientsData
+            }
+
+            currentEmployee.value = normalizeEmployee(mergedData)
             return currentEmployee.value
         } catch (e) {
             error.value = getErrorMessage(e, '상세 로딩 실패')
@@ -176,13 +209,33 @@ export const useEmployeeStore = defineStore('employee', () => {
             currentEmployee.value = normalizedOptimistic;
         }
 
+        const payload = {
+            employeeName: fullDataToUpdate.name || fullDataToUpdate.employeeName,
+            employeeEmail: fullDataToUpdate.email || fullDataToUpdate.employeeEmail,
+            employeePhone: fullDataToUpdate.phone || fullDataToUpdate.employeePhone,
+            address: fullDataToUpdate.address
+        };
+
         try {
-            const updated = await updateEmployeeApi(id, fullDataToUpdate);
-            if (updated) {
-                const finalResult = normalizeEmployee(updated);
-                employees.value = employees.value.map((emp) =>
-                    String(emp.id) === String(id) ? finalResult : emp
-                );
+            const updated = await updateEmployeeApi(id, payload);
+
+            // [개선] 서버 응답이 null이거나 data가 null이어도 우리가 보낸 데이터(fullDataToUpdate)를 유지
+            const serverReturnData = (updated && typeof updated === 'object') ? (updated.data || updated) : {};
+
+            // 병합 시 서버 데이터가 유효한 객체일 때만 덮어씌움
+            const finalResult = normalizeEmployee({
+                ...fullDataToUpdate,
+                ...(serverReturnData && typeof serverReturnData === 'object' ? serverReturnData : {})
+            });
+
+            // 전체 목록 업데이트
+            employees.value = employees.value.map((emp) =>
+                String(emp.id) === String(id) ? finalResult : emp
+            );
+
+            // 현재 보고 있는 상세 정보 업데이트
+            if (currentEmployee.value && String(currentEmployee.value.id) === String(id)) {
+                currentEmployee.value = finalResult;
             }
         } catch (e) {
             error.value = getErrorMessage(e, '사원 정보 수정에 실패');
@@ -192,8 +245,27 @@ export const useEmployeeStore = defineStore('employee', () => {
         }
     }
 
-    const toggleEmployeeActive = async (id, isActive) => {
-        await updateEmployee(id, { isActive: Boolean(isActive) })
+    const toggleEmployeeActive = async (accountId, status) => {
+        try {
+            await userApi.updateUserStatus({
+                userId: accountId,
+                status: status
+            });
+
+            // 현재 상세 정보 상태 즉시 업데이트
+            if (currentEmployee.value && currentEmployee.value.accountId === accountId) {
+                currentEmployee.value.status = status;
+                currentEmployee.value.isActive = (status === 'ACTIVATE');
+            }
+
+            // 목록 상태 업데이트
+            employees.value = employees.value.map(emp =>
+                emp.accountId === accountId ? { ...emp, status, isActive: (status === 'ACTIVATE') } : emp
+            );
+        } catch (e) {
+            error.value = getErrorMessage(e, '상태 변경 실패');
+            throw e;
+        }
     }
 
     return {

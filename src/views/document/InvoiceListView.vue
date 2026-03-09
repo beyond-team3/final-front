@@ -17,7 +17,7 @@ const normalizeInvoiceStatus = (status) => {
 }
 
 onMounted(() => {
-  void documentStore.fetchDocuments()
+  // fetchInvoices는 initialize()에서 이미 호출됨
 })
 
 const tab = ref('draft')

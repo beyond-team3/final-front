@@ -25,6 +25,7 @@ const form = reactive({
   creditLimit: 0,
 })
 
+
 const execDaumPostcode = () => {
   new window.daum.Postcode({
     oncomplete: (data) => {
@@ -66,7 +67,7 @@ const handleClickOutside = (event) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('click', handleClickOutside)
 })
 
@@ -75,19 +76,19 @@ onUnmounted(() => {
 })
 
 const onSubmit = async () => {
-  // [핵심] type에 따라 typeLabel을 자동으로 생성
-  const typeLabelMap = {
-    DISTRIBUTOR: '대리점',
-    NURSERY: '육묘장'
-  }
-
-  // 최종 전송할 데이터 포맷팅
+  // 최종 전송할 데이터 포맷팅 (백엔드 DTO 규격에 맞춤)
   const payload = {
-    ...form,
-    typeLabel: typeLabelMap[form.type] || '기타', // 타입에 맞는 라벨 매칭
-    creditLimit: Number(form.creditLimit),       // 숫자로 변환
-    isActive: false,                              // 기본 활성 상태로 등록
-    createdAt: new Date().toISOString()
+    clientCode: "", // DTO 필드 정합성을 위해 빈 문자열 추가
+    clientName: form.name,
+    clientBrn: form.bizNo,
+    ceoName: form.ceoName,
+    companyPhone: form.companyPhone,
+    address: form.address,
+    clientType: form.type,
+    managerName: form.managerName,
+    managerPhone: form.managerPhone,
+    managerEmail: form.managerEmail,
+    totalCredit: Number(form.creditLimit || 0),
   }
 
   try {
@@ -96,7 +97,9 @@ const onSubmit = async () => {
     alert('새 거래처가 등록되었습니다.')
     router.push('/clients')
   } catch (error) {
-    alert('등록에 실패했습니다. 데이터를 확인해 주세요')
+    console.error('Registration error details:', error.response?.data || error)
+    const msg = error.response?.data?.error?.message || error.response?.data?.message || '등록에 실패했습니다.'
+    alert(`${msg} 데이터를 확인해 주세요.`)
   }
 }
 </script>
@@ -140,7 +143,7 @@ const onSubmit = async () => {
           </label>
           <label class="block">
             <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">회사 유선전화</span>
-            <input v-model="form.companyPhone" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] transition-all shadow-sm" type="tel" placeholder="02-123-4567" />
+            <input v-model="form.companyPhone" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] transition-all shadow-sm" type="tel" placeholder="02-123-4567" required />
           </label>
           <div class="md:col-span-2">
             <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">주소</span>
@@ -218,6 +221,7 @@ const onSubmit = async () => {
             <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">담당자 이메일</span>
             <input v-model="form.managerEmail" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] transition-all shadow-sm" type="email" placeholder="example@seedflow.com" required />
           </label>
+
 
           <div class="md:col-span-2 flex justify-end gap-3 pt-6 border-t border-[var(--color-border-divider)] mt-4">
             <button type="button" class="rounded-lg border border-[var(--color-border-card)] bg-transparent px-6 py-2.5 text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)]" @click="router.push('/clients')">취소</button>

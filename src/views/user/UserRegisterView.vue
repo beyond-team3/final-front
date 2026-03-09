@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios'
+import * as userApi from '@/api/user'
 import PageHeader from '@/components/common/PageHeader.vue'
 
 const router = useRouter()
@@ -12,7 +12,7 @@ const dropdownContainer = ref(null)
 
 const roleOptions = [
   { label: '거래처 (Client)', value: 'CLIENT' },
-  { label: '영업사원 (Sales)', value: 'SALES' },
+  { label: '영업사원 (Sales Rep)', value: 'SALES_REP' },
   { label: '관리자 (Admin)', value: 'ADMIN' },
 ]
 
@@ -44,14 +44,14 @@ const handleClickOutside = (event) => {
   }
 }
 
-const unassignedData = ref({ CLIENT: [], SALES: [], ADMIN: [] })
-const allEmployees = ref([]) // { id, name } 객체 배열로 변경
+const unassignedData = ref({ CLIENT: [], SALES_REP: [], ADMIN: [] })
+const allEmployees = ref([]) // { id, name } 객체 배열
 
 const form = reactive({
   accountType: '',
   targetId: null,
   targetPerson: '',
-  salesPersonId: null, // 담당 사원의 ID를 저장
+  salesPersonId: null, // 담당 사원의 ID
   loginId: '',
   loginPw: '',
 })
@@ -63,32 +63,24 @@ const isLocked = ref(false)
 
 const fetchData = async () => {
   try {
-    const [usersRes, clientsRes, employeesRes] = await Promise.all([
-      axios.get('http://localhost:3001/users'),
-      axios.get('http://localhost:3001/clients'),
-      axios.get('http://localhost:3001/employees')
+    const [clientsRes, employeesRes, simpleEmpsRes] = await Promise.all([
+      userApi.getUnregisteredClients(),
+      userApi.getUnregisteredEmployees(),
+      userApi.getAllEmployeesSimple()
     ])
 
-    const users = usersRes.data
-    const clients = clientsRes.data
-    const employees = employeesRes.data
+    // 백엔드는 ApiResult 구조를 사용하므로 .data 또는 .data.data 확인 필요
+    // ApiInterceptor가 이미 한 꺼풀 벗겨줬을 수도 있음
+    const unregClients = clientsRes.data || clientsRes
+    const unregEmps = employeesRes.data || employeesRes
+    const simpleEmps = simpleEmpsRes.data || simpleEmpsRes
 
-    const registeredClientRefIds = new Set(users.filter(u => u.role === 'CLIENT').map(u => u.refId))
-    const registeredEmployeeRefIds = new Set(users.filter(u => u.role === 'SALES_REP' || u.role === 'ADMIN').map(u => u.refId))
+    unassignedData.value.CLIENT = unregClients.map(c => ({ id: c.clientId, name: c.clientName }))
+    unassignedData.value.SALES_REP = unregEmps.map(e => ({ id: e.employeeId, name: e.employeeName }))
+    unassignedData.value.ADMIN = [...unassignedData.value.SALES_REP]
 
-    unassignedData.value.CLIENT = clients
-        .filter(c => !registeredClientRefIds.has(c.id))
-        .map(c => ({ id: c.id, name: c.name }))
-
-    const unassignedEmps = employees
-        .filter(e => !registeredEmployeeRefIds.has(e.id))
-        .map(e => ({ id: e.id, name: e.name }))
-
-    unassignedData.value.SALES = [...unassignedEmps]
-    unassignedData.value.ADMIN = [...unassignedEmps]
-
-    // 담당 사원 매칭용: 모든 직원 데이터 (ID 포함)
-    allEmployees.value = employees.map(e => ({ id: e.id, name: e.name }))
+    // 담당 사원 매칭용
+    allEmployees.value = simpleEmps.map(e => ({ id: e.employeeId, name: e.employeeName }))
 
   } catch (error) {
     console.error('Data load failed:', error)
@@ -108,57 +100,46 @@ const onTypeChange = () => {
   showSalesArea.value = (form.accountType === 'CLIENT')
 }
 
-const onTargetSelect = () => {
-  const selected = targetOptions.value.find(opt => opt.id === form.targetId)
-  if (selected) form.targetPerson = selected.name
-}
-
 onMounted(async () => {
   await fetchData()
   const queryRole = route.query.role
   if (queryRole) {
-    form.accountType = queryRole
+    // 쿼리 파라미터가 'CLIENT'이면 그대로 사용, 'SALES'이면 'SALES_REP'으로 보정
+    form.accountType = queryRole === 'SALES' ? 'SALES_REP' : queryRole
     isLocked.value = true
     onTypeChange()
   }
 })
 
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutside)
+})
+
 const onSubmit = async () => {
   if (!form.targetId || !form.loginId || !form.loginPw) {
-    alert('모든 필드를 입력해 주십쇼!')
+    alert('모든 필드를 입력해 주세요.')
     return
   }
 
   try {
-    // 1. users 테이블에 등록할 계정 정보 생성
-    const newUser = {
-      id: String(Date.now()),
+    // 백엔드 UserCreateRequest JSON 구조에 맞춤
+    const payload = {
       loginId: form.loginId,
-      password: form.loginPw,
-      role: form.accountType === 'SALES' ? 'SALES_REP' : form.accountType,
-      lastLoginAt: null,
-      refId: form.targetId,
-      targetPerson: form.targetPerson
+      loginPw: form.loginPw,
+      role: form.accountType,
+      targetId: form.targetId,
+      employeeId: form.salesPersonId
     }
 
-    // 2. 만약 거래처(CLIENT)라면 clients 테이블 정보 업데이트 (PATCH)
-    if (form.accountType === 'CLIENT') {
-      await axios.patch(`http://localhost:3001/clients/${form.targetId}`, {
-        isActive: true,
-        managerId: form.salesPersonId // 담당 사원의 ID 저장
-      })
-    }
+    await userApi.createUser(payload)
 
-    // 3. 계정 생성 전송
-    await axios.post('http://localhost:3001/users', newUser)
-
-    alert('계정 등록 및 정보 업데이트가 완료되었슴돠!')
-    await fetchData()
+    alert('계정 등록이 완료되었습니다!')
     router.push(form.accountType === 'CLIENT' ? '/clients' : '/employees')
 
   } catch (error) {
     console.error('Registration failed:', error)
-    alert('DB 저장 중 오류가 발생했슴돠.')
+    const errorMsg = error.response?.data?.error?.message || '계정 생성 중 오류가 발생했습니다.'
+    alert(errorMsg)
   }
 }
 </script>

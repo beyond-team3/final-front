@@ -10,54 +10,23 @@ const dashboard = ref(null)
 const loading = ref(false)
 const error = ref('')
 
-// ── KPI 카드 (프로토타입 더미) ──────────────────────────────────────────────
-const prototypeKpis = [
-  {
-    label: '이번 달 전체 매출',
-    iconClass: 'blue',
-    icon: '₩',
-    value: '₩2.4억',
-    change: '▲ 전월 대비 +12.3%',
-    changeClass: 'positive',
-  },
-  {
-    label: '전년 대비 증감률',
-    iconClass: 'green',
-    icon: '',
-    value: '+18.7%',
-    change: '▲ 목표 +15% 달성',
-    changeClass: 'positive',
-  },
-  {
-    label: '승인 대기 문서',
-    iconClass: 'orange',
-    icon: '',
-    value: '23건',
-    change: '견적 12 / 계약 8 / 주문 3',
-    changeClass: 'neutral',
-  },
-]
+// ── KPI 카드 — API 응답(dashboard.value.kpis)으로 구성 ──────────────────
+const kpiCards = computed(() => {
+  const k = dashboard.value?.kpis || {}
+  return [
+    { label: '이번 달 전체 매출', iconClass: 'accent', icon: '₩', value: k.totalMonthlySales    || '-', change: `▲ 전년 대비 ${k.salesGrowthRate || '-'}`,  changeClass: 'positive' },
+    { label: '전년 대비 증감률',  iconClass: 'olive',  icon: '↑', value: k.salesGrowthRate      || '-', change: '▲ ',                          changeClass: 'positive' },
+    { label: '승인 대기 문서',    iconClass: 'warn',   icon: '!', value: k.pendingDocumentCount  || '-', change: k.pendingDetail || '-',                       changeClass: 'neutral'  },
+  ]
+})
 
-// ── 매출 추이 더미 데이터 (월별, 단위: 만원) ───────────────────────────────
-const salesTrendData = {
-  labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
-  datasets: [
-    {
-      label: '2025년',
-      data: [8200, 7600, 9800, 11200, 13400, 12100, 10800, 11900, 14200, 15800, 13600, 16500],
-      borderColor: '#94a3b8',
-      backgroundColor: 'rgba(148,163,184,0.08)',
-      borderDash: [5, 4],
-    },
-    {
-      label: '2026년',
-      data: [9700, 10200, 12400, 13800, 15200, 14600, null, null, null, null, null, null],
-      borderColor: '#2563eb',
-      backgroundColor: 'rgba(37,99,235,0.08)',
-      borderDash: [],
-    },
-  ],
-}
+// ── 매출 추이 — API 응답(dashboard.value.salesTrend)으로 구성 ───────────
+const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
+const salesTrendData = computed(() => ({
+  labels: MONTHS,
+  lastYear: dashboard.value?.salesTrend?.lastYear ?? [],
+  thisYear: dashboard.value?.salesTrend?.thisYear ?? [],
+}))
 
 // ── Canvas ref & Chart 인스턴스 ────────────────────────────────────────────
 const chartCanvas = ref(null)
@@ -71,6 +40,9 @@ const renderChart = async () => {
   const canvas = chartCanvas.value
   if (!canvas) return
 
+  const { lastYear, thisYear, labels } = salesTrendData.value
+  if (!lastYear.length && !thisYear.length) return
+
   try {
     const { Chart, registerables } = await import('chart.js')
     Chart.register(...registerables)
@@ -80,20 +52,32 @@ const renderChart = async () => {
     chartInstance = new Chart(canvas, {
       type: 'line',
       data: {
-        labels: salesTrendData.labels,
-        datasets: salesTrendData.datasets.map((ds) => ({
-          label: ds.label,
-          data: ds.data,
-          borderColor: ds.borderColor,
-          backgroundColor: ds.backgroundColor,
-          borderWidth: 2.5,
-          borderDash: ds.borderDash,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          tension: 0.35,
-          fill: true,
-          spanGaps: false,
-        })),
+        labels,
+        datasets: [
+          {
+            label: '전년',
+            data: lastYear,
+            borderColor: '#A8A29E',
+            backgroundColor: 'rgba(168,162,158,0.07)',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 3,
+            tension: 0.35,
+            fill: true,
+            spanGaps: false,
+          },
+          {
+            label: '올해',
+            data: thisYear,
+            borderColor: '#D97757',
+            backgroundColor: 'rgba(217,119,87,0.07)',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            tension: 0.35,
+            fill: true,
+            spanGaps: false,
+          },
+        ],
       },
       options: {
         responsive: true,
@@ -103,7 +87,7 @@ const renderChart = async () => {
           legend: {
             position: 'top',
             align: 'end',
-            labels: { boxWidth: 12, boxHeight: 2, font: { size: 12 }, color: '#555' },
+            labels: { boxWidth: 12, boxHeight: 2, font: { size: 12 }, color: '#78716C' },
           },
           tooltip: {
             callbacks: {
@@ -115,14 +99,14 @@ const renderChart = async () => {
         scales: {
           x: {
             grid: { color: 'rgba(0,0,0,0.04)' },
-            ticks: { font: { size: 12 }, color: '#888' },
+            ticks: { font: { size: 12 }, color: '#A8A29E' },
           },
           y: {
             grid: { color: 'rgba(0,0,0,0.06)' },
             ticks: {
               font: { size: 12 },
-              color: '#888',
-              callback: (v) => `₩${(v / 10000).toFixed(0)}억`,
+              color: '#A8A29E',
+              callback: (v) => `₩${(v / 100).toFixed(0)}억`,
             },
             beginAtZero: false,
           },
@@ -130,13 +114,13 @@ const renderChart = async () => {
       },
     })
   } catch {
-    // Chart.js 미설치 시 순수 Canvas로 fallback
     renderFallbackChart(canvas)
   }
 }
 
 /** Chart.js 없이 Canvas 2D API로 직접 그리는 fallback 차트 */
 const renderFallbackChart = (canvas) => {
+  const { lastYear, thisYear, labels } = salesTrendData.value
   const ctx = canvas.getContext('2d')
   const { width, height } = canvas.getBoundingClientRect()
   canvas.width = width * window.devicePixelRatio
@@ -149,12 +133,13 @@ const renderFallbackChart = (canvas) => {
   const innerW = W - PAD.left - PAD.right
   const innerH = H - PAD.top - PAD.bottom
 
-  const allValues = salesTrendData.datasets.flatMap((d) => d.data.filter((v) => v !== null))
+  const allValues = [...lastYear, ...thisYear].filter((v) => v !== null)
+  if (!allValues.length) return
   const minVal = Math.min(...allValues) * 0.92
   const maxVal = Math.max(...allValues) * 1.05
   const range = maxVal - minVal
 
-  const toX = (i) => PAD.left + (i / (salesTrendData.labels.length - 1)) * innerW
+  const toX = (i) => PAD.left + (i / (labels.length - 1)) * innerW
   const toY = (v) => PAD.top + innerH - ((v - minVal) / range) * innerH
 
   // 격자선
@@ -166,85 +151,43 @@ const renderFallbackChart = (canvas) => {
   }
 
   // X축 레이블
-  ctx.fillStyle = '#888'
+  ctx.fillStyle = '#A8A29E'
   ctx.font = '11px sans-serif'
   ctx.textAlign = 'center'
-  salesTrendData.labels.forEach((label, i) => {
-    ctx.fillText(label, toX(i), H - PAD.bottom + 16)
-  })
+  labels.forEach((label, i) => { ctx.fillText(label, toX(i), H - PAD.bottom + 16) })
 
-  // Y축 레이블
-  ctx.textAlign = 'right'
-  for (let i = 0; i <= 4; i++) {
-    const v = minVal + (range / 4) * (4 - i)
-    const y = PAD.top + (innerH / 4) * i
-    ctx.fillText(`₩${Math.round(v / 1000)}천만`, PAD.left - 6, y + 4)
-  }
-
-  // 데이터 라인 그리기
-  const colors = ['#94a3b8', '#2563eb']
-  const dashes = [[5, 4], []]
-
-  salesTrendData.datasets.forEach((ds, di) => {
-    const points = ds.data
-        .map((v, i) => (v !== null ? { x: toX(i), y: toY(v) } : null))
-        .filter(Boolean)
-
+  // 데이터 라인
+  const series = [
+    { data: lastYear, color: '#A8A29E', dash: [5, 4] },
+    { data: thisYear, color: '#D97757', dash: [] },
+  ]
+  series.forEach(({ data, color, dash }) => {
+    const points = data.map((v, i) => (v !== null ? { x: toX(i), y: toY(v) } : null)).filter(Boolean)
     if (!points.length) return
-
     ctx.beginPath()
-    ctx.setLineDash(dashes[di])
-    ctx.strokeStyle = colors[di]
+    ctx.setLineDash(dash)
+    ctx.strokeStyle = color
     ctx.lineWidth = 2.5
     points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
     ctx.stroke()
     ctx.setLineDash([])
-
-    // 포인트 원
     points.forEach((p) => {
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
-      ctx.fillStyle = '#fff'
-      ctx.fill()
-      ctx.strokeStyle = colors[di]
-      ctx.lineWidth = 2
-      ctx.stroke()
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
+      ctx.fillStyle = '#fff'; ctx.fill()
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke()
     })
   })
-
-  // 범례
-  const legendY = 14
-  ;[{ label: '2025년', color: '#94a3b8', dash: true }, { label: '2026년', color: '#2563eb', dash: false }].forEach(
-      (item, i) => {
-        const x = W - PAD.right - (1 - i) * 100
-        ctx.setLineDash(item.dash ? [5, 4] : [])
-        ctx.strokeStyle = item.color
-        ctx.lineWidth = 2.5
-        ctx.beginPath(); ctx.moveTo(x, legendY); ctx.lineTo(x + 24, legendY); ctx.stroke()
-        ctx.setLineDash([])
-        ctx.fillStyle = '#555'
-        ctx.font = '12px sans-serif'
-        ctx.textAlign = 'left'
-        ctx.fillText(item.label, x + 28, legendY + 4)
-      },
-  )
 }
 
-// ── 영업사원별 매출 랭킹 더미 데이터 ──────────────────────────────────────
-const rankings = [
-  { rank: 1, name: '김민수', amount: '₩45,600,000', width: 100 },
-  { rank: 2, name: '박지훈', amount: '₩38,900,000', width: 85 },
-  { rank: 3, name: '최가은', amount: '₩31,200,000', width: 68 },
-  { rank: 4, name: '이서연', amount: '₩28,700,000', width: 63 },
-  { rank: 5, name: '정태호', amount: '₩24,500,000', width: 54 },
-]
+// ── 영업사원별 매출 랭킹 — API 응답 사용 ──────────────────────────────
+const rankings = computed(() => dashboard.value?.rankings ?? [])
 
 // ── Dashboard 데이터 fetch ─────────────────────────────────────────────────
-const title = computed(() => dashboard.value?.title || '관리자 대시보드')
-const approvals = computed(() => dashboard.value?.approvals ?? [])
-const trendPeriod = computed(() => dashboard.value?.trendPeriod || '2025년 – 2026년 월별 매출 추이')
+const title         = computed(() => dashboard.value?.title       || '관리자 대시보드')
+const approvals     = computed(() => dashboard.value?.approvals   ?? [])
+const trendPeriod   = computed(() => dashboard.value?.trendPeriod || '월별 매출 추이')
 const approvalCount = computed(() => dashboard.value?.approvalCount ?? approvals.value.length)
-const hasData = computed(() => prototypeKpis.length || rankings.length || approvals.value.length)
+const hasData       = computed(() => kpiCards.value.length || rankings.value.length || approvals.value.length)
 
 const fetchDashboard = async () => {
   loading.value = true
@@ -286,7 +229,7 @@ onMounted(fetchDashboard)
       <h2 class="screen-title">{{ title }}</h2>
 
       <div class="kpi-grid">
-        <div v-for="kpi in prototypeKpis" :key="kpi.label" class="kpi-card">
+        <div v-for="kpi in kpiCards" :key="kpi.label" class="kpi-card">
           <div class="kpi-header">
             <span class="kpi-label">{{ kpi.label }}</span>
             <div class="kpi-icon" :class="kpi.iconClass">{{ kpi.icon }}</div>
@@ -355,50 +298,78 @@ onMounted(fetchDashboard)
 </template>
 
 <style scoped>
-.dashboard-shell { background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0, 0, 0, .1); min-height: 500px; }
-.screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
+/* ── 색상 토큰 (Contract / LoginView 테마) ─────────────────────── */
+.dashboard-shell {
+  --c-bg:      #FAF9F6;
+  --c-surface: #FFFFFF;
+  --c-border:  rgba(41, 37, 36, 0.10);
+  --c-text:    #292524;
+  --c-muted:   #78716C;
+  --c-faint:   #A8A29E;
+  --c-accent:  #D97757;
+  --c-olive:   #6B7C45;
+  --c-warm:    #F7F3EC;
+  --c-warm-md: #EFEADF;
 
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
-.kpi-card { background: #fff; border: 1px solid #e5e8eb; border-radius: 12px; padding: 24px; }
+  background: var(--c-bg);
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 2px 12px rgba(41, 37, 36, 0.08);
+  min-height: 500px;
+}
+.screen-title {
+  font-size: 22px; font-weight: 700; color: var(--c-text);
+  margin-bottom: 20px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+/* KPI */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 28px; }
+.kpi-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
 .kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.kpi-label { font-size: 14px; color: #666; font-weight: 500; }
-.kpi-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-.kpi-icon.blue { background: #eff6ff; color: #2563eb; }
-.kpi-icon.green { background: #f0fdf4; color: #16a34a; }
-.kpi-icon.orange { background: #fff7ed; color: #ea580c; }
-.kpi-value { font-size: 32px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+.kpi-label  { font-size: 14px; color: var(--c-muted); font-weight: 500; }
+.kpi-icon   { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
+.kpi-icon.accent { background: #FEF3E8; color: var(--c-accent); }
+.kpi-icon.olive  { background: #ECF3E5; color: var(--c-olive);  }
+.kpi-icon.warn   { background: #FFF7ED; color: #C25E00; }
+.kpi-value  { font-size: 30px; font-weight: 700; color: var(--c-text); margin-bottom: 8px; }
 .kpi-change { font-size: 13px; }
-.kpi-change.positive { color: #16a34a; }
-.kpi-change.neutral { color: #666; }
+.kpi-change.positive { color: var(--c-olive); }
+.kpi-change.neutral  { color: var(--c-muted); }
 
-.chart-section { margin-bottom: 30px; }
-.chart-card { background: #fff; border: 1px solid #e5e8eb; border-radius: 12px; padding: 24px; }
+/* 차트 */
+.chart-section { margin-bottom: 28px; }
+.chart-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
 .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.chart-title { font-size: 18px; font-weight: 600; color: #1a1a1a; }
-.chart-period { font-size: 13px; color: #666; }
+.chart-title  { font-size: 18px; font-weight: 600; color: var(--c-text); }
+.chart-period { font-size: 13px; color: var(--c-muted); }
 .chart-canvas-wrap { height: 300px; border-radius: 8px; overflow: hidden; }
 .chart-canvas { width: 100%; height: 100%; }
 
+/* 하단 3열 */
 .three-column-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.operation-card { background: #fff; border: 1px solid #e5e8eb; border-radius: 12px; padding: 24px; }
+.operation-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
 .operation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.operation-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
-.operation-badge { background: #2563eb; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-.operation-list { display: flex; flex-direction: column; gap: 10px; }
-.operation-item { padding: 12px; background: #f9fafb; border-radius: 8px; border-left: 3px solid #2563eb; }
-.operation-item-title { font-size: 14px; font-weight: 500; color: #1a1a1a; margin-bottom: 4px; }
-.operation-item-meta { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
-.operation-item-time { color: #999; }
+.operation-title  { font-size: 15px; font-weight: 600; color: var(--c-text); }
+.operation-badge  { background: var(--c-accent); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
 
-.ranking-list { display: flex; flex-direction: column; gap: 12px; }
-.ranking-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; }
-.rank-number { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; background: #e5e8eb; color: #666; }
-.rank-number.top { background: #fef3c7; color: #d97706; }
-.rank-info { flex: 1; }
-.rank-name { font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 2px; }
-.rank-amount { font-size: 13px; color: #666; }
-.rank-bar { width: 120px; height: 6px; background: #e5e8eb; border-radius: 3px; overflow: hidden; }
-.rank-bar-fill { height: 100%; background: #2563eb; border-radius: 3px; }
+/* 승인 목록 */
+.operation-list { display: flex; flex-direction: column; gap: 10px; }
+.operation-item { padding: 12px; background: var(--c-warm); border-radius: 8px; border-left: 3px solid var(--c-accent); }
+.operation-item-title { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 4px; }
+.operation-item-meta  { display: flex; justify-content: space-between; font-size: 12px; color: var(--c-muted); }
+.operation-item-time  { color: var(--c-faint); }
+
+/* 랭킹 */
+.ranking-list { display: flex; flex-direction: column; gap: 10px; }
+.ranking-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--c-warm); border-radius: 8px; }
+.rank-number { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; background: var(--c-warm-md); color: var(--c-muted); }
+.rank-number.top { background: #FEF3E8; color: var(--c-accent); }
+.rank-info   { flex: 1; }
+.rank-name   { font-size: 14px; font-weight: 600; color: var(--c-text); margin-bottom: 2px; }
+.rank-amount { font-size: 13px; color: var(--c-muted); }
+.rank-bar    { width: 100px; height: 6px; background: var(--c-warm-md); border-radius: 3px; overflow: hidden; }
+.rank-bar-fill { height: 100%; background: var(--c-accent); border-radius: 3px; }
 
 @media (max-width: 1200px) {
   .three-column-grid { grid-template-columns: 1fr; }

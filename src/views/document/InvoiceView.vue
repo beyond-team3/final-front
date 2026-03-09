@@ -144,8 +144,22 @@ watch(
     { immediate: true }
 )
 
-onMounted(() => {
+onMounted(async () => {
   void historyStore.ensureLoaded?.()
+
+  // 기존 청구서 조회 시 상세 fetch
+  if (invoiceId.value) {
+    const detail = await documentStore.fetchInvoiceDetail(invoiceId.value)
+    if (detail?.statements) {
+      // 청구서에 포함된 명세서 목록으로 selectedIds 세팅
+      const includedIds = new Set(
+          detail.statements
+              .filter(s => s.included)
+              .map(s => s.statementId)
+      )
+      selectedIds.value = includedIds
+    }
+  }
 })
 
 const today = new Date()

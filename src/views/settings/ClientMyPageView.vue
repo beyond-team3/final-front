@@ -1,15 +1,20 @@
 <script setup>
-import { reactive, ref, onMounted, computed } from 'vue'
+import { reactive, ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useClientStore } from '@/stores/client'
 import ModalBase from '@/components/common/ModalBase.vue'
 import UnifiedHistoryPanel from '@/components/history/UnifiedHistoryPanel.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TabNav from '@/components/common/TabNav.vue'
+import { getClientCrops } from '@/api/client'
+
+import * as authApi from '@/api/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const clientStore = useClientStore()
 
 const activeTab = ref('info')
 const isPwModalOpen = ref(false)
@@ -44,18 +49,30 @@ const toCurrency = (value) => {
   return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)
 }
 
-onMounted(() => {
-  if (authStore.me) {
-    const data = authStore.me
-    profile.id = data.id
-    profile.name = data.name || ''
-    profile.code = data.code || ''
-    profile.bizNo = data.bizNo || ''
-    profile.ceoName = data.ceoName || ''
-    profile.companyPhone = data.companyPhone || ''
+const mapProfileData = async (data) => {
+  if (!data) return
+  console.log('[DEBUG] Raw me data from authStore:', JSON.stringify(data))
 
-    // 주소 파싱 (sido/address/zonecode)
-    const rawAddr = data.address || ''
+  // ApiResult 구조인 경우와 데이터 직접인 경우 모두 대응
+  const target = data.data || data
+  console.log('[DEBUG] Target object keys:', Object.keys(target))
+
+  // 사용자가 "로그인 주체에 clientId를 넣어주었다"고 함에 따라 모든 가능성 있는 필드 체크
+  profile.id = target.id || target.clientId || target.client_id || target.userId
+  console.log('[DEBUG] Resolved profile.id:', profile.id)
+
+  profile.name = target.clientName || target.name || ''
+  profile.code = target.clientCode || target.code || ''
+  profile.bizNo = target.clientBrn || target.bizNo || ''
+  profile.ceoName = target.ceoName || ''
+  profile.companyPhone = target.companyPhone || ''
+
+  // 주소 정보 매핑
+  if (target.addressSido || target.addressDetail) {
+    profile.address = `${target.addressSido || ''} ${target.addressDetail || ''}`.trim()
+    profile.zonecode = target.addressZip || ''
+  } else {
+    const rawAddr = target.address || ''
     if (rawAddr.includes('/')) {
       const parts = rawAddr.split('/')
       profile.address = parts[1] || parts[0]
@@ -64,22 +81,73 @@ onMounted(() => {
       profile.address = rawAddr
       profile.zonecode = ''
     }
+  }
 
-    profile.typeLabel = data.typeLabel || '거래처'
-    profile.managerName = data.managerName || ''
-    profile.managerPhone = data.managerPhone || ''
-    profile.managerEmail = data.managerEmail || ''
-    profile.crops = data.crops || []
-    profile.isActive = data.isActive ?? true
+  profile.typeLabel = target.clientType === 'CORPORATION' ? '법인' : (target.typeLabel || '거래처')
+  profile.managerName = target.managerName || ''
+  profile.managerPhone = target.managerPhone || ''
+  profile.managerEmail = target.managerEmail || ''
+  profile.isActive = target.isActive ?? true
 
-    // 모의 데이터 (거래 요약)
-    profile.monthlyAmount = data.monthlyAmount || 12500000
-    profile.monthlyInProgress = data.monthlyInProgress || 3
-    profile.monthlyDone = data.monthlyDone || 12
+  // 실제 거래 요약 데이터 조회
+  await nextTick()
+  if (profile.id) {
+    fetchCrops()
+    try {
+      const summary = await clientStore.fetchTradeSummary(profile.id)
+      if (summary) {
+        profile.monthlyAmount = summary.thisMonth?.totalAmount || 0
+        profile.monthlyInProgress = summary.thisMonth?.inProgressCount || 0
+        profile.monthlyDone = summary.thisMonth?.completedCount || 0
+      }
+    } catch (err) {
+      console.error('[MyPage] Failed to fetch trade summary:', err)
+      // 에러 시 기본값 0 유지
+      profile.monthlyAmount = 0
+      profile.monthlyInProgress = 0
+      profile.monthlyDone = 0
+    }
   } else {
+    console.warn('[DEBUG] profile.id is still missing after mapping!')
+  }
+}
+
+onMounted(() => {
+  if (authStore.me) {
+    mapProfileData(authStore.me)
+  } else if (!authStore.token) {
     router.push('/login')
   }
 })
+
+// authStore.me가 늦게 로드되는 경우 대응
+watch(() => authStore.me, (newMe) => {
+  if (newMe) {
+    mapProfileData(newMe)
+  }
+}, { immediate: true })
+
+const fetchCrops = async () => {
+  if (!profile.id) {
+    console.warn('[DEBUG] skip fetchCrops because profile.id is null')
+    return
+  }
+  console.log('[DEBUG] Initiating fetchCrops for client id:', profile.id)
+  try {
+    // store의 fetchClientCrops를 사용하여 일관성 있는 정규화 적용
+    const crops = await clientStore.fetchClientCrops(profile.id)
+    console.log('[DEBUG] Store fetchClientCrops result:', crops)
+
+    if (Array.isArray(crops)) {
+      profile.crops = crops.map(c => c.cropName)
+    } else {
+      profile.crops = []
+    }
+  } catch (err) {
+    console.error('[DEBUG] fetchCrops Error:', err)
+    profile.crops = []
+  }
+}
 
 const tabOptions = computed(() => [
   { key: 'info', label: '마이 페이지 정보' },
@@ -121,10 +189,6 @@ const submitPassword = async () => {
     pwHint.value = '모든 항목을 입력해주세요.'
     return
   }
-  if (current !== authStore.me.password) {
-    pwHint.value = '기존 비밀번호가 일치하지 않습니다.'
-    return
-  }
   if (next !== nextConfirm) {
     pwHint.value = '새 비밀번호와 확인 값이 일치하지 않습니다.'
     return
@@ -135,18 +199,22 @@ const submitPassword = async () => {
   }
 
   try {
-    const userId = authStore.me.id
-    const response = await fetch(`http://localhost:3001/users/${userId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: next }),
+    await authApi.changePassword({
+      oldPassword: current,
+      newPassword: next
     })
-    if (!response.ok) throw new Error('비밀번호 수정 실패')
-    authStore.me.password = next
+
     pwHint.value = '비밀번호가 성공적으로 수정되었습니다.'
-    setTimeout(() => { closePwModal() }, 1000)
+    setTimeout(() => {
+      closePwModal()
+      // 비밀번호가 변경되었으므로 재로그인 유도
+      authStore.logout()
+      router.push('/login')
+    }, 1500)
   } catch (error) {
-    pwHint.value = '서버 통신 오류가 발생했습니다.'
+    console.error('Password change error:', error)
+    // 백엔드 ApiResult 구조(data.error.message)에 따라 메시지 추출
+    pwHint.value = error.response?.data?.error?.message || '비밀번호 수정에 실패했습니다.'
   }
 }
 
@@ -158,7 +226,7 @@ const openPipelineDetail = (pipelineId) => {
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-5">
     <div class="mx-auto max-w-6xl space-y-4">
-      <PageHeader class="!bg-transparent !p-0 !mb-4">
+      <PageHeader class="!bg-transparent !p-0 !mb-4" :title="profile.name">
         <template #title>
           <div class="flex items-center gap-3">
             <h2 class="text-2xl font-bold text-[var(--color-text-strong)]">{{ profile.name }}</h2>
