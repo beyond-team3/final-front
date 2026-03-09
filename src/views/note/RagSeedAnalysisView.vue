@@ -1,11 +1,12 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useNoteStore } from '@/stores/note'
 
 const noteStore = useNoteStore()
 const route = useRoute()
+const router = useRouter()
 
 // --- State ---
 const selectedClientId = ref('')
@@ -13,6 +14,9 @@ const selectedContractId = ref('')
 const queryType = ref('RECAP') // RECAP, RISK, MATCHING, CHECKLIST
 const analysisResult = ref(null)
 const status = ref('IDLE') // IDLE, LOADING, SUCCESS, EMPTY, ERROR
+
+const selectedNote = ref(null)
+const showDetailModal = ref(false)
 
 // --- Computed ---
 const selectedClientName = computed(() => noteStore.getClientName(selectedClientId.value))
@@ -25,6 +29,36 @@ const handleClientChange = async () => {
     await noteStore.fetchActiveContracts(selectedClientId.value)
   } else {
     noteStore.contractOptions = []
+  }
+}
+
+const openDetail = (note) => {
+  selectedNote.value = note
+  showDetailModal.value = true
+}
+
+const closeDetail = () => {
+  showDetailModal.value = false
+  selectedNote.value = null
+}
+
+const goEdit = (id) => {
+  router.push({ name: 'notes', query: { editId: id } })
+}
+
+const handleEvidenceClick = async (id) => {
+  const noteId = Number(id)
+  let note = noteStore.notes.find(n => n.id === noteId)
+  
+  if (!note) {
+    await noteStore.fetchNotes()
+    note = noteStore.notes.find(n => n.id === noteId)
+  }
+
+  if (note) {
+    openDetail(note)
+  } else {
+    console.warn('Note not found in store:', id)
   }
 }
 
@@ -59,6 +93,11 @@ const fetchAnalysis = async () => {
       
       analysisResult.value = { ...result, content }
       status.value = 'SUCCESS'
+
+      // 분석 성공 시 참조된 노트들이 스토어에 있는지 확인하기 위해 목록 동기화 권장
+      if (noteStore.notes.length === 0) {
+        noteStore.fetchNotes()
+      }
     } else {
       status.value = 'EMPTY'
     }
@@ -79,13 +118,13 @@ const renderMarkdown = (text) => {
     .replace(/^## (.*$)/gim, '<h3 class="text-xl font-bold text-[var(--color-text-strong)] mt-8 mb-4">$1</h3>')
     .replace(/^# (.*$)/gim, '<h2 class="text-2xl font-bold text-[var(--color-text-strong)] mt-10 mb-6">$1</h2>')
     .replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-[var(--color-olive)] bg-[var(--color-bg-section)] p-4 my-4 rounded-r-md text-[var(--color-text-body)] italic">$1</blockquote>')
-    .replace(/\*\*(.*)\*\*/gim, '<strong class="font-bold text-[var(--color-text-strong)]">$1</strong>')
-    .replace(/\*(.*)\*/gim, '<em>$1</em>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[var(--color-text-strong)]">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
     .replace(/\n/g, '<br>')
 
   // Special handling for Risks (Keywords heuristic)
-  const riskKeywords = ['리스크', '위험', '주의', '문제', '클레임', '병해충', '부족', '경쟁']
+  const riskKeywords = ['리스크', '위험', '주의', '문제', '클레임', '병해충', '부족', '경쟁사']
   riskKeywords.forEach(keyword => {
     const regex = new RegExp(`(${keyword})`, 'gi')
     html = html.replace(regex, '<span class="text-[var(--color-status-error)] font-bold">$1</span>')
@@ -94,13 +133,12 @@ const renderMarkdown = (text) => {
   return html
 }
 
-const handleEvidenceClick = (id) => {
-  // logic to show evidence details (e.g. open a modal with the note content)
-  console.log('Evidence clicked:', id)
-  // alert(`Evidence ID: ${id} Clicked. (모달 구현 예정)`)
-}
-
 onMounted(async () => {
+  // 컴포넌트 마운트 시 노트 목록 로드 보장
+  if (noteStore.notes.length === 0) {
+    noteStore.fetchNotes()
+  }
+
   if (route.query.clientId) {
     selectedClientId.value = Number(route.query.clientId)
     await noteStore.fetchActiveContracts(selectedClientId.value)
@@ -218,7 +256,7 @@ onMounted(async () => {
         <!-- Report Card -->
         <div class="overflow-hidden rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-sm">
           <!-- Header Image/Pattern -->
-          <div class="h-2 bg-gradient-to-r from-[var(--color-olive)] to-[var(--color-olive-light)]"></div>
+          <div class="h-2 bg-[var(--color-olive)]"></div>
           
           <div class="p-8 lg:p-10">
             <div class="mb-8 flex items-start justify-between">
@@ -230,9 +268,6 @@ onMounted(async () => {
                 <h3 class="text-3xl font-bold text-[var(--color-text-strong)]">{{ selectedClientName }} 전략 리포트</h3>
                 <p class="mt-1 text-[var(--color-text-sub)]">{{ analysisResult.attribution }}</p>
               </div>
-              <button class="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border-card)] bg-white text-[var(--color-text-body)] hover:bg-[var(--color-bg-base)]">
-                <i class="fas fa-download"></i>
-              </button>
             </div>
 
             <!-- Markdown Content -->
@@ -269,6 +304,60 @@ onMounted(async () => {
               <p v-if="!analysisResult.evidenceIds?.length" class="text-xs text-[var(--color-text-placeholder)]">참조된 근거 데이터가 없습니다.</p>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Note Detail Modal (Heritage Layout) -->
+    <div v-if="showDetailModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-[var(--color-overlay)] backdrop-blur-sm" @click="closeDetail"></div>
+      <div class="bg-[var(--color-bg-card)] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-300">
+        <!-- Header: Card Heritage -->
+        <div class="p-8 lg:p-10 overflow-y-auto flex-1">
+          <div class="flex justify-between items-start mb-6">
+            <div>
+              <span class="font-extrabold text-[var(--color-olive)] text-3xl block mb-2">{{ noteStore.getClientName(selectedNote?.clientId) }}</span>
+              <div class="flex items-center gap-3 text-[var(--color-text-sub)]">
+                <span class="font-bold flex items-center gap-2">
+                  <i class="fa-regular fa-file-lines"></i>
+                  {{ selectedNote?.contractId || '일반 상담' }}
+                </span>
+                <span class="h-1 w-1 rounded-full bg-[var(--color-text-placeholder)]"></span>
+                <span class="font-medium">{{ selectedNote?.activityDate }}</span>
+              </div>
+            </div>
+            <button @click="closeDetail" class="h-12 w-12 flex items-center justify-center rounded-full hover:bg-[var(--color-bg-base)] transition-colors text-3xl text-[var(--color-text-sub)]">&times;</button>
+          </div>
+
+          <!-- AI Summary Box (Same as card) -->
+          <div class="bg-[var(--color-bg-section)] p-6 rounded-2xl border border-[var(--color-olive)]/20 mb-10 shadow-sm">
+            <p class="text-[11px] font-bold text-[var(--color-olive)] uppercase tracking-widest mb-4 flex items-center gap-2">
+              <i class="fas fa-sparkles"></i> AI 분석 요약
+            </p>
+            <div v-if="selectedNote?.aiSummary && selectedNote?.aiSummary.length > 0" class="space-y-3">
+              <div v-for="(line, idx) in selectedNote.aiSummary" :key="idx" class="text-base text-[var(--color-text-body)] flex items-start leading-relaxed">
+                <span class="text-[var(--color-olive)] mr-3 font-bold">•</span>
+                <span>{{ line }}</span>
+              </div>
+            </div>
+            <p v-else class="text-sm text-[var(--color-text-placeholder)] italic">분석된 요약 내용이 없습니다.</p>
+          </div>
+
+          <!-- Expanded Content: Original Content -->
+          <div class="space-y-4">
+            <h4 class="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
+              <i class="fas fa-align-left text-[var(--color-text-placeholder)]"></i> 원문 내용
+            </h4>
+            <div class="bg-[var(--color-bg-section)]/50 p-8 rounded-2xl border border-[var(--color-border-divider)] min-h-[300px]">
+              <pre class="font-sans whitespace-pre-wrap text-[var(--color-text-body)] leading-loose text-base">{{ selectedNote?.content }}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="p-6 bg-[var(--color-bg-section)] border-t border-[var(--color-border-divider)] flex justify-end gap-3">
+          <button @click="goEdit(selectedNote?.id)" class="h-12 px-8 bg-[var(--color-orange)] text-white rounded-xl font-bold hover:bg-[var(--color-orange-dark)] transition-all shadow-md">수정하기</button>
+          <button @click="closeDetail" class="h-12 px-8 bg-white border border-[var(--color-border-card)] text-[var(--color-text-sub)] rounded-xl font-bold hover:bg-[var(--color-bg-base)] transition-all">닫기</button>
         </div>
       </div>
     </div>
