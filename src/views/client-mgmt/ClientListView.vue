@@ -23,8 +23,15 @@ const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 const getRegion = (address) => {
   const text = String(address || '')
   if (text.includes('서울')) return '서울'
-  if (text.includes('경기')) return '경기'
-  if (text.includes('충청') || text.includes('충북') || text.includes('충남')) return '충청'
+  if (text.includes('경기') || text.includes('인천')) return '경기'
+  if (text.includes('충남') || text.includes('대전') || text.includes('세종')) return '충남'
+  if (text.includes('충북')) return '충북'
+  if (text.includes('강원')) return '강원'
+  if (text.includes('전남') || text.includes('광주')) return '전남'
+  if (text.includes('전북')) return '전북'
+  if (text.includes('경북') || text.includes('대구')) return '경북'
+  if (text.includes('경남') || text.includes('부산') || text.includes('울산')) return '경남'
+  if (text.includes('제주')) return '제주'
   return '기타'
 }
 
@@ -155,7 +162,7 @@ onUnmounted(() => {
               </div>
               <ul v-if="activeDropdown === 'region'" class="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0 overflow-hidden">
                 <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="!region ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectRegion('')">전체 지역</li>
-                <li v-for="r in ['서울', '경기', '충청', '강원', '전라', '경상', '제주']" :key="r" class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="region === r ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectRegion(r)">{{ r }}</li>
+                <li v-for="r in ['서울', '경기', '충남', '충북', '강원', '전남', '전북', '경북', '경남', '제주']" :key="r" class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="region === r ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectRegion(r)">{{ r }}</li>
               </ul>
             </div>
 
@@ -221,6 +228,7 @@ onUnmounted(() => {
               <td class="px-6 py-4 text-[var(--color-text-body)] whitespace-nowrap">{{ client.displaySido }}</td>
               <td class="px-6 py-4 text-center whitespace-nowrap">
                 <StatusBadge
+                    v-if="client.isActive !== null"
                     :status="client.isActive ? 'APPROVED' : 'REJECTED'"
                     :label="client.isActive ? '활성' : '비활성'"
                 />

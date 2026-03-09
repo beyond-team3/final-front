@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
@@ -27,12 +27,14 @@ const isEditModalOpen = ref(false)
 const isStatusModalOpen = ref(false)
 const nextStatus = ref('ACTIVE')
 
-// 수정 폼 데이터 (거래처 방식과 동일함돠)
+// 수정 폼 데이터 (거래처 방식과 동일하게 보완)
 const editForm = ref({
   name: '',
   email: '',
   phone: '',
   address: '',
+  sido: '',
+  zonecode: '',
 })
 
 const employeeId = computed(() => route.params.id)
@@ -51,26 +53,25 @@ const roleLabel = computed(() => {
  * 사원 및 계정 정보 호출
  */
 const fetchEmployeeDetail = async () => {
-  if (!employeeId.value) return
+  const idValue = employeeId.value
+  if (!idValue || String(idValue) === 'undefined' || String(idValue) === 'null') {
+    return
+  }
+
   try {
-    await employeeStore.fetchEmployeeDetail(employeeId.value)
-    try {
-      const res = await axios.get(`http://localhost:3001/users`, {
-        params: { refId: Number(employeeId.value) }
-      })
-      const matchedUser = res.data.find(u => u.role === 'SALES_REP' || u.role === 'ADMIN')
-      if (matchedUser) {
-        userLoginId.value = matchedUser.loginId
-      } else {
-        userLoginId.value = '계정 미등록'
-      }
-    } catch (err) {
-      userLoginId.value = '정보 확인 불가'
+    const detail = await employeeStore.fetchEmployeeDetail(idValue)
+    if (detail) {
+      userLoginId.value = detail.loginId || '계정 미등록'
     }
   } catch (e) {
     console.error('상세 조회 실패:', e)
   }
 }
+
+// ID 변경 감시 (즉시 실행 포함)
+watch(employeeId, (newId) => {
+  if (newId) fetchEmployeeDetail()
+}, { immediate: true })
 
 const displayAddress = ref('')
 
@@ -79,8 +80,13 @@ const execDaumPostcode = () => {
   new window.daum.Postcode({
     oncomplete: (data) => {
       const addr = data.userSelectedType === 'R' ? data.roadAddress : data.jibunAddress
+      // [사용자 요청] sido/address/zonecode 형식으로 저장
       editForm.value.address = `${data.sido}/${addr}/${data.zonecode}`
       displayAddress.value = addr
+
+      // 개별 필드 업데이트 (거래처 방식과 동일하게)
+      editForm.value.sido = data.sido
+      editForm.value.zonecode = data.zonecode
     },
   }).open()
 }
@@ -90,9 +96,14 @@ const openEditModal = () => {
 
   // 기존 주소 데이터 파싱 (sido/address/zonecode)
   const rawAddr = employee.value.address || ''
+  let sido = ''
+  let zonecode = ''
+
   if (rawAddr.includes('/')) {
     const parts = rawAddr.split('/')
+    sido = parts[0] || ''
     displayAddress.value = parts[1] || parts[0]
+    zonecode = parts[2] || ''
   } else {
     displayAddress.value = rawAddr
   }
@@ -102,6 +113,8 @@ const openEditModal = () => {
     email: employee.value.email,
     phone: employee.value.phone,
     address: employee.value.address,
+    sido: sido || employee.value.displaySido || '',
+    zonecode: zonecode || employee.value.displayZonecode || '',
   }
   isEditModalOpen.value = true
 }
@@ -127,11 +140,19 @@ const openStatusModal = () => {
 
 const applyStatus = async () => {
   if (!employee.value || !isAdmin.value) return
+  if (!employee.value.accountId) {
+    alert('연결된 계정이 없습니다.')
+    return
+  }
+
+  if (!window.confirm('선택한 상태로 변경할까요?')) return
+
   try {
-    const targetActive = nextStatus.value === 'ACTIVE'
-    await employeeStore.toggleEmployeeActive(employeeId.value, targetActive)
+    // 백엔드 Status ENUM: ACTIVATE, DEACTIVATE 사용 (거래처와 동일)
+    const status = nextStatus.value === 'ACTIVE' ? 'ACTIVATE' : 'DEACTIVATE'
+    await employeeStore.toggleEmployeeActive(employee.value.accountId, status)
     isStatusModalOpen.value = false
-    await fetchEmployeeDetail()
+    // 상세 정보 새로고침은 스토어에서 상태를 업데이트하므로 필수 아님
   } catch (e) {
     console.error('상태 변경 실패:', e)
   }

@@ -28,3 +28,7 @@ export function addClientCrop(id, data) {
 export function deleteClientCrop(cropId) {
     return api.delete(`/accounts/clients/crops/${cropId}`)
 }
+
+export function getTradeSummary(clientId) {
+    return api.get(`/orders/clients/${clientId}/trade-summary`)
+}

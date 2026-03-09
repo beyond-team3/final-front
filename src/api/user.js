@@ -15,3 +15,19 @@ export function createUser(data) {
 export function updateMyPage(data) {
     return api.patch('/accounts/users/me', data)
 }
+
+export function getUnregisteredClients() {
+    return api.get('/accounts/clients/unregistered')
+}
+
+export function getUnregisteredEmployees() {
+    return api.get('/accounts/employees/unregistered')
+}
+
+export function getAllEmployeesSimple() {
+    return api.get('/accounts/employees/simple')
+}
+
+export function updateUserStatus(data) {
+    return api.patch('/accounts/users/status', data)
+}

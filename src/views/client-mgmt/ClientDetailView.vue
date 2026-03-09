@@ -22,7 +22,7 @@ const clientStore = useClientStore()
 const activeTab = ref('info')
 const isEditModalOpen = ref(false)
 const isActivationModalOpen = ref(false)
-const nextActivationStatus = ref('ACTIVE')
+const nextActivationStatus = ref('ACTIVATE')
 const displayAddress = ref('')
 const isCropDropdownOpen = ref(false)
 const cropDropdownContainer = ref(null)
@@ -130,7 +130,8 @@ const editForm = ref({
   managerName: '',
   managerPhone: '',
   managerEmail: '',
-  managerId: null, // 담당 영업사원 ID 추가
+  managerId: null,
+  totalCredit: 0, // 여신 한도 추가
 })
 
 const execDaumPostcode = () => {
@@ -166,9 +167,8 @@ const clientStatusSubtitle = computed(() => (isClientActive.value ? '사용중' 
 
 const fetchEmployees = async () => {
   try {
-    const { getEmployeesSimple } = await import('@/api/employee')
-    const response = await getEmployeesSimple()
-    employees.value = response.data || []
+    const response = await clientStore.getAllEmployeesSimple()
+    employees.value = response.data || response
   } catch (e) {
     console.error('영업사원 목록 로드 실패:', e)
   }
@@ -186,7 +186,7 @@ const openEditModal = async () => {
   const rawAddr = currentClient.value.address || ''
   if (rawAddr.includes('/')) {
     const parts = rawAddr.split('/')
-    // 상세 수정 모달에서는 '주소' 부분만 노출
+    // [보완] parts[1]이 실제 도로명/지번 주소임
     displayAddress.value = parts[1] || parts[0]
   } else {
     displayAddress.value = rawAddr
@@ -205,7 +205,8 @@ const openEditModal = async () => {
     managerName: currentClient.value.managerName,
     managerPhone: currentClient.value.managerPhone,
     managerEmail: currentClient.value.managerEmail,
-    managerId: currentClient.value.managerId || null,
+    employeeId: currentClient.value.managerId || null, // managerId를 employeeId로 매핑
+    totalCredit: currentClient.value.creditLimit || 0, // 여신 한도 세팅
   }
   isEditModalOpen.value = true
 }
@@ -213,25 +214,42 @@ const openEditModal = async () => {
 const submitEdit = () => {
   if (!currentClient.value) return
 
-  // ⭐ 핵심 수정 포인트: 정보를 수정할 때 기존 crops 데이터를 함께 실어 보냅니다!
   clientStore.updateClient(currentClient.value.id, {
-    ...editForm.value,
-    crops: currentClient.value.crops // 기존 품종 데이터를 그대로 유지함돠!
+    clientName: editForm.value.name,
+    clientBrn: editForm.value.bizNo,
+    ceoName: editForm.value.ceoName,
+    companyPhone: editForm.value.companyPhone,
+    address: editForm.value.address,
+    managerName: editForm.value.managerName,
+    managerPhone: editForm.value.managerPhone,
+    managerEmail: editForm.value.managerEmail,
+    employeeId: editForm.value.employeeId,
+    totalCredit: Number(editForm.value.totalCredit || 0),
+    crops: currentClient.value.crops
   })
   isEditModalOpen.value = false
 }
 
 const openActivationModal = () => {
   if (!currentClient.value || !isAdmin.value) return
-  nextActivationStatus.value = isClientActive.value ? 'ACTIVE' : 'INACTIVE'
+  // 현재 활성상태면 다음은 비활성화(DEACTIVATE), 아니면 활성화(ACTIVATE)
+  nextActivationStatus.value = isClientActive.value ? 'DEACTIVATE' : 'ACTIVATE'
   isActivationModalOpen.value = true
 }
 
-const applyActivation = () => {
+const applyActivation = async () => {
   if (!currentClient.value || !isAdmin.value) return
+  if (!currentClient.value.accountId) {
+    alert('연결된 계정이 없습니다.')
+    return
+  }
   if (!window.confirm('선택한 상태로 변경할까요?')) return
-  clientStore.toggleClientActive(currentClient.value.id, nextActivationStatus.value === 'ACTIVE')
-  isActivationModalOpen.value = false
+  try {
+    await clientStore.updateAccountStatus(currentClient.value.accountId, nextActivationStatus.value)
+    isActivationModalOpen.value = false
+  } catch (e) {
+    // 에러는 스토어에서 처리되거나 여기서 alert 가능
+  }
 }
 
 const addCrop = () => {
@@ -262,6 +280,7 @@ const fetchClientDetail = async () => {
 
   try {
     await clientStore.fetchClientDetail(idValue)
+    await clientStore.fetchTradeSummary(idValue)
     const crops = await clientStore.fetchClientCrops(idValue)
     console.log('[DEBUG] fetchClientCrops result:', crops)
   } catch (e) { /* error managed by store */ }
@@ -541,12 +560,17 @@ onUnmounted(() => {
 
             <!-- 담당 영업사원 선택 창 추가 (관리자 전용) -->
             <label v-if="isAdmin" class="block text-sm font-bold text-[var(--color-text-sub)] md:col-span-2">담당 영업사원 지정
-              <select v-model="editForm.managerId" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1rem] cursor-pointer" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B5F50%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E');">
+              <select v-model="editForm.employeeId" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1rem] cursor-pointer" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B5F50%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E');">
                 <option :value="null">담당자 미지정</option>
                 <option v-for="emp in employees" :key="emp.employeeId" :value="emp.employeeId">
                   {{ emp.employeeName }} ({{ emp.employeeCode }})
                 </option>
               </select>
+            </label>
+
+            <!-- 여신 한도 수정 칸 추가 (관리자 전용) -->
+            <label v-if="isAdmin" class="block text-sm font-bold text-[var(--color-text-sub)] md:col-span-2">여신 한도 (원)
+              <input v-model.number="editForm.totalCredit" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="number" step="10000" min="0" required />
             </label>
           </form>
         </div>
@@ -563,14 +587,14 @@ onUnmounted(() => {
           <p class="text-sm font-medium text-[var(--color-text-body)]">거래처의 서비스 이용 상태를 설정합니다.</p>
           <div class="grid gap-3">
             <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-4 transition-all hover:border-[var(--color-olive)]">
-              <input v-model="nextActivationStatus" type="radio" value="ACTIVE" class="h-5 w-5 accent-[var(--color-olive)]" />
+              <input v-model="nextActivationStatus" type="radio" value="ACTIVATE" class="h-5 w-5 accent-[var(--color-olive)]" />
               <div>
                 <strong class="block text-base text-[var(--color-text-strong)]">활성 상태로 변경</strong>
                 <span class="text-xs text-[var(--color-text-sub)]">시스템의 모든 기능을 정상적으로 이용할 수 있습니다.</span>
               </div>
             </label>
             <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-4 transition-all hover:border-[var(--color-status-error)]">
-              <input v-model="nextActivationStatus" type="radio" value="INACTIVE" class="h-5 w-5 accent-[var(--color-status-error)]" />
+              <input v-model="nextActivationStatus" type="radio" value="DEACTIVATE" class="h-5 w-5 accent-[var(--color-status-error)]" />
               <div>
                 <strong class="block text-base text-[var(--color-text-strong)]">비활성 상태로 변경</strong>
                 <span class="text-xs text-[var(--color-text-sub)]">일부 비즈니스 기능 접근이 제한될 수 있습니다.</span>
