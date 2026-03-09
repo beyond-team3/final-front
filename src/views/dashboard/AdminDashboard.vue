@@ -15,7 +15,7 @@ const kpiCards = computed(() => {
   const k = dashboard.value?.kpis || {}
   return [
     { label: '이번 달 전체 매출', iconClass: 'accent', icon: '₩', value: k.totalMonthlySales    || '-', change: `▲ 전년 대비 ${k.salesGrowthRate || '-'}`,  changeClass: 'positive' },
-    { label: '전년 대비 증감률',  iconClass: 'olive',  icon: '↑', value: k.salesGrowthRate      || '-', change: '▲ 목표 +15% 달성',                          changeClass: 'positive' },
+    { label: '전년 대비 증감률',  iconClass: 'olive',  icon: '↑', value: k.salesGrowthRate      || '-', change: '▲ ',                          changeClass: 'positive' },
     { label: '승인 대기 문서',    iconClass: 'warn',   icon: '!', value: k.pendingDocumentCount  || '-', change: k.pendingDetail || '-',                       changeClass: 'neutral'  },
   ]
 })
