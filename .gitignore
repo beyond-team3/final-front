@@ -40,3 +40,6 @@ __screenshots__/
 
 # Local mock data
 mock-server/db.json
+
+# Agent context (worktree-local)
+AGENTS.md
