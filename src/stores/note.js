@@ -1,5 +1,6 @@
-import { computed, ref } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+
 import { getClients } from '@/api/client'
 import {
   updateNote as updateNoteApi,
@@ -7,407 +8,343 @@ import {
   getAIBriefing,
   getNotes,
   deleteNote as deleteNoteApi,
+  askRagSeed as askRagSeedApi,
 } from '@/api/note'
 
-function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-  return error?.response?.data?.message || error?.message || fallback
+/* -----------------------------
+  Utils
+----------------------------- */
+
+function today() {
+  return new Date().toISOString().slice(0, 10)
 }
 
-const defaultBriefing = (clientName, notes) => {
-  const latest = notes[0]
-  const previous = notes[1] || notes[0]
+function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
+  return (
+    error?.response?.data?.data?.message ||
+    error?.response?.data?.message ||
+    error?.message ||
+    fallback
+  )
+}
 
-  return {
-    statusChange: [
-      `${latest.date} 활동에서 '${latest.summary?.[0] || '핵심 이슈'}' 논의가 진행되었습니다.`,
-      `직전 활동('${previous.summary?.[0] || '이전 활동'}') 대비 고객 니즈가 더 구체화되고 있습니다.`,
-    ],
-    pattern: [
-      '고객은 신품종 테스트에 적극적이며 데이터 기반 설명을 선호합니다.',
-      '가격보다 안정적인 품질과 납기 준수에 높은 가중치를 둡니다.',
-    ],
-    strategy: `'${latest.summary?.[0] || '핵심 이슈'}'에 맞춘 후속 자료를 준비해 다음 미팅에서 실행 계획을 제시하세요.`,
-    recentNoteIds: notes.slice(0, 3).map((item) => item.id),
-    clientName,
-  }
+function unwrap(res) {
+  return res?.data?.data ?? res?.data ?? res
 }
 
 function normalizeList(data) {
-  if (Array.isArray(data)) {
-    return data
-  }
-
-  if (Array.isArray(data?.items)) {
-    return data.items
-  }
-
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.items)) return data.items
   return []
 }
 
-function deriveContractsFromNotes(noteList) {
-  const map = {}
+/* -----------------------------
+  DTO Normalizer
+----------------------------- */
 
-  noteList.forEach((note) => {
-    if (!note?.clientId || !note?.contract) {
-      return
-    }
+function normalizeNote(note) {
+  if (!note) return null
 
-    if (!map[note.clientId]) {
-      map[note.clientId] = []
-    }
-
-    if (!map[note.clientId].includes(note.contract)) {
-      map[note.clientId].push(note.contract)
-    }
-  })
-
-  return map
+  return {
+    id: Number(note.id ?? 0),
+    clientId: Number(note.clientId ?? 0),
+    authorId: note.authorId ?? null,
+    contractId: note.contractId ?? null,
+    // 날짜 우선순위 처리
+    activityDate: note.activityDate ?? note.date ?? today(),
+    content: String(note.content ?? '').trim(),
+    aiSummary: Array.isArray(note.aiSummary) ? note.aiSummary : [],
+    isEdited: Boolean(note.isEdited),
+  }
 }
 
+function normalizeClient(c) {
+  return {
+    id: Number(c.id ?? 0),
+    name: c.name ?? '-',
+    type: c.typeLabel || c.type || '-',
+  }
+}
+
+/* -----------------------------
+  Store
+----------------------------- */
+
 export const useNoteStore = defineStore('note', () => {
+
+  /* -----------------------------
+     State
+  ----------------------------- */
+
   const clients = ref([])
-  const contracts = ref({})
   const notes = ref([])
   const briefingByClient = ref({})
+
   const loading = ref(false)
   const error = ref(null)
+  const isInitialized = ref(false)
 
-  const today = () => new Date().toISOString().slice(0, 10)
+  /* -----------------------------
+     Computed (Selectors)
+  ----------------------------- */
 
-  const clientMap = computed(() => Object.fromEntries(clients.value.map((client) => [client.id, client])))
+  const clientMap = computed(() =>
+    Object.fromEntries(clients.value.map(c => [c.id, c]))
+  )
 
-  const cropOptions = computed(() => [...new Set(notes.value.map((note) => note.crop).filter(Boolean))])
-  const varietyOptions = computed(() => [...new Set(notes.value.map((note) => note.variety).filter(Boolean))])
+  const getClientName = (clientId) =>
+    clientMap.value[clientId]?.name ?? '알 수 없는 고객'
 
-  const getClientName = (clientId) => clientMap.value[clientId]?.name || '-'
-  const DEFAULT_CONTRACTS = {
-    2: [
-      '2026년 봄무/배추 종자 공급 계약',
-      '신품종(TY-9) 시범 재배 확약서',
-      '2025년도 우수 농가 지원 협약',
-      '하반기 대파 위탁 영농 계약',
-    ],
-  }
+  /* -----------------------------
+     Internal Mutations
+  ----------------------------- */
 
-  const getContractsByClient = (clientId) => {
-    if (!clientId) return []
-    const derived = contracts.value[clientId] || []
-    const defaults = DEFAULT_CONTRACTS[Number(clientId)] || []
-    return [...new Set([...derived, ...defaults])]
-  }
+  function upsertNote(note) {
+    const normalized = normalizeNote(note)
+    if (!normalized || normalized.id === 0) return
 
-  const generateSummary = (content) => {
-    const normalized = String(content || '').trim()
+    const idx = notes.value.findIndex(n => n.id === normalized.id)
 
-    if (!normalized) {
-      return ['기록 내용 없음', '핵심 포인트를 입력해 주세요', '후속 활동 필요']
+    if (idx === -1) {
+      notes.value.unshift(normalized)
+    } else {
+      notes.value[idx] = normalized
     }
-
-    const sentences = normalized
-      .split(/(?<=[.!?])\s+|\n+/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-
-    if (sentences.length >= 3) {
-      return sentences.slice(0, 3).map((line) => (line.length > 38 ? `${line.slice(0, 38)}...` : line))
-    }
-
-    const fallback = [
-      '핵심 요청사항이 기록되었습니다.',
-      '후속 미팅/자료 전달 일정이 필요합니다.',
-      '다음 액션을 영업 캘린더에 반영하세요.',
-    ]
-
-    return [...sentences, ...fallback].slice(0, 3)
   }
+
+  function removeNote(id) {
+    const idx = notes.value.findIndex(n => n.id === id)
+    if (idx !== -1) {
+      notes.value.splice(idx, 1)
+    }
+  }
+
+  /* -----------------------------
+     API (Fetch)
+  ----------------------------- */
 
   async function fetchClients(params) {
     try {
-      const result = await getClients(params)
-      clients.value = normalizeList(result).map((client) => ({
-        id: client.id,
-        name: client.name,
-        type: client.typeLabel || client.type || '-',
-      }))
+      const result = unwrap(await getClients(params))
+      clients.value = normalizeList(result).map(normalizeClient)
       return clients.value
     } catch (e) {
       error.value = getErrorMessage(e, '거래처 목록을 불러오지 못했습니다.')
-      return clients.value
+      return []
     }
   }
 
   async function fetchNotes(params) {
     try {
-      const result = normalizeList(await getNotes(params))
-      notes.value = result.map((note) => ({
-        ...note,
-        summary: Array.isArray(note.summary) ? note.summary : generateSummary(note.content),
-      }))
-      contracts.value = deriveContractsFromNotes(notes.value)
+      const result = unwrap(await getNotes(params))
+      notes.value = normalizeList(result)
+        .map(normalizeNote)
+        .filter(n => n !== null && n.id !== 0)
       return notes.value
     } catch (e) {
       error.value = getErrorMessage(e, '노트 목록을 불러오지 못했습니다.')
-      return notes.value
+      return []
     }
   }
 
-  const createNote = async ({ clientId, contract, date, content }) => {
-    // Lazy load auth store to avoid circular dependency issues if any
-    const { useAuthStore } = await import('@/stores/auth')
-    const authStore = useAuthStore()
-    const currentUser = authStore.me
+  /* -----------------------------
+     CRUD Actions
+  ----------------------------- */
 
-    const next = {
-      authorId: currentUser?.id || 1, // Fallback to 1 (Kim Min-su) if no user logged in
+  async function createNote({ clientId, contractId, date, content }) {
+    const payload = {
       clientId: Number(clientId),
-      contract: contract || undefined,
-      date: date || today(),
-      content,
-      summary: generateSummary(content),
-      isEdited: false,
+      contractId: contractId ?? null,
+      date: date ?? today(),
+      content: String(content ?? '').trim(),
     }
 
     try {
-      const created = await createNoteApi(next)
-      const noteWithSummary = {
-        ...created,
-        summary: Array.isArray(created.summary) ? created.summary : generateSummary(created.content),
-      }
-      notes.value.unshift(noteWithSummary)
-
-      if (clientId && contract) {
-        const nextContracts = new Set(contracts.value[clientId] || [])
-        nextContracts.add(contract)
-        contracts.value = {
-          ...contracts.value,
-          [clientId]: [...nextContracts],
-        }
-      }
-      return noteWithSummary
+      loading.value = true
+      const created = unwrap(await createNoteApi(payload))
+      upsertNote(created)
+      return normalizeNote(created)
     } catch (e) {
       error.value = getErrorMessage(e, '노트 저장에 실패했습니다.')
       throw e
-    }
-  }
-
-  const updateNote = async (id, { clientId, contract, date, content }) => {
-    // Preserve existing author info, or default to 1 (Kim Min-su) if missing (e.g., repairing broken data)
-    const original = notes.value.find((n) => n.id === id) || {}
-
-    const next = {
-      authorId: original.authorId || 1,
-      clientId: Number(clientId),
-      contract: contract || undefined,
-      date: date || today(),
-      content,
-      summary: generateSummary(content),
-      isEdited: true,
-      updatedAt: new Date().toISOString(),
-    }
-
-    try {
-      const updated = await updateNoteApi(id, next)
-      const noteWithSummary = {
-        ...updated,
-        summary: Array.isArray(updated.summary) ? updated.summary : generateSummary(updated.content),
-      }
-
-      const idx = notes.value.findIndex((item) => item.id === id)
-      if (idx >= 0) {
-        notes.value[idx] = noteWithSummary
-      }
-
-      return noteWithSummary
-    } catch (e) {
-      error.value = getErrorMessage(e, '노트 수정에 실패했습니다.')
-      throw e
-    }
-  }
-
-  const deleteNote = async (id) => {
-    const targetId = Number(id)
-    try {
-      await deleteNoteApi(targetId)
-      const index = notes.value.findIndex((item) => item.id === targetId)
-      if (index !== -1) {
-        notes.value.splice(index, 1)
-      }
-    } catch (e) {
-      console.error('삭제 처리 중 오류:', e)
-      error.value = getErrorMessage(e, '노트 삭제에 실패했습니다.')
-      throw e
-    }
-  }
-
-  const getNotesByClient = (clientId) => notes.value
-    .filter((note) => note.clientId === Number(clientId) || note.clientId === clientId)
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
-
-  async function fetchBriefingByClient(clientId) {
-    if (!clientId) {
-      return null
-    }
-
-    // Fallback logic extracted for reuse
-    const useFallback = () => {
-      const list = getNotesByClient(clientId)
-      // 최소 3개 미만이면 fallback 불가 -> null 반환 (View에서 처리)
-      if (list.length < 3) {
-        return null
-      }
-
-      const fallback = defaultBriefing(getClientName(clientId), list)
-      briefingByClient.value = {
-        ...briefingByClient.value,
-        [clientId]: fallback,
-      }
-      return fallback
-    }
-
-    try {
-      // API call: mock server returns array for query
-      const response = await getAIBriefing(clientId)
-
-      // json-server returns array when querying by property. We take the first item.
-      // If it's a real API it might return the object directly. We handle both.
-      const briefing = Array.isArray(response) ? response[0] : response
-
-      // Validate API response structure
-      const isValid = briefing
-        && Array.isArray(briefing.statusChange)
-        && Array.isArray(briefing.pattern)
-        && briefing.strategy
-
-      if (!isValid) {
-        throw new Error('Valid briefing data missing, using fallback')
-      }
-
-      briefingByClient.value = {
-        ...briefingByClient.value,
-        [clientId]: briefing,
-      }
-      return briefing
-    } catch (e) {
-      // API call failed or data is invalid -> use fallback
-      return useFallback()
-    }
-  }
-
-  const getBriefingByClient = (clientId) => {
-    if (!clientId) return null
-    return briefingByClient.value[clientId] || null
-  }
-
-  const searchClientNotes = ({ clientId, contract, variety, keyword, dateFrom, dateTo, sort = 'desc' } = {}) => {
-    const q = String(keyword || '').trim().toLowerCase()
-
-    const result = notes.value.filter((note) => {
-      if (clientId && note.clientId !== clientId) {
-        return false
-      }
-
-      if (contract && note.contract !== contract) {
-        return false
-      }
-
-      if (variety && note.variety !== variety) {
-        return false
-      }
-
-      if (dateFrom && note.date < dateFrom) {
-        return false
-      }
-
-      if (dateTo && note.date > dateTo) {
-        return false
-      }
-
-      if (q) {
-        const haystack = `${getClientName(note.clientId)} ${note.contract} ${note.variety} ${note.content} ${(note.summary || []).join(' ')}`.toLowerCase()
-        if (!haystack.includes(q)) {
-          return false
-        }
-      }
-
-      return true
-    })
-
-    result.sort((a, b) => {
-      if (sort === 'asc') {
-        return a.date.localeCompare(b.date) || a.id - b.id
-      }
-
-      return b.date.localeCompare(a.date) || b.id - a.id
-    })
-
-    return result
-  }
-
-  const searchProductNotes = ({ crop, keyword, dateFrom, dateTo } = {}) => {
-    const q = String(keyword || '').trim().toLowerCase()
-
-    return notes.value
-      .filter((note) => {
-        if (crop && note.crop !== crop) {
-          return false
-        }
-
-        if (dateFrom && note.date < dateFrom) {
-          return false
-        }
-
-        if (dateTo && note.date > dateTo) {
-          return false
-        }
-
-        if (q) {
-          const haystack = `${note.crop} ${note.variety} ${note.content} ${(note.summary || []).join(' ')}`.toLowerCase()
-          if (!haystack.includes(q)) {
-            return false
-          }
-        }
-
-        return true
-      })
-      .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
-  }
-
-  async function initialize() {
-    loading.value = true
-    error.value = null
-
-    try {
-      await Promise.all([
-        fetchClients(),
-        fetchNotes(),
-      ])
     } finally {
       loading.value = false
     }
   }
 
+  async function updateNote(id, { clientId, contractId, date, content }) {
+    const payload = {
+      clientId: Number(clientId),
+      contractId: contractId ?? null,
+      date: date ?? today(),
+      content: String(content ?? '').trim(),
+    }
+
+    try {
+      loading.value = true
+      const updated = unwrap(await updateNoteApi(id, payload))
+      upsertNote(updated)
+      return normalizeNote(updated)
+    } catch (e) {
+      error.value = getErrorMessage(e, '노트 수정에 실패했습니다.')
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteNote(id) {
+    try {
+      loading.value = true
+      await deleteNoteApi(id)
+      removeNote(id)
+    } catch (e) {
+      error.value = getErrorMessage(e, '노트 삭제에 실패했습니다.')
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /* -----------------------------
+     AI & Analytics
+  ----------------------------- */
+
+  async function fetchBriefingByClient(clientId) {
+    if (!clientId) return null
+    try {
+      const briefing = unwrap(await getAIBriefing(clientId))
+      if (briefing) {
+        briefingByClient.value[clientId] = briefing
+      }
+      return briefing
+    } catch (e) {
+      error.value = getErrorMessage(e, '브리핑 정보를 불러오지 못했습니다.')
+      return null
+    }
+  }
+
+  const getBriefingByClient = (clientId) =>
+    briefingByClient.value[clientId] ?? null
+
+  async function askRagSeed({ clientId, contractId, query }) {
+    try {
+      loading.value = true
+      const result = unwrap(await askRagSeedApi({ clientId, contractId, query }))
+      return result
+    } catch (e) {
+      error.value = getErrorMessage(e, '전략 인출에 실패했습니다.')
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /* -----------------------------
+     Pure Selectors
+  ----------------------------- */
+
+  const getNotesByClient = (clientId) => {
+    const id = Number(clientId)
+    return notes.value
+      .filter(n => n.clientId === id)
+      .sort((a, b) => {
+        const cmp = (b.activityDate ?? '').localeCompare(a.activityDate ?? '')
+        return cmp !== 0 ? cmp : b.id - a.id
+      })
+  }
+
+  const getContractsByClient = (clientId) => {
+    const id = Number(clientId)
+    const set = new Set()
+    for (const n of notes.value) {
+      if (n.clientId === id && n.contractId) {
+        set.add(n.contractId)
+      }
+    }
+    return [...set].sort()
+  }
+
+  /* -----------------------------
+     Complex Logic (Search)
+  ----------------------------- */
+
+  function searchClientNotes({
+    clientId,
+    contractId,
+    keyword,
+    dateFrom,
+    dateTo,
+    sort = 'desc',
+  } = {}) {
+    const q = String(keyword ?? '').toLowerCase().trim()
+
+    const result = notes.value.filter(n => {
+      if (clientId && n.clientId !== Number(clientId)) return false
+      if (contractId && n.contractId !== contractId) return false
+      if (dateFrom && n.activityDate < dateFrom) return false
+      if (dateTo && n.activityDate > dateTo) return false
+
+      if (q) {
+        const haystack = [
+          getClientName(n.clientId),
+          n.contractId,
+          n.content,
+          ...(n.aiSummary || [])
+        ].filter(Boolean).join(' ').toLowerCase()
+        
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+
+    result.sort((a, b) => {
+      const cmp = (a.activityDate ?? '').localeCompare(b.activityDate ?? '') || a.id - b.id
+      return sort === 'asc' ? cmp : -cmp
+    })
+
+    return result
+  }
+
+  /* -----------------------------
+     Initialize
+  ----------------------------- */
+
+  async function initialize() {
+    if (isInitialized.value || loading.value) return
+    
+    loading.value = true
+    try {
+      await Promise.all([fetchClients(), fetchNotes()])
+      isInitialized.value = true
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 자동 초기화 실행
   void initialize()
 
   return {
+    // State
     clients,
-    contracts,
     notes,
-    cropOptions,
-    varietyOptions,
     loading,
     error,
+    // Actions
     fetchClients,
     fetchNotes,
-    fetchBriefingByClient,
-    getClientName,
-    getContractsByClient,
-    generateSummary,
     createNote,
     updateNote,
     deleteNote,
+    fetchBriefingByClient,
+    askRagSeed,
+    initialize,
+    // Getters / Selectors
+    getClientName,
+    getContractsByClient,
     getNotesByClient,
     getBriefingByClient,
     searchClientNotes,
-    searchProductNotes,
   }
 })
