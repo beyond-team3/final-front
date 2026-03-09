@@ -24,8 +24,8 @@ watch(
     loading.value = true
     error.value = null
     try {
-      const { data } = await getCultivationTimes(newId)
-      times.value = data || []
+      const times_data = await getCultivationTimes(newId)
+      times.value = times_data || []
       
       // '작형(croppingSystem)'을 기준으로 데이터 그룹화
       const map = new Map()
