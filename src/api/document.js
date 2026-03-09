@@ -12,16 +12,70 @@ export function createContract(data) {
     return api.post('/documents', data)
 }
 
+//주문
 export function createOrder(data) {
-    return api.post('/documents', data)
+    return api.post('/orders', {
+        headerId: data.contractId,
+        shippingName: data.deliveryRecipient,
+        shippingPhone: data.deliveryPhone,
+        shippingAddress: data.deliveryAddress,
+        shippingAddressDetail: null,
+        deliveryRequest: data.memo,
+        items: data.items.map(item => ({
+            contractDetailId: item.detailId,  // ContractResponse.ItemResponse.detailId
+            quantity: item.quantity,
+        }))
+    })
 }
 
-export function createStatement(data) {
-    return api.post('/documents', data)
+export function getOrders() {
+    return api.get('/orders')
 }
 
+export function getOrder(orderId) {
+    return api.get(`/orders/${orderId}`)
+}
+
+export function cancelOrder(orderId) {
+    return api.patch(`/orders/${orderId}/cancel`)
+}
+
+export function confirmOrder(orderId) {
+    return api.patch(`/orders/${orderId}/confirm`)
+}
+
+// 명세서
+export function getStatements() {
+    return api.get('/statements')
+}
+
+export function getStatement(statementId) {
+    return api.get(`/statements/${statementId}`)
+}
+
+export function cancelStatement(statementId) {
+    return api.patch(`/statements/${statementId}/cancel`)
+}
+
+// 청구서
 export function createInvoice(data) {
-    return api.post('/documents', data)
+    return api.post('/invoices', data)
+}
+
+export function getInvoices() {
+    return api.get('/invoices')
+}
+
+export function getInvoicesByClient() {
+    return api.get('/invoices/clients/me')
+}
+
+export function getInvoice(invoiceId) {
+    return api.get(`/invoices/${invoiceId}`)
+}
+
+export function publishInvoice(invoiceId) {
+    return api.patch(`/invoices/${invoiceId}/publish`)
 }
 
 export function getDocuments(params) {
@@ -30,10 +84,6 @@ export function getDocuments(params) {
 
 export function getDocumentDetail(id) {
     return api.get(`/documents/${id}`)
-}
-
-export function getStatements(params) {
-    return api.get('/statements', { params })
 }
 
 export function updateDocumentStatus(id, data) {

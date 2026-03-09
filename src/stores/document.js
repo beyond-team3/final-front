@@ -5,11 +5,16 @@ import {
     createContract as createContractApi,
     createInvoice as createInvoiceApi,
     createOrder as createOrderApi,
+    cancelOrder as cancelOrderApi,
+    publishInvoice as publishInvoiceApi,
+    getOrders,
+    getStatements,
+    getInvoices,
+    getInvoice,
     createQuotation as createQuotationApi,
     createQuotationRequest as createQuotationRequestApi,
     getDocumentDetail,
     getDocuments,
-    getStatements,
     updateDocumentStatus as updateDocumentStatusApi,
     deleteDocument as deleteDocumentApi
 } from '@/api/document'
@@ -26,6 +31,7 @@ function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생�
 function normalizeList(data) {
     if (!data) return []
     if (Array.isArray(data)) return data
+    if (data.result === 'SUCCESS' && Array.isArray(data.data)) return data.data  // 추가
     const actualData = data.data !== undefined ? data.data : data
     if (Array.isArray(actualData)) return actualData
     if (Array.isArray(actualData?.documents)) return actualData.documents
@@ -90,11 +96,11 @@ function normalizeOrderStatus(status) {
     return ORDER_STATUS.DRAFT
 }
 
-function normalizeInvoiceStatus(status) {
+const normalizeInvoiceStatus = (status) => {
     const raw = String(status || '').trim().toUpperCase()
-    if (['ISSUED', '발행', '발행완료'].includes(raw)) return INVOICE_STATUS.ISSUED
-    if (['CANCELED', 'CANCELLED', 'CANCEL', '취소'].includes(raw)) return INVOICE_STATUS.CANCELED
-    return INVOICE_STATUS.DRAFT
+    if (['ISSUED', 'PAID'].includes(raw)) return 'ISSUED'
+    if (['CANCELED', 'CANCELLED'].includes(raw)) return 'CANCELED'
+    return 'DRAFT'
 }
 
 export const useDocumentStore = defineStore('document', () => {
@@ -107,22 +113,27 @@ export const useDocumentStore = defineStore('document', () => {
     const statements = ref([])
 
     const quotationRequests = computed(() => {
+        const _ = clientMaster.value
         const filtered = filterDocsForViewer(allRawDocuments.value)
         return filtered.filter(d => ['quotation-request', 'rfq'].includes(d.type.toLowerCase()))
     })
     const quotations = computed(() => {
+        const _ = clientMaster.value
         const filtered = filterDocsForViewer(allRawDocuments.value)
         return filtered.filter(d => d.type.toLowerCase() === 'quotation')
     })
     const contracts = computed(() => {
+        const _ = clientMaster.value
         const filtered = filterDocsForViewer(allRawDocuments.value)
         return filtered.filter(d => d.type.toLowerCase() === 'contract')
     })
     const orders = computed(() => {
+        const _ = clientMaster.value
         const filtered = filterDocsForViewer(allRawDocuments.value)
         return filtered.filter(d => d.type.toLowerCase() === 'order')
     })
     const invoices = computed(() => {
+        const _ = clientMaster.value
         const filtered = filterDocsForViewer(allRawDocuments.value)
         return filtered.filter(d => d.type.toLowerCase() === 'invoice')
     })
@@ -157,9 +168,20 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         if (role === ROLES.SALES_REP) {
-            // 영업사원은 managerId 필드를 기준으로 매칭
             const myRefId = String(authStore.me?.refId || '')
-            return list.filter((item) => String(item?.managerId ?? '') === myRefId)
+            const managedClientIds = clientMaster.value
+                .filter(c => String(c.managerId) === myRefId)
+                .map(c => String(c.id))
+
+            // clientMaster가 아직 안 로드됐으면 clientId로 직접 필터링하지 말고 전체 반환
+            if (managedClientIds.length === 0) {
+                return list
+            }
+
+            return list.filter((item) => {
+                const docClientId = String(item.clientId || item.client?.id || '')
+                return managedClientIds.includes(docClientId)
+            })
         }
 
         return []
@@ -181,7 +203,7 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         if (role === ROLES.SALES_REP) {
-            const myRefId = String(authStore.me?.refId || '')
+            const myRefId = String(authStore.me?.refId || authStore.me?.employeeId || '')
             const managedClientIds = clientMaster.value
                 .filter(c => String(c.managerId) === myRefId)
                 .map(c => String(c.id))
@@ -249,8 +271,8 @@ export const useDocumentStore = defineStore('document', () => {
             const clients = await getClients({})
             clientMaster.value = filterClientsForViewer(normalizeList(clients)).map((item) => ({
                 id: item.id,
-                code: item.code || item.bizNo || String(item.id),
-                name: item.name,
+                code: item.clientCode || item.code || String(item.id),
+                name: item.clientName || item.name || '-',   // ← clientName 추가
                 contact: item.managerName || item.contact || '-',
                 managerId: item.managerId,
             }))
@@ -275,6 +297,25 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchOrders() {
+        try {
+            const rawOrders = normalizeList(await getOrders())
+            const normalizedOrders = rawOrders.map(doc => normalizeDocument({
+                ...doc,
+                type: 'order',
+                id: doc.orderId,
+            }))
+            allRawDocuments.value = [
+                ...allRawDocuments.value.filter(d => d.type.toLowerCase() !== 'order'),
+                ...normalizedOrders,
+            ]
+            return normalizedOrders
+        } catch (e) {
+            console.error('주문서 로드 실패:', e)
+            return []
+        }
+    }
+
     async function fetchDocumentDetail(id) {
         loading.value = true
         try {
@@ -288,14 +329,59 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    async function fetchStatements(params) {
+    async function fetchStatements() {
         try {
-            const data = await getStatements(params)
-            statements.value = normalizeList(data)
-            return statements.value
+            const data = await getStatements()
+            const rawList = normalizeList(data)
+            const normalizedStatements = rawList.map(doc => normalizeDocument({
+                ...doc,
+                type: 'statement',
+                id: doc.statementId,
+            }))
+            allRawDocuments.value = [
+                ...allRawDocuments.value.filter(d => d.type?.toLowerCase() !== 'statement'),
+                ...normalizedStatements,
+            ]
+            statements.value = normalizedStatements
+            return normalizedStatements
         } catch (e) {
-            error.value = getErrorMessage(e, '명세서 목록을 불러오지 못했습니다.')
+            console.error('명세서 로드 실패:', e)
             return []
+        }
+    }
+
+    async function fetchInvoices() {
+        try {
+            const data = await getInvoices()
+            console.log('fetchInvoices raw data:', data)          // 추가
+            const rawList = normalizeList(data)
+            console.log('fetchInvoices rawList:', rawList)        // 추가
+            const normalizedInvoices = rawList.map(doc => ({
+                ...normalizeDocument(doc),  // 먼저 normalize하고
+                type: 'invoice',            // 그 다음 type 덮어쓰기
+                id: doc.invoiceId,
+            }))
+            console.log('type 확인:', normalizedInvoices[0]?.type)  // 추가
+            console.log('id 확인:', normalizedInvoices[0]?.id)      // 추가
+            console.log('normalizedInvoices:', normalizedInvoices) // 추가
+            allRawDocuments.value = [
+                ...allRawDocuments.value.filter(d => d.type?.toLowerCase() !== 'invoice'),
+                ...normalizedInvoices,
+            ]
+            return normalizedInvoices
+        } catch (e) {
+            console.error('청구서 로드 실패:', e)
+            return []
+        }
+    }
+
+    async function fetchInvoiceDetail(invoiceId) {
+        try {
+            const data = await getInvoice(invoiceId)
+            return data
+        } catch (e) {
+            console.error('청구서 상세 로드 실패:', e)
+            return null
         }
     }
 
@@ -464,49 +550,43 @@ export const useDocumentStore = defineStore('document', () => {
         return next
     }
 
-    const createInvoice = ({ orderId, client, items, remarks, mode = INVOICE_STATUS.DRAFT, historyId }) => {
-        const id = makeId('IV')
-        const lineItems = (items || []).map(withAmount)
-        const supplyAmount = totalAmountOf(lineItems)
-        const taxAmount = Math.round(supplyAmount * 0.1)
-        const order = orderId ? getOrderById(orderId) : null
-        const linkedHistoryId = historyId || order?.historyId || null
-        const next = normalizeDocument({
-            id,
-            type: 'invoice',
-            orderId,
-            clientId: client.id,
-            clientName: client.name,
-            client,
-            authorId: authStore.me?.id || authStore.me?.refId,
-            authorName: authStore.me?.targetPerson || authStore.me?.loginId || '작성자',
-            items: lineItems,
-            remarks: remarks || '',
-            status: String(mode).toUpperCase() === INVOICE_STATUS.ISSUED ? INVOICE_STATUS.ISSUED : INVOICE_STATUS.DRAFT,
-            date: formatDate(),
-            createdAt: formatDate(),
-            dueDate: formatDate(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)),
-            supplyAmount,
-            taxAmount,
-            totalAmount: supplyAmount + taxAmount,
-            historyId: linkedHistoryId,
-        })
-        allRawDocuments.value.unshift(next)
-        const targetPipeline = historyStore.addDocumentToPipeline(linkedHistoryId, next)
-        if (targetPipeline) next.historyId = targetPipeline.id
-        if (order) order.historyId = next.historyId || order.historyId || null
-        emitDocumentCreated('invoice', id)
-        createInvoiceApi(next).then((created) => {
-            if (!created) return
-            const idx = allRawDocuments.value.findIndex((item) => item.id === id)
-            if (idx >= 0) {
-                allRawDocuments.value[idx] = normalizeDocument({
-                    ...created,
-                    historyId: created?.historyId || next.historyId,
+    const createInvoice = async ({ contractId, startDate, endDate, memo }) => {
+        try {
+            const created = await createInvoiceApi({
+                contractId,
+                startDate,
+                endDate,
+                memo: memo || null,
+            })
+            const normalized = normalizeDocument({
+                ...created,
+                type: 'invoice',
+                id: created.invoiceId,
+            })
+            allRawDocuments.value.unshift(normalized)
+            emitDocumentCreated('invoice', normalized.id)
+            return normalized
+        } catch (e) {
+            error.value = getErrorMessage(e, '청구서 생성에 실패했습니다.')
+            return null
+        }
+    }
+
+    const publishInvoice = async (invoiceId) => {
+        try {
+            const result = await publishInvoiceApi(invoiceId)
+            const index = allRawDocuments.value.findIndex(d => String(d.id) === String(invoiceId))
+            if (index >= 0) {
+                allRawDocuments.value[index] = normalizeDocument({
+                    ...allRawDocuments.value[index],
+                    status: result.status,
                 })
             }
-        }).catch((e) => { error.value = getErrorMessage(e, '청구서 생성에 실패했습니다.') })
-        return next
+            return { success: true }
+        } catch (e) {
+            error.value = getErrorMessage(e, '청구서 확정에 실패했습니다.')
+            return { success: false, message: error.value }
+        }
     }
 
     const markInvoiceIssued = (invoiceId) => {
@@ -545,10 +625,7 @@ export const useDocumentStore = defineStore('document', () => {
         syncPipelineDocumentStatus(orderId, ORDER_STATUS.CANCELED)
 
         try {
-            await updateDocumentStatusApi(orderId, {
-                status: ORDER_STATUS.CANCELED,
-                statusHistory: nextHistory,
-            })
+            await cancelOrderApi(orderId)  // PATCH /api/v1/orders/{orderId}/cancel
             return { success: true }
         } catch (e) {
             allRawDocuments.value[index] = prevDoc
@@ -629,11 +706,15 @@ export const useDocumentStore = defineStore('document', () => {
         loading.value = true
         error.value = null
         try {
+            // 1. 먼저 clientMaster 로드 (필터링에 필요)
+            await fetchClientMaster()
+
+            // 2. 그 다음 나머지 병렬 로드 (fetchDocuments 제외 - 백엔드 미구현)
             await Promise.all([
                 fetchProductMaster(),
-                fetchClientMaster(),
-                fetchDocuments(),
+                fetchOrders(),
                 fetchStatements(),
+                fetchInvoices(),
             ])
         } finally {
             loading.value = false
@@ -647,6 +728,7 @@ export const useDocumentStore = defineStore('document', () => {
     void initialize()
 
     return {
+        allRawDocuments,
         productMaster,
         clientMaster,
         quotationRequests,
@@ -682,5 +764,9 @@ export const useDocumentStore = defineStore('document', () => {
         statements,
         fetchStatements,
         initialize,
+        fetchOrders,
+        fetchInvoices,
+        publishInvoice,
+        fetchInvoiceDetail,
     }
 })
