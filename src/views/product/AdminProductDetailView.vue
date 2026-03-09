@@ -20,11 +20,11 @@ const formattedPrice = computed(() => {
 
 const tagRows = computed(() => {
   const rows = [
-    { key: 'env', label: '재배환경' },
-    { key: 'res', label: '내병성' },
-    { key: 'growth', label: '생육/숙기' },
-    { key: 'quality', label: '과실품질' },
-    { key: 'conv', label: '재배편의성' },
+    { key: '재배환경', label: '재배환경' },
+    { key: '내병성', label: '내병성' },
+    { key: '생육및숙기', label: '생육/숙기' },
+    { key: '과실품질', label: '과실품질' },
+    { key: '재배편의성', label: '재배편의성' },
   ]
   if (!product.value) return []
   return rows.filter((row) => (product.value.tags?.[row.key] || []).length > 0)
@@ -128,10 +128,7 @@ const toggleCompare = async () => {
 
         <p class="mt-4 flex-1 rounded-lg bg-[var(--color-bg-section)] p-4 text-sm leading-6 text-[var(--color-text-body)] whitespace-pre-wrap">{{ product.desc }}</p>
 
-        <!-- 재배적기표 컴포넌트 -->
-        <CultivationTimeTable :productId="productId" />
-
-        <div class="mt-6 space-y-3">
+        <div class="mt-6 mb-8 space-y-3">
           <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-[var(--color-border-divider)] pb-3 md:grid-cols-[100px_1fr]">
             <p class="text-sm font-semibold text-[var(--color-text-sub)]">{{ row.label }}</p>
             <div class="flex flex-wrap gap-2">
@@ -145,6 +142,9 @@ const toggleCompare = async () => {
             </div>
           </div>
         </div>
+
+        <!-- 재배적기표 컴포넌트 -->
+        <CultivationTimeTable :productId="productId" />
       </div>
     </div>
   </section>

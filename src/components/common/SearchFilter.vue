@@ -164,7 +164,7 @@ const triggerReset = () => {
         <button
             v-if="showReset"
             type="button"
-            class="h-11 rounded-lg border border-[var(--color-border-card)] bg-transparent px-4 text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)]"
+            class="h-11 rounded-lg border border-[var(--color-border-card)] bg-transparent px-4 text-sm font-semibold text-[var(--color-text-body)] transition-colors hover:bg-[var(--color-bg-section)] whitespace-nowrap"
             @click="triggerReset"
         >
           {{ resetLabel }}

@@ -30,24 +30,28 @@ const filterFields = computed(() => [
     key: 'category',
     label: '품목',
     type: 'select',
+    colSpan: 2,
     options: (productStore.categoryOptions || []).map((item) => ({ label: item.name, value: item.code })),
   },
   {
     key: 'env',
     label: '재배환경',
     type: 'select',
+    colSpan: 2,
     options: (productStore.envOptions || []).map((item) => ({ label: item, value: item })),
   },
   {
     key: 'growingSeasonMonth',
     label: '재배적기',
     type: 'select',
+    colSpan: 2,
     placeholder: '전체 월',
     options: GROWING_SEASON_MONTH_OPTIONS,
   },
   {
     key: 'keyword',
     label: '검색어',
+    colSpan: 3,
     placeholder: '상품명 또는 태그 검색',
   },
 ])
@@ -59,7 +63,7 @@ const filteredProducts = computed(() => {
   return allProducts.filter((item) => {
     if (!item) return false
     const matchCategory = !filters.value.category || item.category === filters.value.category
-    const matchEnv = !filters.value.env || (item.tags?.env || []).includes(filters.value.env)
+    const matchEnv = !filters.value.env || (item.tags?.['재배환경'] || item.tags?.env || []).includes(filters.value.env)
     const matchGrowingSeason = matchesGrowingSeason(item, filters.value.growingSeasonMonth)
     const tags = Object.values(item.tags || {}).flat().join(' ').toLowerCase()
     const traits = Array.isArray(item.traits) ? item.traits.join(' ').toLowerCase() : ''

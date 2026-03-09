@@ -17,8 +17,8 @@ import {
   getCategories as getCategoriesApi
 } from '@/api/product'
 
-const DEFAULT_CRITERIA = { env: true, res: true, growth: true, quality: true, conv: true }
-const SIMILARITY_KEYS = ['env', 'res', 'growth', 'quality', 'conv']
+const DEFAULT_CRITERIA = { '재배환경': true, '내병성': true, '생육및숙기': true, '과실품질': true, '재배편의성': true }
+const SIMILARITY_KEYS = ['재배환경', '내병성', '생육및숙기', '과실품질', '재배편의성']
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
   return error?.response?.data?.message || error?.message || fallback
@@ -45,7 +45,7 @@ export const useProductStore = defineStore('product', () => {
     return [...new Set((products.value || []).map((item) => item.category).filter(Boolean))].map(c => ({ code: c, name: c }))
   })
   const envOptions = computed(() => {
-    const all = (products.value || []).flatMap((item) => item.tags?.env || [])
+    const all = (products.value || []).flatMap((item) => item.tags?.['재배환경'] || item.tags?.env || [])
     return [...new Set(all)]
   })
 
@@ -73,6 +73,7 @@ export const useProductStore = defineStore('product', () => {
     error.value = null
     try {
       const result = await getProducts(params)
+      console.log('API FETCH RESULT:', result)
       // Backend 응답 DTO를 UI 규격에 맞게 매핑
       products.value = (Array.isArray(result) ? result : []).map(p => ({
         ...p,

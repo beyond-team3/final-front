@@ -127,14 +127,14 @@ const isMonthInRange = (month, start, end) => {
               </td>
 
               <!-- 월별 타임라인 셀 -->
-              <td v-for="m in months" :key="m" class="relative border-l border-[var(--color-border-divider)] p-0 h-10">
+              <td v-for="m in months" :key="m" class="relative border-l border-[var(--color-border-divider)] p-0 h-16">
                 <!-- 가이드 라인 (가운데) -->
                 <div class="absolute inset-y-0 left-0 right-0 top-1/2 h-[1px] -translate-y-1/2 bg-[var(--color-border-divider)] z-0"></div>
                 
                 <div class="relative z-10 flex h-full w-full items-center justify-center">
                   <!-- 파종 -->
                   <div v-if="isMonthInRange(m, row.sowingStart, row.sowingEnd)" 
-                       class="absolute left-0 right-0 mx-auto flex w-full items-center justify-center">
+                       class="absolute left-0 right-0 top-2 mx-auto flex w-full items-center justify-center">
                     <!-- 기간 중 선 연결 -->
                     <div v-if="row.sowingStart !== row.sowingEnd" class="absolute h-[2px] w-full bg-slate-300 left-1/2"></div>
                     <div class="h-3 w-3 rounded-full bg-[var(--color-olive)] z-10" :title="`파종: ${row.sowingStart}월 ~ ${row.sowingEnd}월`"></div>
@@ -142,14 +142,14 @@ const isMonthInRange = (month, start, end) => {
 
                   <!-- 정식 -->
                   <div v-if="isMonthInRange(m, row.plantingStart, row.plantingEnd)" 
-                       class="absolute left-0 right-0 mx-auto flex w-full items-center justify-center">
+                       class="absolute left-0 right-0 top-1/2 -translate-y-1/2 mx-auto flex w-full items-center justify-center">
                     <div v-if="row.plantingStart !== row.plantingEnd" class="absolute h-[2px] w-full bg-slate-300 right-1/2"></div>
-                    <span class="text-xl font-bold leading-none text-[var(--color-purple)] z-10 mix-blend-multiply" :title="`정식: ${row.plantingStart}월 ~ ${row.plantingEnd}월`">×</span>
+                    <span class="text-xl font-bold leading-none text-[var(--color-purple)] z-10 mix-blend-multiply bg-white/50 px-1 rounded" :title="`정식: ${row.plantingStart}월 ~ ${row.plantingEnd}월`">×</span>
                   </div>
 
                   <!-- 수확 (우선순위 제일 앞) -->
                   <div v-if="isMonthInRange(m, row.harvestingStart, row.harvestingEnd)" 
-                       class="absolute left-0 right-0 mx-auto flex w-full items-center justify-center">
+                       class="absolute left-0 right-0 bottom-3 mx-auto flex w-full items-center justify-center">
                     <div v-if="row.harvestingStart !== row.harvestingEnd" class="absolute h-[2px] w-full bg-[var(--color-orange)] z-10"></div>
                     <div class="h-3 w-8 bg-[var(--color-orange)] z-20 shadow-sm" :title="`수확: ${row.harvestingStart}월 ~ ${row.harvestingEnd}월`"></div>
                   </div>
