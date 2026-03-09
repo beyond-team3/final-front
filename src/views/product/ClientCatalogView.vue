@@ -63,7 +63,7 @@ const filteredProducts = computed(() => {
   return allProducts.filter((item) => {
     if (!item) return false
     const matchCategory = !filters.value.category || item.category === filters.value.category
-    const matchEnv = !filters.value.env || (item.tags?.env || []).includes(filters.value.env)
+    const matchEnv = !filters.value.env || (item.tags?.['재배환경'] || item.tags?.env || []).includes(filters.value.env)
     const matchGrowingSeason = matchesGrowingSeason(item, filters.value.growingSeasonMonth)
     const tags = Object.values(item.tags || {}).flat().join(' ').toLowerCase()
     const traits = Array.isArray(item.traits) ? item.traits.join(' ').toLowerCase() : ''

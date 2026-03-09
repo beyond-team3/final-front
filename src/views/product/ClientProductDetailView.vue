@@ -19,11 +19,11 @@ const noteDraft = ref('')
 
 const tagRows = computed(() => {
   const rows = [
-    { key: 'env', label: '재배환경' },
-    { key: 'res', label: '내병성' },
-    { key: 'growth', label: '생육/숙기' },
-    { key: 'quality', label: '과실품질' },
-    { key: 'conv', label: '재배편의성' },
+    { key: '재배환경', label: '재배환경' },
+    { key: '내병성', label: '내병성' },
+    { key: '생육및숙기', label: '생육/숙기' },
+    { key: '과실품질', label: '과실품질' },
+    { key: '재배편의성', label: '재배편의성' },
   ]
   if (!product.value) return []
   return rows.filter((row) => (product.value.tags?.[row.key] || []).length > 0)
@@ -134,10 +134,7 @@ const saveNote = () => {
 
         <p class="mt-4 flex-1 rounded-lg bg-[var(--color-bg-section)] p-4 text-sm leading-6 text-[var(--color-text-body)] whitespace-pre-wrap">{{ product.desc }}</p>
 
-        <!-- 재배적기표 컴포넌트 -->
-        <CultivationTimeTable :productId="productId" />
-
-        <div class="mt-6 space-y-3">
+        <div class="mt-6 mb-8 space-y-3">
           <div v-for="row in tagRows" :key="row.key" class="grid gap-2 border-b border-[var(--color-border-divider)] pb-3 md:grid-cols-[110px_1fr]">
             <p class="text-sm font-semibold text-[var(--color-text-sub)]">{{ row.label }}</p>
             <div class="flex flex-wrap gap-2">
@@ -150,34 +147,10 @@ const saveNote = () => {
               </span>
             </div>
           </div>
-          
-          <!-- 재배적기표 영역 추가 -->
-          <div v-if="product.cultivationTimes && product.cultivationTimes.length > 0" class="mt-8">
-            <h3 class="mb-4 text-sm font-bold text-[var(--color-text-body)]">재배적기표</h3>
-            <div class="overflow-x-auto rounded-lg border border-[var(--color-border-divider)]">
-              <table class="w-full text-left text-sm text-[var(--color-text-sub)] whitespace-nowrap">
-                <thead class="bg-[var(--color-bg-section)] text-xs uppercase text-[var(--color-text-sub)]">
-                  <tr>
-                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">작형</th>
-                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">지역</th>
-                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">파종기</th>
-                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">정식기</th>
-                    <th scope="col" class="px-4 py-3">수확기</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(ct, idx) in product.cultivationTimes" :key="idx" class="border-b transition-colors hover:bg-gray-50/50">
-                    <td class="px-4 py-3 border-r border-[#e5e7eb] font-medium">{{ ct.croppingSystem || '-' }}</td>
-                    <td class="px-4 py-3 border-r border-[#e5e7eb]">{{ ct.region || '-' }}</td>
-                    <td class="px-4 py-3 border-r border-[#e5e7eb]">{{ ct.sowingStart ? `${ct.sowingStart}월 ~ ${ct.sowingEnd}월` : '-' }}</td>
-                    <td class="px-4 py-3 border-r border-[#e5e7eb]">{{ ct.plantingStart ? `${ct.plantingStart}월 ~ ${ct.plantingEnd}월` : '-' }}</td>
-                    <td class="px-4 py-3">{{ ct.harvestingStart ? `${ct.harvestingStart}월 ~ ${ct.harvestingEnd}월` : '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
+
+        <!-- 재배적기표 컴포넌트 -->
+        <CultivationTimeTable :productId="productId" />
       </div>
     </div>
 

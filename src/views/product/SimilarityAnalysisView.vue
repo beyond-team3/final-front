@@ -15,11 +15,11 @@ onMounted(() => {
 })
 
 const criteriaRows = [
-  { key: 'env', label: '재배환경' },
-  { key: 'res', label: '내병성' },
-  { key: 'growth', label: '생육 및 숙기' },
-  { key: 'quality', label: '과실 품질' },
-  { key: 'conv', label: '재배 편의성' },
+  { key: '재배환경', label: '재배환경' },
+  { key: '내병성', label: '내병성' },
+  { key: '생육및숙기', label: '생육 및 숙기' },
+  { key: '과실품질', label: '과실 품질' },
+  { key: '재배편의성', label: '재배 편의성' },
 ]
 const criteriaKeys = criteriaRows.map((row) => row.key)
 
@@ -309,24 +309,24 @@ const similarityText = (product) => {
           </tr>
           <tr class="border-t border-slate-100">
             <td class="bg-slate-100 px-4 py-3 font-semibold">품종 특징</td>
-            <td class="px-4 py-3">{{ tagsText(baseProduct, 'quality') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[0], 'quality') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[1], 'quality') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[2], 'quality') }}</td>
+            <td class="px-4 py-3">{{ tagsText(baseProduct, '과실품질') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[0], '과실품질') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[1], '과실품질') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[2], '과실품질') }}</td>
           </tr>
           <tr class="border-t border-slate-100">
             <td class="bg-slate-100 px-4 py-3 font-semibold">재배 적기</td>
-            <td class="px-4 py-3">{{ tagsText(baseProduct, 'growth') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[0], 'growth') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[1], 'growth') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[2], 'growth') }}</td>
+            <td class="px-4 py-3">{{ tagsText(baseProduct, '생육및숙기') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[0], '생육및숙기') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[1], '생육및숙기') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[2], '생육및숙기') }}</td>
           </tr>
           <tr class="border-t border-slate-100">
             <td class="bg-slate-100 px-4 py-3 font-semibold">병해충 내성</td>
-            <td class="px-4 py-3">{{ tagsText(baseProduct, 'res') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[0], 'res') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[1], 'res') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[2], 'res') }}</td>
+            <td class="px-4 py-3">{{ tagsText(baseProduct, '내병성') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[0], '내병성') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[1], '내병성') }}</td>
+            <td class="px-4 py-3">{{ tagsText(slotProducts[2], '내병성') }}</td>
           </tr>
           <tr class="border-t border-slate-100">
             <td class="bg-slate-100 px-4 py-3 font-semibold">기준 대비 유사도</td>

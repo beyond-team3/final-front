@@ -60,8 +60,6 @@ export function submitFeedback(productId, data) {
   return api.post(`/products/${productId}/feedbacks`, data)
 }
 
-export async function getCategories() {
-  const products = await api.get('/products')
-  const categoryNames = [...new Set((products || []).map((item) => item?.category).filter(Boolean))]
-  return categoryNames.map((name) => ({ name }))
+export function getCategories() {
+  return api.get('/products/categories')
 }

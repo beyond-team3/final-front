@@ -25,19 +25,19 @@ onMounted(async () => {
 
 // 태그 템플릿 및 한국어 라벨 매핑
 const tagSchema = [
-  { key: 'env', label: '재배환경', options: ['노지', '시설하우스', '고랭지', '가정원예'] },
-  { key: 'res', label: '내병성', options: ['탄저병', '바이러스', '시들음병', '역병', '무름병'] },
-  { key: 'growth', label: '생육 및 숙기', options: ['조생종', '중생종', '만생종', '극조생'] },
-  { key: 'quality', label: '과실 품질', options: ['고당도', '대과종', '저장성우수', '착색우수'] },
-  { key: 'conv', label: '재배 편의성', options: ['초세강', '착과용이', '밀식적응', '작업용이'] },
+  { key: '재배환경', label: '재배환경', options: ['노지', '시설하우스', '고랭지', '가정원예'] },
+  { key: '내병성', label: '내병성', options: ['탄저병', '바이러스', '시들음병', '역병', '무름병'] },
+  { key: '생육및숙기', label: '생육 및 숙기', options: ['조생종', '중생종', '만생종', '극조생'] },
+  { key: '과실품질', label: '과실 품질', options: ['고당도', '대과종', '저장성우수', '착색우수'] },
+  { key: '재배편의성', label: '재배 편의성', options: ['초세강', '착과용이', '밀식적응', '작업용이'] },
 ]
 
 const tagTemplates = reactive({
-  env: [...tagSchema[0].options],
-  res: [...tagSchema[1].options],
-  growth: [...tagSchema[2].options],
-  quality: [...tagSchema[3].options],
-  conv: [...tagSchema[4].options],
+  '재배환경': [...tagSchema[0].options],
+  '내병성': [...tagSchema[1].options],
+  '생육및숙기': [...tagSchema[2].options],
+  '과실품질': [...tagSchema[3].options],
+  '재배편의성': [...tagSchema[4].options],
 })
 
 const form = reactive({
@@ -49,7 +49,7 @@ const form = reactive({
   amount: '',
   status: 'ACTIVE',
   unit: '립',
-  tags: { env: [], res: [], growth: [], quality: [], conv: [] },
+  tags: { '재배환경': [], '내병성': [], '생육및숙기': [], '과실품질': [], '재배편의성': [] },
 })
 
 watch(initialProduct, (product) => {
@@ -63,11 +63,11 @@ watch(initialProduct, (product) => {
     form.status = product.status || 'ACTIVE'
     form.unit = product.unit || '립'
     form.tags = {
-      env: [...(product.tags?.env || [])],
-      res: [...(product.tags?.res || [])],
-      growth: [...(product.tags?.growth || [])],
-      quality: [...(product.tags?.quality || [])],
-      conv: [...(product.tags?.conv || [])],
+      '재배환경': [...(product.tags?.['재배환경'] || [])],
+      '내병성': [...(product.tags?.['내병성'] || [])],
+      '생육및숙기': [...(product.tags?.['생육및숙기'] || [])],
+      '과실품질': [...(product.tags?.['과실품질'] || [])],
+      '재배편의성': [...(product.tags?.['재배편의성'] || [])],
     }
   }
 }, { immediate: true })
