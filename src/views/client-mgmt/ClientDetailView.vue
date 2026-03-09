@@ -46,19 +46,37 @@ const isCropsDirty = computed(() => {
 })
 
 const handleEditCrops = () => {
-  tempCrops.value = [...clientCrops.value]
+  // 객체 리스트에서 이름(문자열) 리스트로 변환하여 할당
+  tempCrops.value = clientCrops.value.map(c => c.cropName)
   isCropEditing.value = true
 }
 
 const handleSaveCrops = async () => {
   if (!currentClient.value) return
+
+  const clientId = currentClient.value.id
+  const originalCrops = clientCrops.value
+  const nextCropNames = tempCrops.value
+
   try {
-    await clientStore.updateClient(currentClient.value.id, {
-      crops: tempCrops.value
-    })
+    // 1. 추가된 품종 (nextCropNames에만 있는 이름)
+    const originalNames = originalCrops.map(c => c.cropName)
+    const addedNames = nextCropNames.filter(name => !originalNames.includes(name))
+
+    // 2. 삭제된 품종 (originalCrops에만 있는 매핑)
+    const removedCrops = originalCrops.filter(c => !nextCropNames.includes(c.cropName))
+
+    // 3. API 순차적 호출 (혹은 Promise.all)
+    for (const name of addedNames) {
+      await clientStore.addCrop(clientId, name)
+    }
+    for (const crop of removedCrops) {
+      await clientStore.removeCrop(clientId, crop.id)
+    }
+
     isCropEditing.value = false
   } catch (e) {
-    alert('저장 중 오류가 발생했습니다.')
+    alert('품종 변경 저장 중 오류가 발생했습니다.')
   }
 }
 
@@ -86,6 +104,7 @@ const currentClientId = computed(() => route.params.id)
 const { currentClient, loading, error } = storeToRefs(clientStore)
 
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
+const employees = ref([])
 const selectedCrop = ref('')
 
 // ⭐ 품종 데이터를 안전하게 가져오기 위한 Computed
@@ -111,6 +130,7 @@ const editForm = ref({
   managerName: '',
   managerPhone: '',
   managerEmail: '',
+  managerId: null, // 담당 영업사원 ID 추가
 })
 
 const execDaumPostcode = () => {
@@ -144,8 +164,23 @@ const isClientActive = computed(() => Boolean(currentClient.value?.isActive))
 const clientStatusText = computed(() => (isClientActive.value ? '활성' : '비활성'))
 const clientStatusSubtitle = computed(() => (isClientActive.value ? '사용중' : '비활성'))
 
-const openEditModal = () => {
+const fetchEmployees = async () => {
+  try {
+    const { getEmployeesSimple } = await import('@/api/employee')
+    const response = await getEmployeesSimple()
+    employees.value = response.data || []
+  } catch (e) {
+    console.error('영업사원 목록 로드 실패:', e)
+  }
+}
+
+const openEditModal = async () => {
   if (!currentClient.value || !isAdmin.value) return
+
+  // 영업사원 목록 로드
+  if (employees.value.length === 0) {
+    await fetchEmployees()
+  }
 
   // 기존 주소 데이터 파싱하여 표시용으로 변환 (sido/address/zonecode)
   const rawAddr = currentClient.value.address || ''
@@ -170,6 +205,7 @@ const openEditModal = () => {
     managerName: currentClient.value.managerName,
     managerPhone: currentClient.value.managerPhone,
     managerEmail: currentClient.value.managerEmail,
+    managerId: currentClient.value.managerId || null,
   }
   isEditModalOpen.value = true
 }
@@ -210,9 +246,8 @@ const addCrop = () => {
   selectedCrop.value = ''
 }
 
-const removeCrop = (crop) => {
-  if (isAdmin.value || !isCropEditing.value) return
-  tempCrops.value = tempCrops.value.filter((item) => item !== crop)
+const removeTempCrop = (cropName) => {
+  tempCrops.value = tempCrops.value.filter((c) => c !== cropName)
 }
 
 const openPipelineDetail = (pipelineId) => {
@@ -220,9 +255,15 @@ const openPipelineDetail = (pipelineId) => {
 }
 
 const fetchClientDetail = async () => {
-  if (!currentClientId.value) return
+  const idValue = currentClientId.value
+  if (!idValue || String(idValue) === 'undefined' || String(idValue) === 'null') {
+    return
+  }
+
   try {
-    await clientStore.fetchClientDetail(currentClientId.value)
+    await clientStore.fetchClientDetail(idValue)
+    const crops = await clientStore.fetchClientCrops(idValue)
+    console.log('[DEBUG] fetchClientCrops result:', crops)
   } catch (e) { /* error managed by store */ }
 }
 
@@ -251,7 +292,7 @@ onUnmounted(() => {
 
   <section v-else class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-5">
     <div v-if="currentClient" class="mx-auto max-w-6xl space-y-4">
-      <PageHeader class="!bg-transparent !p-0 !mb-4">
+      <PageHeader :title="currentClient.name" class="!bg-transparent !p-0 !mb-4">
         <template #title>
           <div class="flex items-center gap-3">
             <h2 class="text-2xl font-bold text-[var(--color-text-strong)]">{{ currentClient.name }}</h2>
@@ -312,6 +353,13 @@ onUnmounted(() => {
             <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이름</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ currentClient.managerName }}</dd></div>
             <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">연락처</dt><dd class="font-medium text-[var(--color-text-body)]">{{ currentClient.managerPhone }}</dd></div>
             <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이메일</dt><dd class="font-medium text-[var(--color-text-body)] underline underline-offset-4">{{ currentClient.managerEmail }}</dd></div>
+            <div v-if="currentClient.managerEmployeeId || currentClient.managerEmployeeName" class="flex items-center justify-between border-t border-[var(--color-border-divider)] pt-4">
+              <dt class="text-[var(--color-text-sub)]">담당 영업사원</dt>
+              <dd class="flex items-center gap-2 font-bold text-[var(--color-olive)]">
+                <span class="h-1.5 w-1.5 rounded-full bg-[var(--color-olive)]"></span>
+                {{ currentClient.managerEmployeeName || '지정됨' }}
+              </dd>
+            </div>
           </dl>
         </article>
 
@@ -374,7 +422,7 @@ onUnmounted(() => {
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)] transition-colors hover:bg-[var(--color-olive)] hover:text-white"
                     title="클릭하여 삭제"
-                    @click="removeCrop(crop)"
+                    @click="removeTempCrop(crop)"
                 >
                   {{ crop }} <span class="text-[10px] opacity-70">✕</span>
                 </button>
@@ -419,14 +467,14 @@ onUnmounted(() => {
 
               <!-- 보기 모드일 때 표시 -->
               <template v-else>
-                <div v-for="crop in clientCrops" :key="crop" class="rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)]">
-                  {{ crop }}
+                <div v-for="crop in clientCrops" :key="crop.id" class="rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)]">
+                  {{ crop.cropName }}
                 </div>
               </template>
             </template>
             <template v-else>
-              <div v-for="crop in clientCrops" :key="crop" class="rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)]">
-                {{ crop }}
+              <div v-for="crop in clientCrops" :key="crop.id" class="rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 text-sm font-semibold text-[var(--color-olive-dark)]">
+                {{ crop.cropName }}
               </div>
             </template>
             <div v-if="(isCropEditing ? tempCrops.length : clientCrops.length) === 0" class="flex w-full flex-col items-center justify-center py-4 text-sm text-[var(--color-text-placeholder)]">
@@ -446,7 +494,7 @@ onUnmounted(() => {
       </div>
 
       <!-- 모달 디자인 업데이트 -->
-      <ModalBase v-model="isEditModalOpen" title="거래처 정보 수정" width-class="max-w-2xl" class="!bg-[var(--color-bg-base)]">
+      <ModalBase v-model="isEditModalOpen" title="거래처 정보 수정" width-class="max-w-2xl">
         <div class="p-2">
           <form class="grid gap-5 md:grid-cols-2" @submit.prevent="submitEdit">
             <label class="block text-sm font-bold text-[var(--color-text-sub)]">법인명
@@ -489,6 +537,16 @@ onUnmounted(() => {
             </label>
             <label class="block text-sm font-bold text-[var(--color-text-sub)] md:col-span-2">담당자 이메일
               <input v-model="editForm.managerEmail" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="email" required />
+            </label>
+
+            <!-- 담당 영업사원 선택 창 추가 (관리자 전용) -->
+            <label v-if="isAdmin" class="block text-sm font-bold text-[var(--color-text-sub)] md:col-span-2">담당 영업사원 지정
+              <select v-model="editForm.managerId" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1rem] cursor-pointer" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B5F50%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E');">
+                <option :value="null">담당자 미지정</option>
+                <option v-for="emp in employees" :key="emp.employeeId" :value="emp.employeeId">
+                  {{ emp.employeeName }} ({{ emp.employeeCode }})
+                </option>
+              </select>
             </label>
           </form>
         </div>

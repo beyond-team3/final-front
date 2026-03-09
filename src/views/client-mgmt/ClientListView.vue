@@ -34,20 +34,6 @@ const getRegion = (address) => {
 const filteredClients = computed(() => {
   let baseClients = clients?.value || []
 
-  if (!isAdmin.value) {
-    const myId = authStore.me?.refId
-
-    // 디버깅 로그
-    console.log('현재 로그인 유저(me)의 refId:', myId);
-
-    if (myId !== undefined && myId !== null) {
-      baseClients = (clients?.value || []).filter((client) => Number(client.managerId) === Number(myId))
-    } else {
-      console.warn('유저 정보를 찾을 수 없습니다.');
-      return []
-    }
-  }
-
   const lowerKeyword = keyword.value.trim().toLowerCase()
 
   return baseClients.filter((client) => {
@@ -65,8 +51,9 @@ const filteredClients = computed(() => {
   })
 })
 
-const openDetail = (id) => {
-  router.push(`/clients/${id}`)
+const openDetail = (client) => {
+  if (!client?.id) return
+  router.push(`/clients/${client.id}`)
 }
 
 const fetchClients = async () => {
@@ -139,52 +126,59 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <section class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-5 shadow-sm">
-        <div class="flex flex-wrap items-center gap-4" ref="dropdownContainer">
-          <div class="flex-1 min-w-[300px]">
-            <input
-                v-model="keyword"
-                type="text"
-                class="h-11 w-full rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] placeholder:[var(--color-text-placeholder)] shadow-sm transition-all"
-                placeholder="거래처 코드, 거래처명, 담당자 이름으로 검색"
-            />
-          </div>
-
-          <!-- 지역 필터 커스텀 드롭다운 -->
-          <div class="relative min-w-[120px]">
-            <div
-                class="h-11 w-full rounded-lg border bg-[var(--color-bg-input)] px-4 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                :class="activeDropdown === 'region' ? 'border-[var(--color-olive)] ring-1 ring-[var(--color-olive)]' : 'border-[var(--color-border-divider)]'"
-                @click="toggleDropdown('region')"
-            >
-              <span class="font-bold text-sm text-[var(--color-text-strong)]">{{ region || '전체 지역' }}</span>
-              <span class="text-[var(--color-text-sub)] text-xs transition-transform duration-200" :class="{ 'rotate-180': activeDropdown === 'region' }">▼</span>
+      <section class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-4 sm:p-6 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center gap-4" ref="dropdownContainer">
+          <div class="flex-1">
+            <div class="relative">
+              <input
+                  v-model="keyword"
+                  type="text"
+                  class="h-11 w-full rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] placeholder:[var(--color-text-placeholder)] shadow-sm transition-all"
+                  placeholder="거래처 코드, 거래처명, 담당자 이름으로 검색"
+              />
             </div>
-            <ul v-if="activeDropdown === 'region'" class="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0">
-              <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="!region ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'" @click="selectRegion('')">전체 지역</li>
-              <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="region === '서울' ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'" @click="selectRegion('서울')">서울</li>
-              <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="region === '경기' ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'" @click="selectRegion('경기')">경기</li>
-              <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="region === '충청' ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'" @click="selectRegion('충청')">충청</li>
-            </ul>
           </div>
 
-          <!-- 유형 필터 커스텀 드롭다운 -->
-          <div class="relative min-w-[120px]">
-            <div
-                class="h-11 w-full rounded-lg border bg-[var(--color-bg-input)] px-4 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-                :class="activeDropdown === 'type' ? 'border-[var(--color-olive)] ring-1 ring-[var(--color-olive)]' : 'border-[var(--color-border-divider)]'"
-                @click="toggleDropdown('type')"
-            >
-              <span class="font-bold text-sm text-[var(--color-text-strong)]">{{ type === 'NURSERY' ? '육묘장' : type === 'DISTRIBUTOR' ? '대리점' : '전체 유형' }}</span>
-              <span class="text-[var(--color-text-sub)] text-xs transition-transform duration-200" :class="{ 'rotate-180': activeDropdown === 'type' }">▼</span>
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- 지역 필터 커스텀 드롭다운 -->
+            <div class="relative min-w-[140px] flex-1 sm:flex-none">
+              <div
+                  class="h-11 w-full rounded-lg border bg-[var(--color-bg-input)] px-4 flex items-center justify-between cursor-pointer transition-all shadow-sm"
+                  :class="activeDropdown === 'region' ? 'border-[var(--color-olive)] ring-1 ring-[var(--color-olive)]' : 'border-[var(--color-border-divider)]'"
+                  @click="toggleDropdown('region')"
+              >
+                <div class="flex flex-col">
+                  <span class="text-[10px] text-[var(--color-text-sub)] font-bold leading-tight">지역</span>
+                  <span class="font-bold text-sm text-[var(--color-text-strong)]">{{ region || '전체 지역' }}</span>
+                </div>
+                <span class="text-[var(--color-text-sub)] text-[10px] transition-transform duration-200" :class="{ 'rotate-180': activeDropdown === 'region' }">▼</span>
+              </div>
+              <ul v-if="activeDropdown === 'region'" class="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0 overflow-hidden">
+                <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="!region ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectRegion('')">전체 지역</li>
+                <li v-for="r in ['서울', '경기', '충청', '강원', '전라', '경상', '제주']" :key="r" class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="region === r ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectRegion(r)">{{ r }}</li>
+              </ul>
             </div>
-            <ul v-if="activeDropdown === 'type'" class="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0">
-              <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="!type ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'" @click="selectType('')">전체 유형</li>
-              <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="type === 'NURSERY' ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'" @click="selectType('NURSERY')">육묘장</li>
-              <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="type === 'DISTRIBUTOR' ? 'bg-[#C8D4A0] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[#EFEADF]'" @click="selectType('DISTRIBUTOR')">대리점</li>
-            </ul>
-          </div>
 
+            <!-- 유형 필터 커스텀 드롭다운 -->
+            <div class="relative min-w-[140px] flex-1 sm:flex-none">
+              <div
+                  class="h-11 w-full rounded-lg border bg-[var(--color-bg-input)] px-4 flex items-center justify-between cursor-pointer transition-all shadow-sm"
+                  :class="activeDropdown === 'type' ? 'border-[var(--color-olive)] ring-1 ring-[var(--color-olive)]' : 'border-[var(--color-border-divider)]'"
+                  @click="toggleDropdown('type')"
+              >
+                <div class="flex flex-col">
+                  <span class="text-[10px] text-[var(--color-text-sub)] font-bold leading-tight">유형</span>
+                  <span class="font-bold text-sm text-[var(--color-text-strong)]">{{ type === 'NURSERY' ? '육묘장' : type === 'DISTRIBUTOR' ? '대리점' : '전체 유형' }}</span>
+                </div>
+                <span class="text-[var(--color-text-sub)] text-[10px] transition-transform duration-200" :class="{ 'rotate-180': activeDropdown === 'type' }">▼</span>
+              </div>
+              <ul v-if="activeDropdown === 'type'" class="absolute z-50 mt-1 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-1 shadow-lg animate-in fade-in zoom-in-95 duration-200 list-none m-0 p-0 overflow-hidden">
+                <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="!type ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectType('')">전체 유형</li>
+                <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="type === 'NURSERY' ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectType('NURSERY')">육묘장</li>
+                <li class="px-4 py-2.5 text-sm cursor-pointer transition-colors" :class="type === 'DISTRIBUTOR' ? 'bg-[var(--color-olive-light)] font-bold text-[var(--color-text-strong)]' : 'text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]'" @click="selectType('DISTRIBUTOR')">대리점</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -216,7 +210,7 @@ onUnmounted(() => {
                 v-for="client in filteredClients"
                 :key="client.id"
                 class="transition-colors hover:bg-[var(--color-bg-section)]/50 cursor-pointer"
-                @click="openDetail(client.id)"
+                @click="openDetail(client)"
             >
               <td class="px-6 py-4 font-mono text-xs font-bold text-[var(--color-olive)] whitespace-nowrap">{{ client.code }}</td>
               <td class="px-6 py-4 font-bold text-[var(--color-text-strong)] whitespace-nowrap">{{ client.name }}</td>

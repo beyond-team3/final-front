@@ -1,11 +1,13 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
-    addClientVariety,
+    addClientCrop,
     createClient,
+    getClientCrops,
     getClientDetail,
     getClients,
     updateClient as updateClientApi,
+    deleteClientCrop,
 } from '@/api/client'
 
 const toCurrency = (value) => `₩${Number(value || 0).toLocaleString('ko-KR')}`
@@ -50,15 +52,44 @@ function normalizeClient(client = {}) {
     const isActive = getClientActiveValue(client)
     const parsedAddr = parseAddress(client.address)
 
+    // 유형 레이블 매핑
+    const typeMap = {
+        'NURSERY': '육묘장',
+        'DISTRIBUTOR': '대리점'
+    }
+    const rawType = client.clientType || client.type
+    const typeLabel = typeMap[rawType] || '기타'
+
     return {
         ...client,
+        // 백엔드 필드명을 프론트엔드 스타일로 매핑 (방어적 ID 매핑 추가)
+        id: client.id || client.clientId || client.client_id,
+        code: client.clientCode || client.code,
+        name: client.clientName || client.name,
+        type: rawType,
+        typeLabel: typeLabel,
+
+        // 상세 필드 매핑 보완
+        bizNo: client.clientBrn || client.bizNo,
+        creditLimit: client.totalCredit || client.creditLimit || 0,
+        receivable: client.usedCredit || client.receivable || 0,
+
+        monthlyInProgress: client.monthlyInProgress || 0,
+        monthlyDone: client.monthlyDone || 0,
+
+        managerId: client.managerId,
+        managerName: client.managerName,
+
         isActive,
         status: isActive ? 'active' : 'inactive',
-        displaySido: parsedAddr.sido,
-        displayAddressOnly: parsedAddr.address,
-        displayZonecode: parsedAddr.zonecode,
+        displaySido: parsedAddr.sido || client.addressSido,
+        displayAddressOnly: parsedAddr.address || client.addressDetail,
+        displayZonecode: parsedAddr.zonecode || client.addressZip,
         // 기존 호환성 유지용 (시도 주소 합침)
-        displayAddress: `${parsedAddr.sido} ${parsedAddr.address}`.trim(),
+        displayAddress: `${parsedAddr.sido || client.addressSido || ''} ${parsedAddr.address || client.addressDetail || ''}`.trim(),
+
+        // [추가] 초기 품종 데이터 보장
+        crops: client.crops || [],
     }
 }
 
@@ -108,7 +139,9 @@ export const useClientStore = defineStore('client', () => {
         error.value = null
         try {
             const result = await getClients(params)
-            clients.value = Array.isArray(result) ? result.map((client) => normalizeClient(client)) : []
+            // ApiResult 구조인 경우 result.data를 사용, 아니면 result 자체를 사용
+            const data = result?.data || result
+            clients.value = Array.isArray(data) ? data.map((client) => normalizeClient(client)) : []
             return clients.value
         } catch (e) {
             error.value = getErrorMessage(e, '목록 로딩 실패')
@@ -122,14 +155,41 @@ export const useClientStore = defineStore('client', () => {
         loading.value = true
         error.value = null
         try {
-            const result = await getClientDetail(id)
-            currentClient.value = normalizeClient(result)
+            const response = await getClientDetail(id)
+            // ApiResult 구조인 경우 response.data를 사용, 아니면 response 자체를 사용
+            const data = response?.data || response
+            currentClient.value = normalizeClient(data)
             return currentClient.value
         } catch (e) {
             error.value = getErrorMessage(e, '상세 로딩 실패')
             throw e
         } finally {
             loading.value = false
+        }
+    }
+
+    async function fetchClientCrops(id) {
+        try {
+            const response = await getClientCrops(id)
+            const rawCrops = response?.data || response || []
+
+            // [방어 코드] snake_case 필드를 camelCase로 매핑
+            const normalizedCrops = Array.isArray(rawCrops) ? rawCrops.map(item => ({
+                id: item.id || item.client_crop_id || item.clientCropId,
+                cropName: item.cropName || item.crop_name
+            })) : []
+
+            if (currentClient.value && String(currentClient.value.id) === String(id)) {
+                // 반응성을 위해 객체 전체를 교체하거나 속성을 재할당
+                currentClient.value = {
+                    ...currentClient.value,
+                    crops: normalizedCrops
+                }
+            }
+            return normalizedCrops
+        } catch (e) {
+            console.error('[Store] fetchClientCrops failed:', e)
+            return []
         }
     }
 
@@ -205,20 +265,41 @@ export const useClientStore = defineStore('client', () => {
         await updateClient(id, { isActive: Boolean(isActive) })
     }
 
-    const addVariety = (id, crop) => {
-        addClientVariety(id, { crop })
-            .then((updated) => {
-                if (updated) {
-                    const final = normalizeClient(updated)
-                    if (String(currentClient.value?.id) === String(id)) currentClient.value = final
-                    clients.value = clients.value.map(c => String(c.id) === String(id) ? final : c)
-                }
-            })
+    const addCrop = async (clientId, cropName) => {
+        try {
+            await addClientCrop(clientId, { cropName })
+            await fetchClientCrops(clientId)
+        } catch (e) {
+            error.value = getErrorMessage(e, '품종 추가 실패')
+            throw e
+        }
+    }
+
+    const removeCrop = async (clientId, cropId) => {
+        try {
+            await deleteClientCrop(cropId)
+            await fetchClientCrops(clientId)
+        } catch (e) {
+            error.value = getErrorMessage(e, '품종 삭제 실패')
+            throw e
+        }
     }
 
     return {
-        clients, currentClient, loading, error, activeClients,
-        getClientById, fetchClients, fetchClientDetail,
-        addClient, updateClient, toggleClientActive, addVariety, toCurrency,
+        clients,
+        currentClient,
+        loading,
+        error,
+        activeClients,
+        getClientById,
+        fetchClients,
+        fetchClientDetail,
+        fetchClientCrops,
+        registerClient: addClient, // Assuming addClient is the registerClient function
+        updateClient,
+        toggleClientActive,
+        addCrop,
+        removeCrop,
+        toCurrency: (v) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(v),
     }
 })
