@@ -1,6 +1,7 @@
 import { defineAsyncComponent, h } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { storeToRefs } from 'pinia'
 import { ROLES } from '@/utils/constants'
 import { endRouteMeasure, startRouteMeasure } from '@/utils/performance'
 
@@ -257,10 +258,19 @@ const router = createRouter({
     routes,
 })
 
-router.beforeEach((to) => {
+let isAuthInitialized = false
+
+router.beforeEach(async (to) => {
     startRouteMeasure(to)
 
     const authStore = useAuthStore()
+
+    // 앱 로드 후 최초 1회 인증 상태 초기화 (새로고침 대응)
+    if (!isAuthInitialized) {
+        await authStore.initializeAuth()
+        isAuthInitialized = true
+    }
+
     const currentRole = authStore.currentRole
 
     if (to.meta.public) {
