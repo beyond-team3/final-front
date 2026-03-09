@@ -1,7 +1,7 @@
 import api from './index'
 
 export function getProducts(params) {
-  return api.get('/products', { params })
+  return api.get('/products/list', { params })
 }
 
 export function getProductDetail(id) {
@@ -9,7 +9,7 @@ export function getProductDetail(id) {
 }
 
 export function createProduct(data) {
-  return api.post('/products', data)
+  return api.post('/products/create', data)
 }
 
 export function getCultivationTimes(productId) {
@@ -61,7 +61,6 @@ export function submitFeedback(productId, data) {
 }
 
 export async function getCategories() {
-  const products = await api.get('/products')
-  const categoryNames = [...new Set((products || []).map((item) => item?.category).filter(Boolean))]
-  return categoryNames.map((name) => ({ name }))
+  const categories = await api.get('/products/categories')
+  return categories || []
 }
