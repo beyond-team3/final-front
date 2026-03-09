@@ -108,9 +108,30 @@ final-front/
 
 ---
 
+## 📝 커밋 규칙 (COMMIT_PROMPT.md 요약)
+
+커밋 메시지 형식: `[리니어ID] type(scope): subject`
+
+- Linear ID는 브랜치명에서 확인 (예: `feat/ui-appv-and-noti-frt-61` → `FRT-61`)
+- type: `feat` / `fix` / `refactor` / `docs` / `test` / `design` / `chore`
+- scope: 변경된 기능 영역 (예: `notification`, `approval`, `mock-server`, `deps`, `agents`)
+
+커밋 분할 기준:
+1. 서로 다른 목적은 분리 (`feat` + `fix` 혼합 금지)
+2. 같은 목적의 레이어 변경은 1커밋으로 묶기 가능
+3. 리팩토링은 기능 변경과 분리 (`refactor` 독립 커밋)
+4. `docs` / `chore` / `design`은 가능한 독립 커밋으로 분리
+
+세션 종료 시 커밋 전 확인:
+- `git diff --stat`으로 변경 파일 목적별 그룹핑
+- 각 그룹에 맞는 `type/scope/subject` 결정 후 순서대로 커밋
+
+---
+
 ## 🔚 세션 종료 체크리스트
 
 - [ ] 수정된 파일 목록 출력
 - [ ] `npm run dev` (포트 5173) 실행 후 에러 없음 확인
 - [ ] 승인·알림 외 파일이 변경되지 않았는지 확인
 - [ ] DESIGN.md 컬러 시스템 준수 여부 최종 확인
+- [ ] COMMIT_PROMPT.md 규칙에 따라 목적별로 커밋 분할 완료
