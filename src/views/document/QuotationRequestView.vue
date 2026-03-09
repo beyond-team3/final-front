@@ -44,14 +44,14 @@ const todayText = computed(() => {
 
 // 품종 옵션 추출
 const varietyOptions = computed(() => {
-  const varieties = documentStore.productMaster?.map(p => p.variety) || []
+  const varieties = documentStore.productMaster?.map(p => p.category) || []
   return ['전체', ...new Set(varieties.filter(v => v))]
 })
 
 // 모달 내 상품 필터링
 const filteredProducts = computed(() => {
   return documentStore.productMaster?.filter(p => {
-    const matchVariety = varietyFilter.value === '전체' || p.variety === varietyFilter.value
+    const matchVariety = varietyFilter.value === '전체' || p.category === varietyFilter.value
     const matchKeyword = p.name.toLowerCase().includes(modalSearchInput.value.toLowerCase())
     return matchVariety && matchKeyword
   }) || []
@@ -69,7 +69,8 @@ const addProduct = (product) => {
     selectedItems.value.push({
       uid: Date.now() + product.id,
       productId: product.id,
-      variety: product.variety,
+      productCategory: product.category,
+      variety: product.variety || product.category,
       name: product.name,
       unit: product.unit,
       unitPrice: product.unitPrice || 0,
@@ -99,13 +100,13 @@ const submit = () => {
   }
 
   const defaultClient = isClient.value
-      ? documentStore.clientMaster.find((client) => client.name === authStore.me?.name)
-      || documentStore.clientMaster.find((client) => String(authStore.me?.name || '').includes(client.name))
+      ? documentStore.clientMaster.find((client) => client.name === (authStore.me?.clientName || authStore.me?.name))
+      || documentStore.clientMaster.find((client) => String(authStore.me?.clientName || authStore.me?.name || '').includes(client.name))
       || documentStore.clientMaster[0]
       : documentStore.clientMaster[0]
 
   if (!defaultClient) {
-    window.alert('거래처 정보를 찾을 수 없습니다.')
+    window.alert('거래처 정보를 찾을 수 없거나 아직 로드되지 않았습니다.')
     return
   }
 

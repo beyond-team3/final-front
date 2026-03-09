@@ -1,15 +1,39 @@
 import api from './index'
 
 export function createQuotationRequest(data) {
-    return api.post('/documents', data)
+    return api.post('/requests', data)
+}
+
+export function deleteQuotationRequest(id) {
+    return api.delete(`/requests/${id}`)
+}
+
+export function getQuotationRequest(id) {
+    return api.get(`/requests/${id}`)
+}
+
+export function getPendingQuotationRequests() {
+    return api.get('/requests/pending')
 }
 
 export function createQuotation(data) {
-    return api.post('/documents', data)
+    return api.post('/quotations', data)
 }
 
 export function createContract(data) {
-    return api.post('/documents', data)
+    return api.post('/contracts', data)
+}
+
+export function getContracts(params) {
+    return api.get('/contracts', { params })
+}
+
+export function getQuotations(params) {
+    return api.get('/quotations', { params })
+}
+
+export function getQuotationRequests(params) {
+    return api.get('/requests', { params })
 }
 
 //주문
@@ -76,10 +100,6 @@ export function getInvoice(invoiceId) {
 
 export function publishInvoice(invoiceId) {
     return api.patch(`/invoices/${invoiceId}/publish`)
-}
-
-export function getDocuments(params) {
-    return api.get('/documents', { params })
 }
 
 export function getDocumentDetail(id) {

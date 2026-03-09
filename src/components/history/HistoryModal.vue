@@ -250,7 +250,12 @@ const loadDetail = async () => {
 
     // 💡 3. 캐시에 없거나(summary만 있는 경우) 품목 정보가 없으면 서버에서 강제로 가져옴
     if (!detail || !detail.items || detail.items.length === 0) {
-      const fetched = await documentStore.fetchDocumentDetail(currentId)
+      let fetched = null
+      if (['quotation-request', 'rfq', '견적요청'].includes(typeKey)) {
+        fetched = await documentStore.fetchQuotationRequestDetail(currentId)
+      } else {
+        fetched = await documentStore.fetchDocumentDetail(currentId)
+      }
       if (fetched) detail = fetched
     }
 
