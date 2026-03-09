@@ -39,25 +39,29 @@ export const useAuthStore = defineStore('auth', () => {
             }
 
             setToken(accessToken)
+            // 백엔드가 이제 TokenResponse에 role을 포함시킴
+            const role = response.data.role
+            if (role) {
+                setRole(role)
+            }
 
             // 상세 정보 조회 (me)를 통해 실제 프로필 정보를 가져옴
             try {
-                const profileResponse = await authApi.getMyInfo()
+                // 권한에 따라 다른 엔드포인트 호출
+                const profileResponse = (role === 'CLIENT')
+                    ? await authApi.getClientInfo()
+                    : await authApi.getEmployeeInfo()
+
                 const profileData = profileResponse.data
                 me.value = profileData
-
-                // profileData에 포함된 role을 사용하여 상태 업데이트
-                if (profileData.role) {
-                    setRole(profileData.role)
-                }
             } catch (profileError) {
                 console.warn('프로필 정보를 불러오는데 실패했습니다:', profileError)
             }
 
             return me.value || {}
         } catch (e) {
-            // API 에러 처리 (axios 에러 객체에서 메시지 추출)
-            const message = e.response?.data?.message || e.message || '로그인 중 오류 발생'
+            // API 에러 처리 (여러 경로 탐색: ApiResult.error.message 또는 ApiResult.message)
+            const message = e.response?.data?.error?.message || e.response?.data?.message || e.message || '로그인 중 오류 발생'
             error.value = message
             throw new Error(message)
         } finally {
@@ -76,16 +80,22 @@ export const useAuthStore = defineStore('auth', () => {
 
         loading.value = true
         try {
-            const profileResponse = await authApi.getMyInfo()
+            // 저장된 role을 기반으로 적절한 API 호출
+            const profileResponse = (currentRole.value === 'CLIENT')
+                ? await authApi.getClientInfo()
+                : await authApi.getEmployeeInfo()
+
             const profileData = profileResponse.data
             me.value = profileData
 
-            if (profileData.role) {
+            // role 정보 동기화 (필요시)
+            if (profileData.role && profileData.role !== currentRole.value) {
                 setRole(profileData.role)
             }
             return me.value
         } catch (profileError) {
             console.warn('인증 초기화 중 프로필 정보를 불러오는데 실패했습니다:', profileError)
+            error.value = profileError.response?.data?.error?.message || profileError.message
             await logout()
             return null
         } finally {

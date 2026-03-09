@@ -4,6 +4,8 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import * as authApi from '@/api/auth'
+import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 
@@ -55,18 +57,14 @@ const openModal = () => {
   isModalOpen.value = true
 }
 
+const router = useRouter()
+
 const submitPassword = async () => {
   const { current, next, nextConfirm } = passwordForm.value
 
   // 1. 유효성 검사
   if (!current || !next || !nextConfirm) {
     passwordHint.value = '모든 항목을 입력해주세요.'
-    return
-  }
-
-  // 2. 기존 비밀번호 확인 (authStore에 저장된 현재 비번과 대조)
-  if (current !== authStore.me.password) {
-    passwordHint.value = '기존 비밀번호가 일치하지 않습니다.'
     return
   }
 
@@ -81,39 +79,25 @@ const submitPassword = async () => {
   }
 
   try {
-    const userId = authStore.me.id;
-    console.log('수정 요청 ID:', userId); // 콘솔에서 ID 확인
+    // 2. 실제 API 호출
+    await authApi.changePassword({
+      oldPassword: current,
+      newPassword: next
+    })
 
-    // 3. 실제 DB 수정 (포트 번호가 3001이 맞는지 꼭 확인하세요)
-    const response = await fetch(`http://localhost:3001/users/${userId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        password: next
-      }),
-    });
+    passwordHint.value = '비밀번호가 성공적으로 변경되었습니다.'
 
-    console.log('서버 응답 상태:', response.status);
+    setTimeout(() => {
+      isModalOpen.value = false
+      // 비밀번호가 변경되었으므로 재로그인 유도
+      authStore.logout()
+      router.push('/login')
+    }, 1500)
 
-    if (response.ok) {
-      // 4. 성공 시 메모리 데이터 즉시 동기화
-      authStore.me.password = next;
-      passwordHint.value = '비밀번호가 성공적으로 변경되었습니다.';
-
-      setTimeout(() => {
-        isModalOpen.value = false;
-      }, 1000);
-    } else {
-      const errorText = await response.text();
-      console.error('서버 응답 에러:', errorText);
-      passwordHint.value = '서버에서 수정을 거부했습니다.';
-    }
-
-  } catch (e) {
-    console.error('네트워크 에러:', e);
-    passwordHint.value = '서버 연결에 실패했습니다. 포트와 서버 상태를 확인하세요.';
+  } catch (error) {
+    console.error('Password change error:', error)
+    // 백엔드 ApiResult 구조(data.error.message)에 따라 메시지 추출
+    passwordHint.value = error.response?.data?.error?.message || '비밀번호 수정에 실패했습니다.'
   }
 }
 </script>

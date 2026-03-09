@@ -45,6 +45,7 @@ const onSubmit = async () => {
     }
   } catch (e) {
     console.error('로그인 실패:', e)
+    errorMessage.value = e.message || '로그인에 실패했습니다.'
   }
 }
 </script>
@@ -56,8 +57,8 @@ const onSubmit = async () => {
       <div v-if="!isFormVisible" class="absolute flex flex-col items-center justify-center cursor-pointer group z-10" @click="showForm">
         <!-- 아이콘 배경 -->
         <div class="w-[80px] h-[80px] rounded-full bg-[var(--color-olive-light)] flex items-center justify-center mb-4 shadow-sm group-hover:shadow-lg group-hover:scale-110 transition-all duration-300">
-           <!-- 씨앗 이미지 -->
-           <img src="@/assets/images/Seed_logo.png" alt="Seed Logo" class="h-[50px] w-[50px] object-contain group-hover:-rotate-12 transition-transform duration-300" />
+          <!-- 씨앗 이미지 -->
+          <img src="@/assets/images/Seed_logo.png" alt="Seed Logo" class="h-[50px] w-[50px] object-contain group-hover:-rotate-12 transition-transform duration-300" />
         </div>
         <span class="text-sm font-bold tracking-[0.3em] text-[var(--color-text)] transition-colors opacity-80 group-hover:opacity-100 uppercase">Login</span>
       </div>
@@ -146,10 +147,10 @@ const onSubmit = async () => {
 
 /* 정보 입력카드 입체감  */
 .card-shadow {
-  box-shadow: 
-    0 24px 50px -12px rgba(41, 37, 36, 0.1), 
-    0 12px 24px -10px rgba(41, 37, 36, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8); /* Top highlight for 3D effect */
+  box-shadow:
+      0 24px 50px -12px rgba(41, 37, 36, 0.1),
+      0 12px 24px -10px rgba(41, 37, 36, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8); /* Top highlight for 3D effect */
 }
 
 /* 씨앗 페이드 아웃 */

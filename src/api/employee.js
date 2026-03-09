@@ -15,3 +15,7 @@ export function createEmployee(data) {
 export function updateEmployee(id, data) {
     return api.patch(`/accounts/employees/${id}`, data)
 }
+
+export function getManagedClients(id) {
+    return api.get(`/accounts/employees/${id}/managed-clients`)
+}

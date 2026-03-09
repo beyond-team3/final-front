@@ -18,10 +18,32 @@ const { clients, loading, error } = storeToRefs(clientStore)
 const filters = ref({
   keyword: '',
   type: '',
+  region: '',
 })
 
+const regionOptions = [
+  { label: '서울', value: '서울' },
+  { label: '경기', value: '경기' },
+  { label: '충남', value: '충남' },
+  { label: '충북', value: '충북' },
+  { label: '강원', value: '강원' },
+  { label: '전남', value: '전남' },
+  { label: '전북', value: '전북' },
+  { label: '경북', value: '경북' },
+  { label: '경남', value: '경남' },
+  { label: '제주', value: '제주' },
+]
+
 const filterFields = [
-  { key: 'keyword', label: '거래처 검색', placeholder: '거래처명, 담당자 이름 등으로 검색' },
+  { key: 'keyword', label: '거래처 검색', placeholder: '거래처명, 담당자 이름 등으로 검색', colSpan: 5 },
+  {
+    key: 'region',
+    label: '지역',
+    type: 'select',
+    options: regionOptions,
+    placeholder: '전체 지역',
+    colSpan: 3,
+  },
   {
     key: 'type',
     label: '거래처 유형',
@@ -30,6 +52,8 @@ const filterFields = [
       { label: '대리점', value: 'DISTRIBUTOR' },
       { label: '육묘장', value: 'NURSERY' },
     ],
+    placeholder: '전체 유형',
+    colSpan: 4,
   },
 ]
 
@@ -46,27 +70,35 @@ const columns = [
 const getRegion = (address) => {
   const text = String(address || '')
   if (text.includes('서울')) return '서울'
-  if (text.includes('경기')) return '경기'
-  if (text.includes('충청') || text.includes('충북') || text.includes('충남')) return '충청'
+  if (text.includes('경기') || text.includes('인천')) return '경기'
+  if (text.includes('충남') || text.includes('대전') || text.includes('세종')) return '충남'
+  if (text.includes('충북')) return '충북'
+  if (text.includes('강원')) return '강원'
+  if (text.includes('전남') || text.includes('광주')) return '전남'
+  if (text.includes('전북')) return '전북'
+  if (text.includes('경북') || text.includes('대구')) return '경북'
+  if (text.includes('경남') || text.includes('부산') || text.includes('울산')) return '경남'
+  if (text.includes('제주')) return '제주'
   return '기타'
 }
 
 const rows = computed(() => {
   return clients.value.map(client => ({
     ...client,
-    region: getRegion(client.address || client.region)
+    region: getRegion(client.address || client.displaySido || client.region)
   })).filter((client) => {
     const keyword = filters.value.keyword.trim().toLowerCase()
     const matchKeyword =
         !keyword ||
-        [client.name, client.managerName]
+        [client.code, client.name, client.managerName]
             .join(' ')
             .toLowerCase()
             .includes(keyword)
 
     const matchType = !filters.value.type || client.type === filters.value.type
+    const matchRegion = !filters.value.region || client.region === filters.value.region
 
-    return matchKeyword && matchType
+    return matchKeyword && matchType && matchRegion
   })
 })
 

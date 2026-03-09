@@ -8,23 +8,38 @@ import {
     getClients,
     updateClient as updateClientApi,
     deleteClientCrop,
+    getTradeSummary,
 } from '@/api/client'
+import * as userApi from '@/api/user'
 
 const toCurrency = (value) => `₩${Number(value || 0).toLocaleString('ko-KR')}`
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-    return error?.response?.data?.message || error?.message || fallback
+    return error?.response?.data?.error?.message || error?.response?.data?.message || error?.message || fallback
 }
 
 function getClientActiveValue(client = {}) {
     if (typeof client.isActive === 'boolean') {
         return client.isActive
     }
-    const status = String(client.status || '').toUpperCase()
-    if (['INACTIVE', '휴면', '비활성'].includes(client.status) || status === 'INACTIVE') {
+    const rawStatus = client.status || client.accountStatus || ''
+    const status = String(rawStatus).trim().toUpperCase()
+
+    if (!status) {
+        return false // 계정 연동 정보가 없으면 기본적으로 비활성
+    }
+
+    // 비활성 키워드 목록
+    if (['DEACTIVATE', 'INACTIVE', '휴면', '비활성', '비활성화'].includes(status)) {
         return false
     }
-    return true
+
+    // 활성 키워드 목록
+    if (['ACTIVATE', 'ACTIVE', '활성', '활성화'].includes(status)) {
+        return true
+    }
+
+    return true // 그 외 기본값 (활성)
 }
 
 function parseAddress(addressInput) {
@@ -62,12 +77,19 @@ function normalizeClient(client = {}) {
 
     return {
         ...client,
+        typeLabel, // 타입 레이블 추가
         // 백엔드 필드명을 프론트엔드 스타일로 매핑 (방어적 ID 매핑 추가)
         id: client.id || client.clientId || client.client_id,
         code: client.clientCode || client.code,
         name: client.clientName || client.name,
         type: rawType,
-        typeLabel: typeLabel,
+        pipelines: client.pipelines || [],
+
+        // [중요] 계정 관련 매핑 보완
+        accountId: client.accountId || null,
+
+        // 주소 필드 재구성 (수정 모달 등에서 사용)
+        address: client.address || (client.addressSido ? `${client.addressSido}/${client.addressDetail}/${client.addressZip}` : ''),
 
         // 상세 필드 매핑 보완
         bizNo: client.clientBrn || client.bizNo,
@@ -77,7 +99,8 @@ function normalizeClient(client = {}) {
         monthlyInProgress: client.monthlyInProgress || 0,
         monthlyDone: client.monthlyDone || 0,
 
-        managerId: client.managerId,
+        managerId: client.managerId || client.managerEmployeeId,
+        managerEmployeeName: client.managerEmployeeName, // 추가
         managerName: client.managerName,
 
         isActive,
@@ -90,6 +113,11 @@ function normalizeClient(client = {}) {
 
         // [추가] 초기 품종 데이터 보장
         crops: client.crops || [],
+
+        // [보완] 수치 데이터 안전성 확보 및 요약 합산 추가
+        monthlyInProgress: Number(client.monthlyInProgress || 0),
+        monthlyDone: Number(client.monthlyDone || 0),
+        monthlyAmount: Number(client.monthlyDone || 0) + Number(client.monthlyInProgress || 0)
     }
 }
 
@@ -99,12 +127,12 @@ function normalizeClient(client = {}) {
 function makeTempClient(payload = {}) {
     return normalizeClient({
         id: `temp-${Date.now()}`,
-        name: payload.name, // payload.clientName에서 수정
-        type: payload.type, // payload.clientType에서 수정
+        clientName: payload.clientName,
+        clientType: payload.clientType,
         typeLabel: payload.typeLabel || '기타',
         status: 'inactive', // 초기값 비활성
         isActive: false,    // 초기값 false
-        bizNo: payload.bizNo,
+        clientBrn: payload.clientBrn,
         ceoName: payload.ceoName,
         companyPhone: payload.companyPhone || '-',
         address: payload.address,
@@ -118,7 +146,7 @@ function makeTempClient(payload = {}) {
         monthlyAmount: 0,
         monthlyInProgress: 0,
         monthlyDone: 0,
-        creditLimit: Number(payload.creditLimit || 0),
+        totalCredit: Number(payload.totalCredit || 0),
         receivable: 0,
         crops: [],
         pipelines: [],
@@ -161,8 +189,37 @@ export const useClientStore = defineStore('client', () => {
             currentClient.value = normalizeClient(data)
             return currentClient.value
         } catch (e) {
-            error.value = getErrorMessage(e, '상세 로딩 실패')
+            error.value = getErrorMessage(e, '상세 정보 로딩 실패')
             throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
+    const tradeSummary = ref(null)
+
+    async function fetchTradeSummary(clientId) {
+        if (!clientId) return null
+        loading.value = true
+        error.value = null
+        try {
+            const response = await getTradeSummary(clientId)
+            const data = response?.data || response
+            tradeSummary.value = data
+
+            // 현재 클라이언트 정보가 해당 ID와 일치하면 거래 요약 데이터 동기화
+            if (currentClient.value && String(currentClient.value.id) === String(clientId)) {
+                currentClient.value.monthlyAmount = data.thisMonth?.totalAmount || 0
+                currentClient.value.monthlyInProgress = data.thisMonth?.inProgressCount || 0
+                currentClient.value.monthlyDone = data.thisMonth?.completedCount || 0
+                currentClient.value.creditLimit = data.totalCredit || 0
+                currentClient.value.receivable = data.usedCredit || 0
+            }
+
+            return data
+        } catch (e) {
+            console.error('[DEBUG] fetchTradeSummary failed:', e)
+            return null
         } finally {
             loading.value = false
         }
@@ -193,22 +250,22 @@ export const useClientStore = defineStore('client', () => {
         }
     }
 
-    const addClient = (payload) => {
+    const addClient = async (payload) => {
         const optimistic = makeTempClient(payload)
         clients.value.unshift(optimistic)
 
-        createClient(payload)
-            .then((created) => {
-                const idx = clients.value.findIndex((item) => item.id === optimistic.id)
-                if (idx >= 0 && created) {
-                    clients.value[idx] = normalizeClient(created)
-                }
-            })
-            .catch((e) => {
-                error.value = getErrorMessage(e, '등록 실패')
-                clients.value = clients.value.filter((item) => item.id !== optimistic.id)
-            })
-        return optimistic.id
+        try {
+            const created = await createClient(payload)
+            const idx = clients.value.findIndex((item) => item.id === optimistic.id)
+            if (idx >= 0 && created) {
+                clients.value[idx] = normalizeClient(created)
+            }
+            return created.id || created.clientId || optimistic.id
+        } catch (e) {
+            error.value = getErrorMessage(e, '등록 실패')
+            clients.value = clients.value.filter((item) => item.id !== optimistic.id)
+            throw e
+        }
     }
 
     /**
@@ -247,7 +304,12 @@ export const useClientStore = defineStore('client', () => {
             // 5. 서버에 합쳐진 전체 데이터를 보냄 (덮어쓰기 방지)
             const updated = await updateClientApi(id, fullDataToUpdate)
             if (updated) {
-                const final = normalizeClient(updated)
+                // [수정] 서버 응답에는 crops, monthly 등의 요약 데이터가 누락될 수 있으므로 기존 합산본에 덮어씌움
+                const newServerData = updated.data || updated
+                const final = normalizeClient({
+                    ...fullDataToUpdate,
+                    ...newServerData
+                })
                 if (String(currentClient.value?.id) === String(id)) currentClient.value = final
                 clients.value = clients.value.map(c => String(c.id) === String(id) ? final : c)
             }
@@ -263,6 +325,26 @@ export const useClientStore = defineStore('client', () => {
 
     const toggleClientActive = async (id, isActive) => {
         await updateClient(id, { isActive: Boolean(isActive) })
+    }
+
+    const updateAccountStatus = async (userId, status) => {
+        try {
+            await userApi.updateUserStatus({ userId, status })
+
+            // 현재 상세 페이지의 클라이언트 상태 즉시 업데이트
+            if (currentClient.value && currentClient.value.accountId === userId) {
+                currentClient.value.status = status
+                currentClient.value.isActive = (status === 'ACTIVATE')
+            }
+
+            // 목록의 클라이언트 상태도 업데이트
+            clients.value = clients.value.map(c =>
+                c.accountId === userId ? { ...c, status, isActive: (status === 'ACTIVATE') } : c
+            )
+        } catch (e) {
+            error.value = getErrorMessage(e, '상태 변경 실패')
+            throw e
+        }
     }
 
     const addCrop = async (clientId, cropName) => {
@@ -285,6 +367,15 @@ export const useClientStore = defineStore('client', () => {
         }
     }
 
+    const getAllEmployeesSimple = async () => {
+        try {
+            return await userApi.getAllEmployeesSimple()
+        } catch (e) {
+            error.value = getErrorMessage(e, '영업사원 목록 로드 실패')
+            throw e
+        }
+    }
+
     return {
         clients,
         currentClient,
@@ -294,12 +385,17 @@ export const useClientStore = defineStore('client', () => {
         getClientById,
         fetchClients,
         fetchClientDetail,
+        fetchTradeSummary,
         fetchClientCrops,
-        registerClient: addClient, // Assuming addClient is the registerClient function
+        addClient, // Explicitly export addClient
+        registerClient: addClient,
         updateClient,
         toggleClientActive,
+        updateAccountStatus,
         addCrop,
         removeCrop,
+        getAllEmployeesSimple,
+        tradeSummary,
         toCurrency: (v) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(v),
     }
 })
