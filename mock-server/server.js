@@ -47,6 +47,8 @@ const getProductCategories = () => {
   return categories.map((name) => ({ name }))
 }
 
+server.use(customMiddleware)
+
 server.get(['/api/auth/me', '/auth/me'], (req, res) => {
   res.status(200).jsonp(getCurrentUser())
 })
@@ -86,7 +88,6 @@ server.put('/api/notifications/:id/read', (req, res) => {
 
 server.use(middlewares)
 server.use(jsonServer.rewriter(customRoutes))
-server.use(customMiddleware)
 server.use(router)
 
 server.listen(3001, () => {
