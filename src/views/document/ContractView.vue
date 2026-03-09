@@ -54,7 +54,7 @@ onMounted(async () => {
   try {
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
     if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
-    if (productStore.fetchProducts) await productStore.fetchProducts()
+    if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
   } catch (e) {
     console.error("데이터 로딩 중 에러 발생:", e)
   }
@@ -127,10 +127,11 @@ const addProduct = (p) => {
     selectedItems.value.push({
       uid: `${Date.now()}-${Math.random()}`,
       productId: p.id,
+      variety: p.variety || p.category || '-',
       name: p.name,
       qty: 1,
-      unit: p.unit || 'kg',
-      price: Number(p.price || 0)
+      unit: p.unit || '립',
+      price: Number(p.price || p.unitPrice || 0)
     })
   }
   showProductModal.value = false
@@ -155,12 +156,12 @@ const filteredClients = computed(() => {
 })
 
 const varietyOptions = computed(() => {
-  const varieties = productStore.products?.map(p => p.variety || p.category) || []
+  const varieties = documentStore.productMaster?.map(p => p.variety || p.category) || []
   return ['전체', ...new Set(varieties.filter(v => v))]
 })
 
 const filteredProducts = computed(() => {
-  return productStore.products?.filter(p => {
+  return documentStore.productMaster?.filter(p => {
     const matchVariety = varietyFilter.value === '전체' || (p.variety || p.category) === varietyFilter.value
     const matchKeyword = p.name.toLowerCase().includes(modalSearchInput.value.toLowerCase())
     return matchVariety && matchKeyword
@@ -457,6 +458,7 @@ const submitContract = async () => {
             <table class="w-full border-collapse border border-black text-center mb-5 text-[10px]">
               <thead class="bg-[#F7F3EC]">
               <tr class="border-b border-black">
+                <th class="border-r border-black p-1.5">품종명</th>
                 <th class="border-r border-black p-1.5">상품명</th>
                 <th class="border-r border-black p-1.5 w-12">수량</th>
                 <th class="border-r border-black p-1.5">단위</th>
@@ -466,6 +468,7 @@ const submitContract = async () => {
               </thead>
               <tbody>
               <tr v-for="item in selectedItems" :key="'pdf-'+item.uid" class="border-b border-black">
+                <td class="border-r border-black p-1.5 text-xs">{{ item.variety }}</td>
                 <td class="border-r border-black p-1.5 text-left font-bold px-2">{{ item.name }}</td>
                 <td class="border-r border-black p-1.5">{{ item.qty }}</td>
                 <td class="border-r border-black p-1.5">{{ item.unit }}</td>

@@ -48,10 +48,16 @@ onMounted(async () => {
   try {
     // 백그라운드에서 데이터 로딩
     if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
+
+    // ⭐ 대기 중(PENDING)인 견적요청서 목록 서버에서 받아오기
+    if (documentStore.fetchPendingQuotationRequests) {
+      await documentStore.fetchPendingQuotationRequests()
+    }
+
     if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
     else if (documentStore.fetchClients) await documentStore.fetchClients()
 
-    if (productStore.fetchProducts) await productStore.fetchProducts()
+    if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
     if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
   } catch (e) {
     console.error("데이터 로딩 실패:", e)
@@ -71,21 +77,30 @@ const handleCloseModal = () => {
   }
 }
 
-const startFromRequest = (req) => {
-  isNewMode.value = false
+const startFromRequest = async (reqSummary) => {
   isProcessStarted.value = true
+
+  // 모달을 유지한 채 로딩 처리 (필요시)
+  const req = await documentStore.fetchQuotationRequestDetail(reqSummary.id)
+  if (!req) {
+    window.alert('견적 요청서 상세 정보를 불러오지 못했습니다.')
+    isProcessStarted.value = false
+    return
+  }
+
+  isNewMode.value = false
   showStartModal.value = false
 
   sourceRequestId.value = req.id
   sourceHistoryId.value = req.historyId || null
 
-  inCorp.value = req.client?.name || ''
-  inName.value = req.client?.contact || ''
+  inCorp.value = req.client?.name || req.clientName || reqSummary.clientName || ''
+  inName.value = req.client?.contact || req.managerName || reqSummary.managerName || ''
   inCorpCode.value = req.clientId || req.client?.id || ''
 
   customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
 
-  selectedItems.value = req.items.map(i => {
+  selectedItems.value = (req.items || []).map(i => {
     const masterProduct = productStore.products?.find(p => p.id === i.productId || p.name === i.name)
     return {
       uid: Date.now() + Math.random(),
@@ -465,17 +480,17 @@ const submitDoc = async () => {
                 <tr><th class="p-3">법인명</th><th class="p-3">담당자</th><th class="p-3">요청 날짜</th><th class="p-3">상태</th><th class="p-3">선택</th></tr>
                 </thead>
                 <tbody>
-                <tr v-for="req in documentStore.quotationRequests" :key="req.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRequest(req)">
-                  <td class="p-3 font-bold">{{ req.client?.name }}</td>
-                  <td class="p-3">{{ req.client?.contact }}</td>
-                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date }}</td>
+                <tr v-for="req in documentStore.pendingQuotationRequests" :key="req.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRequest(req)">
+                  <td class="p-3 font-bold">{{ req.client?.name || req.clientName }}</td>
+                  <td class="p-3">{{ req.client?.contact || req.managerName || '-' }}</td>
+                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date || req.createdAt }}</td>
                   <td class="p-3 font-bold" style="color: #C8622A;">{{ req.status }}</td>
                   <td class="p-3">
                     <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">선택</button>
                   </td>
                 </tr>
-                <tr v-if="!documentStore.quotationRequests || documentStore.quotationRequests.length === 0">
-                  <td colspan="5" class="p-10 italic" style="color: #9A8C7E;">참조 가능한 견적 요청서가 없습니다.</td>
+                <tr v-if="!documentStore.pendingQuotationRequests || documentStore.pendingQuotationRequests.length === 0">
+                  <td colspan="5" class="p-10 italic" style="color: #9A8C7E;">참조 가능한 대기 중인 견적 요청서가 없습니다.</td>
                 </tr>
                 </tbody>
               </table>

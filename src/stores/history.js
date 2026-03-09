@@ -203,10 +203,10 @@ export const useHistoryStore = defineStore('history', () => {
             }
 
             // 3단계: 서버에서 전체 히스토리를 가져와 추출한 ID 목록으로 필터링
-            const response = await getSalesHistory({})
-            const rawList = normalizeList(response)
-
-            const list = filterRawPipelinesForViewer(rawList, managedClientIds).map(normalizePipeline)
+            // FIXME: 백엔드의 /history 통합 조회 API가 제거되었으므로 임시로 빈 배열 처리
+            // const response = await getSalesHistory({})
+            // const rawList = normalizeList(response)
+            const list = [] // filterRawPipelinesForViewer(rawList, managedClientIds).map(normalizePipeline)
             pipelines.value = list
             loaded.value = true
             return list

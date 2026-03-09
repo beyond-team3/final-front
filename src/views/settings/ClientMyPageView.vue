@@ -51,16 +51,11 @@ const toCurrency = (value) => {
 
 const mapProfileData = async (data) => {
   if (!data) return
-  console.log('[DEBUG] Raw me data from authStore:', JSON.stringify(data))
 
   // ApiResult 구조인 경우와 데이터 직접인 경우 모두 대응
   const target = data.data || data
-  console.log('[DEBUG] Target object keys:', Object.keys(target))
 
-  // 사용자가 "로그인 주체에 clientId를 넣어주었다"고 함에 따라 모든 가능성 있는 필드 체크
   profile.id = target.id || target.clientId || target.client_id || target.userId
-  console.log('[DEBUG] Resolved profile.id:', profile.id)
-
   profile.name = target.clientName || target.name || ''
   profile.code = target.clientCode || target.code || ''
   profile.bizNo = target.clientBrn || target.bizNo || ''
@@ -89,26 +84,15 @@ const mapProfileData = async (data) => {
   profile.managerEmail = target.managerEmail || ''
   profile.isActive = target.isActive ?? true
 
-  // 실제 거래 요약 데이터 조회
+  // 통합된 거래 요약 데이터 매핑 (AccountService.getMyClientProfile에서 제공)
+  profile.monthlyAmount = target.thisMonthAmount || 0
+  profile.monthlyInProgress = target.inProgressCount || 0
+  profile.monthlyDone = target.completedCount || 0
+
+  // 품종 정보 조회
   await nextTick()
   if (profile.id) {
     fetchCrops()
-    try {
-      const summary = await clientStore.fetchTradeSummary(profile.id)
-      if (summary) {
-        profile.monthlyAmount = summary.thisMonth?.totalAmount || 0
-        profile.monthlyInProgress = summary.thisMonth?.inProgressCount || 0
-        profile.monthlyDone = summary.thisMonth?.completedCount || 0
-      }
-    } catch (err) {
-      console.error('[MyPage] Failed to fetch trade summary:', err)
-      // 에러 시 기본값 0 유지
-      profile.monthlyAmount = 0
-      profile.monthlyInProgress = 0
-      profile.monthlyDone = 0
-    }
-  } else {
-    console.warn('[DEBUG] profile.id is still missing after mapping!')
   }
 }
 
@@ -128,23 +112,15 @@ watch(() => authStore.me, (newMe) => {
 }, { immediate: true })
 
 const fetchCrops = async () => {
-  if (!profile.id) {
-    console.warn('[DEBUG] skip fetchCrops because profile.id is null')
-    return
-  }
-  console.log('[DEBUG] Initiating fetchCrops for client id:', profile.id)
+  if (!profile.id) return
   try {
-    // store의 fetchClientCrops를 사용하여 일관성 있는 정규화 적용
     const crops = await clientStore.fetchClientCrops(profile.id)
-    console.log('[DEBUG] Store fetchClientCrops result:', crops)
-
     if (Array.isArray(crops)) {
       profile.crops = crops.map(c => c.cropName)
     } else {
       profile.crops = []
     }
   } catch (err) {
-    console.error('[DEBUG] fetchCrops Error:', err)
     profile.crops = []
   }
 }
