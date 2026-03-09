@@ -150,6 +150,33 @@ const saveNote = () => {
               </span>
             </div>
           </div>
+          
+          <!-- 재배적기표 영역 추가 -->
+          <div v-if="product.cultivationTimes && product.cultivationTimes.length > 0" class="mt-8">
+            <h3 class="mb-4 text-sm font-bold text-[var(--color-text-body)]">재배적기표</h3>
+            <div class="overflow-x-auto rounded-lg border border-[var(--color-border-divider)]">
+              <table class="w-full text-left text-sm text-[var(--color-text-sub)] whitespace-nowrap">
+                <thead class="bg-[var(--color-bg-section)] text-xs uppercase text-[var(--color-text-sub)]">
+                  <tr>
+                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">작형</th>
+                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">지역</th>
+                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">파종기</th>
+                    <th scope="col" class="px-4 py-3 border-r border-[#e5e7eb]">정식기</th>
+                    <th scope="col" class="px-4 py-3">수확기</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(ct, idx) in product.cultivationTimes" :key="idx" class="border-b transition-colors hover:bg-gray-50/50">
+                    <td class="px-4 py-3 border-r border-[#e5e7eb] font-medium">{{ ct.croppingSystem || '-' }}</td>
+                    <td class="px-4 py-3 border-r border-[#e5e7eb]">{{ ct.region || '-' }}</td>
+                    <td class="px-4 py-3 border-r border-[#e5e7eb]">{{ ct.sowingStart ? `${ct.sowingStart}월 ~ ${ct.sowingEnd}월` : '-' }}</td>
+                    <td class="px-4 py-3 border-r border-[#e5e7eb]">{{ ct.plantingStart ? `${ct.plantingStart}월 ~ ${ct.plantingEnd}월` : '-' }}</td>
+                    <td class="px-4 py-3">{{ ct.harvestingStart ? `${ct.harvestingStart}월 ~ ${ct.harvestingEnd}월` : '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
