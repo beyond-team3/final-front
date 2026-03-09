@@ -12,6 +12,10 @@ export function createProduct(data) {
   return api.post('/products', data)
 }
 
+export function getCultivationTimes(productId) {
+  return api.get(`/products/${productId}/cultivation-time`)
+}
+
 export function updateProduct(id, data) {
   return api.put(`/products/${id}`, data)
 }
