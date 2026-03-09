@@ -105,7 +105,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="screen-content rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm lg:p-8">
+  <section class="screen-content">
     <PageHeader :title="title" :subtitle="subtitle">
       <template #actions>
         <div class="flex flex-wrap items-center gap-2">
