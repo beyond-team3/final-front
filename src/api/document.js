@@ -24,6 +24,10 @@ export function createInvoice(data) {
     return api.post('/documents', data)
 }
 
+export function getActiveContracts(clientId) {
+    return api.get('/contracts', { params: { clientId } })
+}
+
 export function getDocuments(params) {
     return api.get('/documents', { params })
 }

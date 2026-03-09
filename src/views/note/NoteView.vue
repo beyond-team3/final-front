@@ -22,19 +22,31 @@ const form = ref({
 const showAiSummary = ref(false)
 const aiSummaryContent = ref([])
 
-const contractOptions = computed(() => noteStore.getContractsByClient(form.value.clientId))
+// 계약 목록은 스토어의 contractOptions를 사용
+const contractOptions = computed(() => noteStore.contractOptions)
 
-watch(() => form.value.clientId, (newVal, oldVal) => {
+// 거래처 선택 시 유효 계약 목록 로드
+watch(() => form.value.clientId, async (newVal, oldVal) => {
+  if (newVal) {
+    await noteStore.fetchActiveContracts(newVal)
+  } else {
+    noteStore.contractOptions = []
+  }
+  
   if (oldVal !== undefined && newVal !== oldVal && !isEditMode.value) {
     form.value.contractId = ''
   }
-})
+}, { immediate: true })
 
-const loadEditNote = (noteId) => {
+const loadEditNote = async (noteId) => {
   const note = noteStore.notes.find(n => n.id === Number(noteId))
   if (note) {
     isEditMode.value = true
     editingNoteId.value = Number(noteId)
+    
+    // 수정 모드일 때도 해당 고객의 계약 목록을 먼저 불러옴
+    await noteStore.fetchActiveContracts(note.clientId)
+    
     form.value = {
       clientId: note.clientId,
       contractId: note.contractId || '',
@@ -129,9 +141,9 @@ const closeSummaryModal = () => {
             v-model="form.contractId" 
             class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
           >
-            <option value="">{{ contractOptions.length > 0 ? '계약 선택' : '연결된 계약 없음' }}</option>
-            <option v-for="contract in contractOptions" :key="contract" :value="contract">
-              {{ contract }}
+            <option value="">{{ contractOptions.length > 0 ? '계약 선택 안 함' : '연결된 계약 없음' }}</option>
+            <option v-for="contract in contractOptions" :key="contract.id" :value="contract.contractCode">
+              {{ contract.contractCode }} ({{ contract.startDate }} ~ {{ contract.endDate }})
             </option>
           </select>
         </div>

@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 import { getClients } from '@/api/client'
+import { getActiveContracts } from '@/api/document'
 import {
   updateNote as updateNoteApi,
   createNote as createNoteApi,
@@ -20,9 +21,10 @@ function today() {
 }
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
+  const data = error?.response?.data
   return (
-    error?.response?.data?.data?.message ||
-    error?.response?.data?.message ||
+    data?.data?.message ||
+    data?.message ||
     error?.message ||
     fallback
   )
@@ -34,6 +36,8 @@ function unwrap(res) {
 
 function normalizeList(data) {
   if (Array.isArray(data)) return data
+  const actualData = data?.data ?? data
+  if (Array.isArray(actualData)) return actualData
   if (Array.isArray(data?.items)) return data.items
   return []
 }
@@ -49,7 +53,7 @@ function normalizeNote(note) {
     id: Number(note.id ?? 0),
     clientId: Number(note.clientId ?? 0),
     authorId: note.authorId ?? null,
-    contractId: note.contractId ?? null,
+    contractId: note.contractId ?? note.contractCode ?? null, // contractCode 대응
     // 날짜 우선순위 처리
     activityDate: note.activityDate ?? note.date ?? today(),
     content: String(note.content ?? '').trim(),
@@ -61,8 +65,10 @@ function normalizeNote(note) {
 function normalizeClient(c) {
   return {
     id: Number(c.id ?? 0),
-    name: c.name ?? '-',
-    type: c.typeLabel || c.type || '-',
+    code: c.clientCode ?? '-',
+    name: c.clientName ?? '-',
+    manager: c.managerName ?? '-',
+    type: c.clientType || '-',
   }
 }
 
@@ -79,6 +85,7 @@ export const useNoteStore = defineStore('note', () => {
   const clients = ref([])
   const notes = ref([])
   const briefingByClient = ref({})
+  const contractOptions = ref([]) // 현재 선택된 고객의 유효 계약 목록
 
   const loading = ref(false)
   const error = ref(null)
@@ -126,6 +133,7 @@ export const useNoteStore = defineStore('note', () => {
   async function fetchClients(params) {
     try {
       const result = unwrap(await getClients(params))
+      // 백엔드에서 이미 권한 필터링을 수행하므로 그대로 사용
       clients.value = normalizeList(result).map(normalizeClient)
       return clients.value
     } catch (e) {
@@ -147,6 +155,22 @@ export const useNoteStore = defineStore('note', () => {
     }
   }
 
+  async function fetchActiveContracts(clientId) {
+    if (!clientId) {
+      contractOptions.value = []
+      return []
+    }
+    try {
+      const result = unwrap(await getActiveContracts(clientId))
+      contractOptions.value = normalizeList(result)
+      return contractOptions.value
+    } catch (e) {
+      console.error('계약 목록 로드 실패:', e)
+      contractOptions.value = []
+      return []
+    }
+  }
+
   /* -----------------------------
      CRUD Actions
   ----------------------------- */
@@ -154,7 +178,7 @@ export const useNoteStore = defineStore('note', () => {
   async function createNote({ clientId, contractId, date, content }) {
     const payload = {
       clientId: Number(clientId),
-      contractId: contractId ?? null,
+      contractId: contractId || null, // 가이드에 따라 contractCode(String) 전달
       date: date ?? today(),
       content: String(content ?? '').trim(),
     }
@@ -175,7 +199,7 @@ export const useNoteStore = defineStore('note', () => {
   async function updateNote(id, { clientId, contractId, date, content }) {
     const payload = {
       clientId: Number(clientId),
-      contractId: contractId ?? null,
+      contractId: contractId || null,
       date: date ?? today(),
       content: String(content ?? '').trim(),
     }
@@ -331,9 +355,11 @@ export const useNoteStore = defineStore('note', () => {
     notes,
     loading,
     error,
+    contractOptions,
     // Actions
     fetchClients,
     fetchNotes,
+    fetchActiveContracts,
     createNote,
     updateNote,
     deleteNote,
