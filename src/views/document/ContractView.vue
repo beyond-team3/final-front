@@ -52,7 +52,7 @@ const clickOutsideHandler = (e) => {
 onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
   try {
-    if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2()
+    if (documentStore.fetchApprovedQuotations) await documentStore.fetchApprovedQuotations()
     if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
     if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
   } catch (e) {
@@ -85,15 +85,16 @@ const startContract = (q) => {
   conInCorpCode.value = q.clientId || q.client?.id || ''
   conInCorp.value = q.client?.name || ''
   conInName.value = q.client?.contact || ''
-  conInNo.value = q.id
-  selectedItems.value = q.items?.map(item => ({
+  conInNo.value = q.displayCode || q.quotationCode || q.id
+  selectedItems.value = (q.items || []).map(item => ({
     uid: item.id || `${Date.now()}-${Math.random()}`,
     productId: item.productId || item.id,
-    name: item.name,
-    qty: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+    variety: item.productCategory || item.variety || '-',
+    name: item.productName || item.name || '',
+    qty: Number(item.quantity ?? item.qty ?? 1),
     unit: item.unit || '팩',
-    price: Number(item.unitPrice || 0)
-  })) || []
+    price: Number(item.unitPrice ?? item.price ?? 0)
+  }))
 }
 
 const startNewContract = () => {
@@ -191,111 +192,36 @@ const submitContract = async () => {
   if (!conInCorp.value) return window.alert("거래처 정보가 빠져있습니다.")
   if (selectedItems.value.length === 0) return window.alert("계약할 상품을 하나라도 추가해주세요")
 
-  const currentUser = authStore.me || { id: 1, name: "김민수" }
-  const contractId = `CT-${Date.now()}`
-  const today = new Date().toISOString().split('T')[0]
-  const usedHistoryId = sourceHistoryId.value || `H-${Date.now()}`
-
-  const contractData = {
-    id: contractId,
-    type: "contract",
-    refQuotationId: isNewMode.value ? null : conInNo.value,
-    clientId: conInCorpCode.value,
-    clientName: conInCorp.value,
-    authorId: currentUser.id,
-    authorName: currentUser.name,
-    historyId: usedHistoryId,
-    status: "체결",
-    amount: totalSum.value,
-    date: today,
-    startDate: conStartDate.value,
-    endDate: conEndDate.value,
-    billingCycle: conBillingCycle.value,
-    specialTerms: conSpecialTerms.value,
-    memo: conInternalMemo.value,
-    items: selectedItems.value.map(item => ({
-      name: item.name,
-      quantity: item.qty,
-      unit: item.unit,
-      unitPrice: item.price,
-      amount: item.qty * item.price
-    }))
-  }
-
-  const historyData = {
-    id: usedHistoryId,
-    clientId: conInCorpCode.value,
-    clientName: conInCorp.value,
-    pipelineStage: "계약",
-    stageNumber: 3,
-    status: "완료",
-    documentId: contractId,
-    documents: [{
-      id: contractId,
-      type: "contract",
-      typeLabel: "계약서",
-      stage: "계약",
-      stageNumber: 3,
-      status: "SIGNED",
-      date: today,
-      amount: totalSum.value
-    }],
-    amount: totalSum.value,
-    nextAction: "승인 대기",
-    updatedAt: today,
-    startDate: today
-  }
-
   try {
-    await axios.post('http://localhost:3001/documents', contractData);
-
-    if (sourceHistoryId.value) {
-      const hRes = await axios.get(`http://localhost:3001/history/${sourceHistoryId.value}`);
-      const history = hRes.data;
-
-      const updatedHistory = {
-        ...history,
-        pipelineStage: "계약",
-        stageNumber: 3,
-        status: "완료",
-        documentId: contractId,
-        nextAction: "승인 대기",
-        updatedAt: today,
-        amount: Math.max(Number(history.amount || 0), totalSum.value)
-      };
-
-      if (Array.isArray(updatedHistory.documents)) {
-        updatedHistory.documents.push({
-          id: contractId,
-          type: "contract",
-          typeLabel: "계약서",
-          stage: "계약",
-          stageNumber: 3,
-          status: "SIGNED",
-          date: today,
-          amount: totalSum.value
-        });
-      }
-      await axios.put(`http://localhost:3001/history/${sourceHistoryId.value}`, updatedHistory);
-    } else {
-      await axios.post('http://localhost:3001/history', historyData);
-    }
-
-    if (sourceQuotationId.value) {
-      await axios.patch(`http://localhost:3001/documents/${sourceQuotationId.value}`, {
-        status: "CONTRACTED",
-        historyId: usedHistoryId
-      });
-    }
-
-    if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2();
-    if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
+    // 백엔드 createContract 호출
+    await documentStore.createContract({
+      quotationId: isNewMode.value ? null : sourceQuotationId.value,
+      client: {
+        id: conInCorpCode.value,
+        name: conInCorp.value,
+        managerName: conInName.value
+      },
+      items: selectedItems.value.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        qty: item.qty,
+        unit: item.unit,
+        price: item.price
+      })),
+      startDate: conStartDate.value,
+      endDate: conEndDate.value,
+      billingCycle: conBillingCycle.value,
+      specialTerms: conSpecialTerms.value,
+      memo: conInternalMemo.value,
+      historyId: sourceHistoryId.value
+    })
 
     window.alert(`계약서 생성 완료`);
     router.push('/documents/all');
   } catch (error) {
     console.error("서버 저장 에러:", error);
-    window.alert("서버 저장 에러");
+    // 에러 메시지는 스토어에서 이미 처리되어 alert 등으로 보여줄 수 있음 (또는 여기서 직접 처리)
+    window.alert("서버 저장 에러: " + (error.response?.data?.message || error.message));
   }
 }
 </script>
@@ -390,6 +316,7 @@ const submitContract = async () => {
               <table class="w-full text-sm text-left border-collapse">
                 <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50;">
                 <tr>
+                  <th class="px-3 py-2 text-left w-24">품종명</th>
                   <th class="px-3 py-2 text-left">상품명</th>
                   <th class="px-3 py-2 w-24 text-center">수량</th>
                   <th class="px-3 py-2 text-center">단위</th>
@@ -399,6 +326,7 @@ const submitContract = async () => {
                 </thead>
                 <tbody>
                 <tr v-for="item in selectedItems" :key="item.uid" class="border-t transition-colors hover:bg-white/50" style="border-color: #E8E3D8; color: #3D3529;">
+                  <td class="px-3 py-2 text-left text-xs text-[#9A8C7E]">{{ item.variety }}</td>
                   <td class="px-3 py-2 text-left font-medium">{{ item.name }}</td>
                   <td class="px-3 py-2 text-center">
                     <input v-if="isNewMode" type="number" min="1" class="w-20 p-1 border rounded text-center font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.qty" @input="updateQty(item, $event.target.value)">
@@ -421,7 +349,7 @@ const submitContract = async () => {
                   </td>
                 </tr>
                 <tr v-if="selectedItems.length === 0">
-                  <td :colspan="isNewMode ? 5 : 4" class="px-3 py-10 text-center" style="color: #BFB3A5;">선택된 상품이 없습니다.</td>
+                  <td :colspan="isNewMode ? 6 : 5" class="px-3 py-10 text-center" style="color: #BFB3A5;">선택된 상품이 없습니다.</td>
                 </tr>
                 </tbody>
               </table>
@@ -522,7 +450,7 @@ const submitContract = async () => {
               </thead>
               <tbody>
               <tr v-for="q in availableQuotations" :key="q.id" class="border-b hover:bg-white/50 cursor-pointer" style="border-color: #E8E3D8;" @click="startContract(q)">
-                <td class="p-3 font-mono font-bold" style="color: #C8622A;">{{ q.id }}</td>
+                <td class="p-3 font-mono font-bold" style="color: #C8622A;">{{ q.displayCode || q.quotationCode || q.id }}</td>
                 <td class="p-3 text-left font-bold" style="color: #3D3529;">{{ q.client?.name }}</td>
                 <td class="p-3" style="color: #6B5F50;">{{ q.client?.contact }}</td>
                 <td class="p-3">
