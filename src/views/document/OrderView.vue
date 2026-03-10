@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import OrderModal from '@/components/document/OrderModal.vue'
+import { getContractsByClient, getContract, createOrder  } from '@/api/document'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,27 +24,50 @@ const deliveryMemo = ref('')
 const deliveryDate = ref(new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString().slice(0, 10))
 const lineItems = ref([])
 
+// ✅ 새로 추가: 진행 중인 계약 로드 상태
+const loadingContracts = ref(false)
+const contractsFromApi = ref([])
+
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
 
 // store의 filterDocsForViewer가 역할별로 이미 필터링해서 반환
 // - CLIENT: authStore.me.refId(본인 clientId)에 해당하는 계약만
 // - SALES_REP: 본인 담당 거래처의 계약만
-const contractList = computed(() => documentStore.contracts)
+// ✅ API에서 가져온 계약과 store의 계약을 병합
+const contractList = computed(() => {
+  const apiContracts = contractsFromApi.value
+  const storeContracts = documentStore.contracts || []
 
-const selectedContract = computed(() =>
-    documentStore.getContractById(selectedContractId.value) || null
-)
+  // API에서 받은 데이터가 우선 (최신 상태)
+  if (apiContracts.length > 0) {
+    return apiContracts
+  }
+  return storeContracts
+})
+
+const selectedContract = computed(() => {
+  const contractId = selectedContractId.value
+  if (!contractId) return null
+  // store에서 찾기
+  const fromStore = documentStore.getContractById(contractId)
+  if (fromStore) return fromStore
+  // store에 없으면 contractsFromApi에서 찾기
+  return contractsFromApi.value.find(c => String(c.id) === contractId) || null
+})
 
 watch(selectedContract, (contract) => {
   if (!contract) return
   selectedHistoryId.value = contract.historyId || ''
-  lineItems.value = contract.items.map((item) => ({ ...item, quantity: 0 }))
-  // 배송지는 사용자가 직접 입력하는 필드 - 자동입력 없음
+  if (contract.items && Array.isArray(contract.items)) {
+    lineItems.value = contract.items.map((item) => ({ ...item, quantity: 0 }))
+  } else {
+    lineItems.value = []
+  }
   deliveryAddress.value = ''
-  deliveryRecipient.value = contract.client?.contact || ''
+  deliveryRecipient.value = contract.clientName || contract.client?.contact || ''
   deliveryPhone.value = contract.client?.phone || ''
-}, { immediate: true })
+})
 
 const baseClientId = computed(() => {
   if (isClient.value) return documentStore.clientMaster[0]?.id || null
@@ -55,11 +79,35 @@ const pipelineOptions = computed(() => {
   return historyStore.getPipelinesByClient(baseClientId.value)
 })
 
+//  새로 추가: API에서 진행 중인 계약 로드
+const loadActiveContracts = async () => {
+  if (!baseClientId.value) return
+
+  loadingContracts.value = true
+  try {
+    const response = await getContractsByClient(baseClientId.value)
+    const contracts = response.data?.data || response.data || []
+    if (Array.isArray(contracts) && contracts.length > 0) {
+      contractsFromApi.value = contracts
+    }
+  } catch (error) {
+    console.error('계약 로드 실패:', error)
+  } finally {
+    loadingContracts.value = false
+  }
+}
+
 onMounted(() => {
   void historyStore.ensureLoaded()
+  void loadActiveContracts() //  컴포넌트 마운트 시 계약 로드
   if (isClient.value && selectedContract.value) {
     lineItems.value = selectedContract.value.items.map((item) => ({ ...item, quantity: 0 }))
   }
+})
+
+//  baseClientId 변경 시 계약 다시 로드
+watch(baseClientId, () => {
+  void loadActiveContracts()
 })
 
 const total = computed(() =>
@@ -74,7 +122,7 @@ const setQty = (item, val) => {
   item.quantity = Math.max(0, parseInt(val) || 0)
 }
 
-const submitOrder = () => {
+const submitOrder = async () => {
   if (!selectedContract.value) {
     window.alert('계약서를 선택해주세요.')
     return
@@ -84,28 +132,39 @@ const submitOrder = () => {
     window.alert('주문 상품을 1개 이상 입력해주세요.')
     return
   }
-  if (!selectedHistoryId.value) {
-    window.alert('연결할 파이프라인을 선택해주세요.')
+  if (!deliveryAddress.value) {
+    window.alert('배송지를 입력해주세요.')
+    return
+  }
+  if (!deliveryRecipient.value) {
+    window.alert('수령인을 입력해주세요.')
+    return
+  }
+  if (!deliveryPhone.value) {
+    window.alert('연락처를 입력해주세요.')
     return
   }
 
-  const client = isClient.value
-      ? documentStore.clientMaster[0]
-      : selectedContract.value.client
+  try {
+    // ✅ 주문 생성 - contractId 명시
+    const response = await createOrder({
+      contractId: selectedContract.value.id,
+      deliveryRecipient: deliveryRecipient.value,
+      deliveryPhone: deliveryPhone.value,
+      deliveryAddress: deliveryAddress.value,
+      dealId: null,
+      items: orderedItems.map(item => ({
+        detailId: item.detailId,
+        quantity: item.quantity
+      }))
+    })
 
-  documentStore.createOrder({
-    contractId: selectedContract.value.id,
-    historyId: selectedHistoryId.value,
-    client,
-    items: orderedItems,
-    deliveryDate: deliveryDate.value,
-    deliveryAddress: deliveryAddress.value,
-    deliveryRecipient: deliveryRecipient.value,
-    deliveryPhone: deliveryPhone.value,
-    memo: deliveryMemo.value,
-  })
-
-  router.push(isClient.value ? '/documents/history' : '/documents/invoice')
+    window.alert('주문이 정상적으로 생성되었습니다.')
+    router.push('/documents/order')
+  } catch (error) {
+    console.error('주문 생성 실패:', error)
+    window.alert('주문 생성에 실패했습니다. ' + (error.response?.data?.error?.message || error.message))
+  }
 }
 
 const todayFormatted = computed(() => {
@@ -134,8 +193,47 @@ const orderCardStatus = computed(() => {
 // 계약서 선택 모달
 const showContractModal = ref(false)
 
-const onSelectContract = (contract) => {
-  selectedContractId.value = String(contract.id)
+const onSelectContract = async (contract) => {
+  try {
+    const response = await getContract(contract.id)
+    const detailContract = response.data?.data || response.data
+
+    if (!detailContract) {
+      window.alert('계약 정보를 불러올 수 없습니다.')
+      return
+    }
+
+    // 계약 기간 체크
+    const today = new Date()
+    const endDate = new Date(detailContract.endDate)
+    if (today > endDate) {
+      window.alert(`계약 기간이 만료되었습니다. (만료일: ${detailContract.endDate})`)
+      return
+    }
+
+    selectedContractId.value = String(detailContract.id)
+    selectedHistoryId.value = detailContract.historyId || ''
+
+    if (detailContract.items && Array.isArray(detailContract.items)) {
+      lineItems.value = detailContract.items.map((item) => ({
+        detailId: item.detailId,
+        productId: item.productId,
+        productName: item.productName,
+        productCode: item.productCategory,
+        unitPrice: item.unitPrice,
+        minimumQuantity: item.totalQuantity,
+        quantity: 0
+      }))
+    }
+
+    deliveryRecipient.value = detailContract.clientName || ''
+    deliveryPhone.value = ''
+    deliveryAddress.value = ''
+
+  } catch (error) {
+    console.error('계약 상세 조회 실패:', error)
+    window.alert('계약 정보 조회에 실패했습니다.')
+  }
 }
 </script>
 
@@ -158,6 +256,7 @@ const onSelectContract = (contract) => {
         <OrderModal
             v-model="showContractModal"
             :contracts="contractList"
+            :loading="loadingContracts"
             @select="onSelectContract"
         />
 
@@ -165,35 +264,40 @@ const onSelectContract = (contract) => {
           <!-- ───── 왼쪽 패널 ───── -->
           <div class="left-panel">
 
-            <!-- 계약서 요약 카드 -->
-            <div class="contract-card relative">
-              <StatusBadge class="absolute right-6 top-4" :status="orderCardStatus" />
+            <!-- ✅ 개선된 계약서 요약 카드: 헤더 레이아웃 재구성 -->
+            <div class="contract-card">
               <div class="contract-card-header">
-                <div>
+                <div class="header-left">
                   <div class="contract-card-label">선택된 계약서</div>
                 </div>
-                <!-- 계약서 선택 버튼 (영업사원용) -->
-                <!-- 계약서 선택 버튼 (영업사원 + 거래처 모두) -->
-                <button v-if="isSalesRep || isClient" class="btn btn-cancel" style="margin-left:auto" @click="showContractModal = true">
-                  계약서 선택
-                </button>
+                <div class="header-right">
+                  <StatusBadge :status="orderCardStatus" />
+                  <!-- 계약서 선택 버튼 (영업사원 + 거래처 모두) -->
+                  <button
+                      v-if="isSalesRep || isClient"
+                      class="btn btn-cancel"
+                      @click="showContractModal = true"
+                  >
+                    계약서 선택
+                  </button>
+                </div>
               </div>
               <div class="contract-card-body">
                 <div class="contract-field">
                   <label>계약 번호</label>
                   <div class="field-value" :class="selectedContract ? 'highlight' : 'empty'">
-                    {{ selectedContract?.id || '계약서가 선택되지 않았습니다' }}
+                    {{ selectedContract?.contractCode || '계약서가 선택되지 않았습니다' }}
                   </div>
                 </div>
                 <div class="contract-field">
                   <label>거래처</label>
                   <div class="field-value">
-                    {{ isClient ? documentStore.clientMaster[0]?.name : (selectedContract?.client?.name || '-') }}
+                    {{ selectedContract?.clientName || documentStore.clientMaster[0]?.name || '-' }}
                   </div>
                 </div>
                 <div class="contract-field">
                   <label>담당자</label>
-                  <div class="field-value">{{ selectedContract?.client?.contact || '-' }}</div>
+                  <div class="field-value">{{ selectedContract?.salesRepName || '-' }}</div>
                 </div>
                 <div class="contract-field" style="grid-column: 1 / -1">
                   <label>계약 기간</label>
@@ -227,178 +331,221 @@ const onSelectContract = (contract) => {
                   </tr>
                   <tr v-for="item in lineItems" :key="item.productId">
                     <td>
-                      <div class="product-name">{{ item.name }}</div>
-                      <div class="product-code">{{ item.productId }} · 단위: {{ item.unit }}</div>
+                      <div class="product-name">{{ item.productName }}</div>
+                      <div class="product-code">{{ item.productCode }}</div>
                     </td>
-                    <td class="center unit-price">₩{{ Number(item.unitPrice).toLocaleString() }}</td>
-                    <td class="center" style="color:#94a3b8; font-size:13px;">
-                      최소 {{ item.minQty || 1 }} {{ item.unit }}
+                    <td class="center">
+                      <span class="unit-price">{{ Number(item.unitPrice || 0).toLocaleString() }}</span>
                     </td>
+                    <td class="center">{{ item.minimumQuantity || '-' }}</td>
                     <td class="center">
                       <div class="qty-input-wrap">
                         <button class="qty-btn" @click="changeQty(item, -1)">−</button>
                         <input
-                            class="qty-input"
-                            type="number"
-                            min="0"
                             :value="item.quantity"
+                            type="number"
+                            class="qty-input"
+                            min="0"
                             @input="setQty(item, $event.target.value)"
                         />
-                        <button class="qty-btn" @click="changeQty(item, 1)">+</button>
+                        <button class="qty-btn" @click="changeQty(item, +1)">+</button>
                       </div>
                     </td>
                     <td class="right">
-                    <span class="row-total" :class="{ zero: Number(item.quantity) === 0 }">
-                      ₩{{ (Number(item.quantity) * Number(item.unitPrice)).toLocaleString() }}
-                    </span>
-                    </td>
-                  </tr>
-                  </tbody>
-                  <tfoot>
-                  <tr>
-                    <td colspan="5">
-                      <div class="table-footer">
-                        <span class="total-label">총 주문 금액</span>
-                        <span class="total-amount"><span class="currency">₩</span>{{ total.toLocaleString() }}</span>
+                      <div :class="Number(item.quantity) > 0 ? 'row-total' : 'row-total zero'">
+                        {{ (Number(item.quantity || 0) * Number(item.unitPrice || 0)).toLocaleString() }}
                       </div>
                     </td>
                   </tr>
-                  </tfoot>
+                  </tbody>
                 </table>
+                <div class="table-footer">
+                  <span class="total-label">주문 합계</span>
+                  <span class="total-amount"><span class="currency">₩</span>{{ total.toLocaleString() }}</span>
+                </div>
               </div>
             </div>
 
-            <!-- 배송 정보 입력 -->
+            <!-- 배송 정보 -->
             <div class="section">
               <div class="section-header">
-                <span class="section-title">배송 정보 입력</span>
-                <span class="section-desc">배송 처리는 시스템 영역</span>
+                <span class="section-title">배송 정보</span>
               </div>
-              <div class="section-body">
-                <div class="delivery-grid">
-                  <div class="form-group full-width">
-                    <label class="form-label">배송지 주소 <span class="required">*</span></label>
-                    <input v-model="deliveryAddress" class="form-input" type="text" placeholder="예: 서울특별시 강남구 테헤란로 123 농업센터 3층" />
-                    <span class="form-hint">배송지를 직접 입력해 주세요.</span>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">수령인 <span class="required">*</span></label>
-                    <input v-model="deliveryRecipient" class="form-input" type="text" placeholder="예: 홍길동 부장" />
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">연락처</label>
-                    <input v-model="deliveryPhone" class="form-input" type="text" placeholder="예: 010-1234-5678" />
-                  </div>
-                  <div class="form-group full-width">
-                    <label class="form-label">요청사항</label>
-                    <textarea v-model="deliveryMemo" class="form-textarea" placeholder="배송 시 특이사항이 있으면 입력해 주세요. (예: 냉장 보관 필요, 2층 직접 납품 등)" />
-                  </div>
+              <div class="delivery-grid">
+                <div class="form-group full-width">
+                  <label class="form-label">배송지<span class="required">*</span></label>
+                  <input
+                      v-model="deliveryAddress"
+                      type="text"
+                      class="form-input"
+                      placeholder="주소를 입력해주세요"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">수령인<span class="required">*</span></label>
+                  <input
+                      v-model="deliveryRecipient"
+                      type="text"
+                      class="form-input"
+                      placeholder="성명"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">연락처<span class="required">*</span></label>
+                  <input
+                      v-model="deliveryPhone"
+                      type="tel"
+                      class="form-input"
+                      placeholder="010-0000-0000"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">배송 예정일</label>
+                  <input
+                      v-model="deliveryDate"
+                      type="date"
+                      class="form-input"
+                  />
+                </div>
+                <div class="form-group full-width">
+                  <label class="form-label">배송 요청사항</label>
+                  <textarea
+                      v-model="deliveryMemo"
+                      class="form-textarea"
+                      placeholder="배송 시 특이사항이 있으면 입력해주세요"
+                  />
+                  <div class="form-hint">예시: 정문으로 배송, 오후 2시 이후 배송 가능 등</div>
                 </div>
               </div>
             </div>
 
             <!-- 액션 바 -->
             <div class="action-bar">
-              <div class="action-bar-left"></div>
+              <div class="autosave-hint">
+                <span>모든 항목이 입력되면 저장할 수 있습니다</span>
+              </div>
               <div class="action-bar-right">
-                <button class="btn btn-cancel" @click="router.back()">
+                <button class="btn btn-cancel" @click="router.push('/documents/order')">
                   취소
                 </button>
-                <button
-                    v-if="isSalesRep || isClient"
-                    class="btn btn-save"
-                    :disabled="total === 0"
-                    @click="submitOrder"
-                >
-                  주문서 저장
+                <button class="btn btn-save" @click="submitOrder">
+                  주문 생성
                 </button>
               </div>
             </div>
+
           </div>
 
           <!-- ───── 오른쪽 패널: PDF 미리보기 ───── -->
           <div class="right-panel">
-            <div class="pdf-wrap">
-              <div class="pdf-preview">
-                <div class="pdf-title">주 문 서</div>
+            <div class="section">
+              <div class="section-header">
+                <span class="section-title">주문서 미리보기</span>
+              </div>
+              <div class="pdf-wrap">
+                <div class="pdf-preview">
+                  <div class="pdf-title">주문서</div>
 
-                <div class="pdf-meta-grid">
-                  <div class="pdf-meta-row">
-                    <div class="label">주문 번호</div>
-                    <div class="value">{{ orderNoPreview }}</div>
-                    <div class="label">작성일</div>
-                    <div class="value">{{ todayFormatted }}</div>
+                  <div class="pdf-meta-grid">
+                    <div class="pdf-meta-row">
+                      <span class="label">주문번호</span>
+                      <span class="value">{{ orderNoPreview }}</span>
+                      <span class="label">주문일</span>
+                      <span class="value">{{ todayFormatted }}</span>
+                    </div>
                   </div>
-                  <div class="pdf-meta-row">
-                    <div class="label">거래처명</div>
-                    <div class="value">{{ isClient ? documentStore.clientMaster[0]?.name : (selectedContract?.client?.name || '-') }}</div>
-                    <div class="label">계약 번호</div>
-                    <div class="value">{{ selectedContract?.id || '-' }}</div>
-                  </div>
-                  <div class="pdf-meta-row">
-                    <div class="label">납기일</div>
-                    <div class="value">{{ deliveryDate }}</div>
-                    <div class="label">담당자</div>
-                    <div class="value">{{ selectedContract?.client?.contact || '-' }}</div>
-                  </div>
-                </div>
 
-                <div class="pdf-section-title">▪ 주문 상품 내역</div>
-                <table class="pdf-table">
-                  <thead>
-                  <tr>
-                    <th>상품명</th>
-                    <th>단가</th>
-                    <th>수량</th>
-                    <th style="text-align:right">금액</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  <tr v-if="pdfItems.length === 0">
-                    <td colspan="4" class="pdf-empty">주문할 상품의 수량을 입력해주세요.</td>
-                  </tr>
-                  <tr v-for="item in pdfItems" :key="'pdf-' + item.productId">
-                    <td>{{ item.name }}</td>
-                    <td>₩{{ Number(item.unitPrice).toLocaleString() }}</td>
-                    <td>{{ item.quantity }} {{ item.unit }}</td>
-                    <td class="right">₩{{ (Number(item.quantity) * Number(item.unitPrice)).toLocaleString() }}</td>
-                  </tr>
-                  </tbody>
-                  <tfoot>
-                  <tr class="pdf-total-row">
-                    <td colspan="3"><strong>합계</strong></td>
-                    <td class="right">₩{{ total.toLocaleString() }}</td>
-                  </tr>
-                  </tfoot>
-                </table>
+                  <div class="pdf-section-title">▪ 거래처 정보</div>
+                  <div class="pdf-delivery-grid">
+                    <div style="padding: 8px 10px; border-right: 1px solid black; font-weight: 700; font-size: 10px; background: #F7F3EC; width: 100px;">
+                      거래처명
+                    </div>
+                    <div style="padding: 8px 10px; font-size: 11px;">
+                      {{ isClient ? documentStore.clientMaster[0]?.name : (selectedContract?.client?.name || '-') }}
+                    </div>
+                    <div style="padding: 8px 10px; border-right: 1px solid black; border-top: 1px solid black; font-weight: 700; font-size: 10px; background: #F7F3EC; width: 100px;">
+                      계약번호
+                    </div>
+                    <div class="field-value" :class="selectedContract ? 'highlight' : 'empty'">
+                      {{ selectedContract?.contractCode || '계약서가 선택되지 않았습니다' }}
+                    </div>
+                  </div>
 
-                <div class="pdf-section-title">▪ 배송 정보</div>
-                <div class="pdf-meta-grid">
-                  <div class="pdf-meta-row">
-                    <div class="label">배송지</div>
-                    <div class="value" style="grid-column: span 3">{{ deliveryAddress || '-' }}</div>
+                  <div class="pdf-section-title">▪ 배송지 정보</div>
+                  <div class="pdf-delivery-grid">
+                    <div style="padding: 8px 10px; border-right: 1px solid black; font-weight: 700; font-size: 10px; background: #F7F3EC; width: 100px;">
+                      배송지
+                    </div>
+                    <div style="padding: 8px 10px; font-size: 11px;">
+                      {{ deliveryAddress || '(입력 필요)' }}
+                    </div>
+                    <div style="padding: 8px 10px; border-right: 1px solid black; border-top: 1px solid black; font-weight: 700; font-size: 10px; background: #F7F3EC; width: 100px;">
+                      수령인
+                    </div>
+                    <div style="padding: 8px 10px; border-top: 1px solid black; font-size: 11px;">
+                      {{ deliveryRecipient || '-' }}
+                    </div>
+                    <div style="padding: 8px 10px; border-right: 1px solid black; border-top: 1px solid black; font-weight: 700; font-size: 10px; background: #F7F3EC; width: 100px;">
+                      연락처
+                    </div>
+                    <div style="padding: 8px 10px; border-top: 1px solid black; font-size: 11px;">
+                      {{ deliveryPhone || '-' }}
+                    </div>
                   </div>
-                  <div class="pdf-meta-row">
-                    <div class="label">수령인</div>
-                    <div class="value">{{ deliveryRecipient || '-' }}</div>
-                    <div class="label">연락처</div>
-                    <div class="value">{{ deliveryPhone || '-' }}</div>
-                  </div>
-                  <div class="pdf-meta-row">
-                    <div class="label">요청사항</div>
-                    <div class="value" style="grid-column: span 3">{{ deliveryMemo || '없음' }}</div>
-                  </div>
-                </div>
 
-                <div class="pdf-footer">
-                  <div class="pdf-sign"><div class="sign-line"></div><div>거래처 확인</div></div>
-                  <div class="pdf-sign"><div class="sign-line"></div><div>담당 영업자</div></div>
-                  <div class="pdf-sign"><div class="sign-line"></div><div>팀장 결재</div></div>
+                  <div class="pdf-section-title">▪ 주문 상품</div>
+                  <table class="pdf-table" v-if="pdfItems.length > 0">
+                    <thead>
+                    <tr>
+                      <th style="width: 50%;">상품명 / 코드</th>
+                      <th style="width: 15%;">단가</th>
+                      <th style="width: 15%;">수량</th>
+                      <th style="width: 20%;">금액</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr v-for="item in pdfItems" :key="item.productId">
+                      <td>
+                        <div>{{ item.productName }}</div>
+                        <div style="font-size: 9px; color: #9A8C7E;">{{ item.productCode }}</div>
+                      </td>
+                      <td>{{ Number(item.unitPrice || 0).toLocaleString() }}</td>
+                      <td>{{ item.quantity }}</td>
+                      <td class="right">{{ (item.quantity * item.unitPrice).toLocaleString() }}</td>
+                    </tr>
+                    <tr class="pdf-total-row">
+                      <td colspan="3">합 계</td>
+                      <td class="right">{{ total.toLocaleString() }}</td>
+                    </tr>
+                    </tbody>
+                  </table>
+                  <div class="pdf-empty" v-else>
+                    입력된 상품이 없습니다
+                  </div>
+
+                  <div class="pdf-section-title" v-if="deliveryMemo">▪ 배송 요청사항</div>
+                  <div style="font-size: 11px; padding: 8px 0; white-space: pre-wrap;" v-if="deliveryMemo">
+                    {{ deliveryMemo }}
+                  </div>
+
+                  <div class="pdf-footer">
+                    <div class="pdf-sign">
+                      <div>발주처</div>
+                      <div class="sign-line"></div>
+                    </div>
+                    <div class="pdf-sign">
+                      <div>공급처</div>
+                      <div class="sign-line"></div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
             </div>
           </div>
+
         </div>
+
       </section>
     </div>
   </div>
@@ -406,77 +553,92 @@ const onSelectContract = (contract) => {
 
 <style scoped>
 /* ───── 레이아웃 ───── */
-.split-layout { display: grid; grid-template-columns: 1fr 480px; gap: 20px; align-items: start; }
-.left-panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.right-panel { position: sticky; top: 20px; }
+.content-wrapper { background-color: #EDE8DF; }
+.split-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.left-panel { display: flex; flex-direction: column; gap: 24px; }
+.right-panel { display: flex; flex-direction: column; gap: 24px; }
+.screen-content { max-width: 1400px; margin: 0 auto; }
 
-/* ───── 계약 요약 카드 ───── */
+/* ───── 계약서 카드 ───── */
 .contract-card {
-  background: #F7F3EC;
-  border-radius: 8px;
   border: 1px solid #DDD7CE;
-  padding: 18px 24px;
-  box-shadow: 0 1px 3px rgba(61,53,41,0.07);
-  position: relative;
-}
-.contract-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.contract-card-icon {
-  width: 36px; height: 36px;
-  background: #EFEADF;
   border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(61,53,41,0.05);
 }
-.contract-card-label { font-size: 12px; color: #9A8C7E; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.contract-card-body { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.contract-field label { font-size: 11px; color: #9A8C7E; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
-.field-value { font-size: 14px; font-weight: 700; color: #3D3529; }
-.field-value.highlight { color: #C8622A; }
-.field-value.empty { color: #BFB3A5; font-weight: 400; font-size: 13px; }
-
-/* ───── 섹션 공통 ───── */
-.section {
-  background: #F7F3EC;
-  border-radius: 8px;
-  border: 1px solid #DDD7CE;
-  box-shadow: 0 1px 3px rgba(61,53,41,0.07);
-  overflow: hidden;
-}
-.section-header {
-  padding: 14px 20px;
+.contract-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
   border-bottom: 1px solid #E8E3D8;
-  display: flex; align-items: center; gap: 8px;
-  background: #EFEADF;
 }
-.section-icon { font-size: 16px; }
-.section-title { font-size: 14px; font-weight: 700; color: #3D3529; }
-.section-desc { font-size: 12px; color: #9A8C7E; margin-left: auto; }
-.section-body { padding: 20px; }
-
-/* ───── 주문 상품 테이블 ───── */
-.table-wrap { overflow: hidden; }
-.product-table { width: 100%; border-collapse: collapse; }
-.product-table thead tr { background: #EFEADF; }
-.product-table th {
-  padding: 10px 14px;
+.header-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.contract-card-label {
   font-size: 12px;
   font-weight: 700;
   color: #6B5F50;
-  text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+.contract-card-body {
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px 32px;
+}
+.contract-field { display: flex; flex-direction: column; gap: 6px; }
+.contract-field label { font-size: 11px; font-weight: 700; color: #9A8C7E; text-transform: uppercase; letter-spacing: 0.5px; }
+.field-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3D3529;
+  padding: 8px 0;
+}
+.field-value.empty { color: #BFB3A5; font-style: italic; }
+.field-value.highlight { color: #C8622A; }
+
+/* ───── 섹션 ───── */
+.section {
+  border: 1px solid #DDD7CE;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(61,53,41,0.05);
+  padding: 20px 24px;
+}
+.section-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; gap: 16px; }
+.section-title { font-size: 14px; font-weight: 700; color: #3D3529; }
+.section-desc { font-size: 12px; color: #9A8C7E; }
+
+/* ───── 테이블 ───── */
+.table-wrap { border-radius: 6px; border: 1px solid #DDD7CE; overflow: hidden; }
+.product-table { width: 100%; border-collapse: collapse; }
+.product-table th {
+  background: #EFEADF;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6B5F50;
   border-bottom: 1px solid #DDD7CE;
 }
-.product-table td {
-  padding: 12px 14px;
-  font-size: 13px;
-  color: #3D3529;
-  border-bottom: 1px solid #E8E3D8;
-  vertical-align: middle;
-}
-.product-table tbody tr:hover td { background: #FAF7F3; }
-.product-table th.center, .product-table td.center { text-align: center; }
-.product-table th.right, .product-table td.right { text-align: right; }
+.product-table th.center { text-align: center; }
+.product-table th.right { text-align: right; }
+.product-table td { padding: 14px 16px; border-bottom: 1px solid #DDD7CE; }
+.product-table td.center { text-align: center; }
+.product-table td.right { text-align: right; }
+.product-table tr:hover { background: #FAFBF6; }
 .product-name { font-weight: 600; color: #3D3529; }
 .product-code { font-size: 11px; color: #9A8C7E; margin-top: 2px; }
 .unit-price { font-weight: 600; color: #6B5F50; }
@@ -695,6 +857,8 @@ button:active { transform: scale(0.98); }
 @media (max-width: 768px) {
   .contract-card-body { grid-template-columns: 1fr; }
   .delivery-grid { grid-template-columns: 1fr; }
+  .header-right { flex-direction: column; width: 100%; }
+  .header-right .btn { width: 100%; justify-content: center; }
 }
 
 /* ───── 애니메이션 ───── */

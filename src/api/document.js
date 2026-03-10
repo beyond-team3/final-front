@@ -9,7 +9,15 @@ export function createQuotation(data) {
 }
 
 export function createContract(data) {
-    return api.post('/documents/contract', data)
+    return api.post('/contracts', data)
+}
+
+export function getContractsByClient(clientId) {
+    return api.get('/contracts', { params: { clientId } })
+}
+
+export function getContracts(params) {
+    return api.get('/contracts', { params })
 }
 
 export function createOrder(data) {
@@ -36,8 +44,22 @@ export function getDocumentDetail(id) {
     return api.get(`/documents/${id}`)
 }
 
-export function getStatements(params) {
-    return api.get('/statements', { params })
+
+//주문
+export function createOrder(data) {
+    return api.post('/orders', {
+        headerId: data.contractId,
+        shippingName: data.deliveryRecipient,
+        shippingPhone: data.deliveryPhone,
+        shippingAddress: data.deliveryAddress,
+        shippingAddressDetail: null,
+        deliveryRequest: data.memo,
+        dealId: data.dealId || null,
+        items: data.items.map(item => ({
+            contractDetailId: item.detailId,  // ContractResponse.ItemResponse.detailId
+            quantity: item.quantity,
+        }))
+    })
 }
 
 export function getOrders(params) {
