@@ -1,103 +1,97 @@
 import api from './index'
 
+export function getQuotationRequest(id) {
+    return api.get(`requests/${id}`)
+}
+
 export function createQuotationRequest(data) {
-    return api.post('/documents/quotation-request', data)
+    return api.post('requests', data)
 }
 
 export function createQuotation(data) {
-    return api.post('/documents/quotation', data)
+    return api.post('quotations', data)
 }
 
 export function createContract(data) {
-    return api.post('/contracts', data)
-}
-
-export function getContractsByClient(clientId) {
-    return api.get('/contracts', { params: { clientId } })
-}
-
-export function getContracts(params) {
-    return api.get('/contracts', { params })
+    return api.post('contracts', data)
 }
 
 export function createOrder(data) {
-    return api.post('/documents/order', data)
+    return api.post('orders', data)
 }
 
 export function createStatement(data) {
-    return api.post('/documents/statement', data)
+    return api.post('statements', data)
 }
 
 export function createInvoice(data) {
-    return api.post('/documents/invoice', data)
+    return api.post('invoices', data)
 }
 
 export function getDocuments(params) {
-    return api.get('/documents', { params })
+    return api.get('documents', { params })
 }
 
 export function getDocumentSummaries(params) {
-    return api.get('/documents', { params, disableCache: true })
+    return api.get('documents', { params, disableCache: true })
 }
 
 export function getDocumentDetail(id) {
-    return api.get(`/documents/${id}`)
+    return api.get(`documents/${id}`)
 }
 
-
-//주문
-export function createOrder(data) {
-    return api.post('/orders', {
-        headerId: data.contractId,
-        shippingName: data.deliveryRecipient,
-        shippingPhone: data.deliveryPhone,
-        shippingAddress: data.deliveryAddress,
-        shippingAddressDetail: null,
-        deliveryRequest: data.memo,
-        dealId: data.dealId || null,
-        items: data.items.map(item => ({
-            contractDetailId: item.detailId,  // ContractResponse.ItemResponse.detailId
-            quantity: item.quantity,
-        }))
-    })
+export function getStatements(params) {
+    return api.get('statements', { params })
 }
 
 export function getOrders(params) {
-    return api.get('/orders', { params })
+    return api.get('orders', { params })
 }
 
 export function getOrder(orderId) {
-    return api.get(`/orders/${orderId}`)
+    return api.get(`orders/${orderId}`)
 }
 
 export function cancelOrder(orderId) {
-    return api.patch(`/orders/${orderId}/cancel`)
+    return api.patch(`orders/${orderId}/cancel`)
 }
 
 export function confirmOrder(orderId) {
-    return api.patch(`/orders/${orderId}/confirm`)
+    return api.patch(`orders/${orderId}/confirm`)
 }
 
 export function getInvoices(params) {
-    return api.get('/invoices', { params })
+    return api.get('invoices', { params })
 }
 
 export function getInvoicesByClient() {
-    return api.get('/invoices/clients/me')
+    return api.get('invoices/clients/me')
 }
 
 export function getInvoice(invoiceId) {
-    return api.get(`/invoices/${invoiceId}`)
+    return api.get(`invoices/${invoiceId}`)
 }
 
 export function publishInvoice(invoiceId) {
-    return api.patch(`/invoices/${invoiceId}/publish`)
+    return api.patch(`invoices/${invoiceId}/publish`)
 }
 
 export function updateDocumentStatus(id, data) {
-    return api.patch(`/documents/${id}`, data)
+    return api.patch(`documents/${id}`, data)
 }
 
 export function deleteDocument(id) {
-    return api.delete(`/documents/${id}`)
+    return api.delete(`documents/${id}`)
+}
+
+export function deleteQuotationRequest(id) {
+    return api.delete(`requests/${id}`)
+}
+
+export function deleteQuotation(id) {
+    return api.delete(`quotations/${id}`)
+}
+
+export function deleteContract(id) {
+    return api.delete(`contracts/${id}`)
 }
