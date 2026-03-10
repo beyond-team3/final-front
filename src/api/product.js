@@ -5,7 +5,7 @@ export function getProducts(params) {
 }
 
 export function getProductsForEstimate() {
-    return api.get('/products/doc/estimate')
+    return api.get('/products/doc/contract')
 }
 
 export function getProductDetail(id) {

@@ -52,7 +52,7 @@ const clickOutsideHandler = (e) => {
 onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
   try {
-    if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
+    if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2()
     if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
     if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
   } catch (e) {
@@ -288,7 +288,7 @@ const submitContract = async () => {
       });
     }
 
-    if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
+    if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2();
     if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
 
     window.alert(`계약서 생성 완료`);

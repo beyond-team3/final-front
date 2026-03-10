@@ -16,6 +16,11 @@ export function getPendingQuotationRequests() {
     return api.get('/requests/pending')
 }
 
+
+export function deleteQuotation(id) {
+    return api.delete(`/quotations/${id}`)
+}
+
 export function createQuotation(data) {
     return api.post('/quotations', data)
 }
@@ -32,9 +37,18 @@ export function getQuotations(params) {
     return api.get('/quotations', { params })
 }
 
+export function getQuotation(id) {
+    return api.get(`/quotations/${id}`)
+}
+
+export function getContract(id) {
+    return api.get(`/contracts/${id}`)
+}
+
 export function getQuotationRequests(params) {
     return api.get('/requests', { params })
 }
+
 
 //주문
 export function createOrder(data) {

@@ -5,8 +5,7 @@ import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
-import axios from 'axios'
-
+// axios 제거 (Store를 통해 통신)
 const router = useRouter()
 const documentStore = useDocumentStore()
 const productStore = useProductStore()
@@ -25,6 +24,7 @@ const varietyDropdownRef = ref(null)
 // 원본 데이터 추적
 const sourceRequestId = ref(null)
 const sourceHistoryId = ref(null)
+const selectedClientId = ref(null)
 
 // 폼 데이터
 const inCorpCode = ref('')
@@ -47,7 +47,7 @@ onMounted(async () => {
   window.addEventListener('click', handleClickOutside)
   try {
     // 백그라운드에서 데이터 로딩
-    if (documentStore.fetchDocuments) await documentStore.fetchDocuments()
+    if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2()
 
     // ⭐ 대기 중(PENDING)인 견적요청서 목록 서버에서 받아오기
     if (documentStore.fetchPendingQuotationRequests) {
@@ -78,6 +78,11 @@ const handleCloseModal = () => {
 }
 
 const startFromRequest = async (reqSummary) => {
+  if (!reqSummary.id) {
+    window.alert('견적 요청서의 유효한 ID가 없습니다.')
+    return
+  }
+
   isProcessStarted.value = true
 
   // 모달을 유지한 채 로딩 처리 (필요시)
@@ -94,22 +99,32 @@ const startFromRequest = async (reqSummary) => {
   sourceRequestId.value = req.id
   sourceHistoryId.value = req.historyId || null
 
-  inCorp.value = req.client?.name || req.clientName || reqSummary.clientName || ''
-  inName.value = req.client?.contact || req.managerName || reqSummary.managerName || ''
-  inCorpCode.value = req.clientId || req.client?.id || ''
+  // 서버에서 받은 데이터를 기반으로 세팅
+  selectedClientId.value = req.clientId
+  inCorpCode.value = req.clientCode || req.clientId || ''
+  inCorp.value = req.clientName || ''
+  inName.value = req.managerName || ''
 
   customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
 
   selectedItems.value = (req.items || []).map(i => {
-    const masterProduct = productStore.products?.find(p => p.id === i.productId || p.name === i.name)
+    // 상품 마스터는 variety 정보를 가져오기 위해 참조
+    const masterProduct = documentStore.productMaster?.find(p =>
+        (i.productId && Number(p.id) === Number(i.productId)) ||
+        (p.name === (i.productName || i.name))
+    )
+
+    // 단가 결정 로직: 서버(Response)에서 내려준 단가 -> 마스터 단가 -> 0
+    const finalPrice = i.unitPrice || masterProduct?.unitPrice || masterProduct?.price || 0
+
     return {
       uid: Date.now() + Math.random(),
       productId: i.productId || masterProduct?.id,
-      variety: masterProduct?.variety || masterProduct?.category || i.variety || '일반',
-      name: i.name,
+      variety: masterProduct?.variety || masterProduct?.category || i.productCategory || '일반',
+      name: i.productName || i.name,
       count: i.quantity || 1,
-      unit: masterProduct?.unit || i.unit || '립',
-      price: masterProduct?.price || masterProduct?.unitPrice || i.unitPrice || 0
+      unit: i.unit || masterProduct?.unit || '립',
+      price: finalPrice
     }
   })
 }
@@ -130,6 +145,7 @@ const startNewQuotation = () => {
 }
 
 const setCorp = (corp) => {
+  selectedClientId.value = corp.id
   inCorpCode.value = corp.id
   inCorp.value = corp.name
   inName.value = corp.contact
@@ -171,7 +187,7 @@ const totalSum = computed(() =>
 )
 
 const varietyOptions = computed(() => {
-  const varieties = productStore.products?.map(p => p.variety || p.category) || []
+  const varieties = documentStore.productMaster?.map(p => p.variety || p.category) || []
   return ['전체', ...new Set(varieties.filter(v => v))]
 })
 
@@ -184,7 +200,7 @@ const filteredClients = computed(() => {
 })
 
 const filteredProducts = computed(() => {
-  return productStore.products?.filter(p => {
+  return documentStore.productMaster?.filter(p => {
     const matchVariety = varietyFilter.value === '전체' || (p.variety || p.category) === varietyFilter.value
     const matchKeyword = p.name.toLowerCase().includes(modalSearchInput.value.toLowerCase())
     return matchVariety && matchKeyword
@@ -202,105 +218,32 @@ const submitDoc = async () => {
   if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
   if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
 
-  const currentUser = authStore.me || { id: 1, name: "김민수" }
-  const quotationId = `QT-${Date.now()}`
-  const today = new Date().toISOString().split('T')[0]
-
-  const quotationData = {
-    id: quotationId,
-    type: "quotation",
-    clientId: inCorpCode.value,
-    client: {
-      id: inCorpCode.value,
-      code: inCorpCode.value,
-      name: inCorp.value,
-      contact: inName.value
-    },
-    authorId: currentUser.id,
-    authorName: currentUser.name,
-    status: "승인대기",
-    totalAmount: totalSum.value,
-    date: today,
-    items: selectedItems.value.map(item => ({
-      name: item.name,
-      quantity: item.count,
-      unit: item.unit,
-      unitPrice: item.price,
-      amount: item.count * item.price
-    })),
-    memo: internalMemo.value
-  }
-
-  const historyData = {
-    id: `H-${Date.now()}`,
-    clientId: inCorpCode.value,
-    clientName: inCorp.value,
-    pipelineStage: "견적",
-    stageNumber: 2,
-    status: "대기중",
-    documentId: quotationId,
-    documents: [{
-      id: quotationId,
-      type: "quotation",
-      typeLabel: "견적서",
-      stage: "견적",
-      stageNumber: 2,
-      status: "ISSUED",
-      date: today,
-      amount: totalSum.value
-    }],
-    amount: totalSum.value,
-    nextAction: "고객사 견적 검토 대기",
-    updatedAt: today,
-    startDate: today
-  }
-
   try {
-    await axios.post('http://localhost:3001/documents', quotationData);
-
-    if (sourceHistoryId.value) {
-      const hRes = await axios.get(`http://localhost:3001/history/${sourceHistoryId.value}`);
-      const history = hRes.data;
-
-      const updatedHistory = {
-        ...history,
-        pipelineStage: "견적",
-        stageNumber: 2,
-        status: "대기중",
-        documentId: quotationId,
-        nextAction: "고객사 견적 검토 대기",
-        updatedAt: today,
-        amount: Math.max(Number(history.amount || 0), totalSum.value)
-      };
-
-      if (Array.isArray(updatedHistory.documents)) {
-        updatedHistory.documents.push({
-          id: quotationId,
-          type: "quotation",
-          typeLabel: "견적서",
-          stage: "견적",
-          stageNumber: 2,
-          status: "ISSUED",
-          date: today,
-          amount: totalSum.value
-        });
-      }
-      await axios.put(`http://localhost:3001/history/${sourceHistoryId.value}`, updatedHistory);
-    } else {
-      await axios.post('http://localhost:3001/history', historyData);
+    const payload = {
+      requestId: sourceRequestId.value,
+      historyId: sourceHistoryId.value,
+      client: {
+        id: selectedClientId.value,
+        name: inCorp.value,
+        contact: inName.value
+      },
+      items: selectedItems.value.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        variety: item.variety,
+        quantity: item.count,
+        unit: item.unit,
+        unitPrice: item.price
+      })),
+      memo: internalMemo.value
     }
 
-    if (sourceRequestId.value) {
-      await axios.patch(`http://localhost:3001/documents/${sourceRequestId.value}`, {
-        status: "QUOTED"
-      });
+    const result = await documentStore.createQuotation(payload)
+
+    if (result) {
+      window.alert(`견적서 발행 완료`);
+      router.push('/documents/all');
     }
-
-    if (documentStore.fetchDocuments) await documentStore.fetchDocuments();
-    if (historyStore.fetchPipelines) await historyStore.fetchPipelines();
-
-    window.alert(`[${quotationId}] 견적서 발행 완료`);
-    router.push('/documents/all');
   } catch (error) {
     console.error("저장 에러:", error);
     window.alert("서버 저장 에러");
