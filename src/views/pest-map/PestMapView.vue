@@ -122,7 +122,7 @@
                   :title="product.isFavorite ? '북마크 해제' : '북마크'"
               >
                 <svg viewBox="0 0 24 24" :fill="product.isFavorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                 </svg>
               </button>
             </div>
@@ -200,6 +200,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { getForecasts, getSalesOffices } from '@/api/pestMap'
+import { toggleBookmark } from '@/api/product'
 
 // ─── 상태 ───────────────────────────────────────────
 const mapRef = ref(null)
@@ -225,17 +226,23 @@ const forecastLoadError = ref('')
 // ─── 작물 / 병해충 메타데이터 ────────────────────────
 const crops = [
   { code: 'PEPPER',    label: '고추' },
+  { code: 'ONION',    label: '양파'  },
   { code: 'CABBAGE',   label: '배추' },
   { code: 'RADISH',    label: '무'   },
-  { code: 'TOMATO',    label: '토마토' },
-  { code: 'GARLIC',    label: '마늘'  },
+  { code: 'TOMATO',    label: '토마토' }
 ]
 
 const pestsByCrop = {
   PEPPER:  [
     { code: 'PP01', label: '탄저병' },
     { code: 'PP02', label: '역병'   },
-    { code: 'P03',  label: '탄저병(공통)' },
+    // { code: 'P03',  label: '탄저병(공통)' },
+    { code: 'P05',  label: '바이러스/기타' },
+  ],
+  ONION:  [
+    // { code: 'PP01', label: '탄저병' },
+    { code: 'PP02', label: '역병'   },
+    // { code: 'P03',  label: '탄저병(공통)' },
     { code: 'P05',  label: '바이러스/기타' },
   ],
   CABBAGE: [
@@ -509,9 +516,16 @@ function focusForecastArea(forecast) {
 }
 
 // ─── 즐겨찾기 토글 ────────────────────────────────────
-function toggleFavorite(product) {
-  product.isFavorite = !product.isFavorite
-  // 실제 구현: axios.post/delete('/api/v1/products/{id}/bookmark')
+async function toggleFavorite(product) {
+  try {
+    // 낙관적 업데이트: UI 먼저 변경
+    product.isFavorite = !product.isFavorite
+    await toggleBookmark(product.id)
+  } catch (err) {
+    console.error('[PestMap] 북마크 토글 실패:', err)
+    // 에러 시 롤백
+    product.isFavorite = !product.isFavorite
+  }
 }
 
 // ─── 라이프사이클 ─────────────────────────────────────
