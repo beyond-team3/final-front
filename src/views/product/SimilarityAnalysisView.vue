@@ -243,7 +243,7 @@ const similarityText = (product) => {
             <!-- 연결선 -->
             <line
                 v-for="(node, index) in graphNodes"
-                :key="`line-${node.id}`"
+                :key="`line-${node.productId}`"
                 x1="400"
                 y1="225"
                 :x2="[300, 500, 250, 550, 350][index]"
@@ -263,14 +263,14 @@ const similarityText = (product) => {
             <!-- 유사 상품들 -->
             <g
                 v-for="(node, index) in graphNodes"
-                :key="`node-${node.id}`"
+                :key="`node-${node.productId}`"
                 :transform="`translate(${[300, 500, 250, 550, 350][index]}, ${[150, 150, 300, 300, 350][index]})`"
                 class="cursor-pointer"
-                @click="addToCompare(node.id)"
+                @click="addToCompare(node.productId)"
             >
               <!-- 선택된 경우 외곽 링 표시 -->
               <circle
-                  v-if="isInLocalCompare(node.id)"
+                  v-if="isInLocalCompare(node.productId)"
                   :r="(node.similarityScore >= 85 ? 24 : node.similarityScore >= 70 ? 20 : 16) + 7"
                   fill="none"
                   stroke="#7A8C42"
@@ -279,12 +279,12 @@ const similarityText = (product) => {
               />
               <circle
                   :r="node.similarityScore >= 85 ? 24 : node.similarityScore >= 70 ? 20 : 16"
-                  :fill="isInLocalCompare(node.id) ? '#7A8C42' : node.similarityScore >= 70 ? '#C8622A' : '#DDD7CE'"
-                  :stroke="isInLocalCompare(node.id) ? '#5F7033' : node.similarityScore >= 70 ? '#A84F21' : '#BFB3A5'"
+                  :fill="isInLocalCompare(node.productId) ? '#7A8C42' : node.similarityScore >= 70 ? '#C8622A' : '#DDD7CE'"
+                  :stroke="isInLocalCompare(node.productId) ? '#5F7033' : node.similarityScore >= 70 ? '#A84F21' : '#BFB3A5'"
                   stroke-width="2"
               />
               <!-- 선택된 경우 체크 표시 -->
-              <text v-if="isInLocalCompare(node.id)" text-anchor="middle" dominant-baseline="middle" class="fill-white text-[13px]" font-weight="bold">✓</text>
+              <text v-if="isInLocalCompare(node.productId)" text-anchor="middle" dominant-baseline="middle" class="fill-white text-[13px]" font-weight="bold">✓</text>
               <text y="38" text-anchor="middle" class="text-[11px]" fill="#3D3529">{{ node.productName }}</text>
               <text y="50" text-anchor="middle" class="text-[10px]" fill="#6B5F50">유사도 {{ node.similarityScore }}%</text>
             </g>
