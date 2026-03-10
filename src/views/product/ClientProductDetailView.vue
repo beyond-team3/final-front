@@ -104,9 +104,9 @@ const saveNote = () => {
               </div>
               <div class="mt-2 flex items-center gap-3">
                 <span class="rounded px-2 py-1 text-xs font-semibold"
-                  :class="product.status === 'ACTIVE' || !product.status ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]' : 'bg-[#F0D4D4] text-[var(--color-status-error)]'"
+                  :class="product.status === 'SALE' || !product.status ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]' : (product.status === 'HIDDEN' ? 'bg-gray-100 text-gray-500' : 'bg-[#F0D4D4] text-[var(--color-status-error)]')"
                 >
-                  {{ product.status === 'OUT_OF_STOCK' ? '일시 품절' : (product.status === 'DISCONTINUED' ? '단종' : '판매 중') }}
+                  {{ product.status === 'SOLDOUT' ? '일시 품절' : (product.status === 'STOP' ? '단종' : (product.status === 'HIDDEN' ? '숨김' : '판매 중')) }}
                 </span>
               </div>
             </div>

@@ -5,6 +5,8 @@ import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
+import { PRODUCT_CATEGORY } from '@/utils/constants'
+
 // axios 제거 (Store를 통해 통신)
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -120,7 +122,7 @@ const startFromRequest = async (reqSummary) => {
     return {
       uid: Date.now() + Math.random(),
       productId: i.productId || masterProduct?.id,
-      variety: masterProduct?.variety || masterProduct?.category || i.productCategory || '일반',
+      variety: PRODUCT_CATEGORY[masterProduct?.variety || masterProduct?.category || i.productCategory] || (masterProduct?.variety || masterProduct?.category || i.productCategory || '일반'),
       name: i.productName || i.name,
       count: i.quantity || 1,
       unit: i.unit || masterProduct?.unit || '립',
@@ -160,7 +162,7 @@ const addProduct = (p) => {
     selectedItems.value.push({
       uid: Date.now() + Math.random(),
       productId: p.id,
-      variety: p.variety || p.category || '-',
+      variety: PRODUCT_CATEGORY[p.variety || p.category] || (p.variety || p.category || '-'),
       name: p.name,
       count: 1,
       unit: p.unit || (p.unit?.includes('kg') ? 'kg' : '립'),
@@ -188,7 +190,8 @@ const totalSum = computed(() =>
 
 const varietyOptions = computed(() => {
   const varieties = documentStore.productMaster?.map(p => p.variety || p.category) || []
-  return ['전체', ...new Set(varieties.filter(v => v))]
+  const uniqueVars = [...new Set(varieties.filter(v => v))]
+  return ['전체', ...uniqueVars.map(v => PRODUCT_CATEGORY[v] || v)]
 })
 
 const filteredClients = computed(() => {
@@ -201,7 +204,8 @@ const filteredClients = computed(() => {
 
 const filteredProducts = computed(() => {
   return documentStore.productMaster?.filter(p => {
-    const matchVariety = varietyFilter.value === '전체' || (p.variety || p.category) === varietyFilter.value
+    const pVar = PRODUCT_CATEGORY[p.variety || p.category] || (p.variety || p.category)
+    const matchVariety = varietyFilter.value === '전체' || pVar === varietyFilter.value
     const matchKeyword = p.name.toLowerCase().includes(modalSearchInput.value.toLowerCase())
     return matchVariety && matchKeyword
   }) || []
@@ -544,7 +548,7 @@ const submitDoc = async () => {
                 </thead>
                 <tbody>
                 <tr v-for="p in filteredProducts" :key="p.id" class="border-b transition-colors hover-row" style="border-color: #E8E3D8; color: #6B5F50 !important;">
-                  <td class="p-3 text-xs font-bold" style="color: #9A8C7E !important; border-color: #E8E3D8;">{{ p.variety || p.category }}</td>
+                  <td class="p-3 text-xs font-bold" style="color: #9A8C7E !important; border-color: #E8E3D8;">{{ PRODUCT_CATEGORY[p.variety || p.category] || (p.variety || p.category) }}</td>
                   <td class="p-3 font-bold text-left" style="color: #3D3529 !important; border-color: #E8E3D8;">{{ p.name }}</td>
                   <td class="p-3 font-bold" style="color: #6B5F50 !important; border-color: #E8E3D8;">{{ p.unit }}</td>
                   <td class="p-3 text-right font-mono" style="color: #7A8C42 !important; border-color: #E8E3D8;">{{ (p.price || p.unitPrice || 0).toLocaleString() }}원</td>

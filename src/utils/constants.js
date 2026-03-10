@@ -4,6 +4,22 @@ export const ROLES = {
     CLIENT: 'CLIENT',
 }
 
+export const PRODUCT_CATEGORY = {
+    PEPPER: '고추',
+    RADISH: '무/배추',
+    CABBAGE: '양배추',
+    WATERMELON: '수박',
+    CUCUMBER: '오이',
+    MELON: '멜론',
+    TOMATO: '토마토/대목',
+    SQUASH: '호박',
+    ONION: '양파/파',
+    CARROT: '당근',
+    CORN: '옥수수',
+    BEAN: '콩',
+    ROOT_CROP: '구근/기타'
+};
+
 export const HEADER_MENU_CONFIG = [
     { key: 'schedule', label: '일정', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/schedule' },
     { key: 'notification', label: '알림', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], route: '/notifications' },
