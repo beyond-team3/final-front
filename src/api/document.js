@@ -63,6 +63,7 @@ export function createOrder(data) {
         shippingAddress: data.deliveryAddress,
         shippingAddressDetail: null,
         deliveryRequest: data.memo,
+        dealId: data.dealId || null,
         items: data.items.map(item => ({
             contractDetailId: item.detailId,  // ContractResponse.ItemResponse.detailId
             quantity: item.quantity,

@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import OrderModal from '@/components/document/OrderModal.vue'
-import { getContractsByClient } from '@/api/document'
+import { getContractsByClient, getContract, createOrder  } from '@/api/document'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,19 +46,28 @@ const contractList = computed(() => {
   return storeContracts
 })
 
-const selectedContract = computed(() =>
-    documentStore.getContractById(selectedContractId.value) || null
-)
+const selectedContract = computed(() => {
+  const contractId = selectedContractId.value
+  if (!contractId) return null
+  // store에서 찾기
+  const fromStore = documentStore.getContractById(contractId)
+  if (fromStore) return fromStore
+  // store에 없으면 contractsFromApi에서 찾기
+  return contractsFromApi.value.find(c => String(c.id) === contractId) || null
+})
 
 watch(selectedContract, (contract) => {
   if (!contract) return
   selectedHistoryId.value = contract.historyId || ''
-  lineItems.value = contract.items.map((item) => ({ ...item, quantity: 0 }))
-  // 배송지는 사용자가 직접 입력하는 필드 - 자동입력 없음
+  if (contract.items && Array.isArray(contract.items)) {
+    lineItems.value = contract.items.map((item) => ({ ...item, quantity: 0 }))
+  } else {
+    lineItems.value = []
+  }
   deliveryAddress.value = ''
-  deliveryRecipient.value = contract.client?.contact || ''
+  deliveryRecipient.value = contract.clientName || contract.client?.contact || ''
   deliveryPhone.value = contract.client?.phone || ''
-}, { immediate: true })
+})
 
 const baseClientId = computed(() => {
   if (isClient.value) return documentStore.clientMaster[0]?.id || null
@@ -113,7 +122,7 @@ const setQty = (item, val) => {
   item.quantity = Math.max(0, parseInt(val) || 0)
 }
 
-const submitOrder = () => {
+const submitOrder = async () => {
   if (!selectedContract.value) {
     window.alert('계약서를 선택해주세요.')
     return
@@ -123,28 +132,39 @@ const submitOrder = () => {
     window.alert('주문 상품을 1개 이상 입력해주세요.')
     return
   }
-  if (!selectedHistoryId.value) {
-    window.alert('연결할 파이프라인을 선택해주세요.')
+  if (!deliveryAddress.value) {
+    window.alert('배송지를 입력해주세요.')
+    return
+  }
+  if (!deliveryRecipient.value) {
+    window.alert('수령인을 입력해주세요.')
+    return
+  }
+  if (!deliveryPhone.value) {
+    window.alert('연락처를 입력해주세요.')
     return
   }
 
-  const client = isClient.value
-      ? documentStore.clientMaster[0]
-      : selectedContract.value.client
+  try {
+    // ✅ 주문 생성 - contractId 명시
+    const response = await createOrder({
+      contractId: selectedContract.value.id,
+      deliveryRecipient: deliveryRecipient.value,
+      deliveryPhone: deliveryPhone.value,
+      deliveryAddress: deliveryAddress.value,
+      dealId: null,
+      items: orderedItems.map(item => ({
+        detailId: item.detailId,
+        quantity: item.quantity
+      }))
+    })
 
-  documentStore.createOrder({
-    contractId: selectedContract.value.id,
-    historyId: selectedHistoryId.value,
-    client,
-    items: orderedItems,
-    deliveryDate: deliveryDate.value,
-    deliveryAddress: deliveryAddress.value,
-    deliveryRecipient: deliveryRecipient.value,
-    deliveryPhone: deliveryPhone.value,
-    memo: deliveryMemo.value,
-  })
-
-  router.push(isClient.value ? '/documents/history' : '/documents/invoice')
+    window.alert('주문이 정상적으로 생성되었습니다.')
+    router.push('/documents/order')
+  } catch (error) {
+    console.error('주문 생성 실패:', error)
+    window.alert('주문 생성에 실패했습니다. ' + (error.response?.data?.error?.message || error.message))
+  }
 }
 
 const todayFormatted = computed(() => {
@@ -173,12 +193,58 @@ const orderCardStatus = computed(() => {
 // 계약서 선택 모달
 const showContractModal = ref(false)
 
-const onSelectContract = (contract) => {
-  selectedContractId.value = String(contract.id)
+const onSelectContract = async (contract) => {
+  try {
+    const response = await getContract(contract.id)
+    const detailContract = response.data?.data || response.data
+
+    if (!detailContract) {
+      window.alert('계약 정보를 불러올 수 없습니다.')
+      return
+    }
+
+    // 계약 기간 체크
+    const today = new Date()
+    const endDate = new Date(detailContract.endDate)
+    if (today > endDate) {
+      window.alert(`계약 기간이 만료되었습니다. (만료일: ${detailContract.endDate})`)
+      return
+    }
+
+    selectedContractId.value = String(detailContract.id)
+    selectedHistoryId.value = detailContract.historyId || ''
+
+    if (detailContract.items && Array.isArray(detailContract.items)) {
+      lineItems.value = detailContract.items.map((item) => ({
+        detailId: item.detailId,
+        productId: item.productId,
+        productName: item.productName,
+        productCode: item.productCategory,
+        unitPrice: item.unitPrice,
+        minimumQuantity: item.totalQuantity,
+        quantity: 0
+      }))
+    }
+
+    deliveryRecipient.value = detailContract.clientName || ''
+    deliveryPhone.value = ''
+    deliveryAddress.value = ''
+
+  } catch (error) {
+    console.error('계약 상세 조회 실패:', error)
+    window.alert('계약 정보 조회에 실패했습니다.')
+  }
 }
 </script>
 
 <template>
+  <!-- 디버깅용 -->
+  <div style="background: yellow; padding: 10px;">
+    <p>contractsFromApi.length: {{ contractsFromApi.length }}</p>
+    <p>contractList.length: {{ contractList.length }}</p>
+    <p>contractsFromApi: {{ JSON.stringify(contractsFromApi) }}</p>
+  </div>
+
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
@@ -227,18 +293,18 @@ const onSelectContract = (contract) => {
                 <div class="contract-field">
                   <label>계약 번호</label>
                   <div class="field-value" :class="selectedContract ? 'highlight' : 'empty'">
-                    {{ selectedContract?.id || '계약서가 선택되지 않았습니다' }}
+                    {{ selectedContract?.contractCode || '계약서가 선택되지 않았습니다' }}
                   </div>
                 </div>
                 <div class="contract-field">
                   <label>거래처</label>
                   <div class="field-value">
-                    {{ isClient ? documentStore.clientMaster[0]?.name : (selectedContract?.client?.name || '-') }}
+                    {{ selectedContract?.clientName || documentStore.clientMaster[0]?.name || '-' }}
                   </div>
                 </div>
                 <div class="contract-field">
                   <label>담당자</label>
-                  <div class="field-value">{{ selectedContract?.client?.contact || '-' }}</div>
+                  <div class="field-value">{{ selectedContract?.salesRepName || '-' }}</div>
                 </div>
                 <div class="contract-field" style="grid-column: 1 / -1">
                   <label>계약 기간</label>
@@ -360,20 +426,6 @@ const onSelectContract = (contract) => {
               </div>
             </div>
 
-            <!-- 파이프라인 선택 -->
-            <div class="section">
-              <div class="section-header">
-                <span class="section-title">파이프라인 연결</span>
-                <span class="section-desc">주문에 연결할 파이프라인을 선택해주세요</span>
-              </div>
-              <select v-model="selectedHistoryId" class="form-input">
-                <option value="">선택해주세요</option>
-                <option v-for="p in pipelineOptions" :key="p.id" :value="p.id">
-                  {{ p.pipelineName }} ({{ p.stageName }})
-                </option>
-              </select>
-            </div>
-
             <!-- 액션 바 -->
             <div class="action-bar">
               <div class="autosave-hint">
@@ -421,8 +473,8 @@ const onSelectContract = (contract) => {
                     <div style="padding: 8px 10px; border-right: 1px solid black; border-top: 1px solid black; font-weight: 700; font-size: 10px; background: #F7F3EC; width: 100px;">
                       계약번호
                     </div>
-                    <div style="padding: 8px 10px; border-top: 1px solid black; font-size: 11px;">
-                      {{ selectedContract?.id || '-' }}
+                    <div class="field-value" :class="selectedContract ? 'highlight' : 'empty'">
+                      {{ selectedContract?.contractCode || '계약서가 선택되지 않았습니다' }}
                     </div>
                   </div>
 
