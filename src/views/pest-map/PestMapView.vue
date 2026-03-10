@@ -11,7 +11,7 @@
           </svg>
           <h1 class="sidebar-title">병해충-품종 매칭 지도</h1>
         </div>
-        <p class="sidebar-subtitle">SeedFlow+ Pest Surveillance</p>
+        <p class="sidebar-subtitle">SeedFlow+ Pest Matching MAP</p>
       </div>
 
       <!-- 필터 섹션 -->
@@ -55,10 +55,18 @@
         >
           <span v-if="isLoading" class="btn-spinner"></span>
           <svg v-else class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>
           {{ isLoading ? '조회 중...' : '예찰 데이터 조회' }}
         </button>
+
+        <!-- 예찰 API 에러 -->
+        <div v-if="forecastLoadError" class="api-error-banner">
+          <svg viewBox="0 0 20 20" fill="currentColor" class="error-icon">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          {{ forecastLoadError }}
+        </div>
       </div>
 
       <!-- 심각도 범례 -->
@@ -138,6 +146,17 @@
     <main class="map-container">
       <div id="kakao-map" ref="mapRef" class="kakao-map"></div>
 
+      <!-- 영업처 API 에러 -->
+      <transition name="fade">
+        <div v-if="officeLoadError" class="map-error-banner">
+          <svg viewBox="0 0 20 20" fill="currentColor" class="error-icon">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <span>{{ officeLoadError }}</span>
+          <button class="error-retry-btn" @click="fetchOffices">재시도</button>
+        </div>
+      </transition>
+
       <!-- 지도 위 오버레이: 예찰 지역 리스트 -->
       <transition name="slide-up">
         <div v-if="forecasts.length > 0" class="forecast-overlay">
@@ -180,7 +199,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import axios from 'axios'
+import { getForecasts, getSalesOffices } from '@/api/pestMap'
 
 // ─── 상태 ───────────────────────────────────────────
 const mapRef = ref(null)
@@ -194,14 +213,22 @@ const recommendedProducts = ref([])
 let kakaoMap = null
 let officeMarkers = []
 let forecastOverlays = []
+let activeInfoWindow = null  // 현재 열린 인포 오버레이 참조
+
+// 선택된 영업처 (인포팝업 Vue 반응형 상태)
+const selectedOffice = ref(null)
+
+// 에러 상태
+const officeLoadError = ref('')
+const forecastLoadError = ref('')
 
 // ─── 작물 / 병해충 메타데이터 ────────────────────────
 const crops = [
-  { code: 'PEPPER',    label: '🌶 고추' },
-  { code: 'CABBAGE',   label: '🥬 배추' },
-  { code: 'RADISH',    label: '🌿 무'   },
-  { code: 'TOMATO',    label: '🍅 토마토' },
-  { code: 'GARLIC',    label: '🧄 마늘'  },
+  { code: 'PEPPER',    label: '고추' },
+  { code: 'CABBAGE',   label: '배추' },
+  { code: 'RADISH',    label: '무'   },
+  { code: 'TOMATO',    label: '토마토' },
+  { code: 'GARLIC',    label: '마늘'  },
 ]
 
 const pestsByCrop = {
@@ -209,6 +236,7 @@ const pestsByCrop = {
     { code: 'PP01', label: '탄저병' },
     { code: 'PP02', label: '역병'   },
     { code: 'P03',  label: '탄저병(공통)' },
+    { code: 'P05',  label: '바이러스/기타' },
   ],
   CABBAGE: [
     { code: 'CB01', label: '무름병' },
@@ -278,13 +306,16 @@ function initKakaoMap() {
 
 // ─── 영업처 마커 조회 ─────────────────────────────────
 async function fetchOffices() {
+  officeLoadError.value = ''
   try {
-    const { data } = await axios.get('/api/v1/map/offices')
-    renderOfficeMarkers(data)
+    const data = await getSalesOffices()
+    // PagedModel 구조(VIA_DTO) 또는 일반 리스트 대응
+    const officeList = data.content || data.data?.content || data.data || data
+    renderOfficeMarkers(officeList)
   } catch (err) {
     console.error('[PestMap] 영업처 조회 실패:', err)
-    // 개발 환경 더미 데이터
-    renderOfficeMarkers(DUMMY_OFFICES)
+    // renderOfficeMarkers(DUMMY_OFFICES)
+    officeLoadError.value = '영업처 데이터를 불러오지 못했습니다.'
   }
 }
 
@@ -294,45 +325,121 @@ function renderOfficeMarkers(offices) {
   officeMarkers.forEach(m => m.setMap(null))
   officeMarkers = []
 
-  offices.forEach(office => {
+  // offices가 배열이 아닐 경우(데이터가 nested된 경우)에 대한 방어 코드
+  const list = Array.isArray(offices) ? offices : (offices?.content || [])
+
+  list.forEach(office => {
     const position = new window.kakao.maps.LatLng(office.lat, office.lng)
 
-    // 커스텀 오버레이로 영업처 마커 생성
-    const content = `
-      <div class="custom-office-marker" title="${office.name}">
-        <div class="office-marker-dot"></div>
-        <div class="office-marker-label">${office.name}</div>
+    // ── 마커 오버레이 ──
+    const markerEl = document.createElement('div')
+    markerEl.className = 'custom-office-marker'
+    markerEl.innerHTML = `
+      <div class="office-marker-pin ${office.score >= 90 ? 'score-high' : ''}">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+        </svg>
       </div>
+      <div class="office-marker-label">${office.name}</div>
     `
-    const overlay = new window.kakao.maps.CustomOverlay({
+
+    const markerOverlay = new window.kakao.maps.CustomOverlay({
       position,
-      content,
-      yAnchor: 1,
+      content: markerEl,
+      yAnchor: 1.05,
     })
-    overlay.setMap(kakaoMap)
-    officeMarkers.push(overlay)
+    markerOverlay.setMap(kakaoMap)
+
+    // ── 인포팝업 오버레이 ──
+    const cropTags = (office.handledCrops || [])
+        .map(c => `<span class="info-crop-tag">${c}</span>`)
+        .join('')
+
+    const infoEl = document.createElement('div')
+    infoEl.className = 'office-info-popup'
+    const closeBtnId = `close-${office.id || office.name.replace(/\s+/g, '-')}`
+    infoEl.innerHTML = `
+      <button class="info-close-btn" id="${closeBtnId}">✕</button>
+      <div class="info-name">${office.name}</div>
+      <div class="info-score-row">
+        <span class="info-score-label">방문 점수</span>
+        <div class="info-score-track">
+          <div class="info-score-fill" style="width:${Math.min(office.score || 0, 100)}%"></div>
+        </div>
+        <span class="info-score-value">${office.score || 0}점</span>
+      </div>
+      <div class="info-crops-label">취급 품종</div>
+      <div class="info-crop-tags">${cropTags || '<span class="text-xs text-gray-400 italic">정보 없음</span>'}</div>
+    `
+
+    const infoOverlay = new window.kakao.maps.CustomOverlay({
+      position,
+      content: infoEl,
+      yAnchor: 1.18,
+      zIndex: 5,
+    })
+    // 기본 숨김
+    infoOverlay.setMap(null)
+
+    // 닫기 버튼 이벤트
+    const closeBtn = infoEl.querySelector(`#${closeBtnId}`)
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        infoOverlay.setMap(null)
+        activeInfoWindow = null
+      })
+    }
+
+    // 마커 클릭 → 인포팝업 토글
+    markerEl.addEventListener('click', () => {
+      if (activeInfoWindow && activeInfoWindow !== infoOverlay) {
+        activeInfoWindow.setMap(null)
+      }
+      if (activeInfoWindow === infoOverlay) {
+        infoOverlay.setMap(null)
+        activeInfoWindow = null
+      } else {
+        infoOverlay.setMap(kakaoMap)
+        activeInfoWindow = infoOverlay
+        kakaoMap.setCenter(position)
+      }
+    })
+
+    officeMarkers.push(markerOverlay, infoOverlay)
   })
+}
+
+// 점수 바 문자열 (내부 유틸)
+function buildScoreBar(score) {
+  return Math.min(Math.max(score || 0, 0), 100)
 }
 
 // ─── 예찰 데이터 조회 ─────────────────────────────────
 async function fetchForecasts() {
   if (!selectedCrop.value || !selectedPest.value) return
   isLoading.value = true
+  forecastLoadError.value = ''
   forecasts.value = []
   recommendedProducts.value = []
   clearForecastOverlays()
 
   try {
-    const { data } = await axios.get('/api/v1/map/forecasts', {
-      params: { cropCode: selectedCrop.value, pestCode: selectedPest.value }
+    const data = await getForecasts({
+      cropCode: selectedCrop.value.toLowerCase(), // 백엔드 기대 형식 대응
+      pestCode: selectedPest.value
     })
-    forecasts.value = data.forecasts || []
-    recommendedProducts.value = data.recommendedProducts || []
+    
+    // API 응답 구조 반영 (forecasts, recommendedProducts 직접 할당)
+    if (data) {
+      forecasts.value = data.forecasts || []
+      recommendedProducts.value = data.recommendedProducts || []
+    }
   } catch (err) {
     console.error('[PestMap] 예찰 데이터 조회 실패:', err)
-    // 개발 더미 데이터
-    forecasts.value = DUMMY_FORECASTS
-    recommendedProducts.value = DUMMY_PRODUCTS
+    // forecasts.value = DUMMY_FORECASTS
+    // recommendedProducts.value = DUMMY_PRODUCTS
+    forecastLoadError.value = '예찰 데이터를 불러오지 못했습니다.'
   } finally {
     isLoading.value = false
     renderForecastOverlays()
@@ -347,6 +454,10 @@ function renderForecastOverlays() {
   clearForecastOverlays()
 
   forecasts.value.forEach(forecast => {
+    // 시/도 단위(sigunguCode: "000")는 광역 데이터이므로 지도 마커에서는 제외하고 
+    // 상세 시/군/구 데이터만 지도에 표시 (가독성 및 중복 방지)
+    if (forecast.sigunguCode === '000') return
+
     const coord = AREA_COORDS[forecast.areaName]
     if (!coord) return
 
@@ -417,12 +528,13 @@ onMounted(() => {
   }
 })
 
-// ─── 더미 데이터 (개발/백엔드 미연결 시 사용) ─────────
+// ─── 더미 데이터 (주석 처리됨) ─────────
+/*
 const DUMMY_OFFICES = [
-  { id: '1', name: '청양지사', lat: 36.46, lng: 126.80, handledCrops: ['고추'] },
-  { id: '2', name: '안동지사', lat: 36.57, lng: 128.73, handledCrops: ['마늘', '고추'] },
-  { id: '3', name: '나주지사', lat: 35.02, lng: 126.71, handledCrops: ['배추'] },
-  { id: '4', name: '춘천지사', lat: 37.88, lng: 127.73, handledCrops: ['토마토'] },
+  { id: '1', name: '청양지사', lat: 36.46, lng: 126.80, handledCrops: ['고추'], score: 95 },
+  { id: '2', name: '안동지사', lat: 36.57, lng: 128.73, handledCrops: ['마늘', '고추'], score: 88 },
+  { id: '3', name: '나주지사', lat: 35.02, lng: 126.71, handledCrops: ['배추'], score: 72 },
+  { id: '4', name: '춘천지사', lat: 37.88, lng: 127.73, handledCrops: ['토마토'], score: 65 },
 ]
 
 const DUMMY_FORECASTS = [
@@ -442,6 +554,7 @@ const DUMMY_PRODUCTS = [
   { id: 3, name: '스파이시킹', description: '강한 매운맛과 우수한 내병성', resistance: '탄저병, 바이러스', isFavorite: false },
   { id: 4, name: '강력홍', description: '고온기 탄저병에 강한 주력 품종', resistance: '탄저병', isFavorite: true },
 ]
+*/
 
 // 주요 시군구 좌표 (실제 행정구역 폴리곤 전 더미 매핑)
 const AREA_COORDS = {
@@ -463,6 +576,14 @@ const AREA_COORDS = {
   '이천시': { lat: 37.27, lng: 127.44 },
   '화성시': { lat: 37.20, lng: 126.83 },
   '평택시': { lat: 36.99, lng: 127.11 },
+  '고창군': { lat: 35.43, lng: 126.70 },
+  '영광군': { lat: 35.27, lng: 126.51 },
+  '태안군': { lat: 36.75, lng: 126.30 },
+  '강진군': { lat: 34.64, lng: 126.77 },
+  '괴산군': { lat: 36.81, lng: 127.79 },
+  '김제시': { lat: 35.80, lng: 126.88 },
+  '당진시': { lat: 36.89, lng: 126.63 },
+  '서산시': { lat: 36.78, lng: 126.45 },
 }
 </script>
 
@@ -965,8 +1086,73 @@ const AREA_COORDS = {
 }
 
 /* ════════════════════════════════════════
-   애니메이션
+   에러 배너
 ════════════════════════════════════════ */
+.api-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #F0D4D4;
+  border: 1px solid #D8A8A8;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #7A3030;
+  line-height: 1.5;
+}
+
+.api-error-banner .error-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #B85C5C;
+}
+
+.map-error-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #F0D4D4;
+  border: 1px solid #D8A8A8;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #7A3030;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  white-space: nowrap;
+  z-index: 15;
+}
+
+.map-error-banner .error-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: #B85C5C;
+}
+
+.error-retry-btn {
+  margin-left: 4px;
+  padding: 3px 10px;
+  background: #B85C5C;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.error-retry-btn:hover {
+  background: #9A4040;
+}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -985,40 +1171,175 @@ const AREA_COORDS = {
   (scoped 미적용 — CustomOverlay DOM은 Vue 컴포넌트 외부에 주입됨)
 ──────────────────────────────────────────────────────── -->
 <style>
-/* 영업처 마커 */
+/* ── 영업처 마커 핀 ── */
 .custom-office-marker {
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
   transform: translateX(-50%);
+  user-select: none;
 }
 
-.office-marker-dot {
-  width: 12px;
-  height: 12px;
+.office-marker-pin {
+  width: 32px;
+  height: 32px;
   background: #7A8C42;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
-  transition: transform 0.15s;
+  border: 2.5px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s, box-shadow 0.18s;
 }
 
-.custom-office-marker:hover .office-marker-dot {
-  transform: scale(1.3);
+.custom-office-marker:hover .office-marker-pin {
+  transform: rotate(-45deg) scale(1.15);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+}
+
+.office-marker-pin svg {
+  width: 16px;
+  height: 16px;
+  color: #fff;
+  transform: rotate(45deg);
 }
 
 .office-marker-label {
-  margin-top: 4px;
+  margin-top: 6px;
   background: #F7F3EC;
   border: 1px solid #DDD7CE;
   border-radius: 6px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   font-size: 11px;
   font-weight: 600;
   color: #3D3529;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(61,53,41,0.12);
+  box-shadow: 0 1px 4px rgba(61,53,41,0.13);
+  pointer-events: none;
+}
+
+/* ── 영업처 인포팝업 ── */
+.office-info-popup {
+  position: relative;
+  background: #F7F3EC;
+  border: 1.5px solid #DDD7CE;
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  width: 220px;
+  box-shadow: 0 6px 24px rgba(61,53,41,0.16);
+  transform: translateX(-50%);
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+
+/* 말풍선 꼬리 */
+.office-info-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 9px solid #F7F3EC;
+  filter: drop-shadow(0 2px 2px rgba(61,53,41,0.10));
+}
+
+.info-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  background: #EFEADF;
+  border: none;
+  border-radius: 50%;
+  font-size: 10px;
+  color: #9A8C7E;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+.info-close-btn:hover {
+  background: #DDD7CE;
+  color: #3D3529;
+}
+
+.info-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #3D3529;
+  margin-bottom: 12px;
+  padding-right: 24px;
+  line-height: 1.4;
+}
+
+/* 방문 점수 행 */
+.info-score-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.info-score-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9A8C7E;
+  white-space: nowrap;
+}
+
+.info-score-track {
+  flex: 1;
+  height: 6px;
+  background: #E8E3D8;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.info-score-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7A8C42, #C8D4A0);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 3px;
+}
+
+.info-score-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7A8C42;
+  white-space: nowrap;
+}
+
+/* 취급 품종 */
+.info-crops-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9A8C7E;
+  margin-bottom: 6px;
+}
+
+.info-crop-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.info-crop-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: #586830;
+  background: #C8D4A0;
+  padding: 2px 8px;
+  border-radius: 10px;
 }
 
 /* 예찰 지역 라벨 */
