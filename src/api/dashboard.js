@@ -72,19 +72,14 @@ function normalizeAdminDashboard(payload) {
         },
     ]
 
+    // dashboard.js normalizeAdminDashboard 수정
     return {
         title: raw.title || '관리자 대시보드',
         trendPeriod: raw.trendPeriod || '이번 달',
-
-        kpis,
-
-        // salesTrend: { lastYear: number[], thisYear: number[] }
+        kpis: raw.kpis || {},          // ← 배열 변환 없이 객체 그대로
         salesTrend: raw.salesTrend || { lastYear: [], thisYear: [] },
-
         rankings: Array.isArray(raw.rankings) ? raw.rankings : [],
-
         approvalCount: Number(raw.approvalCount || 0),
-
         approvals: Array.isArray(raw.approvals) ? raw.approvals : [],
     }
 }

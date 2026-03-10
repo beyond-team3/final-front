@@ -7,20 +7,16 @@ import {
     createOrder as createOrderApi,
     cancelOrder as cancelOrderApi,
     publishInvoice as publishInvoiceApi,
+    getDocuments,
+    getDocumentDetail,
     getOrders,
     getStatements,
     getInvoices,
     getInvoice,
     createQuotation as createQuotationApi,
     createQuotationRequest as createQuotationRequestApi,
-    getContracts,
-    getQuotations,
-    getQuotationRequests,
     updateDocumentStatus as updateDocumentStatusApi,
     deleteDocument as deleteDocumentApi,
-    deleteQuotationRequest,
-    getQuotationRequest,
-    getPendingQuotationRequests
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts, getProductsForEstimate } from '@/api/product'
@@ -35,12 +31,19 @@ function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생�
 function normalizeList(data) {
     if (!data) return []
     if (Array.isArray(data)) return data
-    if (data.result === 'SUCCESS' && Array.isArray(data.data)) return data.data  // 추가
+    if (data.result === 'SUCCESS' && Array.isArray(data.data)) return data.data
     const actualData = data.data !== undefined ? data.data : data
     if (Array.isArray(actualData)) return actualData
     if (Array.isArray(actualData?.documents)) return actualData.documents
     if (Array.isArray(actualData?.items)) return actualData.items
     return []
+}
+
+function unwrapData(data) {
+    if (!data) return null
+    if (data.result === 'SUCCESS' && data.data !== undefined) return data.data
+    if (data.data !== undefined) return data.data
+    return data
 }
 
 function normalizeText(value) {
@@ -74,7 +77,7 @@ const normalizeDocument = (doc = {}) => ({
     items: Array.isArray(doc.items) ? doc.items : [],
     totalAmount: Number(doc.totalAmount ?? doc.amount ?? 0),
     createdAt: doc.createdAt || doc.date || new Date().toISOString().slice(0, 10),
-    historyId: doc.historyId || doc.pipelineId || null,
+    historyId: doc.historyId || doc.pipelineId || doc.dealId || null,
     statusHistory: Array.isArray(doc.statusHistory) ? doc.statusHistory : [],
 })
 
@@ -106,6 +109,11 @@ const normalizeInvoiceStatus = (status) => {
     if (['ISSUED', 'PAID'].includes(raw)) return 'ISSUED'
     if (['CANCELED', 'CANCELLED'].includes(raw)) return 'CANCELED'
     return 'DRAFT'
+}
+
+function matchesDocumentType(doc, types = []) {
+    const normalizedType = String(doc?.type || '').trim().toLowerCase()
+    return types.some((type) => normalizedType === String(type).trim().toLowerCase())
 }
 
 export const useDocumentStore = defineStore('document', () => {
@@ -318,8 +326,24 @@ export const useDocumentStore = defineStore('document', () => {
     }
 
     async function fetchDocumentsV2() {
-        console.log('[DEBUG] fetchDocumentsV2 called - List functionality removed by user request')
-        return []
+        try {
+            const data = await getDocuments()
+            const docs = normalizeList(data).map((doc) => normalizeDocument(doc))
+            const nonStatementDocs = docs.filter((doc) => !matchesDocumentType(doc, ['statement']))
+
+            allRawDocuments.value = [
+                ...allRawDocuments.value.filter((doc) => matchesDocumentType(doc, ['statement'])),
+                ...nonStatementDocs,
+            ]
+            pendingQuotationRequests.value = nonStatementDocs.filter((doc) => {
+                const status = String(doc.status || '').trim().toUpperCase()
+                return matchesDocumentType(doc, ['quotation-request', 'rfq']) && ['PENDING', 'REQUESTED', 'WAITING'].includes(status)
+            })
+            return nonStatementDocs
+        } catch (e) {
+            error.value = getErrorMessage(e, '문서 목록을 불러오지 못했습니다.')
+            return []
+        }
     }
 
     async function fetchOrders() {
@@ -346,7 +370,7 @@ export const useDocumentStore = defineStore('document', () => {
         loading.value = true
         try {
             const detail = await getDocumentDetail(id)
-            return normalizeDocument(detail)
+            return normalizeDocument(unwrapData(detail))
         } catch (e) {
             error.value = getErrorMessage(e, '문서 상세 정보를 불러오지 못했습니다.')
             return null
@@ -356,80 +380,46 @@ export const useDocumentStore = defineStore('document', () => {
     }
 
     async function fetchQuotationDetail(id) {
-        loading.value = true
-        try {
-            const response = await getQuotation(id)
-            const actualData = response.data?.data !== undefined ? response.data.data : (response.data !== undefined ? response.data : response)
-            return normalizeDocument({ ...actualData, type: 'quotation' })
-        } catch (e) {
-            error.value = getErrorMessage(e, '견적서 상세 정보를 불러오지 못했습니다.')
-            return null
-        } finally {
-            loading.value = false
-        }
+        const detail = await fetchDocumentDetail(id)
+        if (!detail) return null
+        return normalizeDocument({ ...detail, type: 'quotation' })
+    }
+
+    async function fetchApprovedQuotations() {
+        const docs = await fetchDocumentsV2()
+        return docs.filter((doc) =>
+            matchesDocumentType(doc, ['quotation']) && ['FINAL_APPROVED', 'APPROVED'].includes(String(doc.status || '').toUpperCase())
+        )
     }
 
     async function fetchContractDetail(id) {
-        loading.value = true
-        try {
-            const response = await getContract(id)
-            const actualData = response.data?.data !== undefined ? response.data.data : (response.data !== undefined ? response.data : response)
-            return normalizeDocument({ ...actualData, type: 'contract' })
-        } catch (e) {
-            error.value = getErrorMessage(e, '계약서 상세 정보를 불러오지 못했습니다.')
-            return null
-        } finally {
-            loading.value = false
-        }
+        const detail = await fetchDocumentDetail(id)
+        if (!detail) return null
+        return normalizeDocument({ ...detail, type: 'contract' })
     }
 
     async function fetchQuotationRequestDetail(id) {
-        loading.value = true
-        try {
-            const response = await getQuotationRequest(id)
-            // ApiResult에서 실제 데이터 추출
-            const actualData = response.data?.data !== undefined ? response.data.data : (response.data !== undefined ? response.data : response)
-
-            return normalizeDocument({
-                ...actualData,
-                type: 'quotation-request',
-                authorName: actualData.clientName, // RFQ는 거래처가 작성하므로 거래처명을 작성자로 취급
-                items: (actualData.items || []).map(item => ({
-                    ...item,
-                    name: item.productName || item.name,
-                    variety: item.productCategory || item.variety,
-                }))
-            })
-        } catch (e) {
-            error.value = getErrorMessage(e, '견적 요청서 상세 정보를 불러오지 못했습니다.')
-            return null
-        } finally {
-            loading.value = false
-        }
+        const detail = await fetchDocumentDetail(id)
+        if (!detail) return null
+        return normalizeDocument({
+            ...detail,
+            type: 'quotation-request',
+            authorName: detail.clientName || detail.authorName,
+            items: (detail.items || []).map((item) => ({
+                ...item,
+                name: item.productName || item.name,
+                variety: item.productCategory || item.variety,
+            })),
+        })
     }
 
     async function fetchPendingQuotationRequests() {
-        loading.value = true
-        try {
-            const data = await getPendingQuotationRequests()
-            const rawList = normalizeList(data)
-
-            // api 응답에는 리스트 타입으로 감싸져 올수도 있으므로 정규화 처리
-            const normalizedList = rawList.map(doc => normalizeDocument({
-                ...doc,
-                type: 'quotation-request',
-                authorName: doc.clientName, // RFQ는 거래처가 작성하므로 거래처명을 작성자로 취급
-                managerName: doc.managerName
-            }))
-
-            pendingQuotationRequests.value = normalizedList
-            return normalizedList
-        } catch (e) {
-            console.error('대기 중인 견적 요청서 로드 실패:', e)
-            return []
-        } finally {
-            loading.value = false
-        }
+        const docs = await fetchDocumentsV2()
+        const normalizedList = docs.filter((doc) =>
+            matchesDocumentType(doc, ['quotation-request', 'rfq']) && ['PENDING', 'REQUESTED', 'WAITING'].includes(String(doc.status || '').toUpperCase())
+        )
+        pendingQuotationRequests.value = normalizedList
+        return normalizedList
     }
 
     async function fetchStatements() {
@@ -456,17 +446,12 @@ export const useDocumentStore = defineStore('document', () => {
     async function fetchInvoices() {
         try {
             const data = await getInvoices()
-            console.log('fetchInvoices raw data:', data)          // 추가
             const rawList = normalizeList(data)
-            console.log('fetchInvoices rawList:', rawList)        // 추가
             const normalizedInvoices = rawList.map(doc => ({
-                ...normalizeDocument(doc),  // 먼저 normalize하고
-                type: 'invoice',            // 그 다음 type 덮어쓰기
+                ...normalizeDocument(doc),
+                type: 'invoice',
                 id: doc.invoiceId,
             }))
-            console.log('type 확인:', normalizedInvoices[0]?.type)  // 추가
-            console.log('id 확인:', normalizedInvoices[0]?.id)      // 추가
-            console.log('normalizedInvoices:', normalizedInvoices) // 추가
             allRawDocuments.value = [
                 ...allRawDocuments.value.filter(d => d.type?.toLowerCase() !== 'invoice'),
                 ...normalizedInvoices,
@@ -481,7 +466,7 @@ export const useDocumentStore = defineStore('document', () => {
     async function fetchInvoiceDetail(invoiceId) {
         try {
             const data = await getInvoice(invoiceId)
-            return data
+            return normalizeDocument(unwrapData(data))
         } catch (e) {
             console.error('청구서 상세 로드 실패:', e)
             return null
@@ -578,7 +563,7 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const createContract = ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, memo, historyId }) => {
+    const createContract = async ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, memo, historyId }) => {
         const id = makeId('CT')
         const lineItems = (items || []).map(withAmount)
         const next = normalizeDocument({
@@ -601,32 +586,35 @@ export const useDocumentStore = defineStore('document', () => {
             totalAmount: totalAmountOf(lineItems),
             historyId: historyId || null,
         })
-        allRawDocuments.value.unshift(next)
-        emitDocumentCreated('contract', id)
 
         const payload = {
             quotationId,
             clientId: client.id,
             startDate,
             endDate,
-            billingCycle,
+            billingCycle: billingCycle === '월' ? 'MONTHLY' : (billingCycle === '분기' ? 'QUARTERLY' : (billingCycle === '반기' ? 'HALF_YEARLY' : billingCycle)),
             specialTerms,
             memo: memo || '',
             items: lineItems.map(item => ({
                 productId: item.productId,
                 productName: (item.productName || item.name || '상품명 없음').trim(),
                 productCategory: (item.productCategory || item.category || item.variety || '기타').trim(),
-                totalQuantity: Math.max(1, Number(item.quantity || 1)),
+                totalQuantity: Math.max(1, Number(item.quantity || item.qty || 1)),
                 unit: item.unit || '-',
-                unitPrice: Number(item.unitPrice || 0)
+                unitPrice: Number(item.unitPrice || item.price || 0)
             }))
         }
 
-        createContractApi(payload).then((created) => {
-            if (!created) return
+        try {
+            const created = await createContractApi(payload)
+            allRawDocuments.value.unshift(next)
+            emitDocumentCreated('contract', id)
             historyStore.fetchPipelines()
-        }).catch((e) => { error.value = getErrorMessage(e, '계약서 생성에 실패했습니다.') })
-        return next
+            return created
+        } catch (e) {
+            error.value = getErrorMessage(e, '계약서 생성에 실패했습니다.')
+            throw e
+        }
     }
 
     const createOrder = ({ contractId, client, items, deliveryDate, memo, historyId }) => {
@@ -799,21 +787,10 @@ export const useDocumentStore = defineStore('document', () => {
 
     const deleteDocument = async (id, docType = '') => {
         try {
-            const normalizedType = String(docType || '').toLowerCase().replace(/\s+/g, '')
             const idValue = String(id)
-
-            if (normalizedType.includes('quotation-request') || normalizedType.includes('rfq') || normalizedType.includes('견적요청')) {
-                // 견적 요청서 삭제
-                await deleteQuotationRequest(idValue.replace('RFQ-', ''))
-            } else if (normalizedType.includes('quotation') || normalizedType.includes('견적서') || normalizedType.includes('견적')) {
-                // 견적서 삭제
-                await deleteQuotationApi(idValue.replace('QT-', ''))
-            } else {
-                // 범용 문서 삭제 (기존 유지)
-                await deleteDocumentApi(idValue)
-            }
-
-            // 삭제 성공 시 파이프라인(deals) 다시 로드하여 최신화
+            await deleteDocumentApi(idValue)
+            allRawDocuments.value = allRawDocuments.value.filter((doc) => String(doc.id) !== idValue)
+            pendingQuotationRequests.value = pendingQuotationRequests.value.filter((doc) => String(doc.id) !== idValue)
             await historyStore.fetchPipelines()
             return true
         } catch (e) {
@@ -822,22 +799,21 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function deleteContract(id) {
+        return deleteDocument(id, 'contract')
+    }
+
     const cancelQuotationRequest = (id) => deleteDocument(id)
 
     async function initialize() {
         loading.value = true
         error.value = null
         try {
-            // 1. 먼저 clientMaster 로드 (필터링에 필요)
             await fetchClientMaster()
-
-            // 2. 그 다음 나머지 병렬 로드
             await Promise.all([
                 fetchProductMaster(),
                 fetchDocumentsV2(),
-                fetchOrders(),
                 fetchStatements(),
-                fetchInvoices(),
             ])
         } finally {
             loading.value = false
@@ -856,8 +832,6 @@ export const useDocumentStore = defineStore('document', () => {
     const pendingInvoices = computed(() => invoices.value.filter((d) => normalizeInvoiceStatus(d.status) === INVOICE_STATUS.DRAFT))
     const issuedInvoices = computed(() => invoices.value.filter((d) => normalizeInvoiceStatus(d.status) === INVOICE_STATUS.ISSUED))
     const canceledInvoices = computed(() => invoices.value.filter((d) => normalizeInvoiceStatus(d.status) === INVOICE_STATUS.CANCELED))
-
-    void initialize()
 
     return {
         allRawDocuments,
@@ -893,6 +867,7 @@ export const useDocumentStore = defineStore('document', () => {
         cancelInvoice,
         cancelQuotationRequest,
         deleteDocument,
+        deleteContract,
         statements,
         fetchStatements,
         initialize,
@@ -903,5 +878,8 @@ export const useDocumentStore = defineStore('document', () => {
         fetchQuotationRequestDetail,
         pendingQuotationRequests,
         fetchPendingQuotationRequests,
+        fetchApprovedQuotations,
+        fetchQuotationDetail,
+        fetchContractDetail,
     }
 })

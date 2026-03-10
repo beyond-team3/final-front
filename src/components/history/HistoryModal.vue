@@ -162,6 +162,18 @@ const isAuthor = computed(() => {
   return String(authorId) === String(me.id) || String(authorId) === String(me.refId)
 })
 
+const isContractDocument = computed(() => {
+  const type = String(docDetail.value?.type || props.docType || '').toLowerCase()
+  return type === 'contract' || type.includes('계약')
+})
+
+const canDeleteContract = computed(() => {
+  if (!isContractDocument.value) return false
+  if (!isAuthor.value) return false
+  const status = String(docDetail.value?.status || '').toUpperCase()
+  return status === 'WAITING_ADMIN'
+})
+
 const isDeleteAction = ref(false)
 const handleDelete = () => {
   isDeleteAction.value = true
@@ -387,7 +399,13 @@ const confirmCancel = async () => {
 
   // 💡 본인 작성 문서 삭제 요청인 경우
   if (isDeleteAction.value) {
-    const success = await documentStore.deleteDocument(props.docId, props.docType)
+    let success = false
+    if (isContractDocument.value) {
+      success = await documentStore.deleteContract(props.docId)
+    } else {
+      success = await documentStore.deleteDocument(props.docId, props.docType)
+    }
+
     if (success) {
       showCancelConfirm.value = false
       isDeleteAction.value = false
@@ -474,12 +492,20 @@ const getValidityDate = (dateStr) => {
               취소
             </button>
             <button
-                v-if="isAuthor && !isOrderDocument"
+                v-if="isAuthor && !isOrderDocument && !isContractDocument"
                 type="button"
                 class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors"
                 @click="handleDelete"
             >
               취소 및 삭제
+            </button>
+            <button
+                v-if="canDeleteContract"
+                type="button"
+                class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors"
+                @click="handleDelete"
+            >
+              삭제하기
             </button>
             <button
                 v-if="showDownload"
