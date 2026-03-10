@@ -1,54 +1,16 @@
 import api from './index'
 
 export function createQuotationRequest(data) {
-    return api.post('/requests', data)
-}
-
-export function deleteQuotationRequest(id) {
-    return api.delete(`/requests/${id}`)
-}
-
-export function getQuotationRequest(id) {
-    return api.get(`/requests/${id}`)
-}
-
-export function getPendingQuotationRequests() {
-    return api.get('/requests/pending')
-}
-
-
-export function deleteQuotation(id) {
-    return api.delete(`/quotations/${id}`)
+    return api.post('/documents', data)
 }
 
 export function createQuotation(data) {
-    return api.post('/quotations', data)
+    return api.post('/documents', data)
 }
 
 export function createContract(data) {
-    return api.post('/contracts', data)
+    return api.post('/documents', data)
 }
-
-export function getContracts(params) {
-    return api.get('/contracts', { params })
-}
-
-export function getQuotations(params) {
-    return api.get('/quotations', { params })
-}
-
-export function getQuotation(id) {
-    return api.get(`/quotations/${id}`)
-}
-
-export function getContract(id) {
-    return api.get(`/contracts/${id}`)
-}
-
-export function getQuotationRequests(params) {
-    return api.get('/requests', { params })
-}
-
 
 //주문
 export function createOrder(data) {
@@ -114,6 +76,14 @@ export function getInvoice(invoiceId) {
 
 export function publishInvoice(invoiceId) {
     return api.patch(`/invoices/${invoiceId}/publish`)
+}
+
+export function getDocuments(params) {
+    return api.get('/documents', { params })
+}
+
+export function getDocumentSummaries(params) {
+    return api.get('/documents', { params, disableCache: true })
 }
 
 export function getDocumentDetail(id) {
