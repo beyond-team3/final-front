@@ -17,11 +17,11 @@ onMounted(async () => {
 })
 
 const labelRows = [
-  { key: 'env', label: '재배환경' },
-  { key: 'res', label: '내병성' },
-  { key: 'growth', label: '생육 및 숙기' },
-  { key: 'quality', label: '과실 품질' },
-  { key: 'conv', label: '재배 편의성' },
+  { key: '재배환경', label: '재배환경' },
+  { key: '내병성', label: '내병성' },
+  { key: '생육및숙기', label: '생육 및 숙기' },
+  { key: '과실품질', label: '과실 품질' },
+  { key: '재배편의성', label: '재배 편의성' },
 ]
 
 const compareProducts = computed(() => productStore.compareProducts)
