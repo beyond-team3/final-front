@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -42,6 +42,19 @@ const updateField = (key, value) => {
 
 const tempMultiSelect = ref([])
 
+// 부모 컴포넌트에서 초기화(modelValue 변경) 시 임시 선택값 동기화
+watch(() => props.modelValue, (newVal) => {
+  if (activeFieldKey.value) {
+    const activeField = props.fields?.find(f => f.key === activeFieldKey.value)
+    if (activeField && activeField.type === 'multi-select-grid') {
+      const parentVal = newVal[activeField.key]
+      if (!parentVal || parentVal.length === 0) {
+        tempMultiSelect.value = []
+      }
+    }
+  }
+}, { deep: true })
+
 const openDropdown = (field) => {
   if (activeFieldKey.value === field.key) {
     activeFieldKey.value = null
@@ -68,6 +81,11 @@ const resetMultiSelect = () => {
 
 const confirmMultiSelect = (key) => {
   updateField(key, [...tempMultiSelect.value])
+  activeFieldKey.value = null
+}
+
+const selectOption = (key, value) => {
+  updateField(key, value)
   activeFieldKey.value = null
 }
 

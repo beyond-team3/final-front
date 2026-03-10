@@ -30,7 +30,7 @@ const filterFields = computed(() => [
     defaultValue: [],
     options: Object.entries(PRODUCT_CATEGORY).map(([code, label]) => ({
       label,
-      value: code
+      value: label
     })),
   },
   {

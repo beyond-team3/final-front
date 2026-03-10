@@ -193,7 +193,7 @@ const submitForm = async () => {
               <span class="text-sm font-semibold text-[var(--color-text-body)]">품목(카테고리) <span class="text-red-500">*</span></span>
               <select v-model="form.category" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none">
                 <option value="">선택하세요</option>
-                <option v-for="(name, code) in PRODUCT_CATEGORY" :key="code" :value="code">{{ name }}</option>
+                <option v-for="(name, code) in PRODUCT_CATEGORY" :key="code" :value="name">{{ name }}</option>
               </select>
             </label>
           </div>
