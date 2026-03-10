@@ -360,7 +360,8 @@ function renderOfficeMarkers(offices) {
     const markerOverlay = new window.kakao.maps.CustomOverlay({
       position,
       content: markerEl,
-      yAnchor: 1.05,
+      xAnchor: 0.5,
+      yAnchor: 0.5,
     })
     markerOverlay.setMap(kakaoMap)
 
@@ -389,7 +390,7 @@ function renderOfficeMarkers(offices) {
     const infoOverlay = new window.kakao.maps.CustomOverlay({
       position,
       content: infoEl,
-      yAnchor: 1.18,
+      yAnchor: 1,
       zIndex: 5,
     })
     // 기본 숨김
@@ -1198,7 +1199,6 @@ const AREA_COORDS = {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transform: translateX(-50%);
   user-select: none;
 }
 
@@ -1256,7 +1256,6 @@ const AREA_COORDS = {
   padding: 16px 16px 14px;
   width: 220px;
   box-shadow: 0 6px 24px rgba(61,53,41,0.16);
-  transform: translateX(-50%);
   font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
 }
 
@@ -1377,7 +1376,6 @@ const AREA_COORDS = {
   border: 1.5px solid;
   border-radius: 8px;
   padding: 4px 8px;
-  transform: translateX(-50%);
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   cursor: pointer;
