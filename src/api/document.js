@@ -29,6 +29,10 @@ export function createContract(data) {
     return api.post('/contracts', data)
 }
 
+export function getContractsByClient(clientId) {
+    return api.get('/contracts', { params: { clientId } })
+}
+
 export function getContracts(params) {
     return api.get('/contracts', { params })
 }
