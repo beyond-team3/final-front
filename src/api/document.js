@@ -45,8 +45,16 @@ export function getQuotation(id) {
     return api.get(`/quotations/${id}`)
 }
 
+export function getApprovedQuotations() {
+    return api.get('/quotations/approved')
+}
+
 export function getContract(id) {
     return api.get(`/contracts/${id}`)
+}
+
+export function deleteContract(id) {
+    return api.delete(`/contracts/${id}`)
 }
 
 export function getQuotationRequests(params) {

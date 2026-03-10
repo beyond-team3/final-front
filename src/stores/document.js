@@ -20,7 +20,9 @@ import {
     deleteDocument as deleteDocumentApi,
     deleteQuotationRequest,
     getQuotationRequest,
-    getPendingQuotationRequests
+    getPendingQuotationRequests,
+    getApprovedQuotations,
+    deleteContract as deleteContractApi
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts, getProductsForEstimate } from '@/api/product'
@@ -74,7 +76,7 @@ const normalizeDocument = (doc = {}) => ({
     items: Array.isArray(doc.items) ? doc.items : [],
     totalAmount: Number(doc.totalAmount ?? doc.amount ?? 0),
     createdAt: doc.createdAt || doc.date || new Date().toISOString().slice(0, 10),
-    historyId: doc.historyId || doc.pipelineId || null,
+    historyId: doc.historyId || doc.pipelineId || doc.dealId || null,
     statusHistory: Array.isArray(doc.statusHistory) ? doc.statusHistory : [],
 })
 
@@ -361,9 +363,30 @@ export const useDocumentStore = defineStore('document', () => {
             const response = await getQuotation(id)
             const actualData = response.data?.data !== undefined ? response.data.data : (response.data !== undefined ? response.data : response)
             return normalizeDocument({ ...actualData, type: 'quotation' })
+        } finally {
+            loading.value = false
+        }
+    }
+
+    async function fetchApprovedQuotations() {
+        loading.value = true
+        try {
+            const response = await getApprovedQuotations()
+            const actualData = normalizeList(response)
+            const normalized = actualData.map(doc => ({
+                ...normalizeDocument(doc),
+                type: 'quotation'
+            }))
+            // 기존 견적서 목록과 합치거나, 별도 상태로 관리할 수 있지만
+            // 여기서는 전체 문서 목록에 합쳐서 computed 필터가 작동하게 함
+            allRawDocuments.value = [
+                ...allRawDocuments.value.filter(d => d.type.toLowerCase() !== 'quotation' || d.status !== 'FINAL_APPROVED'),
+                ...normalized
+            ]
+            return normalized
         } catch (e) {
-            error.value = getErrorMessage(e, '견적서 상세 정보를 불러오지 못했습니다.')
-            return null
+            console.error('승인된 견적서 로드 실패:', e)
+            return []
         } finally {
             loading.value = false
         }
@@ -578,7 +601,7 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const createContract = ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, memo, historyId }) => {
+    const createContract = async ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, memo, historyId }) => {
         const id = makeId('CT')
         const lineItems = (items || []).map(withAmount)
         const next = normalizeDocument({
@@ -601,32 +624,35 @@ export const useDocumentStore = defineStore('document', () => {
             totalAmount: totalAmountOf(lineItems),
             historyId: historyId || null,
         })
-        allRawDocuments.value.unshift(next)
-        emitDocumentCreated('contract', id)
 
         const payload = {
             quotationId,
             clientId: client.id,
             startDate,
             endDate,
-            billingCycle,
+            billingCycle: billingCycle === '월' ? 'MONTHLY' : (billingCycle === '분기' ? 'QUARTERLY' : (billingCycle === '반기' ? 'HALF_YEARLY' : billingCycle)),
             specialTerms,
             memo: memo || '',
             items: lineItems.map(item => ({
                 productId: item.productId,
                 productName: (item.productName || item.name || '상품명 없음').trim(),
                 productCategory: (item.productCategory || item.category || item.variety || '기타').trim(),
-                totalQuantity: Math.max(1, Number(item.quantity || 1)),
+                totalQuantity: Math.max(1, Number(item.quantity || item.qty || 1)),
                 unit: item.unit || '-',
-                unitPrice: Number(item.unitPrice || 0)
+                unitPrice: Number(item.unitPrice || item.price || 0)
             }))
         }
 
-        createContractApi(payload).then((created) => {
-            if (!created) return
+        try {
+            const created = await createContractApi(payload)
+            allRawDocuments.value.unshift(next)
+            emitDocumentCreated('contract', id)
             historyStore.fetchPipelines()
-        }).catch((e) => { error.value = getErrorMessage(e, '계약서 생성에 실패했습니다.') })
-        return next
+            return created
+        } catch (e) {
+            error.value = getErrorMessage(e, '계약서 생성에 실패했습니다.')
+            throw e
+        }
     }
 
     const createOrder = ({ contractId, client, items, deliveryDate, memo, historyId }) => {
@@ -822,6 +848,24 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function deleteContract(id) {
+        loading.value = true
+        try {
+            await deleteContractApi(id)
+            // 목록에서 제거
+            allRawDocuments.value = allRawDocuments.value.filter(d => String(d.id) !== String(id))
+            // 삭제 성공 시 파이프라인(deals) 다시 로드하여 최신화
+            await historyStore.fetchPipelines()
+            return true
+        } catch (e) {
+            console.error('계약서 삭제 에러:', e)
+            error.value = getErrorMessage(e, '계약서 삭제에 실패했습니다.')
+            return false
+        } finally {
+            loading.value = false
+        }
+    }
+
     const cancelQuotationRequest = (id) => deleteDocument(id)
 
     async function initialize() {
@@ -893,6 +937,7 @@ export const useDocumentStore = defineStore('document', () => {
         cancelInvoice,
         cancelQuotationRequest,
         deleteDocument,
+        deleteContract,
         statements,
         fetchStatements,
         initialize,
@@ -903,5 +948,8 @@ export const useDocumentStore = defineStore('document', () => {
         fetchQuotationRequestDetail,
         pendingQuotationRequests,
         fetchPendingQuotationRequests,
+        fetchApprovedQuotations,
+        fetchQuotationDetail,
+        fetchContractDetail,
     }
 })
