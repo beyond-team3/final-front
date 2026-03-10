@@ -1,28 +1,11 @@
 import api from './index'
 
 export function createQuotationRequest(data) {
-    return api.post('/requests', data)
-}
-
-export function deleteQuotationRequest(id) {
-    return api.delete(`/requests/${id}`)
-}
-
-export function getQuotationRequest(id) {
-    return api.get(`/requests/${id}`)
-}
-
-export function getPendingQuotationRequests() {
-    return api.get('/requests/pending')
-}
-
-
-export function deleteQuotation(id) {
-    return api.delete(`/quotations/${id}`)
+    return api.post('/documents/quotation-request', data)
 }
 
 export function createQuotation(data) {
-    return api.post('/quotations', data)
+    return api.post('/documents/quotation', data)
 }
 
 export function createContract(data) {
@@ -37,28 +20,28 @@ export function getContracts(params) {
     return api.get('/contracts', { params })
 }
 
-export function getQuotations(params) {
-    return api.get('/quotations', { params })
+export function createOrder(data) {
+    return api.post('/documents/order', data)
 }
 
-export function getQuotation(id) {
-    return api.get(`/quotations/${id}`)
+export function createStatement(data) {
+    return api.post('/documents/statement', data)
 }
 
-export function getApprovedQuotations() {
-    return api.get('/quotations/approved')
+export function createInvoice(data) {
+    return api.post('/documents/invoice', data)
 }
 
-export function getContract(id) {
-    return api.get(`/contracts/${id}`)
+export function getDocuments(params) {
+    return api.get('/documents', { params })
 }
 
-export function deleteContract(id) {
-    return api.delete(`/contracts/${id}`)
+export function getDocumentSummaries(params) {
+    return api.get('/documents', { params, disableCache: true })
 }
 
-export function getQuotationRequests(params) {
-    return api.get('/requests', { params })
+export function getDocumentDetail(id) {
+    return api.get(`/documents/${id}`)
 }
 
 
@@ -79,8 +62,8 @@ export function createOrder(data) {
     })
 }
 
-export function getOrders() {
-    return api.get('/orders')
+export function getOrders(params) {
+    return api.get('/orders', { params })
 }
 
 export function getOrder(orderId) {
@@ -95,26 +78,8 @@ export function confirmOrder(orderId) {
     return api.patch(`/orders/${orderId}/confirm`)
 }
 
-// 명세서
-export function getStatements() {
-    return api.get('/statements')
-}
-
-export function getStatement(statementId) {
-    return api.get(`/statements/${statementId}`)
-}
-
-export function cancelStatement(statementId) {
-    return api.patch(`/statements/${statementId}/cancel`)
-}
-
-// 청구서
-export function createInvoice(data) {
-    return api.post('/invoices', data)
-}
-
-export function getInvoices() {
-    return api.get('/invoices')
+export function getInvoices(params) {
+    return api.get('/invoices', { params })
 }
 
 export function getInvoicesByClient() {
@@ -127,10 +92,6 @@ export function getInvoice(invoiceId) {
 
 export function publishInvoice(invoiceId) {
     return api.patch(`/invoices/${invoiceId}/publish`)
-}
-
-export function getDocumentDetail(id) {
-    return api.get(`/documents/${id}`)
 }
 
 export function updateDocumentStatus(id, data) {

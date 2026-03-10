@@ -36,7 +36,7 @@ api.interceptors.request.use(
             url: config.url,
         })
 
-        if (String(config.method || 'get').toLowerCase() === 'get') {
+        if (String(config.method || 'get').toLowerCase() === 'get' && !config.disableCache) {
             const cacheKey = buildCacheKey(config)
             config.__cacheKey = cacheKey
 
