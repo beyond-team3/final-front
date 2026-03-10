@@ -29,6 +29,14 @@ const clickOutsideHandler = (e) => {
 
 onMounted(() => {
   window.addEventListener('click', clickOutsideHandler)
+
+  // 💡 상품 및 거래처 목록 미리 로드
+  if (documentStore.productMaster.length === 0) {
+    void documentStore.fetchProductMaster('estimate')
+  }
+  if (documentStore.clientMaster.length === 0) {
+    documentStore.fetchClientMaster()
+  }
 })
 
 onUnmounted(() => {
