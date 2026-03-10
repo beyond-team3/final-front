@@ -20,9 +20,6 @@ export function getContracts(params) {
     return api.get('/contracts', { params })
 }
 
-export function createOrder(data) {
-    return api.post('/documents/order', data)
-}
 
 export function createStatement(data) {
     return api.post('/documents/statement', data)
