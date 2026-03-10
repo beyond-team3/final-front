@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
 import { useProductStore } from '@/stores/product'
+import { getSimilarProducts as getSimilarProductsApi } from '@/api/product'
 
 const route = useRoute()
 const productStore = useProductStore()
@@ -44,7 +45,7 @@ const allChecked = computed({
 })
 
 const isIndeterminate = computed(() =>
-  selectedKeys.value.size > 0 && selectedKeys.value.size < criteriaKeys.length
+    selectedKeys.value.size > 0 && selectedKeys.value.size < criteriaKeys.length
 )
 
 function onCriterionChange(key, checked) {
@@ -81,7 +82,39 @@ const similarProducts = computed(() => {
   })
 })
 
-const graphNodes = computed(() => similarProducts.value.slice(0, 5))
+// ✅ API 유사 상품 조회
+const apiSimilarProducts = ref([])
+const loadingSimilar = ref(false)
+
+const fetchSimilarProductsFromApi = async () => {
+  if (!baseProduct.value) return
+  loadingSimilar.value = true
+  try {
+    const criteria = productStore.enabledSimilarityKeys
+    const response = await getSimilarProductsApi(baseProduct.value.id, {
+      limit: 5,
+      threshold: productStore.similarityThreshold,
+      criteria: criteria.length > 0 ? criteria : undefined
+    })
+    // API 응답 매핑
+    apiSimilarProducts.value = response?.similarProducts || []
+  } catch (error) {
+    console.error('유사 상품 조회 실패:', error)
+    apiSimilarProducts.value = []
+  } finally {
+    loadingSimilar.value = false
+  }
+}
+
+watch([() => baseProduct.value?.id, () => productStore.similarityThreshold, () => productStore.enabledSimilarityKeys], () => {
+  if (baseProduct.value) {
+    fetchSimilarProductsFromApi()
+  }
+}, { deep: true })
+
+const graphNodes = computed(() => apiSimilarProducts.value.length > 0
+    ? apiSimilarProducts.value.slice(0, 5)
+    : similarProducts.value.slice(0, 5))
 
 const localCompareIds = ref([])
 
@@ -133,56 +166,59 @@ const similarityText = (product) => {
 </script>
 
 <template>
-  <section>
+  <section style="background-color: #EDE8DF; min-height: 100vh;" class="p-6">
     <PageHeader title="상품 비교 및 유사도 분석" subtitle="기준 상품 선택 후 유사 상품을 비교하세요." />
 
-    <section class="mb-5 rounded-xl border border-slate-200 bg-white p-5">
-      <h3 class="mb-3 text-base font-bold text-slate-800">기준 상품 정보 요약</h3>
+    <!-- 기준 상품 정보 -->
+    <section class="mb-5 rounded-lg border p-5" style="border-color: #DDD7CE; background-color: white;">
+      <h3 class="mb-3 text-base font-bold" style="color: #3D3529;">기준 상품 정보 요약</h3>
 
       <div v-if="baseProduct">
         <div class="mb-3 flex items-center gap-3">
           <div>
-            <p class="text-base font-bold text-slate-800">{{ baseProduct.name }}</p>
-            <p class="text-xs text-slate-500">{{ baseProduct.category }} · {{ baseProduct.id }}</p>
+            <p class="text-base font-bold" style="color: #3D3529;">{{ baseProduct.name }}</p>
+            <p class="text-xs" style="color: #9A8C7E;">{{ baseProduct.category }} · {{ baseProduct.id }}</p>
           </div>
         </div>
-        <p class="mb-4 text-sm text-slate-500">{{ baseProduct.desc }}</p>
+        <p class="mb-4 text-sm" style="color: #6B5F50;">{{ baseProduct.desc }}</p>
         <div class="grid gap-3 md:grid-cols-5">
-          <div v-for="row in criteriaRows" :key="row.key" class="rounded border border-slate-200 bg-slate-50 p-3">
-            <p class="text-xs text-slate-500">{{ row.label }}</p>
-            <p class="mt-1 text-sm font-semibold text-slate-700">{{ tagsText(baseProduct, row.key) }}</p>
+          <div v-for="row in criteriaRows" :key="row.key" class="rounded border p-3" style="border-color: #DDD7CE; background-color: #EFEADF;">
+            <p class="text-xs" style="color: #6B5F50;">{{ row.label }}</p>
+            <p class="mt-1 text-sm font-semibold" style="color: #3D3529;">{{ tagsText(baseProduct, row.key) }}</p>
           </div>
         </div>
       </div>
-      <p v-else class="text-sm text-slate-400">기준 상품 정보가 없습니다.</p>
+      <p v-else class="text-sm" style="color: #BFB3A5;">기준 상품 정보가 없습니다.</p>
     </section>
 
+    <!-- 왼쪽: 기준 설정, 오른쪽: 그래프 -->
     <section class="mb-5 grid gap-5 xl:grid-cols-[280px_1fr]">
-      <article class="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 class="mb-4 text-base font-bold text-slate-800">유사도 분석 기준 설정</h3>
+      <!-- 유사도 분석 기준 설정 -->
+      <article class="rounded-lg border p-4" style="border-color: #DDD7CE; background-color: white;">
+        <h3 class="mb-4 text-base font-bold" style="color: #3D3529;">유사도 분석 기준 설정</h3>
         <div class="space-y-2">
           <CedarCheckbox
-            id="criteria-all"
-            label="전체 선택"
-            :model-value="allChecked"
-            :indeterminate="isIndeterminate"
-            @update:model-value="onToggleAllCriteria"
+              id="criteria-all"
+              label="전체 선택"
+              :model-value="allChecked"
+              :indeterminate="isIndeterminate"
+              @update:model-value="onToggleAllCriteria"
           />
 
           <CedarCheckbox
-            v-for="row in criteriaRows"
-            :id="`criteria-${row.key}`"
-            :key="row.key"
-            :label="row.label"
-            :model-value="selectedKeys.has(row.key)"
-            @update:model-value="(checked) => onCriterionChange(row.key, checked)"
+              v-for="row in criteriaRows"
+              :id="`criteria-${row.key}`"
+              :key="row.key"
+              :label="row.label"
+              :model-value="selectedKeys.has(row.key)"
+              @update:model-value="(checked) => onCriterionChange(row.key, checked)"
           />
         </div>
 
         <div class="mt-5">
-          <div class="mb-1 flex items-center justify-between text-sm font-medium text-slate-700">
+          <div class="mb-1 flex items-center justify-between text-sm font-medium" style="color: #3D3529;">
             <span>유사도 임계값</span>
-            <span class="text-blue-600">{{ productStore.similarityThreshold }}%</span>
+            <span style="color: #7A8C42;">{{ productStore.similarityThreshold }}%</span>
           </div>
           <input
               :value="productStore.similarityThreshold"
@@ -190,15 +226,21 @@ const similarityText = (product) => {
               min="0"
               max="100"
               class="w-full"
+              style="accent-color: #7A8C42;"
               @input="productStore.setSimilarityThreshold($event.target.value)"
           >
         </div>
       </article>
 
-      <article class="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 class="mb-3 text-base font-bold text-slate-800">유사도 네트워크 그래프</h3>
-        <div class="overflow-x-auto rounded border border-slate-200 bg-slate-50 p-2">
+      <!-- 유사도 네트워크 그래프 -->
+      <article class="rounded-lg border p-4" style="border-color: #DDD7CE; background-color: white;">
+        <h3 class="mb-3 text-base font-bold" style="color: #3D3529;">유사도 네트워크 그래프</h3>
+        <div v-if="loadingSimilar" class="flex items-center justify-center py-32" style="color: #9A8C7E;">
+          <p>유사 상품 분석 중...</p>
+        </div>
+        <div v-else class="overflow-x-auto rounded border p-2" style="border-color: #DDD7CE; background-color: #EFEADF;">
           <svg viewBox="0 0 800 450" class="h-[420px] w-full min-w-[700px]">
+            <!-- 연결선 -->
             <line
                 v-for="(node, index) in graphNodes"
                 :key="`line-${node.id}`"
@@ -206,16 +248,19 @@ const similarityText = (product) => {
                 y1="225"
                 :x2="[300, 500, 250, 550, 350][index]"
                 :y2="[150, 150, 300, 300, 350][index]"
-                :class="node.similarity >= 85 ? 'stroke-blue-500 stroke-2' : 'stroke-slate-400 stroke'"
+                :stroke="node.similarityScore >= 85 ? '#7A8C42' : '#DDD7CE'"
+                :stroke-width="node.similarityScore >= 85 ? 2 : 1"
                 stroke-opacity="0.7"
             />
 
+            <!-- 기준 상품 -->
             <g transform="translate(400,225)">
-              <circle r="30" fill="#667eea" stroke="#5647b8" stroke-width="3" />
-              <text y="50" text-anchor="middle" class="fill-slate-700 text-[12px]">{{ baseProduct ? baseProduct.name : '기준 상품' }}</text>
-              <text y="64" text-anchor="middle" class="fill-slate-500 text-[10px]">(기준)</text>
+              <circle r="30" fill="#C8622A" stroke="#A84F21" stroke-width="3" />
+              <text y="50" text-anchor="middle" class="text-[12px]" fill="#3D3529">{{ baseProduct ? baseProduct.name : '기준 상품' }}</text>
+              <text y="64" text-anchor="middle" class="text-[10px]" fill="#6B5F50">(기준)</text>
             </g>
 
+            <!-- 유사 상품들 -->
             <g
                 v-for="(node, index) in graphNodes"
                 :key="`node-${node.id}`"
@@ -226,52 +271,57 @@ const similarityText = (product) => {
               <!-- 선택된 경우 외곽 링 표시 -->
               <circle
                   v-if="isInLocalCompare(node.id)"
-                  :r="(node.similarity >= 85 ? 24 : node.similarity >= 70 ? 20 : 16) + 7"
+                  :r="(node.similarityScore >= 85 ? 24 : node.similarityScore >= 70 ? 20 : 16) + 7"
                   fill="none"
-                  stroke="#22c55e"
+                  stroke="#7A8C42"
                   stroke-width="2.5"
                   stroke-dasharray="4 2"
               />
               <circle
-                  :r="node.similarity >= 85 ? 24 : node.similarity >= 70 ? 20 : 16"
-                  :fill="isInLocalCompare(node.id) ? '#22c55e' : node.similarity >= 70 ? '#4facfe' : '#95a5a6'"
-                  :stroke="isInLocalCompare(node.id) ? '#16a34a' : node.similarity >= 70 ? '#00b7ff' : '#7f8c8d'"
+                  :r="node.similarityScore >= 85 ? 24 : node.similarityScore >= 70 ? 20 : 16"
+                  :fill="isInLocalCompare(node.id) ? '#7A8C42' : node.similarityScore >= 70 ? '#C8622A' : '#DDD7CE'"
+                  :stroke="isInLocalCompare(node.id) ? '#5F7033' : node.similarityScore >= 70 ? '#A84F21' : '#BFB3A5'"
                   stroke-width="2"
               />
               <!-- 선택된 경우 체크 표시 -->
               <text v-if="isInLocalCompare(node.id)" text-anchor="middle" dominant-baseline="middle" class="fill-white text-[13px]" font-weight="bold">✓</text>
-              <text y="38" text-anchor="middle" class="fill-slate-700 text-[11px]">{{ node.name }}</text>
-              <text y="50" text-anchor="middle" class="fill-slate-500 text-[10px]">유사도 {{ node.similarity }}%</text>
+              <text y="38" text-anchor="middle" class="text-[11px]" fill="#3D3529">{{ node.productName }}</text>
+              <text y="50" text-anchor="middle" class="text-[10px]" fill="#6B5F50">유사도 {{ node.similarityScore }}%</text>
             </g>
           </svg>
         </div>
       </article>
     </section>
 
-    <section class="rounded-xl border border-slate-200 bg-white p-4">
+    <!-- 비교 상품 선택 + 결과 -->
+    <section class="rounded-lg border p-4" style="border-color: #DDD7CE; background-color: white;">
       <div class="mb-3 flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-800">비교 상품 선택 + 상품 비교 결과</h3>
+        <h3 class="text-base font-bold" style="color: #3D3529;">비교 상품 선택 + 상품 비교 결과</h3>
         <button
             type="button"
-            class="rounded border-2 border-red-400 px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50"
+            class="rounded px-4 py-1.5 text-sm font-semibold"
+            style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
             @click="resetAll"
         >
           전체 초기화
         </button>
       </div>
 
+      <!-- 비교 슬롯 -->
       <div class="mb-4 grid gap-3 md:grid-cols-3">
         <div
             v-for="(slot, idx) in slotProducts"
             :key="idx"
-            class="min-h-20 rounded-lg border-2 border-dashed border-slate-300 p-3"
+            class="min-h-20 rounded-lg border-2 p-3"
+            style="border-color: #DDD7CE; border-style: dashed; background-color: #FAF7F3;"
         >
           <div v-if="slot" class="relative h-full">
-            <p class="pr-6 text-sm font-semibold text-slate-800">{{ slot.name }}</p>
-            <p class="mt-1 text-xs text-slate-500">{{ slot.category }}</p>
+            <p class="pr-6 text-sm font-semibold" style="color: #3D3529;">{{ slot.name }}</p>
+            <p class="mt-1 text-xs" style="color: #9A8C7E;">{{ slot.category }}</p>
             <button
                 type="button"
-                class="absolute right-0 top-0 h-6 w-6 rounded-full bg-slate-200 text-xs"
+                class="absolute right-0 top-0 h-6 w-6 rounded-full text-xs"
+                style="background-color: #DDD7CE; color: #6B5F50;"
                 @click="removeFromSlot(slot.id)"
             >
               ×
@@ -280,7 +330,8 @@ const similarityText = (product) => {
           <button
               v-else
               type="button"
-              class="h-full w-full text-sm text-slate-500"
+              class="h-full w-full text-sm"
+              style="color: #9A8C7E;"
               @click="addNextToSlot"
           >
             + 상품 추가
@@ -288,52 +339,53 @@ const similarityText = (product) => {
         </div>
       </div>
 
-      <div class="overflow-x-auto rounded border border-slate-200">
+      <!-- 비교 테이블 -->
+      <div class="overflow-x-auto rounded border" style="border-color: #DDD7CE;">
         <table class="min-w-full border-collapse text-sm">
           <thead>
-          <tr class="bg-slate-700 text-left text-white">
-            <th class="px-4 py-3">비교 항목</th>
-            <th class="px-4 py-3">{{ baseProduct ? `${baseProduct.name} (기준)` : '-' }}</th>
-            <th class="px-4 py-3">{{ slotProducts[0]?.name || '비교 상품 1' }}</th>
-            <th class="px-4 py-3">{{ slotProducts[1]?.name || '비교 상품 2' }}</th>
-            <th class="px-4 py-3">{{ slotProducts[2]?.name || '비교 상품 3' }}</th>
+          <tr style="background-color: #3D3529; color: white;">
+            <th class="px-4 py-3 text-left">비교 항목</th>
+            <th class="px-4 py-3 text-left">{{ baseProduct ? `${baseProduct.name} (기준)` : '-' }}</th>
+            <th class="px-4 py-3 text-left">{{ slotProducts[0]?.name || '비교 상품 1' }}</th>
+            <th class="px-4 py-3 text-left">{{ slotProducts[1]?.name || '비교 상품 2' }}</th>
+            <th class="px-4 py-3 text-left">{{ slotProducts[2]?.name || '비교 상품 3' }}</th>
           </tr>
           </thead>
           <tbody>
-          <tr class="border-t border-slate-100">
-            <td class="bg-slate-100 px-4 py-3 font-semibold">품종명</td>
-            <td class="px-4 py-3">{{ baseProduct?.name || '-' }}</td>
-            <td class="px-4 py-3">{{ slotProducts[0]?.name || '-' }}</td>
-            <td class="px-4 py-3">{{ slotProducts[1]?.name || '-' }}</td>
-            <td class="px-4 py-3">{{ slotProducts[2]?.name || '-' }}</td>
+          <tr style="border-top: 1px solid #DDD7CE;">
+            <td class="px-4 py-3 font-semibold" style="background-color: #EFEADF; color: #3D3529;">품종명</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ baseProduct?.name || '-' }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ slotProducts[0]?.name || '-' }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ slotProducts[1]?.name || '-' }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ slotProducts[2]?.name || '-' }}</td>
           </tr>
-          <tr class="border-t border-slate-100">
-            <td class="bg-slate-100 px-4 py-3 font-semibold">품종 특징</td>
-            <td class="px-4 py-3">{{ tagsText(baseProduct, '과실품질') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[0], '과실품질') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[1], '과실품질') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[2], '과실품질') }}</td>
+          <tr style="border-top: 1px solid #DDD7CE;">
+            <td class="px-4 py-3 font-semibold" style="background-color: #EFEADF; color: #3D3529;">품종 특징</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(baseProduct, '과실품질') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[0], '과실품질') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[1], '과실품질') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[2], '과실품질') }}</td>
           </tr>
-          <tr class="border-t border-slate-100">
-            <td class="bg-slate-100 px-4 py-3 font-semibold">재배 적기</td>
-            <td class="px-4 py-3">{{ tagsText(baseProduct, '생육및숙기') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[0], '생육및숙기') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[1], '생육및숙기') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[2], '생육및숙기') }}</td>
+          <tr style="border-top: 1px solid #DDD7CE;">
+            <td class="px-4 py-3 font-semibold" style="background-color: #EFEADF; color: #3D3529;">재배 적기</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(baseProduct, '생육및숙기') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[0], '생육및숙기') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[1], '생육및숙기') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[2], '생육및숙기') }}</td>
           </tr>
-          <tr class="border-t border-slate-100">
-            <td class="bg-slate-100 px-4 py-3 font-semibold">병해충 내성</td>
-            <td class="px-4 py-3">{{ tagsText(baseProduct, '내병성') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[0], '내병성') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[1], '내병성') }}</td>
-            <td class="px-4 py-3">{{ tagsText(slotProducts[2], '내병성') }}</td>
+          <tr style="border-top: 1px solid #DDD7CE;">
+            <td class="px-4 py-3 font-semibold" style="background-color: #EFEADF; color: #3D3529;">병해충 내성</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(baseProduct, '내병성') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[0], '내병성') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[1], '내병성') }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ tagsText(slotProducts[2], '내병성') }}</td>
           </tr>
-          <tr class="border-t border-slate-100">
-            <td class="bg-slate-100 px-4 py-3 font-semibold">기준 대비 유사도</td>
-            <td class="px-4 py-3">100%</td>
-            <td class="px-4 py-3">{{ similarityText(slotProducts[0]) }}</td>
-            <td class="px-4 py-3">{{ similarityText(slotProducts[1]) }}</td>
-            <td class="px-4 py-3">{{ similarityText(slotProducts[2]) }}</td>
+          <tr style="border-top: 1px solid #DDD7CE;">
+            <td class="px-4 py-3 font-semibold" style="background-color: #EFEADF; color: #3D3529;">기준 대비 유사도</td>
+            <td class="px-4 py-3" style="color: #3D3529;">100%</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ similarityText(slotProducts[0]) }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ similarityText(slotProducts[1]) }}</td>
+            <td class="px-4 py-3" style="color: #3D3529;">{{ similarityText(slotProducts[2]) }}</td>
           </tr>
           </tbody>
         </table>

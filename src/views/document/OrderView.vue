@@ -238,13 +238,6 @@ const onSelectContract = async (contract) => {
 </script>
 
 <template>
-  <!-- 디버깅용 -->
-  <div style="background: yellow; padding: 10px;">
-    <p>contractsFromApi.length: {{ contractsFromApi.length }}</p>
-    <p>contractList.length: {{ contractList.length }}</p>
-    <p>contractsFromApi: {{ JSON.stringify(contractsFromApi) }}</p>
-  </div>
-
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
