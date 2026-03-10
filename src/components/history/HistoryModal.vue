@@ -253,6 +253,10 @@ const loadDetail = async () => {
       let fetched = null
       if (['quotation-request', 'rfq', '견적요청'].includes(typeKey)) {
         fetched = await documentStore.fetchQuotationRequestDetail(currentId)
+      } else if (typeKey === 'quotation') {
+        fetched = await documentStore.fetchQuotationDetail(currentId)
+      } else if (typeKey === 'contract') {
+        fetched = await documentStore.fetchContractDetail(currentId)
       } else {
         fetched = await documentStore.fetchDocumentDetail(currentId)
       }
@@ -260,6 +264,10 @@ const loadDetail = async () => {
     }
 
     docDetail.value = detail
+    // 💡 4. 타입 강제 보완 (렌더링 누락 방지)
+    if (docDetail.value && !docDetail.value.type) {
+      docDetail.value.type = typeKey || 'quotation'
+    }
   } catch (e) {
     console.error('[HistoryModal] 상세 로드 중 오류 발생:', e)
   } finally {
@@ -325,7 +333,7 @@ const downloadDocument = async () => {
 
   const opt = {
     margin: 0,
-    filename: `${props.docId}.pdf`,
+    filename: `${docDetail.value?.displayCode || props.docId}.pdf`,
     image: { type: 'jpeg', quality: 1.0 },
     html2canvas: {
       scale: 3,
@@ -379,7 +387,7 @@ const confirmCancel = async () => {
 
   // 💡 본인 작성 문서 삭제 요청인 경우
   if (isDeleteAction.value) {
-    const success = await documentStore.deleteDocument(props.docId)
+    const success = await documentStore.deleteDocument(props.docId, props.docType)
     if (success) {
       showCancelConfirm.value = false
       isDeleteAction.value = false
@@ -440,7 +448,9 @@ const getValidityDate = (dateStr) => {
         <header class="flex items-center justify-between border-b border-[var(--color-border-divider)] bg-[var(--color-bg-sidebar)] px-5 py-3">
           <div class="flex items-center gap-4">
             <h3 class="text-lg font-semibold text-[var(--color-text-strong)]">{{ title }}</h3>
-            <span class="font-mono text-sm text-[var(--color-text-sub)] bg-[var(--color-bg-section)] px-2 py-0.5 rounded border border-[var(--color-border-card)]">{{ docId }}</span>
+            <span class="font-mono text-sm text-[var(--color-text-sub)] bg-[var(--color-bg-section)] px-2 py-0.5 rounded border border-[var(--color-border-card)]">
+              {{ docDetail?.displayCode || docDetail?.quotationCode || docDetail?.contractCode || docDetail?.requestCode || docId }}
+            </span>
           </div>
           <div class="flex items-center gap-2">
             <div v-if="showOrderCancelButton && isOrderCancelBlockedByApproval" class="text-xs font-semibold text-[#C44536]">
@@ -500,7 +510,7 @@ const getValidityDate = (dateStr) => {
                 <div class="current-pdf-template transform-gpu shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
                   <!-- AGENT_DEBUG: PDF_TEMPLATE_START -->
                   <!-- 1. 견적서 (QuotationView.vue 1:1 Mirror) -->
-                  <div v-if="docDetail.type === 'quotation' || docDetail.type === '견적서' || docId.startsWith('QT')" class="bg-white p-12 h-[1115px] overflow-hidden shadow-2xl relative text-[11px] text-black pdf-document-font w-[794px]">
+                  <div v-if="docDetail.type === 'quotation' || docDetail.type === '견적서' || String(docId).startsWith('QT') || String(docId).startsWith('QUO')" class="bg-white p-12 h-[1115px] overflow-hidden shadow-2xl relative text-[11px] text-black pdf-document-font w-[794px]">
                     <div class="text-center border-b-2 border-black pb-3 mb-8">
                       <h1 class="text-3xl font-bold tracking-[10px]" style="font-family: 'KoPub Dotum', sans-serif !important;">견 적 서</h1>
                     </div>

@@ -24,7 +24,7 @@ onMounted(async () => {
   // 스토어가 비어있을 때만 데이터를 호출
   if (!documentStore.loading) {
     await Promise.all([
-      documentStore.fetchDocuments(),
+      documentStore.fetchDocumentsV2(),
       documentStore.fetchClientMaster(),
       documentStore.fetchStatements(),
       historyStore.fetchPipelines()
@@ -51,37 +51,22 @@ const normalizeStatus = (status) => {
  * 🎯 [핵심] 역할별 데이터 필터링 및 매핑
  */
 const sourceRows = computed(() => {
-  const role = authStore.currentRole
-  const myRefId = authStore.me?.refId
-
-  // 1. 담당 거래처 ID 목록 추출 (managerId === 내 refId)
-  const myManagedClientIds = (role === ROLES.SALES_REP)
-      ? documentStore.clientMaster
-          .filter(c => String(c.managerId) === String(myRefId))
-          .map(c => String(c.id))
-      : []
-
-  // 2. 권한 필터 함수
-  const finalFilter = (doc) => {
-    if (role === ROLES.ADMIN) return true
-    if (role === ROLES.CLIENT) return String(doc.clientId) === String(myRefId)
-    if (role === ROLES.SALES_REP) return myManagedClientIds.includes(String(doc.clientId))
-    return false
-  }
-
   const formatAmount = (v) => (Number(v || 0) > 0 ? `${Number(v).toLocaleString()}원` : '-')
 
-  // 3. [History 데이터 통합] 히스토리 배열 내부의 documents까지
-  let historyDocs = []
+  // 1. [History 데이터 통합] 히스토리 데이터는 보조 정보로 활용
+  let historyDocsMap = new Map()
   if (historyStore.pipelines) {
-    historyDocs = historyStore.pipelines
-        .filter(h => finalFilter({ clientId: h.clientId }))
-        .flatMap(h => (h.documents || []).map(d => ({ ...d, clientId: h.clientId })))
+    historyStore.pipelines.forEach(h => {
+      if (Array.isArray(h.documents)) {
+        h.documents.forEach(d => {
+          historyDocsMap.set(String(d.id), { ...d, clientId: h.clientId, fromHistory: true })
+        })
+      }
+    })
   }
 
-  // 4. 모든 소스 통합 (히스토리 데이터를 기초로 깔고, 상세 스토어 데이터로 덮어씀)
+  // 2. 모든 소스 통합 (백엔드에서 이미 본인 권한에 맞는 데이터만 내려옴)
   const allRawDocs = [
-    ...historyDocs.map(d => ({ ...d, fromHistory: true })),
     ...documentStore.quotationRequests.map(d => ({ ...d, typeLabel: '견적요청서' })),
     ...documentStore.quotations.map(d => ({ ...d, typeLabel: '견적서' })),
     ...documentStore.contracts.map(d => ({ ...d, typeLabel: '계약서' })),
@@ -89,19 +74,26 @@ const sourceRows = computed(() => {
     ...documentStore.invoices.map(d => ({ ...d, typeLabel: String(d.status).toUpperCase() === 'ISSUED' ? '명세서' : '청구서' }))
   ]
 
-  // [중복 제거] 동일한 ID를 가진 문서가 여러 소스에서 올 경우 하나만 남김
-  const uniqueDocs = Array.from(new Map(allRawDocs.map(doc => [doc.id, doc])).values())
+  // 3. 히스토리에는 있지만 스토어 목록엔 없는 데이터 보완 (생성 직후 등)
+  const finalDocs = [...allRawDocs]
+  historyDocsMap.forEach((hDoc, id) => {
+    if (!finalDocs.some(d => String(d.id) === id)) {
+      finalDocs.push(hDoc)
+    }
+  })
 
-  // 5. 최종 필터링 및 정규화
-  return uniqueDocs
-      .filter(finalFilter)
+  // 4. 데이터 정규화 및 최신순 정렬
+  return finalDocs
       .map(doc => ({
         id: doc.id,
+        displayCode: doc.displayCode || doc.id,
         type: doc.typeLabel || doc.type,
         date: doc.date || doc.createdAt || '-',
         amount: formatAmount(doc.totalAmount || doc.amount),
         status: normalizeStatus(doc.status),
         remark: doc.memo || doc.remarks || doc.requirements || doc.remark || '',
+        authorId: doc.authorId,
+        clientId: doc.clientId,
         rejectReason: doc.rejectReason || ''
       }))
       .sort((a, b) => new Date(b.date) - new Date(a.date)) // 최신순
@@ -119,7 +111,7 @@ const filteredRows = computed(() => {
     const matchStatus = selectedStatus.value === 'ALL' || row.status === selectedStatus.value
     const kw = searchText.value.trim().toLowerCase()
     const matchSearch = kw === ''
-        || String(row.id).toLowerCase().includes(kw)
+        || String(row.displayCode || row.id).toLowerCase().includes(kw)
         || row.type.toLowerCase().includes(kw)
     return matchType && matchStatus && matchSearch
   })
@@ -139,86 +131,90 @@ const openDetail = (row) => {
 </script>
 
 <template>
-  <section class="mx-auto max-w-[1400px] p-6">
-    <header class="mb-6">
-      <h1 class="text-2xl font-bold text-slate-900" style="font-family: 'KoPub Dotum', sans-serif !important;">모든 문서</h1>
-      <p class="mt-1 text-sm text-slate-500">
-        {{ authStore.me?.name }}님, 총 {{ sourceRows.length }}건을 찾았습니다.
-      </p>
-    </header>
+  <main style="background-color: #EDE8DF; min-height: 100vh;">
+    <section class="mx-auto max-w-[1400px] p-6">
+      <header class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-900" style="font-family: 'KoPub Dotum', sans-serif !important;">모든 문서</h1>
+        <p class="mt-1 text-sm text-slate-500">
+          {{ authStore.me?.name }}님, 총 {{ sourceRows.length }}건을 찾았습니다.
+        </p>
+      </header>
 
-    <div class="mb-6 flex flex-wrap gap-3 bg-white p-4 shadow-sm rounded-lg border border-slate-200">
-      <input
-          v-model="searchText"
-          type="text"
-          class="flex-1 min-w-[250px] border border-slate-300 p-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          placeholder="문서번호 또는 유형 검색..."
-      >
-      <select v-model="selectedType" class="border border-slate-300 p-2 rounded-lg text-sm bg-white">
-        <option v-for="t in typeOptions" :key="t" :value="t">{{ t === 'ALL' ? '문서유형 전체' : t }}</option>
-      </select>
-      <select v-model="selectedStatus" class="border border-slate-300 p-2 rounded-lg text-sm bg-white">
-        <option v-for="s in statusOptions" :key="s" :value="s">{{ s === 'ALL' ? '상태 전체' : s }}</option>
-      </select>
-    </div>
-
-    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-      <table v-if="filteredRows.length > 0" class="w-full text-left text-sm border-collapse">
-        <thead class="bg-[var(--color-sidebar-hover)] border-b border-slate-200">
-        <tr>
-          <th class="p-4 font-semibold text-[var(--color-text)]">문서번호</th>
-          <th class="p-4 font-semibold text-[var(--color-text)]">문서유형</th>
-          <th class="p-4 font-semibold text-[var(--color-text)]">작성일</th>
-          <th class="p-4 font-semibold text-[var(--color-text)]">금액</th>
-          <th class="p-4 font-semibold text-[var(--color-text)]">상태</th>
-          <th class="p-4 font-semibold text-[var(--color-text)] text-center">작업</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr
-            v-for="row in filteredRows"
-            :key="`${row.type}-${row.id}`"
-            class="border-b border-slate-100 hover:bg-[var(--color-sidebar-hover)] cursor-pointer transition-colors"
-            @click="openDetail(row)"
+      <div class="mb-6 flex flex-wrap gap-3 p-4 shadow-sm rounded-lg border border-slate-200" style="background-color: var(--color-bg-card);">
+        <input
+            v-model="searchText"
+            type="text"
+            class="flex-1 min-w-[250px] border border-slate-300 p-2 rounded-lg text-sm focus:ring-2 focus:ring-[var(--color-olive)] focus:outline-none"
+            style="background-color: var(--color-bg-input);"
+            placeholder="문서코드 또는 유형 검색..."
         >
-          <td class="p-4 font-medium text-[var(--color-olive)]">{{ row.id }}</td>
-          <td class="p-4 text-[var(--color-muted)]">{{ row.type }}</td>
-          <td class="p-4 text-[var(--color-muted)]">{{ row.date }}</td>
-          <td class="p-4 font-mono text-[var(--color-text)]">{{ row.amount }}</td>
-          <td class="p-4">
-              <span :class="statusClass(row.status)" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">
-                {{ row.status }}
-              </span>
-          </td>
-          <td class="p-4 text-center">
-            <button
-                class="bg-white border border-[var(--color-olive)] px-3 py-1 rounded-md text-[var(--color-olive)] hover:bg-[var(--color-olive-light)] transition-colors"
-                @click.stop="openDetail(row)"
-            >
-              상세보기
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+        <select v-model="selectedType" class="border border-slate-300 p-2 rounded-lg text-sm" style="background-color: var(--color-bg-input);">
+          <option v-for="t in typeOptions" :key="t" :value="t">{{ t === 'ALL' ? '문서유형 전체' : t }}</option>
+        </select>
+        <select v-model="selectedStatus" class="border border-slate-300 p-2 rounded-lg text-sm" style="background-color: var(--color-bg-input);">
+          <option v-for="s in statusOptions" :key="s" :value="s">{{ s === 'ALL' ? '상태 전체' : s }}</option>
+        </select>
+      </div>
 
-      <div v-else class="p-20 text-center">
-        <div v-if="documentStore.loading" class="flex flex-col items-center gap-3">
-          <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-        <div v-else class="text-slate-400">
-          <p class="text-lg font-bold">작성된 문서가 없습니다.</p>
+      <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm" style="background-color: var(--color-bg-card);">
+        <table v-if="filteredRows.length > 0" class="w-full text-left text-sm border-collapse">
+          <thead class="bg-[var(--color-sidebar-hover)] border-b border-slate-200">
+          <tr>
+            <th class="p-4 font-semibold text-[var(--color-text)]">문서코드</th>
+            <th class="p-4 font-semibold text-[var(--color-text)]">문서유형</th>
+            <th class="p-4 font-semibold text-[var(--color-text)]">작성일</th>
+            <th class="p-4 font-semibold text-[var(--color-text)]">금액</th>
+            <th class="p-4 font-semibold text-[var(--color-text)]">상태</th>
+            <th class="p-4 font-semibold text-[var(--color-text)] text-center">작업</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr
+              v-for="row in filteredRows"
+              :key="`${row.type}-${row.id}`"
+              class="border-b border-slate-100 hover:bg-[var(--color-sidebar-hover)] cursor-pointer transition-colors"
+              @click="openDetail(row)"
+          >
+            <td class="p-4 font-medium text-[var(--color-olive)]">{{ row.displayCode }}</td>
+            <td class="p-4 text-[var(--color-muted)]">{{ row.type }}</td>
+            <td class="p-4 text-[var(--color-muted)]">{{ row.date }}</td>
+            <td class="p-4 font-mono text-[var(--color-text)]">{{ row.amount }}</td>
+            <td class="p-4">
+                <span :class="statusClass(row.status)" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">
+                  {{ row.status }}
+                </span>
+            </td>
+            <td class="p-4 text-center">
+              <button
+                  class="border border-[var(--color-olive)] px-3 py-1 rounded-md text-[var(--color-olive)] hover:bg-[var(--color-olive-light)] transition-colors"
+                  style="background-color: var(--color-bg-input);"
+                  @click.stop="openDetail(row)"
+              >
+                상세보기
+              </button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+
+        <div v-else class="p-20 text-center">
+          <div v-if="documentStore.loading" class="flex flex-col items-center gap-3">
+            <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <div v-else class="text-slate-400">
+            <p class="text-lg font-bold">작성된 문서가 없습니다.</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <HistoryModal
-        v-model="isModalOpen"
-        :title="String(selectedDoc?.id || '문서 상세')"
-        :doc-id="String(selectedDoc?.id || '')"
-        :doc-type="String(selectedDoc?.type || '')"
-        :remark="selectedDoc?.remark"
-        :reject-reason="selectedDoc?.rejectReason"
-    />
-  </section>
+      <HistoryModal
+          v-model="isModalOpen"
+          :title="String(selectedDoc?.displayCode || selectedDoc?.id || '문서 상세')"
+          :doc-id="String(selectedDoc?.id || '')"
+          :doc-type="String(selectedDoc?.type || '')"
+          :remark="selectedDoc?.remark"
+          :reject-reason="selectedDoc?.rejectReason"
+      />
+    </section>
+  </main>
 </template>

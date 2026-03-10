@@ -63,6 +63,7 @@ function normalizeDocumentSummary(doc = {}) {
         status: doc.status || '진행중',
         date: doc.createdAt || doc.date || toDateText(),
         amount,
+        displayCode: doc.displayCode || doc.quotationCode || doc.contractCode || doc.requestCode || doc.orderCode || doc.invoiceCode || String(doc.id || ''),
     }
 }
 
