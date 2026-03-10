@@ -5,11 +5,11 @@
       <!-- 헤더 -->
       <div class="sidebar-header">
         <div class="sidebar-title-row">
-          <svg class="icon-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v1h-2v-1a1 1 0 0 0-1-1h-1v1a6 6 0 0 1-12 0v-1H3a1 1 0 0 0-1 1v1H0v-1a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4h4zM9 6h6V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1z"/>
-            <path d="M2 12H0M24 12h-2M2 17H0M24 17h-2"/>
-          </svg>
-          <h1 class="sidebar-title">병해충-품종 매칭 지도</h1>
+<!--          <svg class="icon-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">-->
+<!--            <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v1h-2v-1a1 1 0 0 0-1-1h-1v1a6 6 0 0 1-12 0v-1H3a1 1 0 0 0-1 1v1H0v-1a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4h4zM9 6h6V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1z"/>-->
+<!--            <path d="M2 12H0M24 12h-2M2 17H0M24 17h-2"/>-->
+<!--          </svg>-->
+          <h1 class="sidebar-title">병해충+품종 매칭 지도</h1>
         </div>
         <p class="sidebar-subtitle">SeedFlow+ Pest Matching MAP</p>
       </div>
@@ -54,9 +54,9 @@
             @click="fetchForecasts"
         >
           <span v-if="isLoading" class="btn-spinner"></span>
-          <svg v-else class="btn-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-          </svg>
+<!--          <svg v-else class="btn-icon" viewBox="0 0 20 20" fill="currentColor">-->
+<!--            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>-->
+<!--          </svg>-->
           {{ isLoading ? '조회 중...' : '예찰 데이터 조회' }}
         </button>
 
@@ -70,18 +70,18 @@
       </div>
 
       <!-- 심각도 범례 -->
-      <div v-if="forecasts.length > 0" class="legend-section">
-        <h2 class="section-label">위험도 범례</h2>
-        <div class="legend-list">
-          <div v-for="level in severityLevels" :key="level.key" class="legend-item">
-            <span class="legend-dot" :style="{ background: level.color }"></span>
-            <span class="legend-text">{{ level.label }}</span>
-            <span class="legend-count">
-              {{ forecasts.filter(f => f.severity === level.key).length }}건
-            </span>
-          </div>
-        </div>
-      </div>
+<!--      <div v-if="forecasts.length > 0" class="legend-section">-->
+<!--        <h2 class="section-label">위험도 범례</h2>-->
+<!--        <div class="legend-list">-->
+<!--          <div v-for="level in severityLevels" :key="level.key" class="legend-item">-->
+<!--            <span class="legend-dot" :style="{ background: level.color }"></span>-->
+<!--            <span class="legend-text">{{ level.label }}</span>-->
+<!--            <span class="legend-count">-->
+<!--              {{ forecasts.filter(f => f.severity === level.key).length }}건-->
+<!--            </span>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
 
       <!-- 추천 품종 섹션 -->
       <div class="products-section">
@@ -337,12 +337,19 @@ function renderOfficeMarkers(offices) {
 
   list.forEach(office => {
     const position = new window.kakao.maps.LatLng(office.lat, office.lng)
+    const score = office.score || 0
+    
+    // 점수가 높을수록 긴급 (빨강 > 주황 > 노랑 > 초록)
+    let statusClass = 'status-normal'
+    if (score >= 85) statusClass = 'status-urgent'
+    else if (score >= 60) statusClass = 'status-warning'
+    else if (score >= 35) statusClass = 'status-caution'
 
     // ── 마커 오버레이 ──
     const markerEl = document.createElement('div')
     markerEl.className = 'custom-office-marker'
     markerEl.innerHTML = `
-      <div class="office-marker-pin ${office.score >= 90 ? 'score-high' : ''}">
+      <div class="office-marker-pin ${statusClass}">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
         </svg>
@@ -1198,7 +1205,7 @@ const AREA_COORDS = {
 .office-marker-pin {
   width: 32px;
   height: 32px;
-  background: #7A8C42;
+  background: #7A8C42; /* Default */
   border: 2.5px solid #fff;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
@@ -1208,6 +1215,11 @@ const AREA_COORDS = {
   justify-content: center;
   transition: transform 0.18s, box-shadow 0.18s;
 }
+
+.office-marker-pin.status-urgent { background: #B85C5C; }
+.office-marker-pin.status-warning { background: #C8622A; }
+.office-marker-pin.status-caution { background: #C8A042; }
+.office-marker-pin.status-normal { background: #7A8C42; }
 
 .custom-office-marker:hover .office-marker-pin {
   transform: rotate(-45deg) scale(1.15);

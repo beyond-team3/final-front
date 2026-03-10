@@ -40,7 +40,7 @@ export const MENU_CONFIG = [
             { key: 'product-register', label: '상품 등록', route: '/products/register', roles: [ROLES.ADMIN] },
         ],
     },
-    { key: 'pest-map', label: '병해충-품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
+    { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
     { key: 'employee-management', label: '사원 관리', roles: [ROLES.ADMIN], route: '/employees' },
     {
         key: 'note',
