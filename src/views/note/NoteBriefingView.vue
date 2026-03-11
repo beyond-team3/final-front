@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
+import NoteDetailModal from '@/components/note/NoteDetailModal.vue'
 import { useNoteStore } from '@/stores/note'
 import seedLogo from '@/assets/images/Seed_logo.png'
 
@@ -13,6 +14,9 @@ const router = useRouter()
 const selectedClientId = ref('')
 const briefing = ref(null)
 const status = ref('IDLE') // 'IDLE' | 'LOADING' | 'SUCCESS' | 'EMPTY' | 'ERROR'
+
+const selectedDetailNote = ref(null)
+const showDetailModal = ref(false)
 
 // 2. 팝오버 상태 (Preview 기능)
 const hoverPreview = ref({
@@ -120,6 +124,16 @@ const renderMarkdown = (text) => {
 
 const goToWriteNote = () => {
   router.push({ name: 'notes', query: { clientId: selectedClientId.value } })
+}
+
+const openNoteDetail = (note) => {
+  selectedDetailNote.value = note
+  showDetailModal.value = true
+}
+
+const closeNoteDetail = () => {
+  showDetailModal.value = false
+  selectedDetailNote.value = null
 }
 </script>
 
@@ -251,10 +265,13 @@ const goToWriteNote = () => {
           <!-- Right Column (4/10): Evidence -->
           <div class="lg:col-span-4 sticky top-8">
             <div class="bg-[var(--color-bg-card)] p-8 rounded-2xl shadow-sm border border-[var(--color-border-card)] max-h-[calc(100vh-100px)] overflow-y-auto">
-              <h4 class="font-bold text-[var(--color-text-strong)] mb-8 text-lg flex items-center gap-3">
+              <h4 class="font-bold text-[var(--color-text-strong)] mb-2 text-lg flex items-center gap-3">
                 <i class="fa-solid fa-clock-rotate-left text-[var(--color-text-sub)]"></i>
                 분석 근거 데이터
               </h4>
+              <p class="text-[11px] text-[var(--color-text-placeholder)] font-medium mb-6">
+                영업노트 번호를 클릭하여 해당 노트의 요약과 원문을 볼 수 있습니다.
+              </p>
               <div class="space-y-6">
                 <div 
                   v-for="note in recentNotes" 
@@ -263,7 +280,10 @@ const goToWriteNote = () => {
                   class="recent-note-item bg-[var(--color-bg-section)] border-l-4 p-5 rounded-r-xl border-[var(--color-border-divider)] hover:border-[var(--color-olive)] transition-all"
                 >
                   <div class="flex justify-between items-center mb-3">
-                    <span class="text-[10px] font-black text-[var(--color-text-placeholder)] uppercase">영업 노트 #{{ note.id }}</span>
+                    <span 
+                      @click="openNoteDetail(note)"
+                      class="text-[10px] font-black text-[var(--color-olive)] hover:underline cursor-pointer uppercase"
+                    >영업 노트 #{{ note.id }}</span>
                     <span class="text-xs font-bold text-[var(--color-text-sub)] opacity-70">{{ note.activityDate }}</span>
                   </div>
                   <div 
@@ -279,6 +299,13 @@ const goToWriteNote = () => {
         </div>
       </div>
     </div>
+
+    <!-- Note Detail Modal -->
+    <NoteDetailModal 
+      :show="showDetailModal" 
+      :note="selectedDetailNote" 
+      @close="closeNoteDetail" 
+    />
   </section>
 </template>
 

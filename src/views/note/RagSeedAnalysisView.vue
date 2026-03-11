@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
+import NoteDetailModal from '@/components/note/NoteDetailModal.vue'
 import { useNoteStore } from '@/stores/note'
 import seedLogo from '@/assets/images/Seed_logo.png'
 
@@ -125,7 +126,7 @@ const fetchAnalysis = async () => {
   }
 }
 
-// Simple Markdown Parser (Heuristic)
+// Simple Markdown Parser for Analysis Reports
 const renderMarkdown = (text) => {
   if (!text) return ''
   
@@ -142,7 +143,7 @@ const renderMarkdown = (text) => {
     .replace(/\n\n/g, '</p><p class="mb-4">')
     .replace(/\n/g, '<br>')
 
-  // Risk Keywords
+  // Risk Keywords Highlighting for the Main Report
   const riskKeywords = ['리스크', '위험', '주의', '문제', '클레임', '병해충', '부족', '경쟁사', '저하', '피해']
   riskKeywords.forEach(keyword => {
     const regex = new RegExp(`(${keyword})`, 'gi')
@@ -198,7 +199,7 @@ onMounted(async () => {
             class="h-10 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
             :disabled="!selectedClientId"
           >
-            <option value="">전체 범위 (General)</option>
+            <option value="">전체</option>
             <option v-for="contract in availableContracts" :key="contract.id" :value="contract.contractCode">
               {{ contract.contractCode }}
             </option>
@@ -311,10 +312,10 @@ onMounted(async () => {
 
           <!-- Evidence Footer -->
           <div class="border-t border-[var(--color-border-divider)] bg-[var(--color-bg-section)]/50 p-8">
-            <h5 class="mb-5 text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider flex items-center gap-2">
-              <i class="fas fa-link text-xs"></i> 분석 근거 데이터 (영업 노트)
+            <h5 class="mb-1 text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider flex items-center gap-2">
+              <i class="fas fa-link text-xs"></i> 분석 근거 데이터
             </h5>
-            <p class="pl-5 text-[11px] text-[var(--color-text-placeholder)] font-medium">
+            <p class="mb-5 text-[11px] text-[var(--color-text-placeholder)] font-medium">
               클릭하면 해당 영업 노트의 요약과 원문을 볼 수 있습니다.
             </p>
             <div class="flex flex-wrap gap-3">
@@ -322,7 +323,7 @@ onMounted(async () => {
                 v-for="id in analysisResult.evidenceIds" 
                 :key="id"
                 @click="handleEvidenceClick(id)"
-                class="group flex cursor-pointer items-center gap-2 rounded-lg bg-white border border-[var(--color-border-card)] px-4 py-2 transition-all hover:bg-[var(--color-olive)] hover:border-[var(--color-olive)] shadow-sm"
+                class="evidence-item group flex cursor-pointer items-center gap-2 rounded-lg bg-white border border-[var(--color-border-card)] px-4 py-2 transition-all shadow-sm"
               >
                 <i class="fas fa-file-alt text-xs text-[var(--color-olive)] group-hover:text-white"></i>
                 <span class="text-xs font-bold text-[var(--color-text-strong)] group-hover:text-white">영업 노트 #{{ id }}</span>
@@ -335,55 +336,12 @@ onMounted(async () => {
     </div>
 
     <!-- Note Detail Modal -->
-    <div v-if="showDetailModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div class="fixed inset-0 bg-[var(--color-overlay)] backdrop-blur-sm" @click="closeDetail"></div>
-      <div class="bg-[var(--color-bg-card)] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-300">
-        <div class="p-8 lg:p-10 overflow-y-auto flex-1">
-          <div class="flex justify-between items-start mb-8">
-            <div>
-              <span class="font-extrabold text-[var(--color-olive)] text-3xl block mb-2">{{ noteStore.getClientName(selectedNote?.clientId) }}</span>
-              <div class="flex items-center gap-3 text-[var(--color-text-sub)]">
-                <span class="font-bold flex items-center gap-2">
-                  <i class="fa-regular fa-file-lines"></i>
-                  {{ selectedNote?.contractId || '일반 상담' }}
-                </span>
-                <span class="h-1 w-1 rounded-full bg-[var(--color-text-placeholder)]"></span>
-                <span class="font-medium">{{ selectedNote?.activityDate }}</span>
-              </div>
-            </div>
-            <button @click="closeDetail" class="h-12 w-12 flex items-center justify-center rounded-full hover:bg-[var(--color-bg-base)] transition-colors text-3xl text-[var(--color-text-sub)]">&times;</button>
-          </div>
-
-          <div class="bg-[var(--color-bg-section)] p-6 rounded-2xl border border-[var(--color-olive)]/20 mb-10 shadow-sm">
-            <p class="text-[11px] font-bold text-[var(--color-olive)] uppercase tracking-widest mb-4 flex items-center gap-2">
-              <i class="fas fa-sparkles"></i> AI 분석 요약
-            </p>
-            <div v-if="selectedNote?.aiSummary && selectedNote?.aiSummary.length > 0" class="space-y-4">
-              <div v-for="(line, idx) in selectedNote.aiSummary" :key="idx" class="text-base text-[var(--color-text-body)] flex items-start leading-relaxed">
-                <span class="text-[var(--color-olive)] mr-3 font-bold">•</span>
-                <div class="prose flex-1" v-html="renderMarkdown(line)"></div>
-              </div>
-            </div>
-            <p v-else class="text-sm text-[var(--color-text-placeholder)] italic">기록된 분석 요약이 없습니다.</p>
-          </div>
-
-          <div class="space-y-4">
-            <h4 class="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
-              <i class="fas fa-align-left text-[var(--color-text-placeholder)]"></i> 상담 및 미팅 상세 내용
-            </h4>
-            <div 
-              class="prose bg-[var(--color-bg-section)]/50 p-8 rounded-2xl border border-[var(--color-border-divider)] min-h-[250px] text-[var(--color-text-body)]"
-              v-html="renderMarkdown(selectedNote?.content)"
-            ></div>
-          </div>
-        </div>
-
-        <div class="p-6 bg-[var(--color-bg-section)] border-t border-[var(--color-border-divider)] flex justify-end gap-3">
-          <button @click="goEdit(selectedNote?.id)" class="h-12 px-8 bg-[var(--color-orange)] text-white rounded-xl font-bold hover:bg-[var(--color-orange-dark)] transition-all shadow-md">내역 수정</button>
-          <button @click="closeDetail" class="h-12 px-8 bg-white border border-[var(--color-border-card)] text-[var(--color-text-sub)] rounded-xl font-bold hover:bg-[var(--color-bg-base)] transition-all">닫기</button>
-        </div>
-      </div>
-    </div>
+    <NoteDetailModal 
+      :show="showDetailModal" 
+      :note="selectedNote" 
+      :is-risk-highlight="true"
+      @close="closeDetail" 
+    />
   </section>
 </template>
 
@@ -401,5 +359,9 @@ onMounted(async () => {
 }
 .md-content {
   white-space: normal;
+}
+.evidence-item:hover {
+  background-color: var(--color-olive) !important;
+  border-color: var(--color-olive) !important;
 }
 </style>
