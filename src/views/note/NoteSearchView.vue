@@ -67,6 +67,26 @@ const handleDelete = async (id) => {
     window.alert('삭제하지 못했습니다.')
   }
 }
+
+// Simple Markdown Parser (Heuristic)
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  
+  // 문자열이 아닐 경우 문자열로 변환
+  const content = typeof text === 'string' ? text : JSON.stringify(text, null, 2)
+  
+  let html = content
+    .replace(/^### (.*$)/gim, '<h4 class="text-lg font-bold text-[var(--color-text-strong)] mt-6 mb-3">$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3 class="text-xl font-bold text-[var(--color-text-strong)] mt-8 mb-4">$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2 class="text-2xl font-bold text-[var(--color-text-strong)] mt-10 mb-6">$1</h2>')
+    .replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-[var(--color-olive)] bg-[var(--color-bg-section)] p-4 my-4 rounded-r-md text-[var(--color-text-body)] italic">$1</blockquote>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[var(--color-text-strong)]">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\n/g, '<br>')
+
+  return html
+}
 </script>
 
 <template>
@@ -145,7 +165,7 @@ const handleDelete = async (id) => {
                 class="text-sm text-[var(--color-text-body)] flex items-start leading-relaxed"
             >
               <span class="text-[var(--color-olive)] mr-2 font-bold">•</span>
-              <span>{{ line }}</span>
+              <div class="prose flex-1" v-html="renderMarkdown(line)"></div>
             </div>
           </div>
           <p v-else class="text-sm text-[var(--color-text-placeholder)] italic">요약 분석 중...</p>
@@ -203,7 +223,7 @@ const handleDelete = async (id) => {
             <div v-if="selectedNote?.aiSummary && selectedNote?.aiSummary.length > 0" class="space-y-3">
               <div v-for="(line, idx) in selectedNote.aiSummary" :key="idx" class="text-base text-[var(--color-text-body)] flex items-start leading-relaxed">
                 <span class="text-[var(--color-olive)] mr-3 font-bold">•</span>
-                <span>{{ line }}</span>
+                <div class="prose flex-1" v-html="renderMarkdown(line)"></div>
               </div>
             </div>
             <p v-else class="text-sm text-[var(--color-text-placeholder)] italic">분석된 요약 내용이 없습니다.</p>
@@ -214,9 +234,10 @@ const handleDelete = async (id) => {
             <h4 class="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
               <i class="fas fa-align-left text-[var(--color-text-placeholder)]"></i> 원문 내용
             </h4>
-            <div class="bg-[var(--color-bg-section)]/50 p-8 rounded-2xl border border-[var(--color-border-divider)] min-h-[300px]">
-              <pre class="font-sans whitespace-pre-wrap text-[var(--color-text-body)] leading-loose text-base">{{ selectedNote?.content }}</pre>
-            </div>
+            <div 
+              class="prose bg-[var(--color-bg-section)]/50 p-8 rounded-2xl border border-[var(--color-border-divider)] min-h-[300px] text-[var(--color-text-body)]"
+              v-html="renderMarkdown(selectedNote?.content)"
+            ></div>
           </div>
         </div>
 
@@ -229,3 +250,14 @@ const handleDelete = async (id) => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.prose :deep(br) {
+  content: "";
+  display: block;
+  margin-top: 0.5rem;
+}
+.prose :deep(li) {
+  margin-bottom: 0.5rem;
+}
+</style>

@@ -101,6 +101,22 @@ const closeSummaryModal = () => {
   showAiSummary.value = false
   router.push({ name: 'note-search' })
 }
+
+// Simple Markdown Parser (Heuristic)
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  const content = typeof text === 'string' ? text : JSON.stringify(text, null, 2)
+  let html = content
+    .replace(/^### (.*$)/gim, '<h4 class="text-lg font-bold text-[var(--color-text-strong)] mt-6 mb-3">$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3 class="text-xl font-bold text-[var(--color-text-strong)] mt-8 mb-4">$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2 class="text-2xl font-bold text-[var(--color-text-strong)] mt-10 mb-6">$1</h2>')
+    .replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-[var(--color-olive)] bg-[var(--color-bg-section)] p-4 my-4 rounded-r-md text-[var(--color-text-body)] italic">$1</blockquote>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[var(--color-text-strong)]">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\n/g, '<br>')
+  return html
+}
 </script>
 
 <template>
@@ -198,7 +214,7 @@ const closeSummaryModal = () => {
             <ul class="space-y-3">
               <li v-for="(s, idx) in aiSummaryContent" :key="idx" class="flex items-start gap-3">
                 <i class="fas fa-check-circle text-[var(--color-olive)] mt-1"></i>
-                <span class="text-sm font-medium text-[var(--color-text-body)] leading-relaxed">{{ s }}</span>
+                <div class="prose text-sm font-medium text-[var(--color-text-body)] leading-relaxed flex-1" v-html="renderMarkdown(s)"></div>
               </li>
               <li v-if="!aiSummaryContent.length" class="text-sm text-[var(--color-text-placeholder)] italic">분석된 내용이 없습니다.</li>
             </ul>
@@ -213,3 +229,14 @@ const closeSummaryModal = () => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.prose :deep(br) {
+  content: "";
+  display: block;
+  margin-top: 0.5rem;
+}
+.prose :deep(li) {
+  margin-bottom: 0.5rem;
+}
+</style>

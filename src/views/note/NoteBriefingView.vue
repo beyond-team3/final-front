@@ -66,6 +66,26 @@ watch(() => route.query.clientId, (newId) => {
   }
 }, { immediate: true })
 
+// Simple Markdown Parser (Heuristic)
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  
+  // 문자열이 아닐 경우 문자열로 변환
+  const content = typeof text === 'string' ? text : JSON.stringify(text, null, 2)
+  
+  let html = content
+    .replace(/^### (.*$)/gim, '<h4 class="text-lg font-bold text-[var(--color-text-strong)] mt-6 mb-3">$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3 class="text-xl font-bold text-[var(--color-text-strong)] mt-8 mb-4">$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2 class="text-2xl font-bold text-[var(--color-text-strong)] mt-10 mb-6">$1</h2>')
+    .replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-[var(--color-olive)] bg-[var(--color-bg-section)] p-4 my-4 rounded-r-md text-[var(--color-text-body)] italic">$1</blockquote>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[var(--color-text-strong)]">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\n/g, '<br>')
+
+  return html
+}
+
 </script>
 
 <template>
@@ -107,7 +127,7 @@ watch(() => route.query.clientId, (newId) => {
       </div>
 
       <!-- LOADING State -->
-      <div v-else-if="status === 'LOADING'" class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm">
+      <div v-else-if="status === 'LOADING'" class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border border-[var(--color-border-card)] shadow-sm">
         <div class="h-16 w-16 mx-auto animate-spin rounded-full border-4 border-[var(--color-bg-base)] border-t-[var(--color-olive)] mb-6"></div>
         <p class="text-[var(--color-text-body)] font-medium">AI 전략 엔진이 데이터를 인출하고 있습니다...</p>
       </div>
@@ -122,16 +142,16 @@ watch(() => route.query.clientId, (newId) => {
       <!-- SUCCESS State -->
       <div v-else-if="status === 'SUCCESS' && briefing" class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <!-- Hero Header -->
-        <div class="bg-gradient-to-r from-[var(--color-text-strong)] to-[var(--color-text-body)] p-10 rounded-2xl text-white shadow-lg relative overflow-hidden">
+        <div class="bg-gradient-to-br from-[var(--color-olive)] to-[var(--color-olive)] p-10 rounded-2xl text-white shadow-lg relative overflow-hidden">
           <div class="relative z-10">
             <div class="flex items-center gap-2 mb-3">
-              <span class="bg-[var(--color-olive)] px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Standard Report</span>
-              <span class="text-xs text-white/60">Version {{ briefing.version }}</span>
+<!--              <span class="bg-[var(&#45;&#45;color-olive)] px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Standard Report</span>-->
+              <span class="text-xs text-white/70">Revision {{ briefing.revision }}</span>
             </div>
             <h3 class="text-4xl font-bold mb-2">{{ selectedClientName }}</h3>
-            <p class="text-white/70 font-medium">실시간 영업 데이터 자산 기반 전략 브리핑</p>
+            <p class="text-white/80 font-medium">실시간 영업 데이터 자산 기반 전략 브리핑</p>
           </div>
-          <i class="fas fa-brain absolute -right-4 -bottom-4 text-white/5 text-9xl"></i>
+          <i class="fas fa-brain absolute -right-4 -bottom-4 text-white/10 text-9xl"></i>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -145,7 +165,7 @@ watch(() => route.query.clientId, (newId) => {
               <div class="space-y-4">
                 <div v-for="(item, idx) in briefing.statusChange" :key="idx" class="flex gap-3 bg-[var(--color-bg-section)] p-4 rounded-xl border border-[var(--color-border-divider)]">
                   <span class="text-[var(--color-olive)] mt-1">•</span>
-                  <p class="text-[var(--color-text-body)] leading-relaxed text-sm">{{ item }}</p>
+                  <div class="prose text-[var(--color-text-body)] leading-relaxed text-sm flex-1" v-html="renderMarkdown(item)"></div>
                 </div>
                 <p v-if="!briefing.statusChange?.length" class="text-[var(--color-text-placeholder)] italic">최근 변화 데이터가 없습니다.</p>
               </div>
@@ -159,7 +179,7 @@ watch(() => route.query.clientId, (newId) => {
               <div class="space-y-4">
                 <div v-for="(item, idx) in briefing.longTermPattern" :key="idx" class="flex gap-3 bg-[var(--color-bg-section)] p-4 rounded-xl border border-[var(--color-border-divider)]">
                   <span class="text-[var(--color-orange)] mt-1">•</span>
-                  <p class="text-[var(--color-text-body)] leading-relaxed text-sm">{{ item }}</p>
+                  <div class="prose text-[var(--color-text-body)] leading-relaxed text-sm flex-1" v-html="renderMarkdown(item)"></div>
                 </div>
                 <p v-if="!briefing.longTermPattern?.length" class="text-[var(--color-text-placeholder)] italic">장기 패턴 데이터가 없습니다.</p>
               </div>
@@ -173,9 +193,10 @@ watch(() => route.query.clientId, (newId) => {
                 <i class="fa-solid fa-lightbulb w-8"></i>
                 AI 추천 전략
               </h4>
-              <div class="text-[var(--color-text-strong)] font-medium text-sm leading-relaxed whitespace-pre-wrap bg-white/50 p-5 rounded-xl border border-[var(--color-orange-light)]">
-                {{ briefing.strategySuggestion || '추천 전략이 없습니다.' }}
-              </div>
+              <div 
+                class="prose text-[var(--color-text-strong)] font-medium text-sm leading-relaxed bg-white/50 p-5 rounded-xl border border-[var(--color-orange-light)]"
+                v-html="renderMarkdown(briefing.strategySuggestion || '추천 전략이 없습니다.')"
+              ></div>
             </div>
 
             <div class="bg-[var(--color-bg-card)] p-8 rounded-2xl shadow-sm border border-[var(--color-border-card)]">
@@ -186,7 +207,10 @@ watch(() => route.query.clientId, (newId) => {
               <div class="space-y-4">
                 <div v-for="note in recentNotes" :key="note.id" class="border-l-3 pl-4 border-[var(--color-border-divider)] hover:border-[var(--color-olive)] transition-colors">
                   <p class="text-[var(--text-caption)] text-[var(--color-text-placeholder)] font-bold mb-1">{{ note.activityDate }}</p>
-                  <p class="text-[var(--color-text-body)] font-medium text-sm line-clamp-2 leading-relaxed">{{ note.aiSummary?.[0] || '요약 내용 없음' }}</p>
+                  <div 
+                    class="prose text-[var(--color-text-body)] font-medium text-sm line-clamp-2 leading-relaxed"
+                    v-html="renderMarkdown(note.aiSummary?.[0] || '요약 내용 없음')"
+                  ></div>
                 </div>
                 <p v-if="!recentNotes.length" class="text-[var(--color-text-placeholder)] italic text-sm">최근 노트 내역이 없습니다.</p>
               </div>
@@ -197,3 +221,14 @@ watch(() => route.query.clientId, (newId) => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.prose :deep(br) {
+  content: "";
+  display: block;
+  margin-top: 0.5rem;
+}
+.prose :deep(li) {
+  margin-bottom: 0.5rem;
+}
+</style>
