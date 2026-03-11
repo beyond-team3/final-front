@@ -1,31 +1,34 @@
 import api from './index'
 
+const buildPersonalScheduleCreatePayload = (data = {}) => ({
+  title: data.title,
+  description: data.description,
+  startAt: data.startAt,
+  endAt: data.endAt,
+  allDay: data.allDay,
+  visibility: data.visibility,
+})
+
 export function getSchedules(params) {
   return api.get('/schedules', { params })
 }
 
-// ScheduleSearchCondition 기반 조회
 export function getSchedulesByCondition(condition) {
   return api.get('/schedules', { params: condition })
 }
 
-export function getSchedulesByDate(date) {
-  return api.get('/schedules', {
-    params: {
-      rangeStart: `${date}T00:00:00`,
-      rangeEnd: `${date}T23:59:59`,
-    },
-  })
+export function getPersonalSchedule(id) {
+  return api.get(`/schedules/personal/${id}`)
 }
 
-export function createSchedule(data) {
-  return api.post('/schedules', data)
+export function createPersonalSchedule(data) {
+  return api.post('/schedules/personal', buildPersonalScheduleCreatePayload(data))
 }
 
-export function updateSchedule(id, data) {
-  return api.put(`/schedules/${id}`, data)
+export function updatePersonalSchedule(id, data) {
+  return api.put(`/schedules/personal/${id}`, data)
 }
 
-export function deleteSchedule(id) {
-  return api.delete(`/schedules/${id}`)
+export function deletePersonalSchedule(id) {
+  return api.delete(`/schedules/personal/${id}`)
 }
