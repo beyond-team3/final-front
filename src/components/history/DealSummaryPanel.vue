@@ -76,22 +76,6 @@ const progress = computed(() => Math.round((props.deal.stageOrder / props.deal.s
                 </dl>
             </section>
 
-            <section class="mb-4 rounded-[20px] bg-[var(--color-bg-input)] p-4">
-                <div class="space-y-3">
-                    <div v-for="document in deal.summaryDocuments" :key="document.documentKey" class="flex items-center justify-between gap-3">
-                        <div class="min-w-0">
-                            <div class="text-[12px] text-[var(--color-text-sub)]">{{ document.targetCode }}</div>
-                            <div class="truncate text-[13px] text-[var(--color-text-strong)]">{{ document.typeLabel }}</div>
-                        </div>
-                        <StatusBadge :label="document.statusLabel" :status="document.status" />
-                    </div>
-
-                    <div v-if="deal.summaryDocuments.length === 0" class="text-sm text-[var(--color-text-placeholder)]">
-                        연결된 문서 정보가 아직 없습니다.
-                    </div>
-                </div>
-            </section>
-
             <section class="rounded-[20px] bg-[var(--color-bg-input)] p-4">
                 <div class="mb-3 text-[13px] text-[var(--color-text-sub)]">최근 활동</div>
                 <div class="space-y-3">
