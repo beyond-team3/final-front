@@ -319,15 +319,16 @@ onMounted(async () => {
               클릭하면 해당 영업 노트의 요약과 원문을 볼 수 있습니다.
             </p>
             <div class="flex flex-wrap gap-3">
-              <div 
+              <button 
                 v-for="id in analysisResult.evidenceIds" 
                 :key="id"
+                type="button"
                 @click="handleEvidenceClick(id)"
                 class="evidence-item group flex cursor-pointer items-center rounded-lg bg-white border border-[var(--color-border-card)] px-4 py-2 transition-all shadow-sm"
               >
                 <i class="fas fa-file-alt text-xs text-[var(--color-olive)] group-hover:text-white"></i>
                 <span class="text-xs font-bold text-[var(--color-text-strong)] group-hover:text-white">영업 노트 #{{ id }}</span>
-              </div>
+              </button>
               <p v-if="!analysisResult.evidenceIds?.length" class="text-xs text-[var(--color-text-placeholder)] italic">참조된 영업 활동 기록이 없습니다.</p>
             </div>
           </div>

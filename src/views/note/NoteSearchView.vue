@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import NoteDetailModal from '@/components/note/NoteDetailModal.vue'
@@ -14,6 +14,11 @@ const filterStart = ref('')
 const filterEnd = ref('')
 const sort = ref('desc')
 const keyword = ref('')
+
+// 고객사 선택 변경 시 계약 필터 초기화
+watch(filterClient, () => {
+  filterContractId.value = ''
+})
 
 const selectedNote = ref(null)
 const showDetailModal = ref(false)
@@ -105,7 +110,7 @@ const renderMarkdown = (text) => {
           </select>
         </div>
         <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1">계약명</label>
+          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1">계약코드</label>
           <select v-model="filterContractId" class="h-10 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm">
             <option value="">모든 계약</option>
             <option v-for="contract in contractOptions" :key="contract" :value="contract">{{ contract }}</option>

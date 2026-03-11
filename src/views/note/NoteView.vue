@@ -33,8 +33,12 @@ watch(() => form.value.clientId, async (newVal, oldVal) => {
     noteStore.contractOptions = []
   }
   
-  if (oldVal !== undefined && newVal !== oldVal && !isEditMode.value) {
-    form.value.contractId = ''
+  if (oldVal !== undefined && newVal !== oldVal) {
+    // 수정 모드일 때의 초기 하이드레이션(oldVal이 undefined이거나 빈 값인 경우)을 제외하고는 계약 선택을 초기화
+    const isInitialHydration = isEditMode.value && (oldVal === undefined || oldVal === '')
+    if (!isInitialHydration) {
+      form.value.contractId = ''
+    }
   }
 }, { immediate: true })
 
