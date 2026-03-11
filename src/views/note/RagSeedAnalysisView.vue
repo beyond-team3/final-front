@@ -62,6 +62,31 @@ const handleEvidenceClick = async (id) => {
   }
 }
 
+/**
+ * 구조화된 객체를 가독성 좋은 마크다운으로 변환
+ */
+const formatObjectToMarkdown = (data) => {
+  // 1. 체크리스트 구조인 경우
+  if (data.meeting_checklist) {
+    const list = data.meeting_checklist
+    let md = ''
+    if (list.disclaimer) md += `> ${list.disclaimer}\n\n`
+    if (list.appointments?.length) {
+      md += `### 예정된 미팅 및 일정\n`
+      list.appointments.forEach(item => md += `- **${item.date}**: ${item.purpose}\n`)
+      md += '\n'
+    }
+    if (list.next_visit_todos?.length) {
+      md += `### 다음 방문 시 수행할 작업 (To-do)\n`
+      list.next_visit_todos.forEach(todo => md += `- ${todo}\n`)
+    }
+    return md
+  }
+
+  // 2. 기타 응답 객체 (response, summary 등 필드 대응)
+  return data.response || data.summary || data.content || data.text || JSON.stringify(data)
+}
+
 const fetchAnalysis = async () => {
   if (!selectedClientId.value) {
     status.value = 'IDLE'
@@ -79,22 +104,15 @@ const fetchAnalysis = async () => {
     })
 
     if (result && result.content) {
-      let content = result.content
-      
-      // 백엔드 응답이 JSON 문자열({"content": "..."})인 경우 파싱하여 마크다운 추출
-      if (typeof content === 'string' && content.trim().startsWith('{')) {
-        try {
-          const parsed = JSON.parse(content)
-          content = parsed.content || parsed.text || content
-        } catch (e) {
-          console.warn('JSON 파싱 실패:', e)
-        }
-      }
+      const raw = result.content
+      // 백엔드에서 JSON 객체 그대로 응답하므로, 객체일 경우 포맷터 적용 / 문자열일 경우 그대로 사용
+      const content = (typeof raw === 'object' && raw !== null) 
+        ? formatObjectToMarkdown(raw) 
+        : raw
       
       analysisResult.value = { ...result, content }
       status.value = 'SUCCESS'
 
-      // 분석 성공 시 참조된 노트들이 스토어에 있는지 확인하기 위해 목록 동기화 권장
       if (noteStore.notes.length === 0) {
         noteStore.fetchNotes()
       }
@@ -110,7 +128,6 @@ const fetchAnalysis = async () => {
 const renderMarkdown = (text) => {
   if (!text) return ''
   
-  // 문자열이 아닐 경우 문자열로 변환
   const content = typeof text === 'string' ? text : JSON.stringify(text, null, 2)
   
   let html = content
@@ -121,20 +138,20 @@ const renderMarkdown = (text) => {
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[var(--color-text-strong)]">$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\n\n/g, '</p><p class="mb-4">')
     .replace(/\n/g, '<br>')
 
-  // Special handling for Risks (Keywords heuristic)
-  const riskKeywords = ['리스크', '위험', '주의', '문제', '클레임', '병해충', '부족', '경쟁사']
+  // Risk Keywords
+  const riskKeywords = ['리스크', '위험', '주의', '문제', '클레임', '병해충', '부족', '경쟁사', '저하', '피해']
   riskKeywords.forEach(keyword => {
     const regex = new RegExp(`(${keyword})`, 'gi')
     html = html.replace(regex, '<span class="text-[var(--color-status-error)] font-bold">$1</span>')
   })
 
-  return html
+  return `<div class="md-content">${html}</div>`
 }
 
 onMounted(async () => {
-  // 컴포넌트 마운트 시 노트 목록 로드 보장
   if (noteStore.notes.length === 0) {
     noteStore.fetchNotes()
   }
@@ -145,7 +162,6 @@ onMounted(async () => {
     if (route.query.contractId) {
       selectedContractId.value = route.query.contractId
     }
-    // fetchAnalysis() // 자동 실행 제거
   }
 })
 </script>
@@ -165,7 +181,7 @@ onMounted(async () => {
           <select 
             v-model="selectedClientId" 
             @change="handleClientChange"
-            class="h-10 w-48 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)]"
+            class="h-10 w-48 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
           >
             <option value="">거래처 선택</option>
             <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">
@@ -178,10 +194,10 @@ onMounted(async () => {
           <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">계약 범위</label>
           <select 
             v-model="selectedContractId"
-            class="h-10 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)]"
+            class="h-10 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
             :disabled="!selectedClientId"
           >
-            <option value="">전체 범위</option>
+            <option value="">전체 범위 (General)</option>
             <option v-for="contract in availableContracts" :key="contract.id" :value="contract.contractCode">
               {{ contract.contractCode }}
             </option>
@@ -189,10 +205,10 @@ onMounted(async () => {
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">분석 타입</label>
+          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">분석 테마</label>
           <select 
             v-model="queryType"
-            class="h-10 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)]"
+            class="h-10 w-44 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
           >
             <option value="RECAP">지난 맥락 요약</option>
             <option value="RISK">리스크 탐지</option>
@@ -203,7 +219,7 @@ onMounted(async () => {
 
         <button 
           @click="fetchAnalysis"
-          class="mt-auto h-10 rounded-lg bg-[var(--color-olive)] px-6 text-sm font-bold text-white transition-all hover:bg-[var(--color-olive-dark)]"
+          class="mt-auto h-10 rounded-lg bg-[var(--color-olive)] px-6 text-sm font-bold text-white transition-all hover:bg-[var(--color-olive-dark)] shadow-sm disabled:bg-gray-400"
           :disabled="!selectedClientId || status === 'LOADING'"
         >
           <i v-if="status === 'LOADING'" class="fas fa-spinner fa-spin mr-2"></i>
@@ -220,7 +236,7 @@ onMounted(async () => {
           <i class="fas fa-robot text-4xl"></i>
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">전략 인출 준비 완료</h3>
-        <p class="text-[var(--color-text-sub)]">분석할 거래처와 옵션을 상단에서 선택해 주세요.</p>
+        <p class="text-[var(--color-text-sub)]">분석할 거래처와 테마를 상단에서 선택해 주세요.</p>
       </div>
 
       <!-- LOADING State -->
@@ -229,8 +245,8 @@ onMounted(async () => {
           <div class="h-16 w-16 animate-spin rounded-full border-4 border-[var(--color-bg-base)] border-t-[var(--color-olive)]"></div>
           <i class="fas fa-seedling absolute inset-0 flex items-center justify-center text-[var(--color-olive)]"></i>
         </div>
-        <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">RAGseed 분석 중...</h3>
-        <p class="text-[var(--color-text-sub)]">영업 데이터 자산에서 최적의 전략을 인출하고 있습니다.</p>
+        <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">영업 지식 베이스 분석 중...</h3>
+        <p class="text-[var(--color-text-sub)]">RAGseed 엔진이 최적의 비즈니스 전략을 생성하고 있습니다.</p>
       </div>
 
       <!-- ERROR State -->
@@ -238,8 +254,8 @@ onMounted(async () => {
         <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-50 text-[var(--color-status-error)]">
           <i class="fas fa-exclamation-triangle text-4xl"></i>
         </div>
-        <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">분석 오류 발생</h3>
-        <p class="text-[var(--color-text-sub)]">AI 엔진과의 통신 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
+        <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">분석 도중 오류 발생</h3>
+        <p class="text-[var(--color-text-sub)]">AI 엔진과의 통신이 원활하지 않습니다. 다시 한 번 시도해 주세요.</p>
       </div>
 
       <!-- EMPTY State -->
@@ -247,74 +263,82 @@ onMounted(async () => {
         <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-bg-base)] text-[var(--color-text-placeholder)]">
           <i class="fas fa-comment-slash text-4xl"></i>
         </div>
-        <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">인출된 데이터 없음</h3>
-        <p class="text-[var(--color-text-sub)]">선택한 범위 내에 분석할 만한 영업 기록이 충분하지 않습니다.</p>
+        <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">분석 결과 없음</h3>
+        <p class="text-[var(--color-text-sub)]">선택한 범위 내에 분석할 수 있는 영업 활동 기록이 충분하지 않습니다.</p>
       </div>
 
       <!-- SUCCESS State -->
       <div v-else-if="status === 'SUCCESS' && analysisResult" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <!-- Report Card -->
-        <div class="overflow-hidden rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-sm">
-          <!-- Header Image/Pattern -->
+        <div class="overflow-hidden rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-md">
           <div class="h-2 bg-[var(--color-olive)]"></div>
           
-          <div class="p-8 lg:p-10">
-            <div class="mb-8 flex items-start justify-between">
+          <div class="p-8 lg:p-12">
+            <div class="mb-10 flex items-start justify-between border-b border-[var(--color-border-divider)] pb-8">
               <div>
-                <div class="mb-2 flex items-center gap-2">
+                <div class="mb-4 flex items-center gap-2">
                   <span class="rounded-full bg-[var(--color-olive)] px-3 py-1 text-[10px] font-bold text-white uppercase tracking-widest">RAGseed Engine</span>
-                  <span class="text-[var(--text-caption)] text-[var(--color-text-placeholder)]">Version {{ analysisResult.version }}</span>
+<!--                  <span class="text-[var(&#45;&#45;text-caption)] text-[var(&#45;&#45;color-text-placeholder)] font-medium">Verified Analysis</span>-->
                 </div>
-                <h3 class="text-3xl font-bold text-[var(--color-text-strong)]">{{ selectedClientName }} 전략 리포트</h3>
-                <p class="mt-1 text-[var(--color-text-sub)]">{{ analysisResult.attribution }}</p>
+                <h3 class="text-4xl font-extrabold text-[var(--color-text-strong)]">{{ selectedClientName }} 전략 리포트</h3>
+                <div class="mt-3 text-[var(--color-text-sub)] prose text-sm opacity-80" v-html="renderMarkdown(analysisResult.attribution)"></div>
               </div>
+<!--              <div class="hidden lg:block text-right">-->
+<!--                 <p class="text-xs font-bold text-[var(&#45;&#45;color-text-placeholder)] uppercase mb-1">Report ID</p>-->
+<!--                 <p class="text-sm font-mono text-[var(&#45;&#45;color-text-sub)]">#{{ analysisResult.id || 'N/A' }}</p>-->
+<!--              </div>-->
             </div>
 
             <!-- Markdown Content -->
             <div 
-              class="prose max-w-none text-[var(--color-text-body)] leading-relaxed"
+              class="prose max-w-none text-[var(--color-text-body)] leading-loose text-base"
               v-html="renderMarkdown(analysisResult.content)"
             ></div>
 
-            <!-- Risk Highlight Area (if query is RISK or contains risk) -->
-            <div v-if="queryType === 'RISK'" class="mt-10 rounded-xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/20 p-6">
-              <h5 class="mb-3 flex items-center gap-2 font-bold text-[var(--color-status-error)]">
+            <!-- Risk Highlight Area -->
+            <div v-if="queryType === 'RISK' || analysisResult.content.includes('위험') || analysisResult.content.includes('리스크')" class="mt-12 rounded-2xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/10 p-8 shadow-inner">
+              <h5 class="mb-4 flex items-center gap-3 font-bold text-[var(--color-status-error)] text-lg">
                 <i class="fas fa-shield-virus"></i>
-                집중 리스크 탐지 결과
+                집중 리스크 탐지 및 권고 사항
               </h5>
-              <p class="text-sm text-[var(--color-text-body)]">
-                위 분석 내용은 영업 노트 내 '병해충', '클레임', '경쟁사' 키워드를 중심으로 인출되었습니다. 해당 리스크에 대한 즉각적인 후속 조치를 권장합니다.
+              <p class="text-sm text-[var(--color-text-body)] leading-relaxed">
+                위 분석 결과는 영업 활동 기록 내의 부정적 키워드(병해충, 클레임, 경쟁사 등)를 중점적으로 추출한 결과입니다.
+                탐지된 리스크 항목에 대한 담당자의 후속 조치를 권장합니다.
               </p>
             </div>
           </div>
 
           <!-- Evidence Footer -->
-          <div class="border-t border-[var(--color-border-divider)] bg-[var(--color-bg-section)]/50 p-6">
-            <h5 class="mb-4 text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">분석 근거 (Evidence)</h5>
-            <div class="flex flex-wrap gap-2">
+          <div class="border-t border-[var(--color-border-divider)] bg-[var(--color-bg-section)]/50 p-8">
+            <h5 class="mb-5 text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider flex items-center gap-2">
+              <i class="fas fa-link text-xs"></i> 분석 근거 데이터 (영업 노트)
+            </h5>
+            <p class="pl-5 text-[11px] text-[var(--color-text-placeholder)] font-medium">
+              클릭하면 해당 영업 노트의 요약과 원문을 볼 수 있습니다.
+            </p>
+            <div class="flex flex-wrap gap-3">
               <div 
                 v-for="id in analysisResult.evidenceIds" 
                 :key="id"
                 @click="handleEvidenceClick(id)"
-                class="group flex cursor-pointer items-center gap-2 rounded-full bg-[var(--color-olive-light)] px-4 py-1.5 transition-all hover:bg-[var(--color-olive)] hover:text-white"
+                class="group flex cursor-pointer items-center gap-2 rounded-lg bg-white border border-[var(--color-border-card)] px-4 py-2 transition-all hover:bg-[var(--color-olive)] hover:border-[var(--color-olive)] shadow-sm"
               >
-                <i class="fas fa-file-alt text-[10px] text-[var(--color-olive)] group-hover:text-white"></i>
-                <span class="text-xs font-bold text-[var(--color-olive-dark)] group-hover:text-white">Note #{{ id }}</span>
+                <i class="fas fa-file-alt text-xs text-[var(--color-olive)] group-hover:text-white"></i>
+                <span class="text-xs font-bold text-[var(--color-text-strong)] group-hover:text-white">영업 노트 #{{ id }}</span>
               </div>
-              <p v-if="!analysisResult.evidenceIds?.length" class="text-xs text-[var(--color-text-placeholder)]">참조된 근거 데이터가 없습니다.</p>
+              <p v-if="!analysisResult.evidenceIds?.length" class="text-xs text-[var(--color-text-placeholder)] italic">참조된 영업 활동 기록이 없습니다.</p>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Note Detail Modal (Heritage Layout) -->
+    <!-- Note Detail Modal -->
     <div v-if="showDetailModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-[var(--color-overlay)] backdrop-blur-sm" @click="closeDetail"></div>
       <div class="bg-[var(--color-bg-card)] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col z-10 animate-in zoom-in-95 duration-300">
-        <!-- Header: Card Heritage -->
         <div class="p-8 lg:p-10 overflow-y-auto flex-1">
-          <div class="flex justify-between items-start mb-6">
+          <div class="flex justify-between items-start mb-8">
             <div>
               <span class="font-extrabold text-[var(--color-olive)] text-3xl block mb-2">{{ noteStore.getClientName(selectedNote?.clientId) }}</span>
               <div class="flex items-center gap-3 text-[var(--color-text-sub)]">
@@ -329,34 +353,32 @@ onMounted(async () => {
             <button @click="closeDetail" class="h-12 w-12 flex items-center justify-center rounded-full hover:bg-[var(--color-bg-base)] transition-colors text-3xl text-[var(--color-text-sub)]">&times;</button>
           </div>
 
-          <!-- AI Summary Box (Same as card) -->
           <div class="bg-[var(--color-bg-section)] p-6 rounded-2xl border border-[var(--color-olive)]/20 mb-10 shadow-sm">
             <p class="text-[11px] font-bold text-[var(--color-olive)] uppercase tracking-widest mb-4 flex items-center gap-2">
               <i class="fas fa-sparkles"></i> AI 분석 요약
             </p>
-            <div v-if="selectedNote?.aiSummary && selectedNote?.aiSummary.length > 0" class="space-y-3">
+            <div v-if="selectedNote?.aiSummary && selectedNote?.aiSummary.length > 0" class="space-y-4">
               <div v-for="(line, idx) in selectedNote.aiSummary" :key="idx" class="text-base text-[var(--color-text-body)] flex items-start leading-relaxed">
                 <span class="text-[var(--color-olive)] mr-3 font-bold">•</span>
-                <span>{{ line }}</span>
+                <div class="prose flex-1" v-html="renderMarkdown(line)"></div>
               </div>
             </div>
-            <p v-else class="text-sm text-[var(--color-text-placeholder)] italic">분석된 요약 내용이 없습니다.</p>
+            <p v-else class="text-sm text-[var(--color-text-placeholder)] italic">기록된 분석 요약이 없습니다.</p>
           </div>
 
-          <!-- Expanded Content: Original Content -->
           <div class="space-y-4">
             <h4 class="text-sm font-bold text-[var(--color-text-strong)] flex items-center gap-2">
-              <i class="fas fa-align-left text-[var(--color-text-placeholder)]"></i> 원문 내용
+              <i class="fas fa-align-left text-[var(--color-text-placeholder)]"></i> 상담 및 미팅 상세 내용
             </h4>
-            <div class="bg-[var(--color-bg-section)]/50 p-8 rounded-2xl border border-[var(--color-border-divider)] min-h-[300px]">
-              <pre class="font-sans whitespace-pre-wrap text-[var(--color-text-body)] leading-loose text-base">{{ selectedNote?.content }}</pre>
-            </div>
+            <div 
+              class="prose bg-[var(--color-bg-section)]/50 p-8 rounded-2xl border border-[var(--color-border-divider)] min-h-[250px] text-[var(--color-text-body)]"
+              v-html="renderMarkdown(selectedNote?.content)"
+            ></div>
           </div>
         </div>
 
-        <!-- Actions -->
         <div class="p-6 bg-[var(--color-bg-section)] border-t border-[var(--color-border-divider)] flex justify-end gap-3">
-          <button @click="goEdit(selectedNote?.id)" class="h-12 px-8 bg-[var(--color-orange)] text-white rounded-xl font-bold hover:bg-[var(--color-orange-dark)] transition-all shadow-md">수정하기</button>
+          <button @click="goEdit(selectedNote?.id)" class="h-12 px-8 bg-[var(--color-orange)] text-white rounded-xl font-bold hover:bg-[var(--color-orange-dark)] transition-all shadow-md">내역 수정</button>
           <button @click="closeDetail" class="h-12 px-8 bg-white border border-[var(--color-border-card)] text-[var(--color-text-sub)] rounded-xl font-bold hover:bg-[var(--color-bg-base)] transition-all">닫기</button>
         </div>
       </div>
@@ -365,12 +387,18 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.prose :deep(p) {
+  margin-bottom: 1rem;
+}
 .prose :deep(br) {
   content: "";
   display: block;
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 .prose :deep(li) {
   margin-bottom: 0.5rem;
+}
+.md-content {
+  white-space: normal;
 }
 </style>
