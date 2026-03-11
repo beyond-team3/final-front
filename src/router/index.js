@@ -242,7 +242,7 @@ const routes = [
             { path: 'notes/briefing', name: 'note-briefing', component: NoteBriefingView, meta: { roles: [ROLES.SALES_REP], title: 'AI 영업 브리핑' } },
             { path: 'ragseed', name: 'note-ragseed', component: RagSeedAnalysisView, meta: { roles: [ROLES.SALES_REP], title: 'RAGseed 전략 분석' } },
 
-            { path: 'pest-map', name: 'pest-map', component: PestMapView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '병해충지도' } },
+            { path: 'pest-map', name: 'pest-map', component: PestMapView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '병해충-품종 매칭 지도' } },
             { path: 'statistics', name: 'statistics', component: StatisticsRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '통계' } },
             { path: 'schedule', name: 'schedule', component: CalendarView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '일정' } },
 
