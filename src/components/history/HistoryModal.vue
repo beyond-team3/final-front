@@ -415,7 +415,7 @@ const getValidityDate = (dateStr) => {
 
                   <!-- 견적 요청서 -->
                   <div v-else-if="isQuotationRequest" class="bg-white p-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
-                    <div class="mb-8 border-b-2 border-black pb-4 text-center"><h1 class="text-2xl font-bold tracking-widest">견 적 요 요청서</h1></div>
+                    <div class="mb-8 border-b-2 border-black pb-4 text-center"><h1 class="text-2xl font-bold tracking-widest">견 적 요 청 서</h1></div>
                     <div class="space-y-2 mb-8 text-[13px]"><p class="mb-2">귀하의 무궁한 발전을 기원합니다.</p><p>아래와 같이 견적을 요청하오니 검토 부탁드립니다.</p></div>
                     <table class="my-6 w-full border-collapse border-2 border-black text-center text-[11px]">
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-2 grayscale">품종명</th><th class="border-r border-black p-2">상품명</th><th class="border-r border-black p-2 w-16">수량</th><th class="p-2">단위</th></tr></thead>
