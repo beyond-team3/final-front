@@ -1,7 +1,8 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { CdrButton, IconAccountProfile, IconArrowLeft, IconArrowRight, IconLocationPinStroke, IconRefresh } from '@rei/cedar'
+import { createPersonalSchedule, deletePersonalSchedule, getSchedulesByCondition, updatePersonalSchedule } from '@/api/schedule'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
 import { syncHarvestSchedulesForSalesRep } from '@/services/GrowingSeasonService'
@@ -10,6 +11,13 @@ import { ROLES } from '@/utils/constants'
 const pad2 = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 const ym = (d) => `${d.getFullYear()}.${pad2(d.getMonth() + 1)}`
+const toLocalDateTime = (d) => `${ymd(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+const DAY_MS = 24 * 60 * 60 * 1000
+const MAX_VISIBLE_MULTIDAY_LANES = 10
+const getErrorMessage = (error, fallback) => error?.response?.data?.error?.message
+  || error?.response?.data?.message
+  || error?.message
+  || fallback
 
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
@@ -19,102 +27,15 @@ const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 const filterState = ref({ sales: 'ALL', client: 'ALL', employee: 'ALL', scheduleType: 'ALL' })
 const showClientFilterMenu = ref(false)
 const showEmployeeFilterMenu = ref(false)
-const clientFilterOptions = [
-  { value: 'ALL', label: '전체' },
-  { value: 'C001', label: '대상팜' },
-  { value: 'C002', label: '그린농원' },
-  { value: 'C003', label: '해오름농장' },
-]
-const employeeFilterOptions = [
-  { value: 'ALL', label: '전체' },
-  { value: 'E001', label: '김영업' },
-  { value: 'E002', label: '이영업' },
-  { value: 'E003', label: '박영업' },
-]
 const canUseScheduleTypeFilter = computed(() => isSalesRep.value || isAdmin.value)
 
-const viewDate = ref(new Date(2026, 1, 1))
-const selectedDate = ref('2026-02-10')
-
-// TODO: API 연결
-const events = ref([
-  {
-    id: 'H-001',
-    type: 'history',
-    historyCategory: 'RFQ',
-    title: '견적요청서 접수',
-    desc: '대상팜 - 봄작기 수박 대목 견적요청서 생성',
-    date: '2026-02-03',
-    time: '10:30',
-    clientId: 'C001',
-    clientName: '대상팜',
-    employeeId: 'E001',
-    employeeName: '김영업',
-    docType: '견적요청서',
-    docNo: 'RFQ-2026-0203-001',
-  },
-  {
-    id: 'H-002',
-    type: 'history',
-    historyCategory: 'QUOTATION',
-    title: '견적서 발행',
-    desc: '그린농원 - 토마토 종자 견적서 발행',
-    date: '2026-02-06',
-    time: '14:00',
-    clientId: 'C002',
-    clientName: '그린농원',
-    employeeId: 'E002',
-    employeeName: '이영업',
-    docType: '견적서',
-    docNo: 'Q-2026-0206-002',
-  },
-  {
-    id: 'H-003',
-    type: 'history',
-    historyCategory: 'CONTRACT',
-    title: '계약서 승인 요청',
-    desc: '해오름농장 - 2026 봄작 계약서 승인 요청',
-    date: '2026-02-10',
-    time: '09:20',
-    clientId: 'C003',
-    clientName: '해오름농장',
-    employeeId: 'E001',
-    employeeName: '김영업',
-    docType: '계약서',
-    docNo: 'C-2026-0210-003',
-  },
-  {
-    id: 'H-004',
-    type: 'history',
-    historyCategory: 'ORDER',
-    title: '주문서 생성',
-    desc: '대상팜 - 수박 대목 500판 주문서 생성',
-    date: '2026-02-18',
-    time: '16:10',
-    clientId: 'C001',
-    clientName: '대상팜',
-    employeeId: 'E003',
-    employeeName: '박영업',
-    docType: '주문서',
-    docNo: 'O-2026-0218-004',
-  },
-  {
-    id: 'P-101',
-    type: 'personal',
-    title: '개인 일정: 현장 방문 준비',
-    desc: '방문 체크리스트 및 샘플 발송 확인',
-    date: '2026-02-10',
-    time: '13:30',
-  },
-  {
-    id: 'P-102',
-    type: 'personal',
-    title: '개인 일정: 주간 회고',
-    desc: '이번 주 이슈/성과 정리',
-    date: '2026-02-14',
-    time: '18:00',
-  },
-])
+const today = new Date()
+const viewDate = ref(new Date(today.getFullYear(), today.getMonth(), 1))
+const selectedDate = ref(ymd(today))
+const events = ref([])
+const scheduleLoading = ref(false)
+const scheduleError = ref('')
+const isSavingSchedule = ref(false)
 
 const recommendations = ref([
   { id: 1, name: '마라톤 수박 대목', tag: '내병성/중약세', colorA: '#f5f7fb', colorB: '#e6eefb' },
@@ -134,55 +55,72 @@ const editDesc = ref('')
 const editStartAt = ref('')
 const editEndAt = ref('')
 const editAllDay = ref(false)
-const editStatus = ref('PLANNED')
 const editVisibility = ref('PRIVATE')
 const editingId = ref(null)
+const editingStatus = ref(null)
 const harvestAlerts = ref([])
-const generatedEvents = ref([])
 const harvestDummyItems = [
   { sourceKey: 'DUMMY-001', varietyName: '샤인토마토 F1', expectedHarvestMonth: 3, clientId: 'C001', clientName: '대상팜' },
   { sourceKey: 'DUMMY-002', varietyName: '프라임오이', expectedHarvestMonth: 3, clientId: 'C002', clientName: '그린농원' },
   { sourceKey: 'DUMMY-003', varietyName: '골드파프리카', expectedHarvestMonth: 4, clientId: 'C003', clientName: '해오름농장' },
 ]
 
-const labelHistory = (cat) => ({
-  RFQ: '견적요청',
-  QUOTATION: '견적',
-  CONTRACT: '계약',
-  ORDER: '주문',
-  INVOICE: '청구',
-}[cat] || '영업')
+const normalizeScheduleItem = (item = {}) => {
+  const itemType = String(item.itemType ?? item.scheduleItemType ?? item.type ?? '').toUpperCase()
+  const isPersonalItem = itemType === 'PERSONAL'
+  const startAt = item.startAt || null
+  const startDate = startAt ? new Date(startAt) : null
+  const normalizedDate = startDate && !Number.isNaN(startDate.getTime())
+    ? ymd(startDate)
+    : (typeof item.date === 'string' ? item.date.slice(0, 10) : selectedDate.value)
 
-const historyLabelWithOwner = (ev) => {
-  const baseLabel = labelHistory(ev?.historyCategory)
-  if (isAdmin.value && ev?.type === 'history' && ev?.employeeName) {
-    return `${baseLabel} - ${ev.employeeName}`
+  return {
+    ...item,
+    id: item.id,
+    type: isPersonalItem ? 'personal' : 'deal',
+    title: item.title || '(제목 없음)',
+    description: item.description || item.desc || '',
+    date: normalizedDate,
+    time: startAt?.slice(11, 16) || item.time || '',
+    startAt,
+    endAt: item.endAt || null,
+    allDay: Boolean(item.allDay),
+    status: item.status || (isPersonalItem ? 'PLANNED' : null),
+    visibility: item.visibility || null,
+    ownerUserId: item.ownerUserId ?? null,
+    assigneeUserId: item.assigneeUserId ?? item.employeeId ?? null,
+    assigneeUserName: item.assigneeUserName ?? item.employeeName ?? '',
+    clientId: item.clientId ?? null,
+    clientName: item.clientName ?? '',
+    dealId: item.dealId ?? null,
+    docType: item.docType ?? '',
+    eventType: item.eventType ?? itemType ?? '',
+    refDocId: item.refDocId ?? null,
+    refDealLogId: item.refDealLogId ?? null,
+    externalKey: item.externalKey ?? null,
+  }
+}
+
+const dealLabel = (ev) => ev?.docType || ev?.eventType || '거래 일정'
+
+const dealLabelWithOwner = (ev) => {
+  const baseLabel = dealLabel(ev)
+  if (isAdmin.value && ev?.type === 'deal' && ev?.assigneeUserName) {
+    return `${baseLabel} - ${ev.assigneeUserName}`
   }
   return baseLabel
 }
 
 const eventTypeLabel = (eventItem) => {
-  if (eventItem?.type === 'history') {
-    return historyLabelWithOwner(eventItem)
-  }
-  if (eventItem?.type === 'harvest') {
-    return '수확 일정'
-  }
-  if (eventItem?.type === 'growing-season') {
-    return '재배적기'
+  if (eventItem?.type === 'deal') {
+    return dealLabelWithOwner(eventItem)
   }
   return '개인 일정'
 }
 
 const eventTypeDetailLabel = (eventItem) => {
-  if (eventItem?.type === 'history') {
-    return `영업 문서 일정 (${historyLabelWithOwner(eventItem)})`
-  }
-  if (eventItem?.type === 'harvest') {
-    return '수확 일정'
-  }
-  if (eventItem?.type === 'growing-season') {
-    return '재배적기 일정'
+  if (eventItem?.type === 'deal') {
+    return `거래 일정 (${dealLabelWithOwner(eventItem)})`
   }
   return '개인 일정'
 }
@@ -210,7 +148,6 @@ const getEventDisplayTime = (eventItem) => {
   return eventItem?.time || '-'
 }
 
-// 3개 이상일 때는 "첫 번째 일정 + ..."만 표시 (셀 내 안정적 표시)
 const MAX_BADGES_PER_CELL = 2
 
 const truncateBadgeText = (text) => {
@@ -218,18 +155,56 @@ const truncateBadgeText = (text) => {
   return rawText.length > 5 ? `${rawText.slice(0, 5)}...` : rawText
 }
 
-const scheduleStatusOptions = [
-  { value: 'PLANNED', label: '예정' },
-  { value: 'IN_PROGRESS', label: '진행중' },
-  { value: 'COMPLETED', label: '완료' },
-  { value: 'CANCELED', label: '취소' },
-]
+const toStartOfDay = (value) => {
+  const dateObj = value instanceof Date ? new Date(value) : new Date(value)
+  if (Number.isNaN(dateObj.getTime())) {
+    return null
+  }
+  dateObj.setHours(0, 0, 0, 0)
+  return dateObj
+}
 
-const scheduleVisibilityOptions = [
-  { value: 'PRIVATE', label: '비공개' },
-  { value: 'TEAM', label: '팀 공개' },
-  { value: 'PUBLIC', label: '전체 공개' },
-]
+const compareDay = (left, right) => {
+  const leftDate = toStartOfDay(left)
+  const rightDate = toStartOfDay(right)
+  if (!leftDate || !rightDate) {
+    return 0
+  }
+  return Math.round((leftDate.getTime() - rightDate.getTime()) / DAY_MS)
+}
+
+const getEventDayRange = (eventItem) => {
+  const startDay = toStartOfDay(eventItem?.startAt || eventItem?.date)
+  const endDay = toStartOfDay(eventItem?.endAt || eventItem?.startAt || eventItem?.date)
+
+  if (!startDay) {
+    return null
+  }
+
+  if (!endDay || endDay.getTime() < startDay.getTime()) {
+    return { startDay, endDay: startDay }
+  }
+
+  return { startDay, endDay }
+}
+
+const isDateWithinEventRange = (dateStr, eventItem) => {
+  const date = toStartOfDay(dateStr)
+  const range = getEventDayRange(eventItem)
+  if (!date || !range) {
+    return false
+  }
+
+  return date.getTime() >= range.startDay.getTime() && date.getTime() <= range.endDay.getTime()
+}
+
+const isMultiDayEvent = (eventItem) => {
+  const range = getEventDayRange(eventItem)
+  if (!range) {
+    return false
+  }
+  return compareDay(range.endDay, range.startDay) >= 1
+}
 
 const formatToDateTimeLocal = (value) => {
   const dateObj = new Date(value)
@@ -248,44 +223,45 @@ const addHoursToDateTimeLocal = (dateTimeLocalValue, hoursToAdd = 1) => {
   return formatToDateTimeLocal(dateObj)
 }
 
-const buildPersonalEvent = ({ id, title, description, startAt, endAt, allDay, status, visibility }) => {
-  const startDate = new Date(startAt)
-  const fallbackDate = selectedDate.value || ymd(new Date())
-  const date = Number.isNaN(startDate.getTime()) ? fallbackDate : ymd(startDate)
-
-  return {
-    id,
-    type: 'personal',
-    title: `개인 일정: ${title}`,
-    description,
-    startAt,
-    endAt,
-    allDay,
-    status,
-    visibility,
-    date,
-    time: allDay ? '' : (startAt?.split('T')[1] || ''),
-    eventType: 'PERSONAL',
-  }
-}
-
 const getVisibleBadges = (events) => {
   if (!Array.isArray(events) || events.length === 0) {
     return []
   }
-  if (events.length >= 3) {
-    return events.slice(0, 1)
-  }
   return events.slice(0, MAX_BADGES_PER_CELL)
 }
 
-const shouldShowMoreBadge = (events) => Array.isArray(events) && events.length >= 3
+const clientFilterOptions = computed(() => {
+  const options = events.value
+    .filter((item) => item.clientId && item.clientName)
+    .reduce((acc, item) => {
+      acc.set(String(item.clientId), item.clientName)
+      return acc
+    }, new Map())
 
-const passHistoryFilter = (ev) => {
-  if (ev.type !== 'history') return true
-  if (filterState.value.sales !== 'ALL' && ev.historyCategory !== filterState.value.sales) return false
-  if (filterState.value.client !== 'ALL' && ev.clientId !== filterState.value.client) return false
-  if (isAdmin.value && filterState.value.employee !== 'ALL' && ev.employeeId !== filterState.value.employee) return false
+  return [
+    { value: 'ALL', label: '전체' },
+    ...Array.from(options.entries()).map(([value, label]) => ({ value, label })),
+  ]
+})
+
+const employeeFilterOptions = computed(() => {
+  const options = events.value
+    .filter((item) => item.assigneeUserId && item.assigneeUserName)
+    .reduce((acc, item) => {
+      acc.set(String(item.assigneeUserId), item.assigneeUserName)
+      return acc
+    }, new Map())
+
+  return [
+    { value: 'ALL', label: '전체' },
+    ...Array.from(options.entries()).map(([value, label]) => ({ value, label })),
+  ]
+})
+
+const passDealFilter = (ev) => {
+  if (ev.type !== 'deal') return true
+  if (filterState.value.client !== 'ALL' && String(ev.clientId) !== String(filterState.value.client)) return false
+  if (isAdmin.value && filterState.value.employee !== 'ALL' && String(ev.assigneeUserId) !== String(filterState.value.employee)) return false
   return true
 }
 
@@ -303,26 +279,29 @@ const passScheduleTypeFilter = (ev) => {
   return true
 }
 
-const growingSeasonEvents = computed(() => harvestAlerts.value.map((item) => ({
-  id: `GS-${item.sourceKey}`,
-  type: 'growing-season',
-  title: `재배적기 점검: ${item.varietyName}`,
-  description: `${item.clientName} · 생육 상태 점검 및 수확 준비를 진행하세요.`,
-  date: `${viewDate.value.getFullYear()}-${pad2(item.expectedHarvestMonth)}-01`,
-  time: '08:30',
-  clientId: item.clientId,
-  clientName: item.clientName,
-  varietyName: item.varietyName,
-  eventType: 'GROWING_SEASON',
-})))
+const allEvents = computed(() => [...events.value])
 
-const allEvents = computed(() => [...events.value, ...generatedEvents.value, ...growingSeasonEvents.value])
-
-const eventsByDate = (dateStr) => allEvents.value
-  .filter((ev) => ev.date === dateStr)
-  .filter(passHistoryFilter)
+const visibleEvents = computed(() => allEvents.value
+  .filter(passDealFilter)
   .filter(passScheduleTypeFilter)
-  .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+  .sort((a, b) => {
+    const startCompare = String(a.startAt || a.date || '').localeCompare(String(b.startAt || b.date || ''))
+    if (startCompare !== 0) {
+      return startCompare
+    }
+
+    const aRange = getEventDayRange(a)
+    const bRange = getEventDayRange(b)
+    const durationCompare = compareDay(bRange?.endDay, bRange?.startDay) - compareDay(aRange?.endDay, aRange?.startDay)
+    if (durationCompare !== 0) {
+      return durationCompare
+    }
+
+    return String(a.title || '').localeCompare(String(b.title || ''))
+  }))
+
+const eventsByDate = (dateStr) => visibleEvents.value
+  .filter((ev) => isDateWithinEventRange(dateStr, ev))
 
 const monthTitle = computed(() => ym(viewDate.value))
 
@@ -350,24 +329,89 @@ const calendarCells = computed(() => {
     }
 
     const date = ymd(cellDate)
+    const dayEvents = eventsByDate(date)
     return {
       date,
       day: cellDate.getDate(),
       muted,
-      events: eventsByDate(date),
+      events: dayEvents,
+      hasMultiDayEvent: dayEvents.some((eventItem) => isMultiDayEvent(eventItem)),
+      inlineEvents: dayEvents.filter((eventItem) => !isMultiDayEvent(eventItem)),
     }
   })
 })
+
+const calendarWeeks = computed(() => Array.from({ length: 6 }, (_, index) => {
+  const cells = calendarCells.value.slice(index * 7, index * 7 + 7)
+  const weekStart = toStartOfDay(cells[0]?.date)
+  const weekEnd = toStartOfDay(cells[6]?.date)
+  const lanes = []
+  const multiDaySegments = []
+
+  visibleEvents.value
+    .filter((eventItem) => {
+      if (!isMultiDayEvent(eventItem)) {
+        return false
+      }
+      const range = getEventDayRange(eventItem)
+      if (!range || !weekStart || !weekEnd) {
+        return false
+      }
+      return range.startDay.getTime() <= weekEnd.getTime() && range.endDay.getTime() >= weekStart.getTime()
+    })
+    .sort((left, right) => {
+      const startCompare = String(right.startAt || right.date || '').localeCompare(String(left.startAt || left.date || ''))
+      if (startCompare !== 0) {
+        return startCompare
+      }
+      return String(right.title || '').localeCompare(String(left.title || ''))
+    })
+    .forEach((eventItem) => {
+      const range = getEventDayRange(eventItem)
+      const segmentStart = range.startDay.getTime() < weekStart.getTime() ? weekStart : range.startDay
+      const segmentEnd = range.endDay.getTime() > weekEnd.getTime() ? weekEnd : range.endDay
+      const startCol = compareDay(segmentStart, weekStart) + 1
+      const endCol = compareDay(segmentEnd, weekStart) + 2
+      let laneIndex = 0
+
+      while (lanes[laneIndex] && lanes[laneIndex] >= startCol) {
+        laneIndex += 1
+      }
+
+      if (laneIndex >= MAX_VISIBLE_MULTIDAY_LANES) {
+        return
+      }
+
+      lanes[laneIndex] = endCol - 1
+      multiDaySegments.push({
+        key: `${eventItem.id}-${cells[0]?.date}`,
+        event: eventItem,
+        lane: laneIndex + 1,
+        startCol,
+        endCol,
+        startsBeforeWeek: range.startDay.getTime() < weekStart.getTime(),
+        endsAfterWeek: range.endDay.getTime() > weekEnd.getTime(),
+      })
+    })
+
+  return {
+    key: cells[0]?.date || `week-${index}`,
+    cells,
+    multiDaySegments,
+    laneCount: lanes.length,
+    barAreaHeight: lanes.length > 0 ? (lanes.length * 2) + ((lanes.length - 1) * 2) + 5 : 0,
+  }
+}))
 
 const selectedDayEvents = computed(() => eventsByDate(selectedDate.value))
 const currentRecommendation = computed(() => recommendations.value[recommendIdx.value])
 const hasHarvestAlerts = computed(() => harvestAlerts.value.length > 0)
 const harvestItems = computed(() => (hasHarvestAlerts.value ? harvestAlerts.value : harvestDummyItems))
 const selectedClientLabel = computed(
-  () => clientFilterOptions.find((item) => item.value === filterState.value.client)?.label || '전체',
+  () => clientFilterOptions.value.find((item) => item.value === filterState.value.client)?.label || '전체',
 )
 const selectedEmployeeLabel = computed(
-  () => employeeFilterOptions.find((item) => item.value === filterState.value.employee)?.label || '전체',
+  () => employeeFilterOptions.value.find((item) => item.value === filterState.value.employee)?.label || '전체',
 )
 const scheduleDetailCoreItems = computed(() => {
   const eventItem = detailEvent.value
@@ -458,6 +502,54 @@ const hasLinkItems = computed(() => scheduleDetailLinkItems.value.length > 0)
 
 const canEditCurrentEvent = computed(() => detailEvent.value?.type === 'personal')
 
+const queryRange = computed(() => {
+  const first = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth(), 1)
+  const last = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 0)
+  const rangeStart = new Date(first)
+  rangeStart.setDate(first.getDate() - first.getDay())
+  rangeStart.setHours(0, 0, 0, 0)
+
+  const rangeEnd = new Date(last)
+  rangeEnd.setDate(last.getDate() + (6 - last.getDay()) + 1)
+  rangeEnd.setHours(0, 0, 0, 0)
+
+  return {
+    from: toLocalDateTime(rangeStart),
+    to: toLocalDateTime(rangeEnd),
+  }
+})
+
+const loadSchedules = async () => {
+  scheduleLoading.value = true
+  scheduleError.value = ''
+
+  try {
+    const params = {
+      from: queryRange.value.from,
+      to: queryRange.value.to,
+      includePersonal: true,
+      includeDeal: true,
+    }
+
+    if (filterState.value.client !== 'ALL') {
+      params.clientId = filterState.value.client
+    }
+
+    if (isAdmin.value && filterState.value.employee !== 'ALL') {
+      params.assigneeUserId = filterState.value.employee
+    }
+
+    const response = await getSchedulesByCondition(params)
+    const data = response?.data || response
+    events.value = Array.isArray(data) ? data.map(normalizeScheduleItem) : []
+  } catch (error) {
+    events.value = []
+    scheduleError.value = getErrorMessage(error, '일정 목록을 불러오지 못했습니다.')
+  } finally {
+    scheduleLoading.value = false
+  }
+}
+
 const openDayModal = (date) => {
   selectedDate.value = date
   dayModalOpen.value = true
@@ -474,14 +566,14 @@ const openDetail = (eventItem) => {
 
 const openEditModal = (eventItem = null) => {
   editingId.value = eventItem?.id || null
-  editTitle.value = (eventItem?.title || '').replace('개인 일정: ', '')
+  editingStatus.value = eventItem?.status || null
+  editTitle.value = eventItem?.title || ''
   editDesc.value = eventItem?.description ?? eventItem?.desc ?? ''
   const baseDate = eventItem?.date || selectedDate.value || ymd(new Date())
   const fallbackStartAt = `${baseDate}T09:00`
   editStartAt.value = eventItem?.startAt ? formatToDateTimeLocal(eventItem.startAt) : fallbackStartAt
   editEndAt.value = eventItem?.endAt ? formatToDateTimeLocal(eventItem.endAt) : addHoursToDateTimeLocal(editStartAt.value)
   editAllDay.value = Boolean(eventItem?.allDay)
-  editStatus.value = eventItem?.status || 'PLANNED'
   editVisibility.value = eventItem?.visibility || 'PRIVATE'
   editModalOpen.value = true
 }
@@ -565,12 +657,12 @@ const closeFilterMenusByOutsideClick = (event) => {
   }
 }
 
-const saveEdit = () => {
+const saveEdit = async () => {
   const title = editTitle.value.trim()
   const description = editDesc.value.trim()
 
-  if (!title || !editStartAt.value || !editEndAt.value || !editStatus.value || !editVisibility.value) {
-    window.alert('제목, 시작/종료 일시, 상태, 공개 범위는 필수입니다.')
+  if (!title || !editStartAt.value || !editEndAt.value) {
+    window.alert('제목과 시작/종료 일시는 필수입니다.')
     return
   }
 
@@ -590,40 +682,57 @@ const saveEdit = () => {
     return
   }
 
-  const payload = {
+  const basePayload = {
     title,
     description,
     startAt: editStartAt.value,
     endAt: editEndAt.value,
     allDay: editAllDay.value,
-    status: editStatus.value,
-    visibility: editVisibility.value,
+    visibility: editVisibility.value || 'PRIVATE',
   }
 
-  if (editingId.value) {
-    const target = events.value.find((item) => item.id === editingId.value)
-    if (target) {
-      Object.assign(target, buildPersonalEvent({ ...payload, id: editingId.value }))
+  const updatePayload = editingStatus.value && editingStatus.value !== 'PLANNED'
+    ? { ...basePayload, status: editingStatus.value }
+    : basePayload
+
+  isSavingSchedule.value = true
+
+  try {
+    if (editingId.value) {
+      await updatePersonalSchedule(editingId.value, updatePayload)
+    } else {
+      await createPersonalSchedule(basePayload)
     }
-  } else {
-    events.value.push(buildPersonalEvent({ ...payload, id: `P-${Date.now()}` }))
-  }
 
-  editModalOpen.value = false
+    editModalOpen.value = false
+    detailModalOpen.value = false
+    await loadSchedules()
+  } catch (error) {
+    window.alert(getErrorMessage(error, '개인 일정 저장에 실패했습니다.'))
+  } finally {
+    isSavingSchedule.value = false
+  }
 }
 
-const deletePersonal = (id) => {
-  events.value = events.value.filter((item) => item.id !== id)
-  detailModalOpen.value = false
+const deletePersonal = async (id) => {
+  try {
+    await deletePersonalSchedule(id)
+    detailModalOpen.value = false
+    await loadSchedules()
+  } catch (error) {
+    window.alert(getErrorMessage(error, '개인 일정 삭제에 실패했습니다.'))
+  }
 }
 
 const prevMonth = async () => {
   viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() - 1, 1)
+  await loadSchedules()
   await loadHarvestSchedules()
 }
 
 const nextMonth = async () => {
   viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 1)
+  await loadSchedules()
   await loadHarvestSchedules()
 }
 
@@ -647,17 +756,23 @@ const loadHarvestSchedules = async () => {
       currentDate: viewDate.value,
     })
 
-    generatedEvents.value = result.scheduleEvents || []
     harvestAlerts.value = result.harvestAlerts || []
     notificationStore.mergeNotifications(ROLES.SALES_REP, result.notifications || [])
   } catch (error) {
-    generatedEvents.value = []
     harvestAlerts.value = []
   }
 }
 
+watch(
+  () => [filterState.value.client, isAdmin.value ? filterState.value.employee : 'ALL'],
+  async () => {
+    await loadSchedules()
+  },
+)
+
 onMounted(async () => {
   window.addEventListener('click', closeFilterMenusByOutsideClick)
+  await loadSchedules()
   await loadHarvestSchedules()
 })
 
@@ -783,6 +898,8 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="calendar-shell">
+          <p v-if="scheduleError" class="schedule-feedback error">{{ scheduleError }}</p>
+          <p v-else-if="scheduleLoading" class="schedule-feedback">일정을 불러오는 중입니다.</p>
           <div class="calendar-card calendar-wrapper"><!-- // UPDATED -->
             <div class="calendar-header">
               <div class="month-nav">
@@ -795,29 +912,58 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="calendar-grid">
-              <div v-for="dow in ['일','월','화','수','목','금','토']" :key="dow" class="dow">{{ dow }}</div>
-
-              <div
-                v-for="cell in calendarCells"
-                :key="cell.date"
-                class="day-cell"
-                :class="{ muted: cell.muted }"
-                @click="openDayModal(cell.date)"
-              >
-                <div class="day-num">{{ cell.day }}</div>
-                <div class="badge-row">
-                  <div v-for="ev in getVisibleBadges(cell.events)" :key="ev.id" class="badge" :class="ev.type">
-                    {{ truncateBadgeText(ev.type === 'history' ? `${historyLabelWithOwner(ev)} · ${ev.title}` : `${eventTypeLabel(ev)} · ${ev.title}`) }}
-                  </div>
-                  <div v-if="shouldShowMoreBadge(cell.events)" class="badge more">...</div>
-                </div>
+              <div class="calendar-dow-grid">
+                <div v-for="dow in ['일','월','화','수','목','금','토']" :key="dow" class="dow">{{ dow }}</div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <aside class="calendar-right">
+              <div class="calendar-weeks">
+                <div
+                  v-for="week in calendarWeeks"
+                  :key="week.key"
+                  class="calendar-week"
+                  :style="{ '--week-lane-count': String(week.laneCount), '--week-event-area': `${week.barAreaHeight}px` }"
+                >
+                  <div v-if="week.multiDaySegments.length > 0" class="week-multiday-layer">
+                    <button
+                      v-for="segment in week.multiDaySegments"
+                      :key="segment.key"
+                      type="button"
+                      class="multiday-badge"
+                      :class="[
+                        segment.event.type,
+                        { 'has-start-cap': !segment.startsBeforeWeek, 'has-end-cap': !segment.endsAfterWeek },
+                      ]"
+                      :style="{ gridColumn: `${segment.startCol} / ${segment.endCol}`, gridRow: String(segment.lane) }"
+                      :aria-label="`${segment.event.title} (${formatDateTimeText(segment.event.startAt)} ~ ${formatDateTimeText(segment.event.endAt)})`"
+                      @click.stop="openDetail(segment.event)"
+                    />
+                  </div>
+
+                  <div class="week-day-grid">
+                    <div
+                      v-for="cell in week.cells"
+                      :key="cell.date"
+                      class="day-cell"
+                      :class="{ muted: cell.muted }"
+                      @click="openDayModal(cell.date)"
+                    >
+                      <div class="day-num">{{ cell.day }}</div>
+                      <div v-if="cell.hasMultiDayEvent || cell.events.length >= 2" class="day-count-badge">{{ cell.events.length }}</div>
+                      <div class="badge-row">
+                        <div v-for="ev in getVisibleBadges(cell.hasMultiDayEvent ? [] : cell.inlineEvents)" :key="ev.id" class="badge" :class="ev.type">
+                          {{ truncateBadgeText(`${eventTypeLabel(ev)} · ${ev.title}`) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+	      </div>
+
+	      <aside class="calendar-right">
         <div class="side-card">
           <div class="side-header">
             <div class="side-title">이번달 추천 품종</div>
@@ -904,7 +1050,7 @@ onBeforeUnmount(() => {
           <button class="modal-close" type="button" @click="dayModalOpen = false">×</button>
         </div>
         <div class="modal-body">
-          <div class="modal-section-title">요청 정보</div>
+            <div class="modal-section-title">일정 목록</div>
           <div class="modal-list">
             <div v-for="ev in selectedDayEvents" :key="ev.id" class="modal-item" @click="openDetail(ev)">
               <div class="modal-item-top">
@@ -970,7 +1116,7 @@ onBeforeUnmount(() => {
               <button class="btn" type="button" @click="openEditModal(detailEvent)">수정</button>
               <button class="btn schedule-delete-btn" type="button" @click="deletePersonal(detailEvent.id)">삭제</button>
             </template>
-            <div v-else class="text-xs font-bold text-[var(--color-text-sub)]">※ 문서/재배적기/수확 일정은 자동 생성 일정입니다.</div>
+            <div v-else class="text-xs font-bold text-[var(--color-text-sub)]">※ 거래 일정은 통합 조회 전용이며 이 화면에서 수정하거나 삭제할 수 없습니다.</div>
           </div>
         </div>
       </div>
@@ -1012,22 +1158,6 @@ onBeforeUnmount(() => {
               <textarea id="editDesc" v-model="editDesc" class="schedule-control schedule-textarea" placeholder="예: 자료 정리, 방문 일정 확정 등" />
             </div>
             <div class="schedule-inline-fields schedule-modal-wide">
-              <div class="schedule-field">
-                <label for="editStatus" class="schedule-label">상태 *</label>
-                <select id="editStatus" v-model="editStatus" class="schedule-control" required>
-                  <option v-for="option in scheduleStatusOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="schedule-field">
-                <label for="editVisibility" class="schedule-label">공개 범위 *</label>
-                <select id="editVisibility" v-model="editVisibility" class="schedule-control" required>
-                  <option v-for="option in scheduleVisibilityOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </div>
               <div class="schedule-modal-checkbox">
                 <input id="editAllDay" v-model="editAllDay" type="checkbox" class="schedule-checkbox">
                 <label for="editAllDay" class="schedule-checkbox-label">종일 일정</label>
@@ -1037,7 +1167,7 @@ onBeforeUnmount(() => {
 
           <div class="modal-actions">
             <button class="btn" type="button" @click="editModalOpen = false">취소</button>
-            <button class="btn btn-primary schedule-save-btn" type="button" @click="saveEdit">저장</button>
+            <button class="btn btn-primary schedule-save-btn" type="button" :disabled="isSavingSchedule" @click="saveEdit">저장</button>
           </div>
         </div>
       </div>
@@ -1313,8 +1443,30 @@ onBeforeUnmount(() => {
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
   border-top: 1px solid var(--color-border-divider, #E8E3D8);
+}
+
+.calendar-dow-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-weeks {
+  display: grid;
+}
+
+.calendar-week {
+  position: relative;
+  --week-lane-count: 0;
+  --week-lane-height: 2px;
+  --week-lane-gap: 2px;
+  --week-event-top: 34px;
+  --week-event-area: 0px;
+}
+
+.week-day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
 }
 
 .dow {
@@ -1348,17 +1500,87 @@ onBeforeUnmount(() => {
 }
 
 .day-num { font-size: 13px; font-weight: 800; color: inherit; }
+
+.day-count-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-orange, #C8622A);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(200, 98, 42, 0.24);
+}
+
 .badge-row {
   position: absolute;
   left: 10px;
   right: 10px;
-  top: 38px;
+  top: calc(38px + var(--week-event-area));
   bottom: 10px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
   overflow: hidden;
+}
+
+.week-multiday-layer {
+  position: absolute;
+  top: var(--week-event-top);
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: var(--week-lane-height);
+  gap: var(--week-lane-gap) 0;
+  padding: 0 6px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.multiday-badge {
+  min-width: 0;
+  height: var(--week-lane-height);
+  border: none;
+  border-radius: 999px;
+  background: rgba(122, 140, 66, 0.52);
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: none;
+  position: relative;
+}
+
+.multiday-badge::before,
+.multiday-badge::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 6px;
+  background: rgba(88, 104, 48, 0.75);
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.multiday-badge.has-start-cap::before {
+  left: 0;
+  opacity: 1;
+}
+
+.multiday-badge.has-end-cap::after {
+  right: 0;
+  opacity: 1;
 }
 
 .badge {
@@ -1368,29 +1590,25 @@ onBeforeUnmount(() => {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 999px;
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  background: var(--color-bg-section, #EFEADF);
-  color: var(--color-text-body, #6B5F50);
+  border: 1px solid var(--color-olive-light, #C8D4A0);
+  background: var(--color-olive-light, #C8D4A0);
+  color: var(--color-olive-dark, #586830);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.badge.more {
-  font-weight: 800;
-}
-
 .badge.history {
-  background: var(--color-orange-light, #F0C9A8);
-  border-color: var(--color-orange-light, #F0C9A8);
-  color: var(--color-orange-dark, #A34E20);
+  background: var(--color-olive-light, #C8D4A0);
+  border-color: var(--color-olive-light, #C8D4A0);
+  color: var(--color-olive-dark, #586830);
 }
 
 .badge.personal {
-  background: var(--color-bg-section, #EFEADF);
-  border-color: var(--color-border-card, #DDD7CE);
-  color: var(--color-text-body, #6B5F50);
+  background: var(--color-olive-light, #C8D4A0);
+  border-color: var(--color-olive-light, #C8D4A0);
+  color: var(--color-olive-dark, #586830);
 }
 
 .badge.growing-season {
@@ -1400,9 +1618,9 @@ onBeforeUnmount(() => {
 }
 
 .badge.harvest {
-  background: var(--color-orange-light, #F0C9A8);
-  border-color: var(--color-orange-light, #F0C9A8);
-  color: var(--color-orange-dark, #A34E20);
+  background: var(--color-olive-light, #C8D4A0);
+  border-color: var(--color-olive-light, #C8D4A0);
+  color: var(--color-olive-dark, #586830);
 }
 
 .harvest-card {
@@ -1639,7 +1857,7 @@ onBeforeUnmount(() => {
 
 .modal-header {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border-divider, #E8E3D8);
+  border-bottom: 1px solid #d0c7b8;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1677,8 +1895,8 @@ onBeforeUnmount(() => {
 .modal-list { display: grid; gap: 10px; }
 
 .modal-item {
-  border: 1px solid var(--color-border-divider, #E8E3D8);
-  background: var(--color-bg-section, #EFEADF);
+  border: 1px solid #d0c7b8;
+  background: #f7f3ec;
   border-radius: 12px;
   padding: 12px;
   cursor: pointer;
@@ -1738,6 +1956,23 @@ onBeforeUnmount(() => {
   color: var(--color-text-sub, #9A8C7E);
 }
 
+.schedule-feedback {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider, #E8E3D8);
+  border-radius: 10px;
+  background: var(--color-bg-section, #EFEADF);
+  color: var(--color-text-sub, #9A8C7E);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.schedule-feedback.error {
+  border-color: rgba(200, 98, 42, 0.28);
+  background: rgba(200, 98, 42, 0.08);
+  color: var(--color-orange-dark, #A34E20);
+}
+
 .schedule-modal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1792,7 +2027,7 @@ onBeforeUnmount(() => {
 
 .schedule-inline-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: auto;
   gap: 12px;
   align-items: end;
 }
@@ -1842,9 +2077,9 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 6px;
   padding: 12px;
-  border: 1px solid var(--color-border-divider, #E8E3D8);
+  border: 1px solid #d0c7b8;
   border-radius: 12px;
-  background: var(--color-bg-section, #EFEADF);
+  background: #f7f3ec;
 }
 
 .info-box .k {

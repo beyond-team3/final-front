@@ -82,12 +82,6 @@ const findProductByCrop = (products, cropName) => products.find((product) => {
 
 const makeScheduleSourceKey = ({ year, month, clientId, cropName }) => `harvest-${year}-${pad2(month)}-${clientId}-${cropName}`
 
-const scheduleToCalendarEvent = (schedule) => ({
-  ...schedule,
-  clientId: toClientIdString(schedule.clientId),
-  type: schedule.type || 'harvest',
-})
-
 export async function syncHarvestSchedulesForSalesRep({
   salesRepUserId,
   salesRepEmployeeId,
@@ -104,18 +98,15 @@ export async function syncHarvestSchedulesForSalesRep({
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth() + 1
-  const monthDate = `${year}-${pad2(month)}-01`
 
-  const [clients, products, schedules, notifications] = await Promise.all([
-    api.get('/clients', { params: { managerId: salesRepEmployeeId } }),
+  const [clients, products, notifications] = await Promise.all([
+    api.get('/accounts/clients', { params: { managerId: salesRepEmployeeId } }),
     api.get('/products'),
-    api.get('/schedules'),
     api.get('/notifications', { params: { role: ROLES.SALES_REP, type: 'HARVEST_SEASON_ALERT' } }),
   ])
 
   const managedClients = Array.isArray(clients) ? clients : []
   const productList = Array.isArray(products) ? products : []
-  const scheduleList = Array.isArray(schedules) ? schedules : []
   const notificationList = Array.isArray(notifications) ? notifications : []
 
   const targets = managedClients.flatMap((client) => {
@@ -148,31 +139,10 @@ export async function syncHarvestSchedulesForSalesRep({
       .filter(Boolean)
   })
 
-  const scheduleEvents = []
   const harvestAlerts = []
   const nextNotifications = []
 
   for (const target of targets) {
-    let schedule = scheduleList.find((item) => item.sourceKey === target.sourceKey)
-
-    if (!schedule) {
-      schedule = await api.post('/schedules', {
-        type: 'harvest',
-        title: `수확 일정: ${target.varietyName}`,
-        desc: `${target.clientName} · ${target.varietyName} 수확 예상월입니다. 거래처와 출하 계획을 확인하세요.`,
-        date: monthDate,
-        time: '09:00',
-        scheduleCategory: 'HARVEST',
-        clientId: target.clientId,
-        clientName: target.clientName,
-        varietyName: target.varietyName,
-        expectedHarvestMonth: target.expectedHarvestMonth,
-        source: 'growing-season',
-        sourceKey: target.sourceKey,
-      })
-      scheduleList.push(schedule)
-    }
-
     let notification = notificationList.find((item) => item.sourceKey === target.sourceKey)
 
     if (!notification) {
@@ -206,7 +176,6 @@ export async function syncHarvestSchedulesForSalesRep({
       notificationList.push(notification)
     }
 
-    scheduleEvents.push(scheduleToCalendarEvent(schedule))
     nextNotifications.push(notification)
     harvestAlerts.push({
       sourceKey: target.sourceKey,
@@ -218,7 +187,7 @@ export async function syncHarvestSchedulesForSalesRep({
   }
 
   return {
-    scheduleEvents,
+    scheduleEvents: [],
     harvestAlerts,
     notifications: nextNotifications,
   }
