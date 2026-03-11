@@ -8,8 +8,24 @@ export function createQuotationRequest(data) {
     return api.post('requests', data)
 }
 
+export function getPendingQuotationRequests() {
+    return api.get('requests/pending')
+}
+
+export function getApprovedQuotations() {
+    return api.get('quotations/approved')
+}
+
+export function getQuotation(id) {
+    return api.get(`quotations/${id}`)
+}
+
 export function createQuotation(data) {
     return api.post('quotations', data)
+}
+
+export function getContract(id) {
+    return api.get(`contracts/${id}`)
 }
 
 export function createContract(data) {
@@ -74,10 +90,6 @@ export function getInvoice(invoiceId) {
 
 export function getContractsByClient(clientId) {
     return api.get('/contracts', { params: { clientId } })
-}
-
-export function getContract(contractId) {
-    return api.get(`/contracts/${contractId}`)
 }
 
 export function publishInvoice(invoiceId) {

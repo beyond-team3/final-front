@@ -32,30 +32,33 @@ const normalizeTab = (tab) => {
   return map[tab] || tab
 }
 const currentTab = ref(typeof route.query.title === 'string' ? normalizeTab(route.query.title) : '견적요청서')
+const STEP_SHORT_LABEL = {
+  견적요청서: 'RFQ',
+  견적서: 'QUO',
+  계약서: 'CNT',
+  주문서: 'ORD',
+  명세서: 'STMT',
+  청구서: 'INV',
+}
 
 const pipeline = computed(() => historyStore.getPipelineById(route.query.pipelineId))
 const pageTitle = computed(() => `${currentTab.value} 목록`)
+const currentStageLabel = computed(() => pipeline.value?.latestDocTypeLabel || '')
 
 const stepsData = computed(() => {
   const base = ['견적요청서', '견적서', '계약서', '주문서', '명세서', '청구서']
-  const doneStage = pipeline.value?.stageNumber || 1
-  return base.map((name, index) => {
-    const order = index + 1
-    if (order < doneStage) {
-      return { name, status: 'completed', statusText: '완료' }
-    }
-    if (order === doneStage) {
-      return { name, status: 'active', statusText: '진행중' }
-    }
-    return { name, status: 'pending', statusText: '대기' }
+  const stepMap = new Map((pipeline.value?.steps || []).map((step) => [step.label, step.state]))
+  return base.map((name) => {
+    const state = stepMap.get(name) || 'pending'
+    return { name, status: state }
   })
 })
 
 const documents = computed(() => (pipeline.value?.documents || []).map((doc) => {
   const statusText = doc.status || '진행중'
   const statusClass = statusText.includes('완료') || statusText.includes('발행')
-      ? 'bg-emerald-100 text-emerald-800'
-      : 'bg-blue-100 text-blue-700'
+      ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]'
+      : 'bg-[var(--color-orange-light)] text-[var(--color-orange-dark)]'
 
   return {
     id: doc.id,
@@ -80,18 +83,20 @@ const filteredDocs = computed(() => {
 
 const stepClass = (status) => {
   if (status === 'completed') {
-    return 'bg-emerald-500 text-white'
+    return 'bg-[var(--color-olive)] text-white'
   }
 
   if (status === 'active') {
-    return 'bg-blue-600 text-white ring-4 ring-blue-100'
+    return 'bg-[var(--color-orange)] text-white ring-4 ring-[var(--color-orange-light)]'
   }
 
-  return 'bg-slate-200 text-slate-400'
+  return 'bg-[var(--color-border-divider)] text-[var(--color-text-placeholder)]'
 }
 
 const stepLabelClass = (stepName) => {
-  return stepName === currentTab.value ? 'text-blue-600 underline' : 'text-slate-600'
+  return stepName === currentTab.value
+      ? 'text-[var(--color-olive)] underline decoration-[var(--color-olive)] underline-offset-4'
+      : 'text-[var(--color-text-body)]'
 }
 
 const setTab = (tabName) => {
@@ -144,14 +149,22 @@ const canDownload = computed(() => {
 
 onMounted(() => {
   if (!pipeline.value) {
-    void historyStore.fetchPipelines()
+    void historyStore.fetchPipelines().then(() => {
+      if (typeof route.query.pipelineId === 'string') {
+        void historyStore.ensureDealLogs(route.query.pipelineId)
+      }
+    })
+    return
+  }
+
+  if (typeof route.query.pipelineId === 'string') {
+    void historyStore.ensureDealLogs(route.query.pipelineId)
   }
 })
 </script>
 
 <template>
-  <main class="min-h-screen" style="background-color: var(--color-bg-base);">
-    <div class="mx-auto max-w-[1400px] p-6">
+      <section class="screen-content">
       <section v-if="historyStore.loading" class="flex justify-center p-20">
         <LoadingSpinner text="문서 목록을 불러오는 중입니다." />
       </section>
@@ -162,15 +175,16 @@ onMounted(() => {
           description="히스토리 화면에서 파이프라인을 다시 선택해주세요."
       />
       <template v-else>
-        <header class="mb-6 flex items-center gap-4">
+        <header class="mb-6 flex items-center gap-4 border-b border-[var(--color-border-divider)] pb-4">
           <button type="button" class="rounded-lg p-2 text-xl hover:bg-[var(--color-bg-section)]" @click="goBack">←</button>
           <div>
             <p class="text-sm text-[var(--color-text-sub)]">현재 위치: {{ pipeline.clientName }} > {{ currentTab }}</p>
-            <h2 class="text-2xl font-bold text-[var(--color-text-strong)]">{{ pageTitle }}</h2>
+            <h2 class="text-2xl font-semibold text-[var(--color-text-strong)]">{{ pageTitle }}</h2>
+            <p class="mt-1 text-xs text-[var(--color-text-sub)]">현재 진행 단계: {{ currentStageLabel || '-' }}</p>
           </div>
         </header>
 
-        <section class="mb-6 overflow-x-auto rounded-xl border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-card);">
+        <section class="mb-6 overflow-x-auto rounded-[20px] border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-section);">
           <div class="flex min-w-[680px] items-start justify-between gap-2">
             <button
                 v-for="step in stepsData"
@@ -180,16 +194,16 @@ onMounted(() => {
                 @click="setTab(step.name)"
             >
               <span class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold" :class="stepClass(step.status)">
-                {{ step.status === 'completed' ? '완' : step.status === 'active' ? '진' : '대' }}
+                {{ STEP_SHORT_LABEL[step.name] || step.name.slice(0, 1) }}
               </span>
               <span class="text-center text-xs font-medium" :class="stepLabelClass(step.name)">
-                {{ step.name }}<br>{{ step.statusText }}
+                {{ step.name }}
               </span>
             </button>
           </div>
         </section>
 
-        <section class="mb-6 flex gap-2 rounded-lg border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-card);">
+        <section class="mb-6 flex gap-2 rounded-[20px] border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-section);">
           <input
               v-model="searchText"
               type="text"
@@ -199,7 +213,7 @@ onMounted(() => {
           >
           <button
               type="button"
-              class="rounded-lg bg-[var(--color-olive)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-olive-dark)] transition-colors"
+              class="rounded-lg bg-[var(--color-orange)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-orange-dark)]"
               @click="applySearch"
           >
             검색
@@ -228,7 +242,7 @@ onMounted(() => {
               <td class="px-6 py-4">
                 <button
                     type="button"
-                    class="rounded bg-[var(--color-olive)] px-3 py-1 text-xs font-medium text-white hover:bg-[var(--color-olive-dark)] transition-colors"
+                    class="rounded bg-[var(--color-orange)] px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-[var(--color-orange-dark)]"
                     @click="openDetail(doc)"
                 >
                   보기
@@ -256,6 +270,5 @@ onMounted(() => {
             :reject-reason="selectedDoc ? selectedDoc.rejectReason : ''"
         />
       </template>
-    </div>
-  </main>
+      </section>
 </template>
