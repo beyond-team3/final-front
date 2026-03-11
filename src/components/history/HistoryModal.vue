@@ -96,22 +96,22 @@ const isOrderDocument = computed(() => {
 const isAuthor = computed(() => {
   const doc = docDetail.value
   if (!doc) return false
-  
+
   const me = authStore.me
   if (!me) return false
-  
+
   const authorIds = [
-    doc.authorId, doc.writerId, doc.userId, doc.clientId, doc.salesRepId, 
+    doc.authorId, doc.writerId, doc.userId, doc.clientId, doc.salesRepId,
     doc.client?.id, doc.salesRep?.id, doc.writer?.id
   ].map(v => String(v || '').trim()).filter(v => v !== '' && v !== 'null' && v !== 'undefined')
-  
+
   const myIds = [
     me.id, me.refId, me.clientId, me.employeeId, me.userId
   ].map(v => String(v || '').trim()).filter(v => v !== '' && v !== 'null' && v !== 'undefined')
-  
-  const isNameMatch = authStore.currentRole === ROLES.CLIENT && 
-    (String(doc.clientName || '').trim() === String(me.clientName || me.name || '').trim())
-  
+
+  const isNameMatch = authStore.currentRole === ROLES.CLIENT &&
+      (String(doc.clientName || '').trim() === String(me.clientName || me.name || '').trim())
+
   return authorIds.some(aid => myIds.includes(aid)) || isNameMatch
 })
 
@@ -119,7 +119,7 @@ const isAuthor = computed(() => {
 const resolvedMemberName = computed(() => {
   const doc = docDetail.value
   if (!doc) return '-'
-  
+
   if (isQuotationRequest.value || isOrderDocument.value) {
     return doc.managerName || doc.client?.contact || doc.authorName || doc.writerName || '담당자 미지정'
   } else {
@@ -231,14 +231,14 @@ const downloadDocument = async () => {
   const element = document.querySelector('.current-pdf-template')
   if (!element) return
   isDownloading.value = true
-  
+
   const isContract = isContractDocument.value
   const overlay = document.createElement('div')
   overlay.style.position = 'fixed'; overlay.style.left = '-10000px'; overlay.style.top = '0'; overlay.style.width = '794px'; overlay.style.backgroundColor = '#ffffff'; overlay.style.zIndex = '-999999';
-  
+
   const clone = element.cloneNode(true)
   clone.style.transform = 'none'; clone.style.margin = '0'; clone.style.padding = '0';
-  
+
   const allPapers = clone.querySelectorAll('.bg-white');
   allPapers.forEach(paper => {
     paper.style.width = '794px';
@@ -246,7 +246,7 @@ const downloadDocument = async () => {
     paper.style.margin = '0';
     paper.style.borderRadius = '0';
     paper.style.boxSizing = 'border-box';
-    
+
     if (isContract) {
       paper.style.minHeight = '1110px';
       paper.style.height = 'auto';
@@ -258,33 +258,33 @@ const downloadDocument = async () => {
   });
 
   overlay.appendChild(clone); document.body.appendChild(overlay)
-  
-  const opt = { 
-    margin: 0, 
-    filename: `${docDetail.value?.displayCode || props.docId}.pdf`, 
-    image: { type: 'jpeg', quality: 1.0 }, 
-    html2canvas: { 
+
+  const opt = {
+    margin: 0,
+    filename: `${docDetail.value?.displayCode || props.docId}.pdf`,
+    image: { type: 'jpeg', quality: 1.0 },
+    html2canvas: {
       scale: isContract ? 2 : 3, // 견적서는 고화질(3), 계약서는 긴 문서 대응을 위해 2 적용
-      useCORS: true, 
-      logging: false, 
-      backgroundColor: '#ffffff', 
-      width: 794, 
-      y: 0, 
-      scrollY: 0 
-    }, 
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: 794,
+      y: 0,
+      scrollY: 0
+    },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: isContract ? ['avoid-all', 'css', 'legacy'] : 'avoid-all' }
   }
-  
-  try { 
-    await new Promise(resolve => setTimeout(resolve, 1000)); 
-    await window.html2pdf().set(opt).from(isContract ? clone : clone).save() 
-  } catch (error) { 
-    console.error('PDF 다운로드 실패:', error); 
-    alert('PDF 생성 중 오류가 발생했습니다.') 
-  } finally { 
-    if (overlay.parentNode) document.body.removeChild(overlay); 
-    isDownloading.value = false 
+
+  try {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await window.html2pdf().set(opt).from(isContract ? clone : clone).save()
+  } catch (error) {
+    console.error('PDF 다운로드 실패:', error);
+    alert('PDF 생성 중 오류가 발생했습니다.')
+  } finally {
+    if (overlay.parentNode) document.body.removeChild(overlay);
+    isDownloading.value = false
   }
 }
 
