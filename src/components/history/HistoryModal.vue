@@ -471,7 +471,7 @@ const getValidityDate = (dateStr) => {
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <div v-if="showOrderCancelButton && isOrderCancelBlockedByApproval" class="text-xs font-semibold text-[#C44536]">
+            <div v-if="showOrderCancelButton && isOrderCancelBlockedByApproval" class="text-xs font-semibold text-[var(--color-status-error)]">
               관리자 승인 필요
             </div>
             <button
@@ -494,7 +494,7 @@ const getValidityDate = (dateStr) => {
             <button
                 v-if="isAuthor && !isOrderDocument && !isContractDocument"
                 type="button"
-                class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors"
+                class="rounded bg-[var(--color-status-error)] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 transition-colors"
                 @click="handleDelete"
             >
               취소 및 삭제
@@ -502,7 +502,7 @@ const getValidityDate = (dateStr) => {
             <button
                 v-if="canDeleteContract"
                 type="button"
-                class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors"
+                class="rounded bg-[var(--color-status-error)] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95 transition-colors"
                 @click="handleDelete"
             >
               삭제하기
@@ -917,25 +917,24 @@ const getValidityDate = (dateStr) => {
       title="취소 확인"
       width-class="max-w-md"
   >
-    <p class="text-sm text-slate-700">
+    <p class="text-sm text-[var(--color-text-body)]">
       {{ showOrderCancelButton ? '해당 주문서를 취소하시겠습니까?' : '해당 문서를 취소하시겠습니까?' }}
     </p>
-    <p v-if="cancelErrorMessage" class="mt-3 text-xs font-semibold text-[#C44536]">
+    <p v-if="cancelErrorMessage" class="mt-3 text-xs font-semibold text-[var(--color-status-error)]">
       {{ cancelErrorMessage }}
     </p>
     <template #footer>
       <div class="flex justify-end gap-2">
         <button
             type="button"
-            class="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            class="rounded border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 py-1.5 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]"
             @click="showCancelConfirm = false"
         >
           닫기
         </button>
         <button
             type="button"
-            class="rounded px-3 py-1.5 text-sm font-semibold text-white"
-            style="background-color: #C44536"
+            class="rounded bg-[var(--color-status-error)] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-95"
             @click="confirmCancel"
         >
           취소 확정

@@ -1,198 +1,212 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import DealActivityPanel from '@/components/history/DealActivityPanel.vue'
+import DealDocumentCard from '@/components/history/DealDocumentCard.vue'
+import DealStageNavigator from '@/components/history/DealStageNavigator.vue'
 import { useHistoryStore } from '@/stores/history'
 
 const route = useRoute()
 const router = useRouter()
 const historyStore = useHistoryStore()
-const isMoreVisible = ref(false)
 
-const pipeline = computed(() => historyStore.getPipelineById(route.params.id))
-const docsByStageNumber = computed(() => {
-  const grouped = new Map()
-  const docs = pipeline.value?.documents || []
+const selectedStageCode = ref('')
 
-  docs.forEach((doc) => {
-    const stageNumber = Number(doc.stageNumber || 0)
-    if (!stageNumber) {
-      return
-    }
+const deal = computed(() => historyStore.getPipelineById(route.params.id))
+const allStageDocuments = computed(() => (deal.value?.documents || []).filter((document) => document.type === selectedStageCode.value))
+const stageDocuments = computed(() => {
+    const latestDocumentsByType = new Map()
 
-    if (!grouped.has(stageNumber)) {
-      grouped.set(stageNumber, [])
-    }
+    allStageDocuments.value.forEach((document) => {
+        const current = latestDocumentsByType.get(document.type)
 
-    grouped.get(stageNumber).push(doc)
-  })
+        if (!current || String(document.actionAt || '').localeCompare(String(current.actionAt || '')) > 0) {
+            latestDocumentsByType.set(document.type, document)
+        }
+    })
 
-  return grouped
+    return [...latestDocumentsByType.values()].sort((a, b) => String(b.actionAt || '').localeCompare(String(a.actionAt || '')))
 })
-
 const stageSteps = computed(() => {
-  if (!pipeline.value) {
-    return []
-  }
+    if (!deal.value) return []
 
-  const names = ['견적요청', '견적', '계약', '주문', '명세', '청구', '결제완료']
-  return names.map((name, index) => {
-    const order = index + 1
-    if (order < pipeline.value.stageNumber) {
-      const hasDocument = (docsByStageNumber.value.get(order) || []).length > 0
-      return {
-        name,
-        statusText: '완료',
-        state: 'completed',
-        hasDocument,
-        warningText: hasDocument ? '' : '문서 미등록',
-      }
-    }
-    if (order === pipeline.value.stageNumber) {
-      return { name, statusText: '진행중', state: 'in-progress', hasDocument: true, warningText: '' }
-    }
-    return { name, statusText: '대기중', state: 'waiting', hasDocument: true, warningText: '' }
-  })
+    return deal.value.steps.map((step) => ({
+        ...step,
+        documentCount: deal.value.documents.filter((document) => document.type === step.code).length,
+    }))
 })
+const isPendingStage = computed(() => stageSteps.value.find((step) => step.code === selectedStageCode.value)?.state === 'pending')
 
-const topSteps = computed(() => stageSteps.value.slice(0, 3))
-const moreSteps = computed(() => stageSteps.value.slice(3))
-
-const getStepClass = (state) => {
-  if (state === 'completed') {
-    return 'from-emerald-500 to-emerald-600'
-  }
-
-  if (state === 'in-progress') {
-    return 'from-blue-500 to-blue-600 animate-pulse'
-  }
-
-  return 'from-slate-400 to-slate-500'
-}
+watch(deal, (value) => {
+    if (value) {
+        selectedStageCode.value = value.latestDocType
+    }
+}, { immediate: true })
 
 const goBack = () => {
-  router.push({ name: 'sales-history' })
+    router.push({ name: 'sales-history' })
 }
 
-const openDocList = (stepName) => {
-  router.push({
-    name: 'sales-documents',
-    query: {
-      title: stepName,
-      pipelineId: String(route.params.id),
-    },
-  })
+const openDocList = () => {
+    router.push({
+        name: 'sales-documents',
+        query: {
+            pipelineId: String(route.params.id),
+            title: stageSteps.value.find((step) => step.code === selectedStageCode.value)?.label || '',
+        },
+    })
 }
 
-const showMoreSteps = () => {
-  isMoreVisible.value = true
-}
+onMounted(async () => {
+    if (!deal.value) {
+        await historyStore.fetchPipelines()
+    }
 
-onMounted(() => {
-  if (!pipeline.value) {
-    void historyStore.fetchPipelines()
-  }
+    if (route.params.id) {
+        await historyStore.ensureDealLogs(String(route.params.id))
+    }
 })
 </script>
 
 <template>
-  <section>
-    <LoadingSpinner v-if="historyStore.loading" text="파이프라인 정보를 불러오는 중입니다." />
-    <ErrorMessage v-else-if="historyStore.error" :message="historyStore.error" @retry="historyStore.fetchPipelines" />
-    <EmptyState
-      v-else-if="!pipeline"
-      title="파이프라인을 찾을 수 없습니다."
-      description="히스토리 목록에서 다시 선택해주세요."
-    />
-    <template v-else>
-      <header class="mb-6 flex items-center gap-4">
-        <button type="button" class="rounded-lg p-2 text-xl hover:bg-slate-200" @click="goBack">←</button>
-        <div class="flex-1">
-          <h2 class="text-2xl font-bold text-slate-900">{{ pipeline.clientName }} - 영업 히스토리</h2>
-          <p class="text-sm text-slate-500">영업 진행 상황을 확인하세요</p>
-        </div>
-        <span class="rounded-lg bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">{{ pipeline.stage }} 진행중</span>
-      </header>
+            <section class="screen-content pipeline-detail-page">
+            <section v-if="historyStore.loading" class="flex min-h-[420px] items-center justify-center">
+                <LoadingSpinner text="딜 정보를 불러오는 중입니다." />
+            </section>
 
-      <section class="mb-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 class="mb-4 text-lg font-semibold text-slate-900">거래처 정보</h3>
-        <div class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <div>
-            <p class="text-slate-500">거래처명</p>
-            <p class="font-medium text-slate-900">{{ pipeline.clientName }}</p>
-          </div>
-          <div>
-            <p class="text-slate-500">담당자</p>
-            <p class="font-medium text-slate-900">{{ pipeline.salesRepName || '-' }}</p>
-          </div>
-          <div>
-            <p class="text-slate-500">연락처</p>
-            <p class="font-medium text-slate-900">{{ pipeline.salesRepPhone || '-' }}</p>
-          </div>
-          <div>
-            <p class="text-slate-500">시작일</p>
-            <p class="font-medium text-slate-900">{{ pipeline.startDate }}</p>
-          </div>
-          <div>
-            <p class="text-slate-500">최근 갱신</p>
-            <p class="font-medium text-slate-900">{{ pipeline.updatedAt }}</p>
-          </div>
-          <div>
-            <p class="text-slate-500">총 계약 금액</p>
-            <p class="text-lg font-semibold text-blue-600">{{ Number(pipeline.amount || 0).toLocaleString() }}원</p>
-          </div>
-        </div>
-      </section>
+            <ErrorMessage v-else-if="historyStore.error" :message="historyStore.error" @retry="historyStore.fetchPipelines" />
 
-      <section class="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <h3 class="mb-4 text-lg font-semibold text-slate-900">파이프라인 진행 상황</h3>
+            <EmptyState
+                v-else-if="!deal"
+                title="딜 정보를 찾을 수 없습니다."
+                description="영업 히스토리 목록에서 다시 선택해주세요."
+            />
 
-        <div class="grid gap-3 md:grid-cols-3">
-          <button
-            v-for="step in topSteps"
-            :key="step.name"
-            type="button"
-            class="rounded-lg bg-gradient-to-br px-5 py-6 text-center text-white shadow transition hover:scale-[1.01] md:[clip-path:polygon(0_0,90%_0,100%_50%,90%_100%,0_100%)]"
-            :class="getStepClass(step.state)"
-            @click="openDocList(step.name)"
-          >
-            <p class="text-lg font-bold">{{ step.name }}</p>
-            <p class="text-sm opacity-90">{{ step.statusText }}</p>
-            <p v-if="step.warningText" class="mt-1 text-xs font-semibold text-amber-100">{{ step.warningText }}</p>
-          </button>
-        </div>
+            <section v-else class="pipeline-shell">
+                        <section class="pipeline-card overflow-hidden">
+                        <header class="border-b bg-[var(--color-bg-card)]" :style="{ borderColor: 'var(--color-border-card)' }">
+                            <div class="flex flex-col gap-4 px-5 pb-3 pt-6 md:px-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                                <div class="flex items-center gap-2 text-sm">
+                                    <button type="button" class="text-[var(--color-text-sub)] hover:underline" @click="goBack">영업 히스토리</button>
+                                    <span class="text-[var(--color-text-sub)]">›</span>
+                                    <span class="font-bold text-[var(--color-text-strong)]">{{ deal.clientName }} DEAL #{{ deal.id }}</span>
+                                </div>
 
-        <button
-          v-if="!isMoreVisible"
-          type="button"
-          class="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-700"
-          @click="showMoreSteps"
-        >
-          <span>주문서 단계부터 더보기</span>
-          <span>▼</span>
-        </button>
+                                <div class="flex gap-2">
+                                    <button type="button" class="btn" style="background: var(--color-orange); color: #fff;">딜 종료</button>
+                                </div>
+                            </div>
 
-        <div v-if="isMoreVisible" class="mt-6">
-          <div class="mb-4 flex justify-center text-2xl text-slate-400">➜</div>
+                            <div class="flex flex-col gap-5 px-5 pb-5 md:px-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <h2 class="text-[28px] font-bold text-[var(--color-text-strong)]">{{ deal.clientName }}</h2>
+                                    <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-1 text-[12px] text-[var(--color-text-sub)]">DEAL #{{ deal.id }}</span>
+                                    <span class="rounded-md bg-[var(--color-olive-light)] px-2 py-1 text-[12px] text-[var(--color-olive-dark)]">{{ deal.currentStatusLabel }}</span>
+                                </div>
 
-          <div class="grid gap-3 md:grid-cols-3">
-            <button
-              v-for="step in moreSteps"
-              :key="step.name"
-              type="button"
-              class="rounded-lg bg-gradient-to-br px-5 py-6 text-center text-white shadow transition hover:scale-[1.01] md:[clip-path:polygon(0_0,90%_0,100%_50%,90%_100%,0_100%)]"
-              :class="getStepClass(step.state)"
-              @click="openDocList(step.name)"
-            >
-              <p class="text-lg font-bold">{{ step.name }}</p>
-              <p class="text-sm opacity-90">{{ step.statusText }}</p>
-              <p v-if="step.warningText" class="mt-1 text-xs font-semibold text-amber-100">{{ step.warningText }}</p>
-            </button>
-          </div>
-        </div>
-      </section>
-    </template>
-  </section>
+                                <div class="flex flex-wrap items-center gap-5 text-sm">
+                                    <div>
+                                        <div class="text-[12px] text-[var(--color-text-sub)]">담당자</div>
+                                        <div class="mt-1 text-[var(--color-text-strong)]">{{ deal.ownerEmpName }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-[12px] text-[var(--color-text-sub)]">최근 활동</div>
+                                        <div class="mt-1 text-[var(--color-text-strong)]">{{ deal.lastActivityText }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-[12px] text-[var(--color-text-sub)]">현재 문서 단계</div>
+                                        <div class="mt-1 font-semibold text-[var(--color-olive)]">{{ deal.latestDocTypeLabel }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+                        </section>
+
+                        <section class="pipeline-card">
+                        <DealStageNavigator :steps="stageSteps" :selected-code="selectedStageCode" @select="selectedStageCode = $event" />
+                        </section>
+
+                        <section class="pipeline-card p-5 md:p-6">
+                                <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <h3 class="text-2xl font-semibold text-[var(--color-text-strong)]">
+                                            {{ stageSteps.find((step) => step.code === selectedStageCode)?.label || '-' }}
+                                        </h3>
+                                        <p class="text-xs text-[var(--color-text-sub)]">총 {{ allStageDocuments.length }}건</p>
+                                    </div>
+
+                                    <button type="button" class="btn btn-primary" @click="openDocList">더보기</button>
+                                </div>
+
+                            <section v-if="historyStore.logsLoading" class="pipeline-card flex justify-center py-12">
+                                <LoadingSpinner text="딜 타임라인을 불러오는 중입니다." />
+                            </section>
+
+                            <section
+                                v-else-if="isPendingStage"
+                                class="pipeline-card border-dashed px-6 py-12 text-center"
+                                :style="{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border-card)' }"
+                            >
+                                <div class="text-lg font-semibold text-[var(--color-text-strong)]">아직 진행되지 않은 단계입니다.</div>
+                                <div class="mt-2 text-sm text-[var(--color-text-sub)]">현재 단계 이전 문서가 완료되면 이 구간의 로그가 기록됩니다.</div>
+                            </section>
+
+                            <section
+                                v-else-if="stageDocuments.length === 0"
+                                class="pipeline-card border-dashed px-6 py-12 text-center"
+                                :style="{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border-card)' }"
+                            >
+                                <div class="text-lg font-semibold text-[var(--color-text-strong)]">해당 단계의 문서가 없습니다.</div>
+                                <div class="mt-2 text-sm text-[var(--color-text-sub)]">실제 API 로그가 쌓이면 이 영역에 반영됩니다.</div>
+                            </section>
+
+                            <div v-else>
+                                <div class="space-y-4">
+                                <DealDocumentCard v-for="document in stageDocuments" :key="document.documentKey" :document="document" />
+                                </div>
+                            </div>
+                        </section>
+
+                <section class="pipeline-card pipeline-log-card">
+                    <DealActivityPanel :activities="deal.timeline" />
+                </section>
+            </section>
+            </section>
 </template>
+
+<style scoped>
+.pipeline-detail-page {
+    background: var(--color-surface);
+}
+
+.pipeline-shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.pipeline-card {
+    border: 1px solid var(--color-border-card);
+    border-radius: 16px;
+    background: var(--color-bg-card);
+    box-shadow: 0 1px 3px rgba(61, 53, 41, 0.06);
+}
+
+.pipeline-log-card {
+    overflow: hidden;
+}
+
+.pipeline-log-card :deep(aside) {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.pipeline-log-card :deep(.p-6) {
+    max-height: 360px;
+    overflow-y: auto;
+}
+</style>

@@ -262,7 +262,6 @@ const applyPageSize = (size) => {
 </script>
 
 <template>
-  <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <section class="screen-content document-summary-page">
       <div class="mb-5 flex items-center justify-between border-b pb-[15px]" style="border-color: #E8E3D8;">
         <div>
@@ -478,7 +477,6 @@ const applyPageSize = (size) => {
         </article>
       </div>
     </section>
-  </div>
 </template>
 
 <style scoped>
