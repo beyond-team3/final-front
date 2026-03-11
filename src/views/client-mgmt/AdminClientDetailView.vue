@@ -101,8 +101,8 @@ const openEditModal = () => {
 
 const submitEdit = () => {
   clientStore.updateClient(currentClient.value.id, {
-    name: editForm.value.name,
-    bizNo: editForm.value.bizNo,
+    clientName: editForm.value.name,
+    clientBrn: editForm.value.bizNo,
     ceoName: editForm.value.ceoName,
     companyPhone: editForm.value.companyPhone,
     address: editForm.value.address,
@@ -113,7 +113,7 @@ const submitEdit = () => {
     managerName: editForm.value.managerName,
     managerPhone: editForm.value.managerPhone,
     managerEmail: editForm.value.managerEmail,
-    creditLimit: Number(editForm.value.creditLimit || 0),
+    totalCredit: Number(editForm.value.creditLimit || 0),
   })
 
   isEditModalOpen.value = false
@@ -175,12 +175,12 @@ onMounted(fetchClientDetail)
         <article class="rounded-lg border border-slate-200 bg-white p-5">
           <h3 class="mb-4 text-lg font-semibold text-slate-800">기본 정보</h3>
           <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">법인명</dt><dd class="font-medium">{{ currentClient.name }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">사업자번호</dt><dd class="font-medium">{{ currentClient.bizNo }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">대표이름</dt><dd class="font-medium">{{ currentClient.ceoName }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">회사유선번호</dt><dd class="font-medium">{{ currentClient.companyPhone }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">법인명</dt><dd class="font-medium">{{ currentClient.name }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">사업자번호</dt><dd class="font-medium">{{ currentClient.bizNo }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">대표이름</dt><dd class="font-medium">{{ currentClient.ceoName }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">회사유선번호</dt><dd class="font-medium">{{ currentClient.companyPhone }}</dd></div>
             <div class="flex items-center justify-between gap-4">
-              <dt class="text-slate-500 shrink-0">주소</dt>
+              <dt class="font-bold text-[#3d3529] shrink-0">주소</dt>
               <dd class="flex-1 flex items-center justify-between gap-2 overflow-hidden">
                 <span class="font-medium text-slate-800 truncate">{{ currentClient.displayAddressOnly }}</span>
                 <span class="shrink-0 inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-xs font-bold text-slate-500 border border-slate-200 shadow-sm">
@@ -189,35 +189,35 @@ onMounted(fetchClientDetail)
               </span>
               </dd>
             </div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">거래처 유형</dt><dd><StatusBadge status="info" :label="currentClient.typeLabel" /></dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">거래처 유형</dt><dd><StatusBadge status="info" :label="currentClient.typeLabel" /></dd></div>
           </dl>
         </article>
 
         <article class="rounded-lg border border-slate-200 bg-white p-5">
           <h3 class="mb-4 text-lg font-semibold text-slate-800">담당자 정보</h3>
           <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이름</dt><dd class="font-medium">{{ currentClient.managerName }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">연락처</dt><dd class="font-medium">{{ currentClient.managerPhone }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이메일</dt><dd class="font-medium">{{ currentClient.managerEmail }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">이름</dt><dd class="font-medium">{{ currentClient.managerName }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">연락처</dt><dd class="font-medium">{{ currentClient.managerPhone }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">이메일</dt><dd class="font-medium">{{ currentClient.managerEmail }}</dd></div>
           </dl>
         </article>
 
         <article class="rounded-lg border border-slate-200 bg-white p-5">
-          <h3 class="mb-4 text-lg font-semibold text-slate-800">이번달 거래 현황</h3>
-          <p class="text-2xl font-bold text-blue-600">{{ toCurrency(currentClient.monthlyAmount) }}</p>
+          <h3 class="mb-4 text-lg font-semibold text-slate-800">거래 요약</h3>
+          <p class="text-2xl font-bold text-[#3d3529]">{{ toCurrency(currentClient.monthlyAmount) }}</p>
           <p class="mt-1 text-xs text-slate-500">이번달 누적 거래 금액</p>
           <dl class="mt-4 space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이번 달 진행</dt><dd class="font-medium">{{ currentClient.monthlyInProgress }}건</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">이번 달 완료</dt><dd class="font-medium">{{ currentClient.monthlyDone }}건</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">이번 달 진행</dt><dd class="font-medium">{{ currentClient.monthlyInProgress }}건</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">이번 달 완료</dt><dd class="font-medium">{{ currentClient.monthlyDone }}건</dd></div>
           </dl>
         </article>
 
         <article class="rounded-lg border border-slate-200 bg-white p-5">
           <h3 class="mb-4 text-lg font-semibold text-slate-800">거래 정보</h3>
           <dl class="space-y-2 text-sm">
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">여신 한도</dt><dd class="font-medium">{{ toCurrency(currentClient.creditLimit) }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">현재 미수금</dt><dd class="font-medium text-orange-600">{{ toCurrency(currentClient.receivable) }}</dd></div>
-            <div class="flex justify-between gap-2"><dt class="text-slate-500">잔여 여신</dt><dd class="font-medium text-emerald-600">{{ toCurrency(currentClient.creditLimit - currentClient.receivable) }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">여신 한도</dt><dd class="font-medium">{{ toCurrency(currentClient.creditLimit) }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">현재 미수금</dt><dd class="font-medium text-orange-600">{{ toCurrency(currentClient.receivable) }}</dd></div>
+            <div class="flex justify-between gap-2"><dt class="font-bold text-[#3d3529]">잔여 여신</dt><dd class="font-medium text-emerald-600">{{ toCurrency(currentClient.creditLimit - currentClient.receivable) }}</dd></div>
           </dl>
         </article>
 
