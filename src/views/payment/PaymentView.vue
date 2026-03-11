@@ -2,7 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
-import { usePaymentStore } from '@/stores/paymentStore.js'
+import { usePaymentStore } from '@/stores/paymentStore'
 
 const paymentStore = usePaymentStore()
 
