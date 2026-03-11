@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useNoteStore } from '@/stores/note'
+import seedLogo from '@/assets/images/Seed_logo.png'
 
 const noteStore = useNoteStore()
 const route = useRoute()
@@ -232,8 +233,8 @@ onMounted(async () => {
     <div class="mx-auto max-w-5xl">
       <!-- IDLE State -->
       <div v-if="status === 'IDLE'" class="flex flex-col items-center justify-center rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-32 text-center shadow-sm">
-        <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-bg-base)] text-[var(--color-text-placeholder)]">
-          <i class="fas fa-robot text-4xl"></i>
+        <div class="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[var(--color-bg-base)]">
+          <img :src="seedLogo" alt="Seed Logo" class="w-14 h-14 object-contain opacity-50" />
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">전략 인출 준비 완료</h3>
         <p class="text-[var(--color-text-sub)]">분석할 거래처와 테마를 상단에서 선택해 주세요.</p>
