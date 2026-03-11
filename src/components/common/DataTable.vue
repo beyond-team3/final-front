@@ -29,7 +29,7 @@ defineEmits(['row-click'])
   <div class="app-data-table overflow-hidden rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-sm">
     <div class="overflow-x-auto">
       <table class="table min-w-full">
-        <thead>
+        <thead class="bg-[var(--color-bg-section)]">
         <tr>
           <th
               v-for="column in columns"

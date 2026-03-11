@@ -1,11 +1,12 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import PaginationControls from '@/components/common/PaginationControls.vue'
 import { useClientStore } from '@/stores/client'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
@@ -18,6 +19,9 @@ const { clients, loading, error } = storeToRefs(clientStore)
 const keyword = ref('')
 const region = ref('')
 const type = ref('')
+
+const currentPage = ref(1)
+const itemsPerPage = 10
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 
 const getRegion = (address) => {
@@ -56,6 +60,18 @@ const filteredClients = computed(() => {
 
     return matchKeyword && matchRegion && matchType
   })
+})
+
+const totalPages = computed(() => Math.ceil(filteredClients.value.length / itemsPerPage))
+
+const paginatedClients = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredClients.value.slice(start, end)
+})
+
+watch([keyword, region, type], () => {
+  currentPage.value = 1
 })
 
 const openDetail = (client) => {
@@ -198,52 +214,61 @@ onUnmounted(() => {
           description="담당 거래처가 없거나 검색 조건에 맞는 결과가 없습니다."
       />
 
-      <section v-else class="overflow-hidden rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-sm">
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse text-sm">
-            <thead class="bg-[var(--color-bg-section)] text-[var(--color-text-sub)]">
-            <tr>
-              <th class="w-[120px] px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">거래처 코드</th>
-              <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">거래처명</th>
-              <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">거래처 타입</th>
-              <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">담당자</th>
-              <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">지역</th>
-              <th class="w-[110px] px-6 py-4 text-center font-bold uppercase tracking-wider whitespace-nowrap">상태</th>
-              <th class="w-[100px] px-6 py-4 text-center font-bold uppercase tracking-wider whitespace-nowrap">액션</th>
-            </tr>
-            </thead>
-            <tbody class="divide-y divide-[var(--color-border-divider)]">
-            <tr
-                v-for="client in filteredClients"
-                :key="client.id"
-                class="transition-colors hover:bg-[var(--color-bg-section)]/50 cursor-pointer"
-                @click="openDetail(client)"
-            >
-              <td class="px-6 py-4 font-mono text-xs font-bold text-[var(--color-olive)] whitespace-nowrap">{{ client.code }}</td>
-              <td class="px-6 py-4 font-bold text-[var(--color-text-strong)] whitespace-nowrap">{{ client.name }}</td>
-              <td class="px-6 py-4 font-medium text-[var(--color-text-body)] whitespace-nowrap">
-                {{ client.typeLabel }}
-              </td>
-              <td class="px-6 py-4 text-[var(--color-text-body)] whitespace-nowrap">{{ client.managerName }}</td>
-              <td class="px-6 py-4 text-[var(--color-text-body)] whitespace-nowrap">{{ client.displaySido }}</td>
-              <td class="px-6 py-4 text-center whitespace-nowrap">
-                <StatusBadge
-                    v-if="client.isActive !== null"
-                    :status="client.isActive ? 'APPROVED' : 'REJECTED'"
-                    :label="client.isActive ? '활성' : '비활성'"
-                />
-              </td>
-              <td class="px-6 py-4 text-center whitespace-nowrap">
-                <button
-                    type="button"
-                    class="rounded-full bg-[var(--color-bg-base)] px-4 py-1.5 text-xs font-bold text-[var(--color-text-body)] transition-all hover:bg-[var(--color-olive)] hover:text-white"
-                >
-                  조회
-                </button>
-              </td>
-            </tr>
-            </tbody>
-          </table>
+      <section v-else class="space-y-4">
+        <div class="overflow-hidden rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-sm">
+              <thead class="bg-[var(--color-bg-section)] text-[var(--color-text-sub)]">
+              <tr>
+                <th class="w-[120px] px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">거래처 코드</th>
+                <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">거래처명</th>
+                <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">거래처 타입</th>
+                <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">담당자</th>
+                <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">지역</th>
+                <th class="w-[110px] px-6 py-4 text-center font-bold uppercase tracking-wider whitespace-nowrap">상태</th>
+                <th class="w-[100px] px-6 py-4 text-center font-bold uppercase tracking-wider whitespace-nowrap">액션</th>
+              </tr>
+              </thead>
+              <tbody class="divide-y divide-[var(--color-border-divider)]">
+              <tr
+                  v-for="client in paginatedClients"
+                  :key="client.id"
+                  class="transition-colors hover:bg-[var(--color-bg-section)]/50 cursor-pointer"
+                  @click="openDetail(client)"
+              >
+                <td class="px-6 py-4 font-mono text-xs font-bold text-[var(--color-olive)] whitespace-nowrap">{{ client.code }}</td>
+                <td class="px-6 py-4 font-bold text-[var(--color-text-strong)] whitespace-nowrap">{{ client.name }}</td>
+                <td class="px-6 py-4 font-medium text-[var(--color-text-body)] whitespace-nowrap">
+                  {{ client.typeLabel }}
+                </td>
+                <td class="px-6 py-4 text-[var(--color-text-body)] whitespace-nowrap">{{ client.managerName }}</td>
+                <td class="px-6 py-4 text-[var(--color-text-body)] whitespace-nowrap">{{ client.displaySido }}</td>
+                <td class="px-6 py-4 text-center whitespace-nowrap">
+                  <StatusBadge
+                      v-if="client.isActive !== null"
+                      :status="client.isActive ? 'APPROVED' : 'REJECTED'"
+                      :label="client.isActive ? '활성' : '비활성'"
+                  />
+                </td>
+                <td class="px-6 py-4 text-center whitespace-nowrap">
+                  <button
+                      type="button"
+                      class="rounded-full bg-[var(--color-bg-base)] px-4 py-1.5 text-xs font-bold text-[var(--color-text-body)] transition-all hover:bg-[var(--color-olive)] hover:text-white"
+                  >
+                    조회
+                  </button>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex justify-center py-4">
+          <PaginationControls
+              v-model="currentPage"
+              :total-pages="totalPages"
+          />
         </div>
       </section>
     </div>

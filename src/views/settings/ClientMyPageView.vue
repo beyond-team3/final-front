@@ -232,12 +232,12 @@ const openPipelineDetail = (pipelineId) => {
             </div>
           </div>
           <dl class="space-y-4">
-            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">법인명</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ profile.name }}</dd></div>
-            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">사업자번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.bizNo }}</dd></div>
-            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">대표이름</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.ceoName }}</dd></div>
-            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">회사 유선번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.companyPhone }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="font-bold text-[#3d3529]">법인명</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ profile.name }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="font-bold text-[#3d3529]">사업자번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.bizNo }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="font-bold text-[#3d3529]">대표이름</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.ceoName }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="font-bold text-[#3d3529]">회사 유선번호</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.companyPhone }}</dd></div>
             <div class="flex flex-col gap-1">
-              <dt class="text-[var(--color-text-sub)]">주소</dt>
+              <dt class="font-bold text-[#3d3529]">주소</dt>
               <dd class="flex items-center justify-between gap-2 w-full text-sm font-medium leading-relaxed text-[var(--color-text-body)]">
                 <span class="truncate">{{ profile.address }}</span>
                 <span v-if="profile.zonecode" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-white border border-[var(--color-border-card)] px-2 py-1 text-xs font-bold text-[var(--color-text-strong)] shadow-sm">
@@ -253,9 +253,9 @@ const openPipelineDetail = (pipelineId) => {
         <article class="flex flex-col rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
           <h3 class="mb-6 border-b border-[var(--color-border-divider)] pb-4 text-xl font-bold text-[var(--color-text-strong)]">담당자 정보</h3>
           <dl class="space-y-4">
-            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이름</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ profile.managerName }}</dd></div>
-            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">연락처</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.managerPhone }}</dd></div>
-            <div class="flex items-center justify-between"><dt class="text-[var(--color-text-sub)]">이메일</dt><dd class="font-medium text-[var(--color-text-body)] underline underline-offset-4">{{ profile.managerEmail }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="font-bold text-[#3d3529]">이름</dt><dd class="font-semibold text-[var(--color-text-body)]">{{ profile.managerName }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="font-bold text-[#3d3529]">연락처</dt><dd class="font-medium text-[var(--color-text-body)]">{{ profile.managerPhone }}</dd></div>
+            <div class="flex items-center justify-between"><dt class="font-bold text-[#3d3529]">이메일</dt><dd class="font-medium text-[var(--color-text-body)] underline underline-offset-4">{{ profile.managerEmail }}</dd></div>
           </dl>
         </article>
 
