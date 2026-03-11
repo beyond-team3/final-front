@@ -37,7 +37,7 @@ final-front/
     │   ├── auth.js, client.js, employee.js, product.js
     │   ├── document.js, history.js, note.js, dashboard.js
     │   ├── recommendation.js, pestMap.js, statistics.js
-    │   ├── schedule.js, approval.js, payment.js
+    │   ├── schedule.js, approval.js, paymentStore.js
     │   ├── notification.js, user.js
     ├── router/index.js
     ├── stores/               ← Pinia (api 모듈 호출, 상태 관리)
