@@ -2,13 +2,14 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
+import NoteDetailModal from '@/components/note/NoteDetailModal.vue'
 import { useNoteStore } from '@/stores/note'
 
 const noteStore = useNoteStore()
 const router = useRouter()
 
 const filterClient = ref('')
-const filterContract = ref('')
+const filterContractId = ref('')
 const filterStart = ref('')
 const filterEnd = ref('')
 const sort = ref('desc')
@@ -25,7 +26,7 @@ const contractOptions = computed(() => {
 const filteredNotes = computed(() => {
   return noteStore.searchClientNotes({
     clientId: filterClient.value || undefined,
-    contract: filterContract.value || undefined,
+    contractId: filterContractId.value || undefined,
     keyword: keyword.value || undefined,
     dateFrom: filterStart.value || undefined,
     dateTo: filterEnd.value || undefined,
@@ -35,7 +36,7 @@ const filteredNotes = computed(() => {
 
 const resetFilter = () => {
   filterClient.value = ''
-  filterContract.value = ''
+  filterContractId.value = ''
   filterStart.value = ''
   filterEnd.value = ''
   sort.value = 'desc'
@@ -67,131 +68,149 @@ const handleDelete = async (id) => {
     window.alert('삭제하지 못했습니다.')
   }
 }
+
+// Simple Markdown Parser (Heuristic) for Note Cards
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  
+  // 문자열이 아닐 경우 문자열로 변환
+  const content = typeof text === 'string' ? text : JSON.stringify(text, null, 2)
+  
+  let html = content
+    .replace(/^### (.*$)/gim, '<h4 class="text-lg font-bold text-[var(--color-text-strong)] mt-6 mb-3">$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3 class="text-xl font-bold text-[var(--color-text-strong)] mt-8 mb-4">$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2 class="text-2xl font-bold text-[var(--color-text-strong)] mt-10 mb-6">$1</h2>')
+    .replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-[var(--color-olive)] bg-[var(--color-bg-section)] p-4 my-4 rounded-r-md text-[var(--color-text-body)] italic">$1</blockquote>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[var(--color-text-strong)]">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/\n/g, '<br>')
+
+  return html
+}
 </script>
 
 <template>
-  <section>
+  <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
     <PageHeader title="영업 노트 탐색" subtitle="과거의 영업 활동 기록을 필터링하여 조회할 수 있습니다." />
 
-    <section class="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">고객사</label>
-          <select v-model="filterClient" class="w-full border-slate-300 p-2 rounded text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+    <!-- Filter Bar -->
+    <section class="mb-8 rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-sidebar)] p-6 shadow-sm mt-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="flex flex-col gap-1">
+          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1">고객사</label>
+          <select v-model="filterClient" class="h-10 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm">
             <option value="">모든 고객</option>
             <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">{{ client.name }}</option>
           </select>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">계약명</label>
-          <select v-model="filterContract" class="w-full border-slate-300 p-2 rounded text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        <div class="flex flex-col gap-1">
+          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1">계약명</label>
+          <select v-model="filterContractId" class="h-10 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm">
             <option value="">모든 계약</option>
             <option v-for="contract in contractOptions" :key="contract" :value="contract">{{ contract }}</option>
           </select>
         </div>
-        <div class="lg:col-span-2">
-          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">날짜 범위</label>
-          <div class="flex items-center space-x-2">
-            <input v-model="filterStart" type="date" class="w-full border-slate-300 p-2 rounded text-xs shadow-sm focus:border-sky-500 focus:ring-sky-500">
-            <span class="text-slate-400">~</span>
-            <input v-model="filterEnd" type="date" class="w-full border-slate-300 p-2 rounded text-xs shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        <div class="lg:col-span-2 flex flex-col gap-1">
+          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1">날짜 범위</label>
+          <div class="flex items-center space-x-3">
+            <input v-model="filterStart" type="date" class="h-10 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm">
+            <span class="text-[var(--color-text-placeholder)]">~</span>
+            <input v-model="filterEnd" type="date" class="h-10 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm">
           </div>
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
         <div class="relative lg:col-span-3">
-          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-placeholder)]"></i>
           <input 
             v-model="keyword" 
             type="text" 
             placeholder="고객명, 계약명, 요약 내용으로 검색..." 
-            class="w-full border-slate-300 p-2 pl-10 rounded text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500"
+            class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] pl-11 pr-4 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
           >
         </div>
-        <div class="flex space-x-2">
-          <select v-model="sort" class="w-full border-slate-300 p-2 rounded text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500">
+        <div class="flex space-x-3">
+          <select v-model="sort" class="h-11 flex-1 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm">
             <option value="desc">최신순</option>
             <option value="asc">오래된순</option>
           </select>
-          <button @click="resetFilter" title="필터 초기화" class="w-10 bg-slate-200 text-slate-600 rounded text-sm hover:bg-slate-300 transition-colors">
-            <i class="fas fa-rotate-left">↻</i>
+          <button @click="resetFilter" title="필터 초기화" class="w-11 h-11 bg-[var(--color-bg-card)] border border-[var(--color-border-card)] text-[var(--color-text-sub)] rounded-lg hover:bg-[var(--color-bg-section)] transition-colors flex items-center justify-center">
+            <span class="text-xl font-bold">↻</span>
           </button>
         </div>
       </div>
     </section>
 
-    <div v-if="filteredNotes.length > 0" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    <!-- Note Grid -->
+    <div v-if="filteredNotes.length > 0" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
       <div 
         v-for="note in filteredNotes" 
         :key="note.id" 
-        class="border rounded-lg p-5 shadow-sm bg-white hover:shadow-md hover:border-sky-300 transition-all relative"
+        class="group flex flex-col rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm hover:shadow-md hover:border-[var(--color-olive)] transition-all relative overflow-hidden"
       >
-        <div class="flex justify-between items-start mb-3">
-          <span class="font-bold text-sky-600">{{ noteStore.getClientName(note.clientId) }}</span>
-          <span class="text-xs text-slate-400 font-medium">{{ note.date }}</span>
+        <div class="flex justify-between items-start mb-4 relative z-10">
+          <span class="font-bold text-[var(--color-olive)] text-lg">{{ noteStore.getClientName(note.clientId) }}</span>
+          <span class="text-[var(--text-caption)] text-[var(--color-text-placeholder)] font-bold">{{ note.activityDate }}</span>
         </div>
-        <div class="bg-slate-50 p-4 rounded-md mb-4">
-          <p class="text-xs text-slate-500 font-bold mb-2">AI 요약</p>
+        
+        <div class="bg-[var(--color-bg-section)] p-5 rounded-xl mb-6 flex-1 border border-[var(--color-border-divider)] relative z-10">
+          <p class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase tracking-widest mb-3 flex items-center gap-2">
+            <i class="fas fa-sparkles text-[var(--color-olive)]"></i> AI 요약
+          </p>
 
-          <div v-if="note.summary && note.summary.length > 0" class="space-y-1.5">
+          <div v-if="note.aiSummary && note.aiSummary.length > 0" class="space-y-2">
             <div
-                v-for="(line, idx) in note.summary"
+                v-for="(line, idx) in note.aiSummary"
                 :key="idx"
-                class="text-sm text-slate-600 flex items-start"
+                class="text-sm text-[var(--color-text-body)] flex items-start leading-relaxed"
             >
-              <span class="text-sky-500 mr-2 leading-tight">•</span>
-              <span class="leading-relaxed">{{ line }}</span>
+              <span class="text-[var(--color-olive)] mr-2 font-bold">•</span>
+              <div class="prose flex-1" v-html="renderMarkdown(line)"></div>
             </div>
           </div>
-
-          <p v-else class="text-sm text-slate-400 italic">요약 분석 중...</p>
+          <p v-else class="text-sm text-[var(--color-text-placeholder)] italic">요약 분석 중...</p>
         </div>
-        <div class="flex justify-between items-center text-sm">
-          <span class="text-slate-500 truncate max-w-[120px]">
-            <i class="fa-regular fa-file-lines mr-2 text-slate-400"></i>
-<!--            {{ note.contract || '일반 상담' }}-->
+
+        <div class="flex justify-between items-center text-sm relative z-10 gap-3">
+          <span class="text-[var(--color-text-sub)] truncate font-medium flex items-center gap-2 flex-1 min-w-0">
+            <i class="fa-regular fa-file-lines text-[var(--color-text-placeholder)]"></i>
+            {{ note.contractId || '일반 상담' }}
           </span>
-          <div class="space-x-3">
-            <button @click="goEdit(note.id)" class="text-amber-500 font-bold hover:underline">수정</button>
-            <button @click="handleDelete(note.id)" class="text-red-500 font-bold hover:underline">삭제</button>
-            <button @click="openDetail(note)" class="text-sky-500 font-bold hover:underline">원문 보기</button>
+          <div class="flex items-center gap-4 flex-shrink-0">
+            <button @click="goEdit(note.id)" class="text-[var(--color-orange)] font-bold hover:underline">수정</button>
+            <button @click="handleDelete(note.id)" class="text-[var(--color-status-error)] font-bold hover:underline">삭제</button>
+            <button @click="openDetail(note)" class="text-[var(--color-olive)] font-bold hover:underline">원문</button>
           </div>
         </div>
+        <i class="fas fa-quote-right absolute -right-4 -top-4 text-[var(--color-bg-section)] text-8xl group-hover:text-[var(--color-olive)]/5 transition-colors"></i>
       </div>
     </div>
 
-    <div v-else class="col-span-full py-20 text-center text-slate-400 bg-white rounded-lg border">
-      <i class="fas fa-box-open text-4xl mb-4"></i>
-      <p>조건에 맞는 기록이 없습니다.</p>
+    <!-- Empty State -->
+    <div v-else class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm">
+      <div class="mb-6 flex h-20 w-20 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)] text-[var(--color-text-placeholder)]">
+        <i class="fas fa-box-open text-4xl"></i>
+      </div>
+      <p class="text-[var(--color-text-sub)] font-medium">조건에 맞는 기록이 없습니다.</p>
     </div>
 
     <!-- Note Detail Modal -->
-    <div v-if="showDetailModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeDetail"></div>
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col z-10">
-        <div class="flex justify-between items-center p-5 border-b">
-          <div class="flex items-center">
-            <h3 class="text-xl font-bold">영업 노트 원문</h3>
-            <span v-if="selectedNote?.isEdited" class="ml-3 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">수정됨</span>
-          </div>
-          <button @click="closeDetail" class="text-2xl text-slate-400 hover:text-slate-600">&times;</button>
-        </div>
-        <div class="p-8 overflow-y-auto">
-          <div class="flex justify-between items-end mb-4">
-            <div>
-              <p class="text-xl font-bold text-sky-600">{{ noteStore.getClientName(selectedNote?.clientId) }}</p>
-<!--              <p class="text-sm text-slate-500">{{ selectedNote?.contract || '일반 상담' }}</p>-->
-            </div>
-            <p class="text-sm text-slate-400 font-medium">{{ selectedNote?.date }}</p>
-          </div>
-          <div class="bg-slate-50 p-6 rounded-lg prose max-w-none">
-            <pre class="font-sans whitespace-pre-wrap text-slate-700">{{ selectedNote?.content }}</pre>
-          </div>
-        </div>
-        <div class="p-4 bg-slate-50 border-t text-right">
-          <button @click="closeDetail" class="bg-slate-500 text-white px-6 py-2 rounded-md font-bold hover:bg-slate-600">닫기</button>
-        </div>
-      </div>
-    </div>
+    <NoteDetailModal 
+      :show="showDetailModal" 
+      :note="selectedNote" 
+      @close="closeDetail" 
+    />
   </section>
 </template>
+
+<style scoped>
+.prose :deep(br) {
+  content: "";
+  display: block;
+  margin-top: 0.5rem;
+}
+.prose :deep(li) {
+  margin-bottom: 0.5rem;
+}
+</style>

@@ -66,6 +66,7 @@ export const MENU_CONFIG = [
             { key: 'note-main', label: '노트 작성', route: '/notes' },
             { key: 'note-search', label: '노트 검색', route: '/notes/search' },
             { key: 'note-briefing', label: 'AI 영업 브리핑', route: '/notes/briefing' },
+            { key: 'ragseed-analysis', label: 'RAGseed 분석', route: '/ragseed' },
         ],
     },
     { key: 'approval', label: '승인', roles: [ROLES.ADMIN], route: '/approval' },
