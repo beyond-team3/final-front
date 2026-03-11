@@ -14,7 +14,17 @@ import {
   Tooltip,
 } from 'chart.js'
 import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
+import {
+  buildPreviousTrendQuery,
+  buildRankingQuery,
+  buildTrendQuery,
+  mapRankingToChartData,
+  mapTrendSeriesToChartData,
+} from '@/api/statistics'
 import { useLayoutState } from '@/composables/layoutState'
+import { useAuthStore } from '@/stores/auth'
+import { useStatisticsStore } from '@/stores/statisticsStore'
+import { ROLES } from '@/utils/constants'
 
 Chart.register(
   CategoryScale,
@@ -40,32 +50,55 @@ const props = defineProps({
   },
 })
 
+const authStore = useAuthStore()
+const statisticsStore = useStatisticsStore()
 const layoutState = useLayoutState()
+
+const currentYear = new Date().getFullYear()
 const viewType = ref('personal')
+const clientDropdownOpen = ref(false)
+const selectedClients = ref([])
+const clientPeriodType = ref('monthly')
+const clientStartYear = ref(currentYear - 1)
+const clientStartMonth = ref(1)
+const clientEndYear = ref(currentYear - 1)
+const clientEndMonth = ref(12)
+const clientCompareYear = ref(false)
+const clientChartType = ref('line')
+const varietyDropdownOpen = ref(false)
+const selectedVarieties = ref([])
+const varietyPeriodType = ref('monthly')
+const varietyStartYear = ref(currentYear - 1)
+const varietyStartMonth = ref(1)
+const varietyEndYear = ref(currentYear - 1)
+const varietyEndMonth = ref(12)
+const varietyCompareYear = ref(false)
+const varietyChartType = ref('line')
+const employeeDropdownOpen = ref(false)
+const selectedEmployees = ref([])
+const employeePeriodType = ref('monthly')
+const employeeStartYear = ref(currentYear - 1)
+const employeeStartMonth = ref(1)
+const employeeEndYear = ref(currentYear - 1)
+const employeeEndMonth = ref(12)
+const employeeCompareYear = ref(false)
+const employeeChartType = ref('line')
+const personalUnit = ref('month')
+const personalStartYear = ref(currentYear - 1)
+const personalStartMonth = ref(1)
+const personalEndYear = ref(currentYear - 1)
+const personalEndMonth = ref(12)
+const personalCompareYear = ref(false)
+const personalCanvas = ref(null)
+const clientCanvas = ref(null)
+const varietyCanvas = ref(null)
+const employeeCanvas = ref(null)
+const loadSequence = ref(0)
 
-const clients = [
-  { id: 1, name: '(주)대한종묘' },
-  { id: 2, name: '농협종묘센터' },
-  { id: 3, name: '그린팜' },
-  { id: 4, name: '바이오시드' },
-  { id: 5, name: '한국농산' },
-]
-
-const varieties = [
-  { id: 1, name: '신녹광고추' },
-  { id: 2, name: '스피드꿀수박' },
-  { id: 3, name: '불암3호배추' },
-  { id: 4, name: '썸머킹토마토' },
-  { id: 5, name: '청정백다다기오이' },
-]
-
-const employees = [
-  { id: 1, name: '김철수' },
-  { id: 2, name: '이영희' },
-  { id: 3, name: '박민수' },
-  { id: 4, name: '정수진' },
-  { id: 5, name: '최동욱' },
-]
+let personalChart = null
+let clientChart = null
+let varietyChart = null
+let employeeChart = null
 
 const CHART_COLORS = {
   primary: '#7A8C42',
@@ -85,274 +118,103 @@ const palette = [
   CHART_COLORS.neutral,
 ]
 
-// TODO: API 연결
-const personalSales = {
-  2024: [108, 123, 119, 141, 154, 167, 185, 181, 203, 219, 210, 236],
-  2025: [120, 140, 135, 160, 175, 190, 210, 205, 230, 250, 240, 270],
-}
-
-const makeSeries = (base, growth) => base.map((value, idx) => Math.round(value * (1 + growth + idx * 0.01)))
-
-const clientMonthlySales = {
-  2024: {
-    1: makeSeries([950, 1020, 1080, 1150, 1220, 1290, 1250, 1330, 1400, 1470, 1530, 1580], 0),
-    2: makeSeries([820, 880, 930, 990, 1050, 1110, 1070, 1140, 1200, 1260, 1310, 1350], 0),
-    3: makeSeries([650, 700, 740, 790, 840, 880, 850, 910, 960, 1000, 1040, 1080], 0),
-    4: makeSeries([780, 840, 890, 950, 1000, 1060, 1020, 1090, 1140, 1200, 1240, 1290], 0),
-    5: makeSeries([600, 650, 680, 730, 770, 820, 790, 840, 890, 930, 970, 1000], 0),
-  },
-  2025: {
-    1: makeSeries([1120, 1300, 1200, 1380, 1450, 1550, 1470, 1600, 1680, 1750, 1800, 1870], 0),
-    2: makeSeries([970, 1120, 1030, 1190, 1250, 1340, 1270, 1380, 1450, 1510, 1560, 1620], 0),
-    3: makeSeries([770, 890, 820, 950, 1000, 1070, 1010, 1100, 1150, 1210, 1240, 1290], 0),
-    4: makeSeries([920, 1070, 980, 1130, 1190, 1270, 1210, 1310, 1370, 1440, 1480, 1540], 0),
-    5: makeSeries([720, 830, 770, 890, 930, 1000, 950, 1030, 1080, 1130, 1170, 1210], 0),
-  },
-}
-
-const varietyMonthlySales = {
-  2024: {
-    1: makeSeries([650, 710, 730, 790, 820, 880, 860, 910, 940, 980, 1020, 1070], 0),
-    2: makeSeries([590, 620, 680, 720, 760, 800, 820, 840, 890, 930, 980, 1020], 0),
-    3: makeSeries([700, 760, 810, 880, 920, 960, 980, 1040, 1090, 1130, 1180, 1210], 0),
-    4: makeSeries([730, 790, 850, 900, 960, 1020, 1060, 1120, 1170, 1230, 1280, 1320], 0),
-    5: makeSeries([560, 610, 660, 710, 740, 790, 820, 860, 900, 950, 980, 1030], 0),
-  },
-  2025: {
-    1: makeSeries([730, 800, 820, 900, 940, 990, 980, 1040, 1080, 1130, 1180, 1230], 0),
-    2: makeSeries([650, 700, 760, 810, 860, 910, 930, 970, 1020, 1070, 1120, 1160], 0),
-    3: makeSeries([760, 830, 890, 960, 1020, 1080, 1110, 1180, 1240, 1290, 1350, 1400], 0),
-    4: makeSeries([810, 880, 940, 1010, 1080, 1140, 1190, 1260, 1320, 1380, 1450, 1510], 0),
-    5: makeSeries([620, 680, 730, 790, 840, 900, 940, 980, 1040, 1090, 1140, 1190], 0),
-  },
-}
-
-const employeeMonthlySales = {
-  2024: {
-    1: makeSeries([780, 850, 880, 920, 980, 1020, 990, 1060, 1100, 1160, 1210, 1260], 0),
-    2: makeSeries([720, 760, 810, 860, 900, 940, 920, 970, 1010, 1060, 1110, 1160], 0),
-    3: makeSeries([640, 690, 730, 770, 820, 860, 840, 890, 930, 980, 1020, 1070], 0),
-    4: makeSeries([690, 740, 790, 840, 880, 920, 900, 960, 1000, 1050, 1090, 1140], 0),
-    5: makeSeries([620, 660, 710, 750, 790, 830, 810, 860, 900, 940, 980, 1020], 0),
-  },
-  2025: {
-    1: makeSeries([860, 930, 970, 1020, 1080, 1130, 1090, 1170, 1230, 1290, 1340, 1400], 0),
-    2: makeSeries([790, 840, 900, 960, 1010, 1060, 1020, 1100, 1150, 1210, 1260, 1320], 0),
-    3: makeSeries([700, 760, 810, 870, 920, 970, 940, 1000, 1060, 1110, 1160, 1220], 0),
-    4: makeSeries([760, 820, 880, 940, 990, 1040, 1010, 1080, 1130, 1190, 1240, 1300], 0),
-    5: makeSeries([680, 730, 790, 840, 890, 940, 910, 980, 1030, 1080, 1130, 1180], 0),
-  },
-}
-
-const monthLabels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
-const yearOptions = [2023, 2024, 2025, 2026]
+const yearOptions = Array.from({ length: 5 }, (_, index) => currentYear - 3 + index)
 const monthOptions = Array.from({ length: 12 }, (_, index) => index + 1)
+const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
+const employees = computed(() => statisticsStore.employeeOptions)
+const clients = computed(() => statisticsStore.clientOptions)
+const varieties = computed(() => statisticsStore.varietyOptions)
+const isRankingView = computed(() => (
+  (viewType.value === 'employee' && employeeChartType.value === 'bar')
+  || (viewType.value === 'client' && clientChartType.value === 'bar')
+  || (viewType.value === 'variety' && varietyChartType.value === 'bar')
+))
 
-const clientDropdownOpen = ref(false)
-const selectedClients = ref([])
-const clientPeriodType = ref('monthly')
-const clientStartYear = ref(2025)
-const clientStartMonth = ref(1)
-const clientEndYear = ref(2025)
-const clientEndMonth = ref(12)
-const clientCompareYear = ref(false)
-const clientChartType = ref('line')
-
-const varietyDropdownOpen = ref(false)
-const selectedVarieties = ref([])
-const varietyPeriodType = ref('monthly')
-const varietyStartYear = ref(2025)
-const varietyStartMonth = ref(1)
-const varietyEndYear = ref(2025)
-const varietyEndMonth = ref(12)
-const varietyCompareYear = ref(false)
-const varietyChartType = ref('line')
-
-const employeeDropdownOpen = ref(false)
-const selectedEmployees = ref([])
-const employeePeriodType = ref('monthly')
-const employeeStartYear = ref(2025)
-const employeeStartMonth = ref(1)
-const employeeEndYear = ref(2025)
-const employeeEndMonth = ref(12)
-const employeeCompareYear = ref(false)
-const employeeChartType = ref('line')
-
-const personalUnit = ref('month')
-const personalStartYear = ref(2025)
-const personalStartMonth = ref(1)
-const personalEndYear = ref(2025)
-const personalEndMonth = ref(12)
-const personalCompareYear = ref(false)
-
-const personalCanvas = ref(null)
-const clientCanvas = ref(null)
-const varietyCanvas = ref(null)
-const employeeCanvas = ref(null)
-let personalChart = null
-let clientChart = null
-let varietyChart = null
-let employeeChart = null
-
-const toMonthIndex = (year, month) => (Number(year) * 12) + (Number(month) - 1)
-const fromMonthIndex = (index) => ({ year: Math.floor(index / 12), month: (index % 12) + 1 })
-const createZeroValues = (length) => Array.from({ length }, () => 0)
-
-const getNormalizedMonthRange = (startYear, startMonth, endYear, endMonth) => {
-  const startIndex = toMonthIndex(startYear, startMonth)
-  const endIndex = toMonthIndex(endYear, endMonth)
-  const normalizedStartIndex = Math.min(startIndex, endIndex)
-  const normalizedEndIndex = Math.max(startIndex, endIndex)
-  const start = fromMonthIndex(normalizedStartIndex)
-  const end = fromMonthIndex(normalizedEndIndex)
-  return {
-    ...start,
-    endYear: end.year,
-    endMonth: end.month,
-    startIndex: normalizedStartIndex,
-    endIndex: normalizedEndIndex,
-    isMultiYear: start.year !== end.year,
+const activeStatsState = computed(() => {
+  if (viewType.value === 'employee') {
+    return statisticsStore.employee
   }
-}
-
-const createMonthPoints = (range) => {
-  const points = []
-  for (let index = range.startIndex; index <= range.endIndex; index += 1) {
-    points.push(fromMonthIndex(index))
+  if (viewType.value === 'client') {
+    return statisticsStore.client
   }
-  return points
-}
-
-const formatMonthLabel = (point, isMultiYear) => {
-  if (isMultiYear && (point.month === 1 || point.month === 12)) {
-    return `${point.year}.${point.month}월`
+  if (viewType.value === 'variety') {
+    return statisticsStore.variety
   }
-  return monthLabels[point.month - 1]
-}
+  return statisticsStore.personal
+})
 
-const MAX_MONTH_TICKS = 12
-const toMonthlyContexts = (monthPoints) => monthPoints.map((point) => ({ points: [point] }))
+const activeLoading = computed(() => (
+  statisticsStore.optionsLoading
+  || activeStatsState.value.loading
+  || (isRankingView.value ? activeStatsState.value.rankingLoading : false)
+))
 
-const compressMonthlyContexts = (monthPoints) => {
-  if (monthPoints.length <= MAX_MONTH_TICKS) {
-    return toMonthlyContexts(monthPoints)
+const activeError = computed(() => (
+  activeStatsState.value.error
+  || (isRankingView.value ? activeStatsState.value.rankingError : null)
+  || statisticsStore.optionsError
+))
+
+const activeRankingItems = computed(() => {
+  if (viewType.value === 'employee') {
+    return statisticsStore.employee.ranking
   }
-  const groupSize = Math.ceil(monthPoints.length / MAX_MONTH_TICKS)
-  const contexts = []
-  for (let index = 0; index < monthPoints.length; index += groupSize) {
-    contexts.push({
-      points: monthPoints.slice(index, index + groupSize),
-    })
+  if (viewType.value === 'client') {
+    return statisticsStore.client.ranking
   }
-  return contexts
-}
-
-const formatMonthlyContextLabel = (context, isMultiYear) => {
-  const start = context.points[0]
-  return formatMonthLabel(start, isMultiYear)
-}
-
-const getPeriodContexts = (monthPoints, periodType, isMultiYear) => {
-  if (periodType === 'monthly') {
-    const contexts = compressMonthlyContexts(monthPoints)
-    return {
-      labels: contexts.map((context) => formatMonthlyContextLabel(context, isMultiYear)),
-      contexts,
-    }
+  if (viewType.value === 'variety') {
+    return statisticsStore.variety.ranking
   }
+  return []
+})
 
-  const quarterMap = new Map()
-  monthPoints.forEach((point) => {
-    const quarter = Math.floor((point.month - 1) / 3) + 1
-    const key = `${point.year}-${quarter}`
-    if (!quarterMap.has(key)) {
-      quarterMap.set(key, {
-        year: point.year,
-        quarter,
-        points: [],
-      })
-    }
-    quarterMap.get(key).points.push(point)
-  })
-  const contexts = Array.from(quarterMap.values())
-  return {
-    labels: contexts.map((context) => (isMultiYear ? `${context.year} Q${context.quarter}` : `Q${context.quarter}`)),
-    contexts,
-  }
-}
-
-const getValuesByContexts = (contexts, periodType, resolver) => {
-  if (periodType === 'monthly') {
-    return contexts.map((context) => context.points.reduce((sum, point) => sum + resolver(point), 0))
-  }
-  return contexts.map((context) => context.points.reduce((sum, point) => sum + resolver(point), 0))
-}
-
-const getPersonalMonthlyValue = (year, month) => personalSales?.[year]?.[month - 1] ?? 0
-const getEntityMonthlyValue = (source, id, year, month) => source?.[year]?.[id]?.[month - 1] ?? 0
-
-const enforceMonthOrder = (startYearRef, startMonthRef, endYearRef, endMonthRef) => {
-  watch([startYearRef, startMonthRef, endYearRef, endMonthRef], ([startY, startM, endY, endM]) => {
-    if (toMonthIndex(startY, startM) <= toMonthIndex(endY, endM)) {
-      return
-    }
-    const nextStartYear = endY
-    const nextStartMonth = endM
-    endYearRef.value = startY
-    endMonthRef.value = startM
-    startYearRef.value = nextStartYear
-    startMonthRef.value = nextStartMonth
-  })
-}
-
-enforceMonthOrder(personalStartYear, personalStartMonth, personalEndYear, personalEndMonth)
-enforceMonthOrder(clientStartYear, clientStartMonth, clientEndYear, clientEndMonth)
-enforceMonthOrder(varietyStartYear, varietyStartMonth, varietyEndYear, varietyEndMonth)
-enforceMonthOrder(employeeStartYear, employeeStartMonth, employeeEndYear, employeeEndMonth)
-
-const getPersonalData = () => {
-  const range = getNormalizedMonthRange(
-    personalStartYear.value,
-    personalStartMonth.value,
-    personalEndYear.value,
-    personalEndMonth.value,
-  )
-  const monthPoints = createMonthPoints(range)
-  const periodType = personalUnit.value === 'month' ? 'monthly' : 'quarterly'
-  const { labels, contexts } = getPeriodContexts(monthPoints, periodType, range.isMultiYear)
-
-  return {
-    labels,
-    current: getValuesByContexts(contexts, periodType, (point) => getPersonalMonthlyValue(point.year, point.month)),
-    previous: getValuesByContexts(contexts, periodType, (point) => getPersonalMonthlyValue(point.year - 1, point.month)),
-  }
-}
+const showRankingTable = computed(() => isRankingView.value && activeRankingItems.value.length > 0)
 
 const selectedClientText = computed(() => {
-  if (selectedClients.value.length === 0) return '선택하세요'
-  const names = selectedClients.value.map((id) => clients.find((item) => item.id === id)?.name).filter(Boolean)
+  if (selectedClients.value.length === 0) {
+    return '선택하세요'
+  }
+
+  const names = selectedClients.value
+    .map((id) => clients.value.find((item) => item.id === id)?.name)
+    .filter(Boolean)
+
   return names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}개`
 })
 
 const selectedVarietyText = computed(() => {
-  if (selectedVarieties.value.length === 0) return '선택하세요'
-  const names = selectedVarieties.value.map((id) => varieties.find((item) => item.id === id)?.name).filter(Boolean)
+  if (selectedVarieties.value.length === 0) {
+    return '선택하세요'
+  }
+
+  const names = selectedVarieties.value
+    .map((id) => varieties.value.find((item) => item.id === id)?.name)
+    .filter(Boolean)
+
   return names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}개`
 })
 
 const selectedEmployeeText = computed(() => {
-  if (selectedEmployees.value.length === 0) return '선택하세요'
-  const names = selectedEmployees.value.map((id) => employees.find((item) => item.id === id)?.name).filter(Boolean)
+  if (selectedEmployees.value.length === 0) {
+    return '선택하세요'
+  }
+
+  const names = selectedEmployees.value
+    .map((id) => employees.value.find((item) => item.id === id)?.name)
+    .filter(Boolean)
+
   return names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}개`
 })
+
+const createZeroValues = (length) => Array.from({ length }, () => 0)
 
 const hexToRgb = (hexColor) => {
   const normalized = hexColor.replace('#', '')
   const fullHex = normalized.length === 3
     ? normalized.split('').map((char) => char + char).join('')
     : normalized
-
   const value = Number.parseInt(fullHex, 16)
+
   return {
     r: (value >> 16) & 255,
     g: (value >> 8) & 255,
@@ -367,119 +229,104 @@ const getLightenedColor = (hexColor, ratio = 0.35) => {
 }
 
 const toggleSelectedItem = (listRef, id, checked) => {
-  const numericId = Number(id)
+  const normalizedId = typeof id === 'number' ? Number(id) : String(id)
+
   if (checked) {
-    if (!listRef.value.includes(numericId)) {
-      listRef.value = [...listRef.value, numericId]
+    if (!listRef.value.includes(normalizedId)) {
+      listRef.value = [...listRef.value, normalizedId]
     }
     return
   }
-  listRef.value = listRef.value.filter((itemId) => itemId !== numericId)
+
+  listRef.value = listRef.value.filter((itemId) => itemId !== normalizedId)
 }
 
 const toggleEmployeeSelection = (id, checked) => {
-  toggleSelectedItem(selectedEmployees, id, checked)
+  toggleSelectedItem(selectedEmployees, Number(id), checked)
 }
 
 const toggleClientSelection = (id, checked) => {
-  toggleSelectedItem(selectedClients, id, checked)
+  toggleSelectedItem(selectedClients, Number(id), checked)
 }
 
 const toggleVarietySelection = (id, checked) => {
-  toggleSelectedItem(selectedVarieties, id, checked)
+  toggleSelectedItem(selectedVarieties, String(id), checked)
 }
 
-const createLineOrBarDatasets = (items, source, periodType, range, compareYear, chartType) => {
-  const monthPoints = createMonthPoints(range)
-  const { labels, contexts } = getPeriodContexts(monthPoints, periodType, range.isMultiYear)
-  const emptyValues = createZeroValues(labels.length)
+const buildPlaceholderChartData = (message) => ({
+  labels: [''],
+  datasets: [{
+    label: message,
+    data: [0],
+    borderColor: CHART_COLORS.placeholderLine,
+    backgroundColor: CHART_COLORS.placeholderFill,
+    borderWidth: 2,
+  }],
+})
 
-  if (items.length === 0) {
+const getPersonalChartData = () => {
+  const current = mapTrendSeriesToChartData(statisticsStore.personal.current)
+  const previous = mapTrendSeriesToChartData(statisticsStore.personal.previous)
+  const currentSeries = current.series[0]
+  const previousSeries = previous.series[0]
+  const labels = current.labels.length > 0 ? current.labels : previous.labels
+
+  return {
+    labels,
+    current: currentSeries?.values ?? createZeroValues(labels.length),
+    previous: previousSeries?.values ?? createZeroValues(labels.length),
+    currentLabel: currentSeries?.name || (isAdmin.value ? '전체' : '개인'),
+  }
+}
+
+const getScopedChartData = (scope, chartType, compareYear) => {
+  if (chartType === 'bar') {
+    const rankingData = mapRankingToChartData(statisticsStore[scope].ranking)
+
+    if (rankingData.rankings.length === 0) {
+      return buildPlaceholderChartData('항목을 선택하세요')
+    }
+
     return {
-      labels,
+      labels: rankingData.labels,
       datasets: [{
-        label: '항목을 선택하세요',
-        data: emptyValues,
-        borderColor: CHART_COLORS.placeholderLine,
-        backgroundColor: CHART_COLORS.placeholderFill,
+        label: '매출 랭킹',
+        data: rankingData.values,
+        backgroundColor: rankingData.values.map((_, index) => palette[index % palette.length]),
+        borderColor: rankingData.values.map((_, index) => palette[index % palette.length]),
+        borderWidth: 2,
       }],
     }
   }
 
-  if (chartType === 'bar') {
-    const currentTotals = items.map((item) => {
-      const values = monthPoints.map((point) => getEntityMonthlyValue(source, item.id, point.year, point.month))
-      return { name: item.name, amount: values.reduce((sum, value) => sum + value, 0), id: item.id }
-    }).sort((a, b) => b.amount - a.amount)
+  const current = mapTrendSeriesToChartData(statisticsStore[scope].current)
+  const previous = mapTrendSeriesToChartData(statisticsStore[scope].previous)
+  const labels = current.labels.length > 0 ? current.labels : previous.labels
 
-    if (!compareYear) {
-      return {
-        labels: currentTotals.map((item) => item.name),
-        datasets: [{
-          label: '선택 기간 누적 매출',
-          data: currentTotals.map((item) => item.amount),
-          backgroundColor: currentTotals.map((_, index) => palette[index % palette.length]),
-          borderColor: currentTotals.map((_, index) => palette[index % palette.length]),
-          borderWidth: 2,
-        }],
-      }
-    }
-
-    const previousTotals = items.map((item) => {
-      const values = monthPoints.map((point) => getEntityMonthlyValue(source, item.id, point.year - 1, point.month))
-      return { name: item.name, amount: values.reduce((sum, value) => sum + value, 0) }
-    })
-
-    return {
-      labels: currentTotals.map((item) => item.name),
-      datasets: [
-        {
-          label: '조회 기간',
-          data: currentTotals.map((item) => item.amount),
-          backgroundColor: CHART_COLORS.primary,
-          borderColor: CHART_COLORS.primary,
-          borderWidth: 2,
-        },
-        {
-          label: '전년도 동기간',
-          data: currentTotals.map((item) => previousTotals.find((prev) => prev.name === item.name)?.amount || 0),
-          backgroundColor: '#d1d5db',
-          borderColor: '#9ca3af',
-          borderWidth: 2,
-        },
-      ],
-    }
+  if (labels.length === 0 || current.series.length === 0) {
+    return buildPlaceholderChartData('항목을 선택하세요')
   }
 
   const datasets = []
-  items.forEach((item, index) => {
-    const current = getValuesByContexts(
-      contexts,
-      periodType,
-      (point) => getEntityMonthlyValue(source, item.id, point.year, point.month),
-    )
+
+  current.series.forEach((item, index) => {
+    const baseColor = palette[index % palette.length]
 
     datasets.push({
       label: `${item.name} (조회 기간)`,
-      data: current,
-      borderColor: palette[index % palette.length],
-      backgroundColor: `${palette[index % palette.length]}33`,
+      data: item.values,
+      borderColor: baseColor,
+      backgroundColor: `${baseColor}33`,
       tension: 0.35,
       borderWidth: 3,
     })
 
     if (compareYear) {
-      const baseColor = palette[index % palette.length]
       const compareColor = getLightenedColor(baseColor)
-      const previous = getValuesByContexts(
-        contexts,
-        periodType,
-        (point) => getEntityMonthlyValue(source, item.id, point.year - 1, point.month),
-      )
 
       datasets.push({
         label: `${item.name} (전년도 동기간)`,
-        data: previous,
+        data: previous.series.find((series) => series.id === item.id)?.values ?? createZeroValues(labels.length),
         borderColor: compareColor,
         backgroundColor: `${compareColor.replace('rgb', 'rgba').replace(')', ', 0.22)')}`,
         tension: 0.35,
@@ -492,23 +339,47 @@ const createLineOrBarDatasets = (items, source, periodType, range, compareYear, 
   return { labels, datasets }
 }
 
+const createChartOptions = () => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: 'top' },
+    tooltip: {
+      callbacks: {
+        label(context) {
+          const value = Number(context.parsed.y ?? context.parsed ?? 0)
+          return `${context.dataset.label}: ${value.toLocaleString()}원`
+        },
+      },
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        callback(value) {
+          return `${Number(value).toLocaleString()}원`
+        },
+      },
+    },
+  },
+})
+
 const renderPersonalChart = () => {
   if (!personalCanvas.value) {
     return
   }
 
-  if (personalChart) {
-    personalChart.destroy()
-  }
+  personalChart?.destroy()
 
-  const data = getPersonalData()
+  const data = getPersonalChartData()
   personalChart = new Chart(personalCanvas.value.getContext('2d'), {
     type: 'line',
     data: {
       labels: data.labels,
       datasets: [
         {
-          label: '조회 구간',
+          label: `${data.currentLabel} 매출`,
           data: data.current,
           borderColor: CHART_COLORS.primary,
           backgroundColor: `${CHART_COLORS.primary}33`,
@@ -517,7 +388,7 @@ const renderPersonalChart = () => {
         },
         ...(personalCompareYear.value
           ? [{
-            label: '전년도',
+            label: '전년도 동기간',
             data: data.previous,
             borderColor: CHART_COLORS.info,
             backgroundColor: `${CHART_COLORS.info}33`,
@@ -528,30 +399,7 @@ const renderPersonalChart = () => {
           : []),
       ],
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' },
-        tooltip: {
-          callbacks: {
-            label(context) {
-              return `${context.dataset.label}: ${Number(context.parsed.y).toLocaleString()}만원`
-            },
-          },
-        },
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback(value) {
-              return `${value}만원`
-            },
-          },
-        },
-      },
-    },
+    options: createChartOptions(),
   })
 }
 
@@ -560,39 +408,12 @@ const renderClientChart = () => {
     return
   }
 
-  if (clientChart) {
-    clientChart.destroy()
-  }
-
-  const range = getNormalizedMonthRange(
-    clientStartYear.value,
-    clientStartMonth.value,
-    clientEndYear.value,
-    clientEndMonth.value,
-  )
-  const selected = clients.filter((item) => selectedClients.value.includes(item.id))
-  const chartData = createLineOrBarDatasets(selected, clientMonthlySales, clientPeriodType.value, range, clientCompareYear.value, clientChartType.value)
+  clientChart?.destroy()
 
   clientChart = new Chart(clientCanvas.value.getContext('2d'), {
     type: clientChartType.value,
-    data: chartData,
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' },
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback(value) {
-              return `${Number(value).toLocaleString()}만원`
-            },
-          },
-        },
-      },
-    },
+    data: getScopedChartData('client', clientChartType.value, clientCompareYear.value),
+    options: createChartOptions(),
   })
 }
 
@@ -601,39 +422,12 @@ const renderVarietyChart = () => {
     return
   }
 
-  if (varietyChart) {
-    varietyChart.destroy()
-  }
-
-  const range = getNormalizedMonthRange(
-    varietyStartYear.value,
-    varietyStartMonth.value,
-    varietyEndYear.value,
-    varietyEndMonth.value,
-  )
-  const selected = varieties.filter((item) => selectedVarieties.value.includes(item.id))
-  const chartData = createLineOrBarDatasets(selected, varietyMonthlySales, varietyPeriodType.value, range, varietyCompareYear.value, varietyChartType.value)
+  varietyChart?.destroy()
 
   varietyChart = new Chart(varietyCanvas.value.getContext('2d'), {
     type: varietyChartType.value,
-    data: chartData,
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' },
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback(value) {
-              return `${Number(value).toLocaleString()}만원`
-            },
-          },
-        },
-      },
-    },
+    data: getScopedChartData('variety', varietyChartType.value, varietyCompareYear.value),
+    options: createChartOptions(),
   })
 }
 
@@ -642,69 +436,204 @@ const renderEmployeeChart = () => {
     return
   }
 
-  if (employeeChart) {
-    employeeChart.destroy()
-  }
-
-  const range = getNormalizedMonthRange(
-    employeeStartYear.value,
-    employeeStartMonth.value,
-    employeeEndYear.value,
-    employeeEndMonth.value,
-  )
-  const selected = employees.filter((item) => selectedEmployees.value.includes(item.id))
-  const chartData = createLineOrBarDatasets(selected, employeeMonthlySales, employeePeriodType.value, range, employeeCompareYear.value, employeeChartType.value)
+  employeeChart?.destroy()
 
   employeeChart = new Chart(employeeCanvas.value.getContext('2d'), {
     type: employeeChartType.value,
-    data: chartData,
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top' },
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback(value) {
-              return `${Number(value).toLocaleString()}만원`
-            },
-          },
-        },
-      },
-    },
+    data: getScopedChartData('employee', employeeChartType.value, employeeCompareYear.value),
+    options: createChartOptions(),
   })
 }
 
 const renderCurrentChart = () => {
-  if (viewType.value === 'personal') {
-    renderPersonalChart()
-    return
-  }
   if (viewType.value === 'client') {
     renderClientChart()
     return
   }
+
   if (viewType.value === 'variety') {
     renderVarietyChart()
     return
   }
+
   if (viewType.value === 'employee') {
     renderEmployeeChart()
+    return
   }
+
+  renderPersonalChart()
 }
 
+const enforceMonthOrder = (startYearRef, startMonthRef, endYearRef, endMonthRef) => {
+  watch([startYearRef, startMonthRef, endYearRef, endMonthRef], ([startY, startM, endY, endM]) => {
+    const startIndex = (Number(startY) * 12) + (Number(startM) - 1)
+    const endIndex = (Number(endY) * 12) + (Number(endM) - 1)
+
+    if (startIndex <= endIndex) {
+      return
+    }
+
+    const nextStartYear = endY
+    const nextStartMonth = endM
+    endYearRef.value = startY
+    endMonthRef.value = startM
+    startYearRef.value = nextStartYear
+    startMonthRef.value = nextStartMonth
+  })
+}
+
+const loadPersonalStats = async () => {
+  await statisticsStore.loadPersonalStats({
+    isAdmin: isAdmin.value,
+    currentParams: buildTrendQuery({
+      periodType: personalUnit.value,
+      startYear: personalStartYear.value,
+      startMonth: personalStartMonth.value,
+      endYear: personalEndYear.value,
+      endMonth: personalEndMonth.value,
+    }),
+    previousParams: personalCompareYear.value
+      ? buildPreviousTrendQuery({
+        periodType: personalUnit.value,
+        startYear: personalStartYear.value,
+        startMonth: personalStartMonth.value,
+        endYear: personalEndYear.value,
+        endMonth: personalEndMonth.value,
+      })
+      : null,
+  })
+}
+
+const loadScopedStats = async (scope) => {
+  const scopeMap = {
+    employee: {
+      periodType: employeePeriodType.value,
+      startYear: employeeStartYear.value,
+      startMonth: employeeStartMonth.value,
+      endYear: employeeEndYear.value,
+      endMonth: employeeEndMonth.value,
+      compareYear: employeeCompareYear.value,
+      chartType: employeeChartType.value,
+      ids: selectedEmployees.value,
+      query: { employeeIds: selectedEmployees.value },
+    },
+    client: {
+      periodType: clientPeriodType.value,
+      startYear: clientStartYear.value,
+      startMonth: clientStartMonth.value,
+      endYear: clientEndYear.value,
+      endMonth: clientEndMonth.value,
+      compareYear: clientCompareYear.value,
+      chartType: clientChartType.value,
+      ids: selectedClients.value,
+      query: { clientIds: selectedClients.value },
+    },
+    variety: {
+      periodType: varietyPeriodType.value,
+      startYear: varietyStartYear.value,
+      startMonth: varietyStartMonth.value,
+      endYear: varietyEndYear.value,
+      endMonth: varietyEndMonth.value,
+      compareYear: varietyCompareYear.value,
+      chartType: varietyChartType.value,
+      ids: selectedVarieties.value,
+      query: { varietyCodes: selectedVarieties.value },
+    },
+  }
+
+  const target = scopeMap[scope]
+
+  if (!target || target.ids.length === 0) {
+    statisticsStore.clearStats(scope)
+    statisticsStore.clearRanking(scope)
+    return
+  }
+
+  if (target.chartType === 'bar') {
+    statisticsStore.clearStats(scope)
+    await statisticsStore.loadScopedRanking(scope, {
+      rankingParams: buildRankingQuery({
+        periodType: target.periodType,
+        startYear: target.startYear,
+        startMonth: target.startMonth,
+        endYear: target.endYear,
+        endMonth: target.endMonth,
+        limit: target.ids.length,
+        ...target.query,
+      }),
+    })
+    return
+  }
+
+  statisticsStore.clearRanking(scope)
+  await statisticsStore.loadScopedTrend(scope, {
+    currentParams: buildTrendQuery({
+      periodType: target.periodType,
+      startYear: target.startYear,
+      startMonth: target.startMonth,
+      endYear: target.endYear,
+      endMonth: target.endMonth,
+      ...target.query,
+    }),
+    previousParams: target.compareYear
+      ? buildPreviousTrendQuery({
+        periodType: target.periodType,
+        startYear: target.startYear,
+        startMonth: target.startMonth,
+        endYear: target.endYear,
+        endMonth: target.endMonth,
+        ...target.query,
+      })
+      : null,
+  })
+}
+
+const loadCurrentViewData = async () => {
+  if (viewType.value === 'employee' && (!props.includeEmployeeOption || !isAdmin.value)) {
+    viewType.value = 'personal'
+    return
+  }
+
+  const sequence = loadSequence.value + 1
+  loadSequence.value = sequence
+
+  if (viewType.value === 'employee') {
+    await loadScopedStats('employee')
+  } else if (viewType.value === 'client') {
+    await loadScopedStats('client')
+  } else if (viewType.value === 'variety') {
+    await loadScopedStats('variety')
+  } else {
+    await loadPersonalStats()
+  }
+
+  if (sequence !== loadSequence.value) {
+    return
+  }
+
+  await nextTick()
+  renderCurrentChart()
+}
+
+enforceMonthOrder(personalStartYear, personalStartMonth, personalEndYear, personalEndMonth)
+enforceMonthOrder(clientStartYear, clientStartMonth, clientEndYear, clientEndMonth)
+enforceMonthOrder(varietyStartYear, varietyStartMonth, varietyEndYear, varietyEndMonth)
+enforceMonthOrder(employeeStartYear, employeeStartMonth, employeeEndYear, employeeEndMonth)
+
+watch(() => props.includeEmployeeOption, (enabled) => {
+  if (!enabled && viewType.value === 'employee') {
+    viewType.value = 'personal'
+  }
+})
+
 watch([
+  viewType,
   personalUnit,
   personalStartYear,
   personalStartMonth,
   personalEndYear,
   personalEndMonth,
   personalCompareYear,
-], renderPersonalChart)
-watch([
   clientPeriodType,
   clientStartYear,
   clientStartMonth,
@@ -713,8 +642,6 @@ watch([
   clientCompareYear,
   clientChartType,
   selectedClients,
-], renderClientChart, { deep: true })
-watch([
   varietyPeriodType,
   varietyStartYear,
   varietyStartMonth,
@@ -723,8 +650,6 @@ watch([
   varietyCompareYear,
   varietyChartType,
   selectedVarieties,
-], renderVarietyChart, { deep: true })
-watch([
   employeePeriodType,
   employeeStartYear,
   employeeStartMonth,
@@ -733,18 +658,23 @@ watch([
   employeeCompareYear,
   employeeChartType,
   selectedEmployees,
-], renderEmployeeChart, { deep: true })
-watch(viewType, async () => {
-  await nextTick()
-  renderCurrentChart()
-})
+], () => {
+  void loadCurrentViewData()
+}, { deep: true })
+
 watch(() => layoutState?.resizeTick?.value, async () => {
   await nextTick()
   renderCurrentChart()
 })
 
-onMounted(() => {
-  renderPersonalChart()
+onMounted(async () => {
+  try {
+    await statisticsStore.loadOptions({ includeEmployees: props.includeEmployeeOption && isAdmin.value })
+  } catch {
+    // 선택지 로드 실패 시에도 차트 조회는 진행한다.
+  }
+
+  await loadCurrentViewData()
 })
 
 onBeforeUnmount(() => {
@@ -765,13 +695,13 @@ onBeforeUnmount(() => {
           <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">조회 타입</label>
           <div class="flex gap-3.5 rounded-lg border border-seed-border-card bg-seed-bg-input px-3 py-2.5 max-md:flex-col max-md:items-start">
             <label class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="personal"> 개인 매출</label>
-            <label v-if="includeEmployeeOption" class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="employee"> 사원별</label>
+            <label v-if="includeEmployeeOption && isAdmin" class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="employee"> 사원별</label>
             <label class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="client"> 거래처별</label>
             <label class="flex cursor-pointer items-center gap-1.5 text-sm text-seed-text-body"><input v-model="viewType" type="radio" value="variety"> 품종별</label>
           </div>
         </div>
 
-        <div v-if="viewType === 'employee'" class="min-w-[280px] flex flex-col gap-2">
+        <div v-if="viewType === 'employee' && includeEmployeeOption && isAdmin" class="min-w-[280px] flex flex-col gap-2">
           <label class="text-xs font-bold tracking-[0.2px] text-seed-text-sub">사원 선택</label>
           <div class="relative min-w-[250px]">
             <button type="button" class="h-[38px] w-full rounded-lg border border-seed-border-card bg-seed-bg-input bg-[var(--color-bg-input)] px-3 text-left text-seed-text-body transition-colors hover:border-seed-olive-light focus-visible:border-seed-olive focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-seed-olive/20" @click="employeeDropdownOpen = !employeeDropdownOpen">{{ selectedEmployeeText }}</button>
@@ -822,6 +752,14 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-if="activeError" class="mb-4 rounded-lg border border-[#e8d3d3] bg-[#fff7f7] px-4 py-3 text-sm text-[#9b3d3d]">
+      {{ activeError }}
+    </div>
+
+    <div v-if="activeLoading" class="mb-4 rounded-lg border border-seed-border-card bg-seed-bg-section px-4 py-3 text-sm text-seed-text-sub">
+      통계 데이터를 불러오는 중입니다.
     </div>
 
     <div v-if="viewType === 'personal'" class="mt-2.5">
@@ -931,8 +869,28 @@ onBeforeUnmount(() => {
       </div>
       <div class="chart-canvas-full relative h-[420px] overflow-hidden rounded-xl border border-seed-border-card p-3"><canvas ref="varietyCanvas" /></div>
     </div>
+
+    <div v-if="showRankingTable" class="mt-4 overflow-hidden rounded-xl border border-seed-border-card bg-seed-bg-section">
+      <table class="min-w-full divide-y divide-seed-border-card text-sm text-seed-text-body">
+        <thead class="bg-seed-bg-input text-seed-text-sub">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold">순위</th>
+            <th class="px-4 py-3 text-left font-semibold">대상</th>
+            <th class="px-4 py-3 text-right font-semibold">매출</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-seed-border-card">
+          <tr v-for="item in activeRankingItems" :key="`${viewType}-${item.targetId}-${item.rank}`">
+            <td class="px-4 py-3">{{ item.rank }}</td>
+            <td class="px-4 py-3">{{ item.targetName }}</td>
+            <td class="px-4 py-3 text-right">{{ Number(item.sales).toLocaleString() }}원</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 </template>
+
 <style scoped>
 .chart-canvas-full :deep(canvas) {
   display: block;
