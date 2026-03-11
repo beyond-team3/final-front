@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import NoteDetailModal from '@/components/note/NoteDetailModal.vue'
@@ -14,6 +14,11 @@ const filterStart = ref('')
 const filterEnd = ref('')
 const sort = ref('desc')
 const keyword = ref('')
+
+// 고객사 선택 변경 시 계약 필터 초기화
+watch(filterClient, () => {
+  filterContractId.value = ''
+})
 
 const selectedNote = ref(null)
 const showDetailModal = ref(false)
