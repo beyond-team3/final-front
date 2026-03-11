@@ -72,6 +72,10 @@ export function getInvoice(invoiceId) {
     return api.get(`invoices/${invoiceId}`)
 }
 
+export function getContractsByClient(clientId) {
+    return api.get('/contracts', { params: { clientId } })
+}
+
 export function publishInvoice(invoiceId) {
     return api.patch(`invoices/${invoiceId}/publish`)
 }
