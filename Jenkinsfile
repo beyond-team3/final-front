@@ -126,7 +126,7 @@ spec:
                             git clone ${manifestRepoUrl} temp-manifests
                             cd temp-manifests
 
-                            // 타겟 브랜치로 체크아웃
+                            # 타겟 브랜치로 체크아웃
                             git checkout ${targetBranch} || git checkout -b ${targetBranch}
 
                             git config user.email "jenkins-bot@monsoon.com"
