@@ -50,7 +50,7 @@ const isExactPath = (path) => {
     return false
   }
 
-  return route.path === path || route.path.startsWith(`${path}/`)
+  return route.path === path
 }
 
 const isParentMenuActive = (menu) => {
