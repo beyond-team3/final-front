@@ -1,28 +1,26 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import api from '@/api'
-import { getClients } from '@/api/client'
-import { getEmployees } from '@/api/employee'
 import {
   getAdminStats,
+  getRanking,
   getSalesRepStats,
   getStatsByClient,
   getStatsByEmployee,
   getStatsByVariety,
+  STATISTICS_RANKING_TYPE,
+  unwrapStatisticsData,
 } from '@/api/statistics'
 
 const DEFAULT_STATE = () => ({
   current: [],
   previous: [],
+  ranking: [],
   loading: false,
+  rankingLoading: false,
   error: null,
+  rankingError: null,
 })
-
-const emptyArray = []
-
-function unwrap(result) {
-  return result?.data ?? result ?? []
-}
 
 function getErrorMessage(error, fallback = '통계 데이터를 불러오지 못했습니다.') {
   return error?.response?.data?.error?.message
@@ -48,6 +46,19 @@ function normalizeTrendList(items) {
   }))
 }
 
+function normalizeRankingList(items) {
+  if (!Array.isArray(items)) {
+    return []
+  }
+
+  return items.map((item) => ({
+    rank: Number(item?.rank ?? 0),
+    targetId: String(item?.targetId ?? ''),
+    targetName: item?.targetName || '미지정',
+    sales: Number(item?.sales ?? 0),
+  }))
+}
+
 function normalizeClientOption(item = {}) {
   return {
     id: Number(item.id ?? item.clientId),
@@ -64,6 +75,7 @@ function normalizeEmployeeOption(item = {}) {
 
 function normalizeVarietyOption(item = {}) {
   const code = String(item.code || item.category || item.name || '').trim()
+
   return {
     id: code,
     name: item.name || item.productCategory || item.description || code,
@@ -95,26 +107,26 @@ export const useStatisticsStore = defineStore('statistics', () => {
 
     try {
       const requests = [
-        getClients({}),
+        api.get('/accounts/clients'),
         api.get('/products/categories'),
       ]
 
       if (includeEmployees) {
-        requests.push(getEmployees({}))
+        requests.push(api.get('/accounts/employees'))
       }
 
       const [clientsResult, categoriesResult, employeesResult] = await Promise.all(requests)
 
-      clientOptions.value = unwrap(clientsResult)
+      clientOptions.value = unwrapStatisticsData(clientsResult)
         .map(normalizeClientOption)
         .filter((item) => Number.isFinite(item.id))
 
-      varietyOptions.value = unwrap(categoriesResult)
+      varietyOptions.value = unwrapStatisticsData(categoriesResult)
         .map(normalizeVarietyOption)
         .filter((item) => item.id)
 
       employeeOptions.value = includeEmployees
-        ? unwrap(employeesResult)
+        ? unwrapStatisticsData(employeesResult)
           .map(normalizeEmployeeOption)
           .filter((item) => Number.isFinite(item.id))
         : []
@@ -132,13 +144,11 @@ export const useStatisticsStore = defineStore('statistics', () => {
 
     try {
       const endpoint = isAdmin ? getAdminStats : getSalesRepStats
-      const [currentResult, previousResult] = await Promise.all([
-        endpoint(currentParams),
-        previousParams ? endpoint(previousParams) : Promise.resolve(emptyArray),
-      ])
+      const currentResult = await endpoint(currentParams)
+      const previousResult = previousParams ? await endpoint(previousParams) : []
 
-      personal.value.current = normalizeTrendList(unwrap(currentResult))
-      personal.value.previous = normalizeTrendList(unwrap(previousResult))
+      personal.value.current = normalizeTrendList(unwrapStatisticsData(currentResult))
+      personal.value.previous = normalizeTrendList(unwrapStatisticsData(previousResult))
     } catch (error) {
       personal.value.error = getErrorMessage(error)
       personal.value.current = []
@@ -148,7 +158,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
     }
   }
 
-  async function loadScopedStats(scope, { currentParams, previousParams = null }) {
+  async function loadScopedTrend(scope, { currentParams, previousParams = null }) {
     const target = scopedStateMap.value[scope]
 
     if (!target) {
@@ -164,22 +174,50 @@ export const useStatisticsStore = defineStore('statistics', () => {
       variety: getStatsByVariety,
     }
 
-    const endpoint = endpointMap[scope]
-
     try {
-      const [currentResult, previousResult] = await Promise.all([
-        endpoint(currentParams),
-        previousParams ? endpoint(previousParams) : Promise.resolve(emptyArray),
-      ])
+      const endpoint = endpointMap[scope]
+      const currentResult = await endpoint(currentParams)
+      const previousResult = previousParams ? await endpoint(previousParams) : []
 
-      target.current = normalizeTrendList(unwrap(currentResult))
-      target.previous = normalizeTrendList(unwrap(previousResult))
+      target.current = normalizeTrendList(unwrapStatisticsData(currentResult))
+      target.previous = normalizeTrendList(unwrapStatisticsData(previousResult))
     } catch (error) {
       target.error = getErrorMessage(error)
       target.current = []
       target.previous = []
     } finally {
       target.loading = false
+    }
+  }
+
+  async function loadScopedRanking(scope, { rankingParams }) {
+    const target = scopedStateMap.value[scope]
+
+    if (!target) {
+      return
+    }
+
+    target.rankingLoading = true
+    target.rankingError = null
+
+    const typeMap = {
+      employee: STATISTICS_RANKING_TYPE.EMPLOYEE,
+      client: STATISTICS_RANKING_TYPE.CLIENT,
+      variety: STATISTICS_RANKING_TYPE.VARIETY,
+    }
+
+    try {
+      const result = await getRanking({
+        ...rankingParams,
+        type: typeMap[scope],
+      })
+
+      target.ranking = normalizeRankingList(unwrapStatisticsData(result))
+    } catch (error) {
+      target.rankingError = getErrorMessage(error, '랭킹 데이터를 불러오지 못했습니다.')
+      target.ranking = []
+    } finally {
+      target.rankingLoading = false
     }
   }
 
@@ -196,6 +234,18 @@ export const useStatisticsStore = defineStore('statistics', () => {
     target.loading = false
   }
 
+  function clearRanking(scope) {
+    const target = scopedStateMap.value[scope]
+
+    if (!target) {
+      return
+    }
+
+    target.ranking = []
+    target.rankingError = null
+    target.rankingLoading = false
+  }
+
   return {
     personal,
     employee,
@@ -208,7 +258,9 @@ export const useStatisticsStore = defineStore('statistics', () => {
     optionsError,
     loadOptions,
     loadPersonalStats,
-    loadScopedStats,
+    loadScopedTrend,
+    loadScopedRanking,
     clearStats,
+    clearRanking,
   }
 })

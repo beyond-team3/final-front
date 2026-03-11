@@ -14,6 +14,13 @@ import {
   Tooltip,
 } from 'chart.js'
 import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
+import {
+  buildPreviousTrendQuery,
+  buildRankingQuery,
+  buildTrendQuery,
+  mapRankingToChartData,
+  mapTrendSeriesToChartData,
+} from '@/api/statistics'
 import { useLayoutState } from '@/composables/layoutState'
 import { useAuthStore } from '@/stores/auth'
 import { useStatisticsStore } from '@/stores/statisticsStore'
@@ -49,6 +56,49 @@ const layoutState = useLayoutState()
 
 const currentYear = new Date().getFullYear()
 const viewType = ref('personal')
+const clientDropdownOpen = ref(false)
+const selectedClients = ref([])
+const clientPeriodType = ref('monthly')
+const clientStartYear = ref(currentYear - 1)
+const clientStartMonth = ref(1)
+const clientEndYear = ref(currentYear - 1)
+const clientEndMonth = ref(12)
+const clientCompareYear = ref(false)
+const clientChartType = ref('line')
+const varietyDropdownOpen = ref(false)
+const selectedVarieties = ref([])
+const varietyPeriodType = ref('monthly')
+const varietyStartYear = ref(currentYear - 1)
+const varietyStartMonth = ref(1)
+const varietyEndYear = ref(currentYear - 1)
+const varietyEndMonth = ref(12)
+const varietyCompareYear = ref(false)
+const varietyChartType = ref('line')
+const employeeDropdownOpen = ref(false)
+const selectedEmployees = ref([])
+const employeePeriodType = ref('monthly')
+const employeeStartYear = ref(currentYear - 1)
+const employeeStartMonth = ref(1)
+const employeeEndYear = ref(currentYear - 1)
+const employeeEndMonth = ref(12)
+const employeeCompareYear = ref(false)
+const employeeChartType = ref('line')
+const personalUnit = ref('month')
+const personalStartYear = ref(currentYear - 1)
+const personalStartMonth = ref(1)
+const personalEndYear = ref(currentYear - 1)
+const personalEndMonth = ref(12)
+const personalCompareYear = ref(false)
+const personalCanvas = ref(null)
+const clientCanvas = ref(null)
+const varietyCanvas = ref(null)
+const employeeCanvas = ref(null)
+const loadSequence = ref(0)
+
+let personalChart = null
+let clientChart = null
+let varietyChart = null
+let employeeChart = null
 
 const CHART_COLORS = {
   primary: '#7A8C42',
@@ -70,59 +120,15 @@ const palette = [
 
 const yearOptions = Array.from({ length: 5 }, (_, index) => currentYear - 3 + index)
 const monthOptions = Array.from({ length: 12 }, (_, index) => index + 1)
-
-const clientDropdownOpen = ref(false)
-const selectedClients = ref([])
-const clientPeriodType = ref('monthly')
-const clientStartYear = ref(currentYear - 1)
-const clientStartMonth = ref(1)
-const clientEndYear = ref(currentYear - 1)
-const clientEndMonth = ref(12)
-const clientCompareYear = ref(false)
-const clientChartType = ref('line')
-
-const varietyDropdownOpen = ref(false)
-const selectedVarieties = ref([])
-const varietyPeriodType = ref('monthly')
-const varietyStartYear = ref(currentYear - 1)
-const varietyStartMonth = ref(1)
-const varietyEndYear = ref(currentYear - 1)
-const varietyEndMonth = ref(12)
-const varietyCompareYear = ref(false)
-const varietyChartType = ref('line')
-
-const employeeDropdownOpen = ref(false)
-const selectedEmployees = ref([])
-const employeePeriodType = ref('monthly')
-const employeeStartYear = ref(currentYear - 1)
-const employeeStartMonth = ref(1)
-const employeeEndYear = ref(currentYear - 1)
-const employeeEndMonth = ref(12)
-const employeeCompareYear = ref(false)
-const employeeChartType = ref('line')
-
-const personalUnit = ref('month')
-const personalStartYear = ref(currentYear - 1)
-const personalStartMonth = ref(1)
-const personalEndYear = ref(currentYear - 1)
-const personalEndMonth = ref(12)
-const personalCompareYear = ref(false)
-
-const personalCanvas = ref(null)
-const clientCanvas = ref(null)
-const varietyCanvas = ref(null)
-const employeeCanvas = ref(null)
-const loadSequence = ref(0)
-
-let personalChart = null
-let clientChart = null
-let varietyChart = null
-let employeeChart = null
-
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 const employees = computed(() => statisticsStore.employeeOptions)
 const clients = computed(() => statisticsStore.clientOptions)
 const varieties = computed(() => statisticsStore.varietyOptions)
+const isRankingView = computed(() => (
+  (viewType.value === 'employee' && employeeChartType.value === 'bar')
+  || (viewType.value === 'client' && clientChartType.value === 'bar')
+  || (viewType.value === 'variety' && varietyChartType.value === 'bar')
+))
 
 const activeStatsState = computed(() => {
   if (viewType.value === 'employee') {
@@ -137,8 +143,32 @@ const activeStatsState = computed(() => {
   return statisticsStore.personal
 })
 
-const activeLoading = computed(() => statisticsStore.optionsLoading || activeStatsState.value.loading)
-const activeError = computed(() => activeStatsState.value.error || statisticsStore.optionsError)
+const activeLoading = computed(() => (
+  statisticsStore.optionsLoading
+  || activeStatsState.value.loading
+  || (isRankingView.value ? activeStatsState.value.rankingLoading : false)
+))
+
+const activeError = computed(() => (
+  activeStatsState.value.error
+  || (isRankingView.value ? activeStatsState.value.rankingError : null)
+  || statisticsStore.optionsError
+))
+
+const activeRankingItems = computed(() => {
+  if (viewType.value === 'employee') {
+    return statisticsStore.employee.ranking
+  }
+  if (viewType.value === 'client') {
+    return statisticsStore.client.ranking
+  }
+  if (viewType.value === 'variety') {
+    return statisticsStore.variety.ranking
+  }
+  return []
+})
+
+const showRankingTable = computed(() => isRankingView.value && activeRankingItems.value.length > 0)
 
 const selectedClientText = computed(() => {
   if (selectedClients.value.length === 0) {
@@ -176,104 +206,7 @@ const selectedEmployeeText = computed(() => {
   return names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}개`
 })
 
-const toMonthIndex = (year, month) => (Number(year) * 12) + (Number(month) - 1)
-const fromMonthIndex = (index) => ({ year: Math.floor(index / 12), month: (index % 12) + 1 })
 const createZeroValues = (length) => Array.from({ length }, () => 0)
-
-const getNormalizedMonthRange = (startYear, startMonth, endYear, endMonth) => {
-  const startIndex = toMonthIndex(startYear, startMonth)
-  const endIndex = toMonthIndex(endYear, endMonth)
-  const normalizedStartIndex = Math.min(startIndex, endIndex)
-  const normalizedEndIndex = Math.max(startIndex, endIndex)
-  const start = fromMonthIndex(normalizedStartIndex)
-  const end = fromMonthIndex(normalizedEndIndex)
-
-  return {
-    ...start,
-    endYear: end.year,
-    endMonth: end.month,
-    startIndex: normalizedStartIndex,
-    endIndex: normalizedEndIndex,
-    isMultiYear: start.year !== end.year,
-  }
-}
-
-const createMonthPoints = (range) => {
-  const points = []
-
-  for (let index = range.startIndex; index <= range.endIndex; index += 1) {
-    points.push(fromMonthIndex(index))
-  }
-
-  return points
-}
-
-const padMonth = (value) => String(value).padStart(2, '0')
-const getLastDayOfMonth = (year, month) => new Date(year, month, 0).getDate()
-
-const buildQueryParams = (periodType, startYear, startMonth, endYear, endMonth, extra = {}) => ({
-  from: `${startYear}-${padMonth(startMonth)}-01`,
-  to: `${endYear}-${padMonth(endMonth)}-${padMonth(getLastDayOfMonth(endYear, endMonth))}`,
-  period: periodType === 'quarterly' ? 'QUARTERLY' : 'MONTHLY',
-  ...extra,
-})
-
-const buildPreviousQueryParams = (periodType, startYear, startMonth, endYear, endMonth, extra = {}) => (
-  buildQueryParams(periodType, startYear - 1, startMonth, endYear - 1, endMonth, extra)
-)
-
-const createPeriodAxis = (range, periodType) => {
-  const monthPoints = createMonthPoints(range)
-
-  if (periodType === 'quarterly') {
-    const periods = []
-    const seen = new Set()
-
-    monthPoints.forEach((point) => {
-      const quarter = Math.floor((point.month - 1) / 3) + 1
-      const key = `${point.year}-Q${quarter}`
-
-      if (!seen.has(key)) {
-        seen.add(key)
-        periods.push(key)
-      }
-    })
-
-    return periods
-  }
-
-  return monthPoints.map((point) => `${point.year}-${padMonth(point.month)}`)
-}
-
-const formatPeriodLabel = (period, isMultiYear) => {
-  if (period.includes('-Q')) {
-    const [year, quarter] = period.split('-Q')
-    return isMultiYear ? `${year} Q${quarter}` : `Q${quarter}`
-  }
-
-  const [year, month] = period.split('-')
-  return isMultiYear ? `${year}.${Number(month)}월` : `${Number(month)}월`
-}
-
-const mapTrendSeries = (items, axisPeriods) => (
-  Array.isArray(items)
-    ? items.map((item) => {
-      const salesByPeriod = new Map(
-        Array.isArray(item?.data)
-          ? item.data.map((entry) => [String(entry?.period ?? ''), Number(entry?.sales ?? 0)])
-          : [],
-      )
-
-      return {
-        id: String(item?.targetId ?? ''),
-        name: item?.targetName || '미지정',
-        values: axisPeriods.map((period) => salesByPeriod.get(period) ?? 0),
-      }
-    })
-    : []
-)
-
-const sumSales = (values = []) => values.reduce((total, value) => total + Number(value || 0), 0)
 
 const hexToRgb = (hexColor) => {
   const normalized = hexColor.replace('#', '')
@@ -332,17 +265,11 @@ const buildPlaceholderChartData = (message) => ({
 })
 
 const getPersonalChartData = () => {
-  const range = getNormalizedMonthRange(
-    personalStartYear.value,
-    personalStartMonth.value,
-    personalEndYear.value,
-    personalEndMonth.value,
-  )
-  const periodType = personalUnit.value === 'month' ? 'monthly' : 'quarterly'
-  const axisPeriods = createPeriodAxis(range, periodType)
-  const labels = axisPeriods.map((period) => formatPeriodLabel(period, range.isMultiYear))
-  const currentSeries = mapTrendSeries(statisticsStore.personal.current, axisPeriods)[0]
-  const previousSeries = mapTrendSeries(statisticsStore.personal.previous, axisPeriods)[0]
+  const current = mapTrendSeriesToChartData(statisticsStore.personal.current)
+  const previous = mapTrendSeriesToChartData(statisticsStore.personal.previous)
+  const currentSeries = current.series[0]
+  const previousSeries = previous.series[0]
+  const labels = current.labels.length > 0 ? current.labels : previous.labels
 
   return {
     labels,
@@ -352,61 +279,37 @@ const getPersonalChartData = () => {
   }
 }
 
-const getScopedChartData = (scope, chartType, periodType, startYear, startMonth, endYear, endMonth, compareYear) => {
-  const range = getNormalizedMonthRange(startYear, startMonth, endYear, endMonth)
-  const axisPeriods = createPeriodAxis(range, periodType)
-  const labels = axisPeriods.map((period) => formatPeriodLabel(period, range.isMultiYear))
-  const currentSeries = mapTrendSeries(statisticsStore[scope].current, axisPeriods)
-  const previousSeries = mapTrendSeries(statisticsStore[scope].previous, axisPeriods)
-
-  if (currentSeries.length === 0) {
-    return buildPlaceholderChartData('항목을 선택하세요')
-  }
-
+const getScopedChartData = (scope, chartType, compareYear) => {
   if (chartType === 'bar') {
-    const totals = currentSeries.map((item) => ({
-      id: item.id,
-      name: item.name,
-      amount: sumSales(item.values),
-    })).sort((left, right) => right.amount - left.amount)
+    const rankingData = mapRankingToChartData(statisticsStore[scope].ranking)
 
-    if (!compareYear) {
-      return {
-        labels: totals.map((item) => item.name),
-        datasets: [{
-          label: '선택 기간 누적 매출',
-          data: totals.map((item) => item.amount),
-          backgroundColor: totals.map((_, index) => palette[index % palette.length]),
-          borderColor: totals.map((_, index) => palette[index % palette.length]),
-          borderWidth: 2,
-        }],
-      }
+    if (rankingData.rankings.length === 0) {
+      return buildPlaceholderChartData('항목을 선택하세요')
     }
 
     return {
-      labels: totals.map((item) => item.name),
-      datasets: [
-        {
-          label: '조회 기간',
-          data: totals.map((item) => item.amount),
-          backgroundColor: CHART_COLORS.primary,
-          borderColor: CHART_COLORS.primary,
-          borderWidth: 2,
-        },
-        {
-          label: '전년도 동기간',
-          data: totals.map((item) => sumSales(previousSeries.find((series) => series.id === item.id)?.values)),
-          backgroundColor: '#d1d5db',
-          borderColor: '#9ca3af',
-          borderWidth: 2,
-        },
-      ],
+      labels: rankingData.labels,
+      datasets: [{
+        label: '매출 랭킹',
+        data: rankingData.values,
+        backgroundColor: rankingData.values.map((_, index) => palette[index % palette.length]),
+        borderColor: rankingData.values.map((_, index) => palette[index % palette.length]),
+        borderWidth: 2,
+      }],
     }
+  }
+
+  const current = mapTrendSeriesToChartData(statisticsStore[scope].current)
+  const previous = mapTrendSeriesToChartData(statisticsStore[scope].previous)
+  const labels = current.labels.length > 0 ? current.labels : previous.labels
+
+  if (labels.length === 0 || current.series.length === 0) {
+    return buildPlaceholderChartData('항목을 선택하세요')
   }
 
   const datasets = []
 
-  currentSeries.forEach((item, index) => {
+  current.series.forEach((item, index) => {
     const baseColor = palette[index % palette.length]
 
     datasets.push({
@@ -420,9 +323,10 @@ const getScopedChartData = (scope, chartType, periodType, startYear, startMonth,
 
     if (compareYear) {
       const compareColor = getLightenedColor(baseColor)
+
       datasets.push({
         label: `${item.name} (전년도 동기간)`,
-        data: previousSeries.find((series) => series.id === item.id)?.values ?? createZeroValues(labels.length),
+        data: previous.series.find((series) => series.id === item.id)?.values ?? createZeroValues(labels.length),
         borderColor: compareColor,
         backgroundColor: `${compareColor.replace('rgb', 'rgba').replace(')', ', 0.22)')}`,
         tension: 0.35,
@@ -506,20 +410,9 @@ const renderClientChart = () => {
 
   clientChart?.destroy()
 
-  const chartData = getScopedChartData(
-    'client',
-    clientChartType.value,
-    clientPeriodType.value,
-    clientStartYear.value,
-    clientStartMonth.value,
-    clientEndYear.value,
-    clientEndMonth.value,
-    clientCompareYear.value,
-  )
-
   clientChart = new Chart(clientCanvas.value.getContext('2d'), {
     type: clientChartType.value,
-    data: chartData,
+    data: getScopedChartData('client', clientChartType.value, clientCompareYear.value),
     options: createChartOptions(),
   })
 }
@@ -531,20 +424,9 @@ const renderVarietyChart = () => {
 
   varietyChart?.destroy()
 
-  const chartData = getScopedChartData(
-    'variety',
-    varietyChartType.value,
-    varietyPeriodType.value,
-    varietyStartYear.value,
-    varietyStartMonth.value,
-    varietyEndYear.value,
-    varietyEndMonth.value,
-    varietyCompareYear.value,
-  )
-
   varietyChart = new Chart(varietyCanvas.value.getContext('2d'), {
     type: varietyChartType.value,
-    data: chartData,
+    data: getScopedChartData('variety', varietyChartType.value, varietyCompareYear.value),
     options: createChartOptions(),
   })
 }
@@ -556,20 +438,9 @@ const renderEmployeeChart = () => {
 
   employeeChart?.destroy()
 
-  const chartData = getScopedChartData(
-    'employee',
-    employeeChartType.value,
-    employeePeriodType.value,
-    employeeStartYear.value,
-    employeeStartMonth.value,
-    employeeEndYear.value,
-    employeeEndMonth.value,
-    employeeCompareYear.value,
-  )
-
   employeeChart = new Chart(employeeCanvas.value.getContext('2d'), {
     type: employeeChartType.value,
-    data: chartData,
+    data: getScopedChartData('employee', employeeChartType.value, employeeCompareYear.value),
     options: createChartOptions(),
   })
 }
@@ -595,7 +466,10 @@ const renderCurrentChart = () => {
 
 const enforceMonthOrder = (startYearRef, startMonthRef, endYearRef, endMonthRef) => {
   watch([startYearRef, startMonthRef, endYearRef, endMonthRef], ([startY, startM, endY, endM]) => {
-    if (toMonthIndex(startY, startM) <= toMonthIndex(endY, endM)) {
+    const startIndex = (Number(startY) * 12) + (Number(startM) - 1)
+    const endIndex = (Number(endY) * 12) + (Number(endM) - 1)
+
+    if (startIndex <= endIndex) {
       return
     }
 
@@ -609,28 +483,24 @@ const enforceMonthOrder = (startYearRef, startMonthRef, endYearRef, endMonthRef)
 }
 
 const loadPersonalStats = async () => {
-  const periodType = personalUnit.value === 'month' ? 'monthly' : 'quarterly'
-  const currentParams = buildQueryParams(
-    periodType,
-    personalStartYear.value,
-    personalStartMonth.value,
-    personalEndYear.value,
-    personalEndMonth.value,
-  )
-  const previousParams = personalCompareYear.value
-    ? buildPreviousQueryParams(
-      periodType,
-      personalStartYear.value,
-      personalStartMonth.value,
-      personalEndYear.value,
-      personalEndMonth.value,
-    )
-    : null
-
   await statisticsStore.loadPersonalStats({
     isAdmin: isAdmin.value,
-    currentParams,
-    previousParams,
+    currentParams: buildTrendQuery({
+      periodType: personalUnit.value,
+      startYear: personalStartYear.value,
+      startMonth: personalStartMonth.value,
+      endYear: personalEndYear.value,
+      endMonth: personalEndMonth.value,
+    }),
+    previousParams: personalCompareYear.value
+      ? buildPreviousTrendQuery({
+        periodType: personalUnit.value,
+        startYear: personalStartYear.value,
+        startMonth: personalStartMonth.value,
+        endYear: personalEndYear.value,
+        endMonth: personalEndMonth.value,
+      })
+      : null,
   })
 }
 
@@ -643,8 +513,9 @@ const loadScopedStats = async (scope) => {
       endYear: employeeEndYear.value,
       endMonth: employeeEndMonth.value,
       compareYear: employeeCompareYear.value,
-      extra: { employeeIds: selectedEmployees.value },
-      selectedIds: selectedEmployees.value,
+      chartType: employeeChartType.value,
+      ids: selectedEmployees.value,
+      query: { employeeIds: selectedEmployees.value },
     },
     client: {
       periodType: clientPeriodType.value,
@@ -653,8 +524,9 @@ const loadScopedStats = async (scope) => {
       endYear: clientEndYear.value,
       endMonth: clientEndMonth.value,
       compareYear: clientCompareYear.value,
-      extra: { clientIds: selectedClients.value },
-      selectedIds: selectedClients.value,
+      chartType: clientChartType.value,
+      ids: selectedClients.value,
+      query: { clientIds: selectedClients.value },
     },
     variety: {
       periodType: varietyPeriodType.value,
@@ -663,40 +535,56 @@ const loadScopedStats = async (scope) => {
       endYear: varietyEndYear.value,
       endMonth: varietyEndMonth.value,
       compareYear: varietyCompareYear.value,
-      extra: { varietyCodes: selectedVarieties.value },
-      selectedIds: selectedVarieties.value,
+      chartType: varietyChartType.value,
+      ids: selectedVarieties.value,
+      query: { varietyCodes: selectedVarieties.value },
     },
   }
 
   const target = scopeMap[scope]
 
-  if (!target || target.selectedIds.length === 0) {
+  if (!target || target.ids.length === 0) {
     statisticsStore.clearStats(scope)
+    statisticsStore.clearRanking(scope)
     return
   }
 
-  const currentParams = buildQueryParams(
-    target.periodType,
-    target.startYear,
-    target.startMonth,
-    target.endYear,
-    target.endMonth,
-    target.extra,
-  )
-  const previousParams = target.compareYear
-    ? buildPreviousQueryParams(
-      target.periodType,
-      target.startYear,
-      target.startMonth,
-      target.endYear,
-      target.endMonth,
-      target.extra,
-    )
-    : null
+  if (target.chartType === 'bar') {
+    statisticsStore.clearStats(scope)
+    await statisticsStore.loadScopedRanking(scope, {
+      rankingParams: buildRankingQuery({
+        periodType: target.periodType,
+        startYear: target.startYear,
+        startMonth: target.startMonth,
+        endYear: target.endYear,
+        endMonth: target.endMonth,
+        limit: target.ids.length,
+        ...target.query,
+      }),
+    })
+    return
+  }
 
-  await statisticsStore.loadScopedStats(scope, {
-    currentParams,
-    previousParams,
+  statisticsStore.clearRanking(scope)
+  await statisticsStore.loadScopedTrend(scope, {
+    currentParams: buildTrendQuery({
+      periodType: target.periodType,
+      startYear: target.startYear,
+      startMonth: target.startMonth,
+      endYear: target.endYear,
+      endMonth: target.endMonth,
+      ...target.query,
+    }),
+    previousParams: target.compareYear
+      ? buildPreviousTrendQuery({
+        periodType: target.periodType,
+        startYear: target.startYear,
+        startMonth: target.startMonth,
+        endYear: target.endYear,
+        endMonth: target.endMonth,
+        ...target.query,
+      })
+      : null,
   })
 }
 
@@ -752,6 +640,7 @@ watch([
   clientEndYear,
   clientEndMonth,
   clientCompareYear,
+  clientChartType,
   selectedClients,
   varietyPeriodType,
   varietyStartYear,
@@ -759,6 +648,7 @@ watch([
   varietyEndYear,
   varietyEndMonth,
   varietyCompareYear,
+  varietyChartType,
   selectedVarieties,
   employeePeriodType,
   employeeStartYear,
@@ -766,19 +656,11 @@ watch([
   employeeEndYear,
   employeeEndMonth,
   employeeCompareYear,
+  employeeChartType,
   selectedEmployees,
 ], () => {
   void loadCurrentViewData()
 }, { deep: true })
-
-watch([
-  clientChartType,
-  varietyChartType,
-  employeeChartType,
-], async () => {
-  await nextTick()
-  renderCurrentChart()
-})
 
 watch(() => layoutState?.resizeTick?.value, async () => {
   await nextTick()
@@ -986,6 +868,25 @@ onBeforeUnmount(() => {
         <button class="rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors" :class="varietyChartType === 'bar' ? 'border-seed-olive-dark bg-seed-olive text-white' : 'border-seed-border-card bg-seed-bg-input text-seed-text-body hover:bg-seed-bg-section'" @click="varietyChartType = 'bar'">순위 비교</button>
       </div>
       <div class="chart-canvas-full relative h-[420px] overflow-hidden rounded-xl border border-seed-border-card p-3"><canvas ref="varietyCanvas" /></div>
+    </div>
+
+    <div v-if="showRankingTable" class="mt-4 overflow-hidden rounded-xl border border-seed-border-card bg-seed-bg-section">
+      <table class="min-w-full divide-y divide-seed-border-card text-sm text-seed-text-body">
+        <thead class="bg-seed-bg-input text-seed-text-sub">
+          <tr>
+            <th class="px-4 py-3 text-left font-semibold">순위</th>
+            <th class="px-4 py-3 text-left font-semibold">대상</th>
+            <th class="px-4 py-3 text-right font-semibold">매출</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-seed-border-card">
+          <tr v-for="item in activeRankingItems" :key="`${viewType}-${item.targetId}-${item.rank}`">
+            <td class="px-4 py-3">{{ item.rank }}</td>
+            <td class="px-4 py-3">{{ item.targetName }}</td>
+            <td class="px-4 py-3 text-right">{{ Number(item.sales).toLocaleString() }}원</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 </template>
