@@ -1,293 +1,278 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { getDealLogs, getSalesDeals } from '@/api/history'
 import {
-    createPipeline as createPipelineApi,
-    getSalesHistory,
-    updatePipeline as updatePipelineApi,
-    deletePipeline as deletePipelineApi,
-} from '@/api/history'
-import { getClients } from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
-import { ROLES } from '@/utils/constants'
-
-const STAGES = [
-    { type: 'quotation-request', name: '견적요청', number: 1, docLabel: '견적요청서' },
-    { type: 'quotation', name: '견적', number: 2, docLabel: '견적서' },
-    { type: 'contract', name: '계약', number: 3, docLabel: '계약서' },
-    { type: 'order', name: '주문', number: 4, docLabel: '주문서' },
-    { type: 'statement', name: '명세', number: 5, docLabel: '명세서' },
-    { type: 'invoice', name: '청구', number: 6, docLabel: '청구서' },
-    { type: 'payment', name: '결제완료', number: 7, docLabel: '결제완료' },
-]
-
-const STEP_NAMES = ['견적요청', '견적', '계약', '주문', '명세', '청구', '결제완료']
+    formatCurrency,
+    formatDate,
+    formatDateTime,
+    formatRelativeTime,
+    getStageMeta,
+    getStageOrder,
+    getStatusMeta,
+    makeSteps,
+    toActionLabel,
+    toActivityDescription,
+} from '@/utils/dealHistory'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-    return error?.response?.data?.message || error?.message || fallback
+    return error?.response?.data?.error?.message || error?.response?.data?.message || error?.message || fallback
 }
 
-function normalizeList(data) {
-    if (Array.isArray(data)) return data
-    if (Array.isArray(data?.items)) return data.items
-    const actualData = data.data !== undefined ? data.data : data
-    if (Array.isArray(actualData)) return actualData
-    return []
+function unwrapResult(payload) {
+    return payload?.data !== undefined ? payload.data : payload
 }
 
-function normalizeType(type = '') {
-    return String(type).toLowerCase().replace(/_/g, '-')
-}
-
-function stageByType(type) {
-    const normalized = normalizeType(type)
-    return STAGES.find((stage) => stage.type === normalized) || STAGES[0]
-}
-
-function stageByName(name = '') {
-    return STAGES.find((stage) => stage.name === name) || STAGES[0]
-}
-
-function toDateText(date = new Date()) {
-    return new Date(date).toISOString().slice(0, 10)
-}
-
-function normalizeDocumentSummary(doc = {}) {
-    const stage = stageByType(doc.type)
-    const amount = Number(doc.totalAmount ?? doc.amount ?? 0)
-    return {
-        id: String(doc.id),
-        type: stage.type,
-        typeLabel: stage.docLabel,
-        stage: stage.name,
-        stageNumber: stage.number,
-        status: doc.status || '진행중',
-        date: doc.createdAt || doc.date || toDateText(),
-        amount,
+function unwrapPage(payload) {
+    const pageData = unwrapResult(payload)
+    if (Array.isArray(pageData)) {
+        return { content: pageData, totalElements: pageData.length, totalPages: 1, number: 0, size: pageData.length }
     }
+
+    if (Array.isArray(pageData?.content)) {
+        return pageData
+    }
+
+    return { content: [], totalElements: 0, totalPages: 0, number: 0, size: 0 }
 }
 
-function buildSteps(currentStageNumber) {
-    return STEP_NAMES.map((name, index) => {
-        const order = index + 1
-        if (order < currentStageNumber) return { name, state: 'completed', statusText: '완료' }
-        if (order === currentStageNumber) return { name, state: 'in-progress', statusText: '진행중' }
-        return { name, state: 'waiting', statusText: '대기' }
-    })
+function statusColorByTone(tone) {
+    if (tone === 'success') return 'var(--color-olive)'
+    if (tone === 'warning') return 'var(--color-orange)'
+    if (tone === 'danger') return 'var(--color-status-error)'
+    if (tone === 'info') return 'var(--color-status-info)'
+    return 'var(--color-text-placeholder)'
 }
 
-function statusToneByStage(stageNumber) {
-    if (stageNumber >= 6) return 'success'
-    if (stageNumber <= 2) return 'warning'
-    return 'primary'
-}
+function normalizeDeal(raw = {}) {
+    const stageMeta = getStageMeta(raw.latestDocType)
+    const statusMeta = getStatusMeta(raw.currentStatus)
+    const lastActivityText = formatDateTime(raw.lastActivityAt)
+    const isClosed = Boolean(raw.closedAt)
 
-function normalizePipeline(raw = {}) {
-    const stage = raw.stageNumber
-        ? STAGES.find((item) => item.number === Number(raw.stageNumber)) || stageByName(raw.pipelineStage)
-        : stageByName(raw.pipelineStage)
-    const documents = Array.isArray(raw.documents)
-        ? raw.documents.map(normalizeDocumentSummary)
-        : raw.documentId
-            ? [{
-                id: String(raw.documentId),
-                type: stage.type,
-                typeLabel: stage.docLabel,
-                stage: stage.name,
-                stageNumber: stage.number,
-                status: '진행중',
-                date: raw.updatedAt || toDateText(),
-                amount: Number(raw.amount || 0),
-                remark: '',
-            }]
-            : []
     return {
-        id: String(raw.id),
+        id: String(raw.dealId),
         clientId: raw.clientId ?? null,
         clientName: raw.clientName || '-',
-        salesRepName: raw.salesRepName || '-',
-        salesRepPhone: raw.salesRepPhone || '-',
-        stage: stage.name,
-        stageNumber: stage.number,
-        status: raw.status || '진행중',
-        startDate: raw.startDate || raw.updatedAt || toDateText(),
-        updatedAt: raw.updatedAt || toDateText(),
-        amount: Number(raw.amount || 0),
-        documents,
-        nextAction: raw.nextAction || '',
+        ownerEmpId: raw.ownerEmpId ?? null,
+        ownerEmpName: raw.ownerEmpName || '미지정',
+        ownerInitial: String(raw.ownerEmpName || '미').slice(0, 1),
+        latestDocType: stageMeta.code,
+        latestDocTypeLabel: stageMeta.label,
+        latestTargetCode: raw.latestTargetCode || '-',
+        latestRefId: raw.latestRefId ?? null,
+        stageOrder: stageMeta.order,
+        currentStatus: raw.currentStatus || 'CREATED',
+        currentStatusLabel: statusMeta.label,
+        currentStatusTone: statusMeta.tone,
+        railColor: statusColorByTone(statusMeta.tone),
+        summaryMemo: raw.summaryMemo || '',
+        lastActivityAt: raw.lastActivityAt || null,
+        lastActivityText,
+        lastActivityAgo: formatRelativeTime(raw.lastActivityAt),
+        closedAt: raw.closedAt || null,
+        closedAtText: formatDate(raw.closedAt),
+        isClosed,
+        steps: makeSteps(stageMeta.code),
+        documents: [],
+        summaryDocuments: [],
+        timeline: [],
+        timelinePreview: [],
+        documentCount: 0,
+        latestAmount: null,
+        logsLoaded: false,
     }
 }
 
-function normalizeText(value) {
-    return String(value || '').trim().toLowerCase()
+function buildDocumentSummary(log) {
+    const stageMeta = getStageMeta(log.docType)
+    const statusMeta = getStatusMeta(log.toStatus)
+
+    return {
+        documentKey: `${log.docType}-${log.refId}`,
+        id: String(log.refId),
+        dealLogId: log.dealLogId,
+        refId: log.refId,
+        targetCode: log.targetCode || `${stageMeta.shortLabel}-${log.refId}`,
+        displayCode: log.targetCode || `${stageMeta.shortLabel}-${log.refId}`,
+        type: log.docType,
+        typeLabel: stageMeta.label,
+        stageNumber: stageMeta.order,
+        status: log.toStatus || 'CREATED',
+        statusLabel: statusMeta.label,
+        actionType: log.actionType,
+        actionLabel: toActionLabel(log.actionType),
+        actionAt: log.actionAt,
+        actionAtText: formatDateTime(log.actionAt),
+        actionAtDate: formatDate(log.actionAt),
+        amount: null,
+        color: statusColorByTone(statusMeta.tone),
+    }
+}
+
+function normalizeLogs(logs = []) {
+    const orderedLogs = [...logs].sort((a, b) => String(b.actionAt || '').localeCompare(String(a.actionAt || '')))
+    const documentsMap = new Map()
+
+    const timeline = orderedLogs.map((log) => {
+        const statusMeta = getStatusMeta(log.toStatus)
+        const documentKey = `${log.docType}-${log.refId}`
+
+        if (!documentsMap.has(documentKey)) {
+            documentsMap.set(documentKey, buildDocumentSummary(log))
+        }
+
+        return {
+            dealLogId: log.dealLogId,
+            documentKey,
+            docType: log.docType,
+            refId: log.refId,
+            targetCode: log.targetCode,
+            actionType: log.actionType,
+            actionLabel: toActionLabel(log.actionType),
+            actionAt: log.actionAt,
+            actionAtText: formatDateTime(log.actionAt),
+            actionAtAgo: formatRelativeTime(log.actionAt),
+            fromStatus: log.fromStatus,
+            toStatus: log.toStatus,
+            statusLabel: getStatusMeta(log.toStatus).label,
+            actorType: log.actorType,
+            actorId: log.actorId,
+            description: toActivityDescription(log),
+            color: statusColorByTone(statusMeta.tone),
+        }
+    })
+
+    const documents = [...documentsMap.values()].sort((a, b) => String(b.actionAt || '').localeCompare(String(a.actionAt || '')))
+
+    return {
+        documents,
+        documentCount: documents.length,
+        latestAmount: documents.find((document) => Number.isFinite(Number(document.amount)))?.amount ?? null,
+        timeline,
+        timelinePreview: timeline.slice(0, 3),
+    }
 }
 
 export const useHistoryStore = defineStore('history', () => {
-    const authStore = useAuthStore()
     const pipelines = ref([])
     const loading = ref(false)
+    const logsLoading = ref(false)
     const error = ref(null)
     const loaded = ref(false)
-
-    const isClientRole = computed(() => authStore.currentRole === ROLES.CLIENT)
-
-    const getViewerClientIdentity = () => {
-        const me = authStore.me || {}
-        // 유저 고유 ID가 아닌 거래처 ID(refId)를 우선 사용
-        const byRefId = me.refId ?? me.clientId ?? null
-        const byName = String(me.targetPerson || me.clientName || me.name || '').trim()
-
-        if (byRefId !== null && byRefId !== undefined && byRefId !== '') {
-            return { clientId: String(byRefId), clientName: byName }
-        }
-        return { clientId: null, clientName: byName || null }
-    }
-
-    const filterRawPipelinesForViewer = (list = [], managedClientIds = []) => {
-        const role = authStore.currentRole
-        if (role === ROLES.ADMIN) return list
-
-        const identity = getViewerClientIdentity()
-        const hasClientId = identity.clientId !== null && identity.clientId !== ''
-        const hasClientName = Boolean(identity.clientName)
-
-        if (role === ROLES.CLIENT) {
-            if (!hasClientId && !hasClientName) return []
-            return list.filter((item) => {
-                const clientIdMatch = hasClientId && String(item?.clientId ?? '') === identity.clientId
-                const clientNameMatch = hasClientName && normalizeText(item?.clientName) === normalizeText(identity.clientName)
-                return clientIdMatch || clientNameMatch
-            })
-        }
-
-        if (role === ROLES.SALES_REP) {
-            // 영업사원의 경우, 인자로 받은 담당 거래처 ID 목록(managedClientIds)에 포함된 데이터만 반환
-            return list.filter((item) => {
-                const clientId = String(item.clientId || '')
-                return managedClientIds.includes(clientId)
-            })
-        }
-
-        return []
-    }
-
-    const pipelinesForView = computed(() => {
-        return [...pipelines.value]
-            .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
-            .map((pipeline) => ({
-                id: pipeline.id,
-                clientName: pipeline.clientName,
-                startDate: pipeline.startDate,
-                amount: pipeline.amount,
-                statusText: `${pipeline.stage} ${pipeline.status}`,
-                statusTone: statusToneByStage(pipeline.stageNumber),
-                steps: buildSteps(pipeline.stageNumber),
-            }))
+    const pagination = ref({
+        page: 0,
+        size: 20,
+        totalElements: 0,
+        totalPages: 0,
     })
 
+    const pipelinesForView = computed(() => pipelines.value)
     const getPipelineById = (id) => pipelines.value.find((item) => String(item.id) === String(id)) || null
     const getPipelinesByClient = (clientId) => pipelines.value.filter((item) => String(item.clientId) === String(clientId))
     const getDocumentsByPipeline = (id) => getPipelineById(id)?.documents || []
+    const getTimelineByPipeline = (id) => getPipelineById(id)?.timeline || []
 
-    async function fetchPipelines(params) {
+    async function fetchPipelines(params = {}) {
         loading.value = true
         error.value = null
+
         try {
-            let managedClientIds = []
-            if (authStore.currentRole === ROLES.SALES_REP) {
-                const myRefId = String(authStore.me?.refId || '')
-                // 1단계: 전체 거래처를 조회 (404 방지를 위해 파라미터 없이 {} 전달)
-                const allClients = await getClients({})
-                const myClients = normalizeList(allClients).filter(c => String(c.managerId) === myRefId)
-                // 2단계: 해당 거래처들의 고유 ID 목록을 추출
-                managedClientIds = myClients.map(c => String(c.id))
+            const response = await getSalesDeals(params)
+            const pageData = unwrapPage(response)
+            pipelines.value = pageData.content.map(normalizeDeal)
+            pagination.value = {
+                page: Number(pageData.number || 0),
+                size: Number(pageData.size || params.size || 20),
+                totalElements: Number(pageData.totalElements || pipelines.value.length),
+                totalPages: Number(pageData.totalPages || 1),
             }
-
-            // 3단계: 서버에서 전체 히스토리를 가져와 추출한 ID 목록으로 필터링
-            const response = await getSalesHistory({})
-            const rawList = normalizeList(response)
-
-            const list = filterRawPipelinesForViewer(rawList, managedClientIds).map(normalizePipeline)
-            pipelines.value = list
             loaded.value = true
-            return list
+            return pipelines.value
         } catch (e) {
-            console.error('❌ 히스토리 로드 실패 (주소 확인 요망):', e.config?.url, e.message)
-            error.value = getErrorMessage(e, '히스토리 목록을 불러오지 못했습니다.')
+            error.value = getErrorMessage(e, '영업 히스토리 목록을 불러오지 못했습니다.')
             return pipelines.value
         } finally {
             loading.value = false
         }
     }
 
-    async function ensureLoaded() {
-        if (loaded.value) return
-        await fetchPipelines()
+    async function ensureLoaded(params = {}) {
+        if (loaded.value) return pipelines.value
+        return fetchPipelines(params)
     }
 
-    function createPipeline(client, document) {
-        const clientId = client?.id ?? document?.client?.id ?? document?.clientId ?? null
-        const clientName = client?.name ?? document?.client?.name ?? document?.clientName ?? '-'
-        const docSummary = normalizeDocumentSummary(document)
-        const now = toDateText()
-        const id = `H-${Date.now()}`
-        const next = {
-            id, clientId, clientName, stage: '견적요청', stageNumber: 1, status: '진행중',
-            startDate: now, updatedAt: now, amount: Number(docSummary.amount || 0),
-            documents: [docSummary], nextAction: '',
-        }
-        pipelines.value.unshift(next)
-        createPipelineApi({
-            id, clientId, clientName, pipelineStage: next.stage, stageNumber: next.stageNumber,
-            status: next.status, documentId: docSummary.id, documents: next.documents,
-            amount: next.amount, updatedAt: next.updatedAt, startDate: next.startDate, nextAction: next.nextAction,
-        }).catch((e) => { error.value = getErrorMessage(e, '파이프라인 생성에 실패했습니다.') })
-        return next
-    }
+    async function fetchDealLogs(dealId, params = { page: 0, size: 100 }) {
+        if (!dealId) return []
 
-    function addDocumentToPipeline(historyId, document, newStage) {
-        const targetId = historyId || document?.historyId || null
-        let pipeline = targetId ? getPipelineById(targetId) : null
-        if (!pipeline) {
-            const candidateByClient = pipelines.value
-                .filter((item) => String(item.clientId) === String(document?.client?.id ?? document?.clientId ?? ''))
-                .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))[0]
-            pipeline = candidateByClient || null
-        }
-        if (!pipeline) {
-            if (normalizeType(document?.type) === 'quotation-request') return createPipeline(document?.client, document)
-            return null
-        }
-        const stage = newStage
-            ? (typeof newStage === 'string' ? stageByName(newStage) : STAGES.find((item) => item.number === Number(newStage)) || stageByType(document?.type))
-            : stageByType(document?.type)
-        const docSummary = normalizeDocumentSummary(document)
-        if (!pipeline.documents.find((item) => String(item.id) === String(docSummary.id))) pipeline.documents.push(docSummary)
-        pipeline.stage = stage.name
-        pipeline.stageNumber = Math.max(Number(pipeline.stageNumber || 1), stage.number)
-        pipeline.status = '진행중'
-        pipeline.updatedAt = docSummary.date || toDateText()
-        pipeline.amount = Math.max(Number(pipeline.amount || 0), Number(document?.totalAmount ?? document?.amount ?? 0))
-        updatePipelineApi(pipeline.id, {
-            pipelineStage: pipeline.stage, stageNumber: pipeline.stageNumber, status: pipeline.status,
-            documentId: docSummary.id, documents: pipeline.documents, amount: pipeline.amount, updatedAt: pipeline.updatedAt,
-        }).catch((e) => { error.value = getErrorMessage(e, '파이프라인 업데이트에 실패했습니다.') })
-        return pipeline
-    }
+        logsLoading.value = true
+        error.value = null
 
-    async function deletePipeline(id) {
         try {
-            await deletePipelineApi(id)
-            pipelines.value = pipelines.value.filter(p => String(p.id) !== String(id))
-            return true
+            const response = await getDealLogs(dealId, params)
+            const pageData = unwrapPage(response)
+            const rawLogs = Array.isArray(pageData.content) ? pageData.content : []
+
+            const pipeline = getPipelineById(dealId)
+            if (pipeline) {
+                const normalized = normalizeLogs(rawLogs)
+                pipeline.documents = normalized.documents
+                pipeline.summaryDocuments = normalized.documents.slice(0, 3)
+                pipeline.timeline = normalized.timeline
+                pipeline.timelinePreview = normalized.timelinePreview
+                pipeline.documentCount = normalized.documentCount
+                pipeline.latestAmount = normalized.latestAmount
+                pipeline.steps = pipeline.steps.map((step) => ({
+                    ...step,
+                    documentCount: normalized.documents.filter((document) => document.type === step.code).length,
+                }))
+                pipeline.logsLoaded = true
+            }
+
+            return getTimelineByPipeline(dealId)
         } catch (e) {
-            error.value = getErrorMessage(e, '파이프라인 삭제에 실패했습니다.')
-            return false
+            error.value = getErrorMessage(e, '딜 상세 로그를 불러오지 못했습니다.')
+            return []
+        } finally {
+            logsLoading.value = false
         }
+    }
+
+    async function ensureDealLogs(dealId) {
+        const pipeline = getPipelineById(dealId)
+        if (!pipeline) return []
+        if (pipeline.logsLoaded) return pipeline.timeline
+        return fetchDealLogs(dealId)
+    }
+
+    function updateDocumentStatusLocally(docId, status) {
+        pipelines.value.forEach((pipeline) => {
+            pipeline.documents.forEach((document) => {
+                if (String(document.refId) === String(docId) || String(document.targetCode) === String(docId)) {
+                    const statusMeta = getStatusMeta(status)
+                    document.status = status
+                    document.statusLabel = statusMeta.label
+                    document.color = statusColorByTone(statusMeta.tone)
+                }
+            })
+        })
     }
 
     return {
-        pipelines, loading, error, pipelinesForView, fetchPipelines, ensureLoaded,
-        getPipelineById, getPipelinesByClient, getDocumentsByPipeline, createPipeline, addDocumentToPipeline,
-        deletePipeline,
+        pipelines,
+        loading,
+        logsLoading,
+        error,
+        pagination,
+        pipelinesForView,
+        fetchPipelines,
+        ensureLoaded,
+        fetchDealLogs,
+        ensureDealLogs,
+        getPipelineById,
+        getPipelinesByClient,
+        getDocumentsByPipeline,
+        getTimelineByPipeline,
+        updateDocumentStatusLocally,
+        formatCurrency,
     }
 })

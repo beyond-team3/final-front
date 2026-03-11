@@ -8,7 +8,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import ProductCatalogCard from '@/components/product/ProductCatalogCard.vue'
 import { useProductStore } from '@/stores/product'
 import { useAuthStore } from '@/stores/auth'
-import { ROLES } from '@/utils/constants'
+import { ROLES, PRODUCT_CATEGORY } from '@/utils/constants'
 import { GROWING_SEASON_MONTH_OPTIONS, matchesGrowingSeason } from '@/utils/growingSeason'
 
 const router = useRouter()
@@ -18,9 +18,9 @@ const authStore = useAuthStore()
 const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
 
 const filters = ref({
-  category: '',
-  env: '',
-  growingSeasonMonth: '',
+  category: [],
+  env: [],
+  growingSeasonMonth: [],
   keyword: '',
 })
 const visibleCount = ref(12)
@@ -29,25 +29,34 @@ const filterFields = computed(() => [
   {
     key: 'category',
     label: '품목',
-    type: 'select',
-    options: (productStore.categoryOptions || []).map((item) => ({ label: item.name, value: item.code })),
+    type: 'multi-select-grid',
+    colSpan: 2,
+    defaultValue: [],
+    options: Object.entries(PRODUCT_CATEGORY).map(([code, label]) => ({
+      label,
+      value: label
+    })),
   },
   {
     key: 'env',
     label: '재배환경',
-    type: 'select',
+    type: 'multi-select-grid',
+    colSpan: 2,
+    placeholder: '재배환경 선택',
     options: (productStore.envOptions || []).map((item) => ({ label: item, value: item })),
   },
   {
     key: 'growingSeasonMonth',
     label: '재배적기',
-    type: 'select',
-    placeholder: '전체 월',
+    type: 'multi-select-grid',
+    colSpan: 2,
+    placeholder: '재배적기(월) 선택',
     options: GROWING_SEASON_MONTH_OPTIONS,
   },
   {
     key: 'keyword',
     label: '검색어',
+    colSpan: 3,
     placeholder: '상품명 또는 태그 검색',
   },
 ])
@@ -58,9 +67,13 @@ const filteredProducts = computed(() => {
 
   return allProducts.filter((item) => {
     if (!item) return false
-    const matchCategory = !filters.value.category || item.category === filters.value.category
-    const matchEnv = !filters.value.env || (item.tags?.env || []).includes(filters.value.env)
-    const matchGrowingSeason = matchesGrowingSeason(item, filters.value.growingSeasonMonth)
+    const matchCategory = !filters.value.category?.length || filters.value.category.includes(item.category)
+    const activeEnvs = filters.value.env || []
+    const itemEnvs = item.tags?.['재배환경'] || item.tags?.env || []
+    const matchEnv = activeEnvs.length === 0 || activeEnvs.some(e => itemEnvs.includes(e))
+    
+    const activeMonths = filters.value.growingSeasonMonth || []
+    const matchGrowingSeason = activeMonths.length === 0 || activeMonths.some(m => matchesGrowingSeason(item, m))
     const tags = Object.values(item.tags || {}).flat().join(' ').toLowerCase()
     const traits = Array.isArray(item.traits) ? item.traits.join(' ').toLowerCase() : ''
     const matchKeyword = !keyword || (item.name || '').toLowerCase().includes(keyword) || tags.includes(keyword)

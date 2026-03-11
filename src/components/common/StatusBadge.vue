@@ -29,9 +29,16 @@ const normalizeStatus = (status) => {
 
   if (!raw) return 'DRAFT'
   if (['DRAFT', '초안'].includes(raw)) return 'DRAFT'
+  if (['CREATED'].includes(raw)) return 'DRAFT'
+  if (['IN_PROGRESS', '진행중'].includes(raw)) return 'IN_PROGRESS'
   if (['REQUESTED', 'REQUEST', 'PENDING', '승인대기', '요청', '대기중'].includes(raw)) return 'REQUESTED'
-  if (['APPROVED', 'ACTIVE', 'SIGNED', 'ISSUED', 'QUOTED', 'CONTRACTED', '체결', '완료', '발행완료'].includes(raw)) return 'APPROVED'
+  if (['PENDING_ADMIN', 'PENDING_CLIENT'].includes(raw)) return raw
+  if (['ISSUED', '발행', '발행완료'].includes(raw)) return 'ISSUED'
+  if (['APPROVED', 'ACTIVE', 'SIGNED', 'QUOTED', 'CONTRACTED', '체결', '완료'].includes(raw)) return 'APPROVED'
+  if (['CONFIRMED', 'PAID'].includes(raw)) return raw
   if (['REJECTED', 'REJECT', '반려'].includes(raw)) return 'REJECTED'
+  if (['REJECTED_ADMIN', 'REJECTED_CLIENT'].includes(raw)) return raw
+  if (['EXPIRED', '만료'].includes(raw)) return 'EXPIRED'
   if (['CANCELED', 'CANCELLED', 'CANCEL', '취소'].includes(raw)) return 'CANCELED'
 
   return raw
@@ -48,6 +55,15 @@ const baseVariants = {
   APPROVED: 'status-approved',
   REJECTED: 'status-rejected',
   CANCELED: 'status-canceled',
+  IN_PROGRESS: 'status-success',
+  PENDING_ADMIN: 'status-requested',
+  PENDING_CLIENT: 'status-requested',
+  REJECTED_ADMIN: 'status-rejected',
+  REJECTED_CLIENT: 'status-rejected',
+  CONFIRMED: 'status-approved',
+  ISSUED: 'status-info',
+  PAID: 'status-approved',
+  EXPIRED: 'status-warning',
 }
 
 const normalizedStatus = computed(() => normalizeStatus(props.status))

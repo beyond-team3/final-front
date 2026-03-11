@@ -91,13 +91,9 @@ function normalizeClient(client = {}) {
         // 주소 필드 재구성 (수정 모달 등에서 사용)
         address: client.address || (client.addressSido ? `${client.addressSido}/${client.addressDetail}/${client.addressZip}` : ''),
 
-        // 상세 필드 매핑 보완
-        bizNo: client.clientBrn || client.bizNo,
-        creditLimit: client.totalCredit || client.creditLimit || 0,
-        receivable: client.usedCredit || client.receivable || 0,
-
-        monthlyInProgress: client.monthlyInProgress || 0,
-        monthlyDone: client.monthlyDone || 0,
+        // 수치 데이터 (여신 정보 제외)
+        monthlyInProgress: Number(client.monthlyInProgress || 0),
+        monthlyDone: Number(client.monthlyDone || 0),
 
         managerId: client.managerId || client.managerEmployeeId,
         managerEmployeeName: client.managerEmployeeName, // 추가
@@ -114,10 +110,7 @@ function normalizeClient(client = {}) {
         // [추가] 초기 품종 데이터 보장
         crops: client.crops || [],
 
-        // [보완] 수치 데이터 안전성 확보 및 요약 합산 추가
-        monthlyInProgress: Number(client.monthlyInProgress || 0),
-        monthlyDone: Number(client.monthlyDone || 0),
-        monthlyAmount: Number(client.monthlyDone || 0) + Number(client.monthlyInProgress || 0)
+        monthlyAmount: Number(client.thisMonthAmount || 0)
     }
 }
 
@@ -146,8 +139,6 @@ function makeTempClient(payload = {}) {
         monthlyAmount: 0,
         monthlyInProgress: 0,
         monthlyDone: 0,
-        totalCredit: Number(payload.totalCredit || 0),
-        receivable: 0,
         crops: [],
         pipelines: [],
     })
@@ -212,8 +203,6 @@ export const useClientStore = defineStore('client', () => {
                 currentClient.value.monthlyAmount = data.thisMonth?.totalAmount || 0
                 currentClient.value.monthlyInProgress = data.thisMonth?.inProgressCount || 0
                 currentClient.value.monthlyDone = data.thisMonth?.completedCount || 0
-                currentClient.value.creditLimit = data.totalCredit || 0
-                currentClient.value.receivable = data.usedCredit || 0
             }
 
             return data

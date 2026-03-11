@@ -4,6 +4,13 @@ export function getProducts(params) {
   return api.get('/products', { params })
 }
 
+export function getProductsForContract() {
+    return api.get('/products/doc/contract')
+}
+export function getProductsForQuotationRequest() {
+    return api.get('/products/doc/estimate')
+}
+
 export function getProductDetail(id) {
   return api.get(`/products/${id}`)
 }

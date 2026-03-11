@@ -3,6 +3,7 @@ import { computed, reactive, onMounted, watch, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useProductStore } from '@/stores/product'
+import { PRODUCT_CATEGORY } from '@/utils/constants'
 
 const router = useRouter()
 const route = useRoute()
@@ -25,19 +26,19 @@ onMounted(async () => {
 
 // 태그 템플릿 및 한국어 라벨 매핑
 const tagSchema = [
-  { key: 'env', label: '재배환경', options: ['노지', '시설하우스', '고랭지', '가정원예'] },
-  { key: 'res', label: '내병성', options: ['탄저병', '바이러스', '시들음병', '역병', '무름병'] },
-  { key: 'growth', label: '생육 및 숙기', options: ['조생종', '중생종', '만생종', '극조생'] },
-  { key: 'quality', label: '과실 품질', options: ['고당도', '대과종', '저장성우수', '착색우수'] },
-  { key: 'conv', label: '재배 편의성', options: ['초세강', '착과용이', '밀식적응', '작업용이'] },
+  { key: '재배환경', label: '재배환경', options: ['노지', '시설하우스', '고랭지', '가정원예'] },
+  { key: '내병성', label: '내병성', options: ['탄저병', '바이러스', '시들음병', '역병', '무름병'] },
+  { key: '생육및숙기', label: '생육 및 숙기', options: ['조생종', '중생종', '만생종', '극조생'] },
+  { key: '과실품질', label: '과실 품질', options: ['고당도', '대과종', '저장성우수', '착색우수'] },
+  { key: '재배편의성', label: '재배 편의성', options: ['초세강', '착과용이', '밀식적응', '작업용이'] },
 ]
 
 const tagTemplates = reactive({
-  env: [...tagSchema[0].options],
-  res: [...tagSchema[1].options],
-  growth: [...tagSchema[2].options],
-  quality: [...tagSchema[3].options],
-  conv: [...tagSchema[4].options],
+  '재배환경': [...tagSchema[0].options],
+  '내병성': [...tagSchema[1].options],
+  '생육및숙기': [...tagSchema[2].options],
+  '과실품질': [...tagSchema[3].options],
+  '재배편의성': [...tagSchema[4].options],
 })
 
 const form = reactive({
@@ -47,9 +48,9 @@ const form = reactive({
   imageUrl: '',
   price: '',
   amount: '',
-  status: 'ACTIVE',
+  status: 'SALE',
   unit: '립',
-  tags: { env: [], res: [], growth: [], quality: [], conv: [] },
+  tags: { '재배환경': [], '내병성': [], '생육및숙기': [], '과실품질': [], '재배편의성': [] },
 })
 
 watch(initialProduct, (product) => {
@@ -60,14 +61,14 @@ watch(initialProduct, (product) => {
     form.imageUrl = product.imageUrl || ''
     form.price = product.price ?? ''
     form.amount = product.amount ?? ''
-    form.status = product.status || 'ACTIVE'
+    form.status = product.status || 'SALE'
     form.unit = product.unit || '립'
     form.tags = {
-      env: [...(product.tags?.env || [])],
-      res: [...(product.tags?.res || [])],
-      growth: [...(product.tags?.growth || [])],
-      quality: [...(product.tags?.quality || [])],
-      conv: [...(product.tags?.conv || [])],
+      '재배환경': [...(product.tags?.['재배환경'] || [])],
+      '내병성': [...(product.tags?.['내병성'] || [])],
+      '생육및숙기': [...(product.tags?.['생육및숙기'] || [])],
+      '과실품질': [...(product.tags?.['과실품질'] || [])],
+      '재배편의성': [...(product.tags?.['재배편의성'] || [])],
     }
   }
 }, { immediate: true })
@@ -92,6 +93,7 @@ const toggleTag = (key, tag) => {
 // 이미지 핸들링 로직
 const fileInput = ref(null)
 const isDragging = ref(false)
+const selectedFile = ref(null)
 
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
@@ -114,6 +116,7 @@ const processFile = (file) => {
     form.imageUrl = e.target.result
   }
   reader.readAsDataURL(file)
+  selectedFile.value = file
 }
 
 const submitForm = async () => {
@@ -132,12 +135,27 @@ const submitForm = async () => {
     updatedAt: new Date().toISOString().split('T')[0]
   }
 
+  // 백엔드 MultipartFile 처리 대응
+  if (selectedFile.value) {
+    payload.imageUrl = ''
+  }
+
+  const formData = new FormData()
+  formData.append(
+    'request',
+    new Blob([JSON.stringify(payload)], { type: 'application/json' })
+  )
+
+  if (selectedFile.value) {
+    formData.append('productImage', selectedFile.value)
+  }
+
   try {
     if (isEdit.value) {
-      await productStore.updateProduct(editId.value, payload)
+      await productStore.updateProduct(editId.value, formData)
       alert('수정되었습니다.')
     } else {
-      await productStore.createProduct(payload)
+      await productStore.createProduct(formData)
       alert('등록되었습니다.')
     }
     router.push('/products/catalog')
@@ -175,7 +193,7 @@ const submitForm = async () => {
               <span class="text-sm font-semibold text-[var(--color-text-body)]">품목(카테고리) <span class="text-red-500">*</span></span>
               <select v-model="form.category" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none">
                 <option value="">선택하세요</option>
-                <option v-for="cat in productStore.categoryOptions" :key="cat.code" :value="cat.code">{{ cat.name }}</option>
+                <option v-for="(name, code) in PRODUCT_CATEGORY" :key="code" :value="name">{{ name }}</option>
               </select>
             </label>
           </div>
@@ -204,9 +222,10 @@ const submitForm = async () => {
             <label class="block space-y-1">
               <span class="text-sm font-semibold text-[var(--color-text-body)]">판매 상태 <span class="text-red-500">*</span></span>
               <select v-model="form.status" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none">
-                <option value="ACTIVE">판매 가능 (ACTIVE)</option>
-                <option value="OUT_OF_STOCK">일시 품절 (OUT_OF_STOCK)</option>
-                <option value="DISCONTINUED">단종 (DISCONTINUED)</option>
+                <option value="SALE">판매중 (SALE)</option>
+                <option value="SOLDOUT">품절 (SOLDOUT)</option>
+                <option value="STOP">판매중단 (STOP)</option>
+                <option value="HIDDEN">숨김 (HIDDEN)</option>
               </select>
             </label>
           </div>
@@ -273,7 +292,7 @@ const submitForm = async () => {
           </div>
 
           <div v-if="form.imageUrl" class="mt-4 text-right">
-            <button type="button" class="text-xs font-bold text-red-500 hover:underline" @click="form.imageUrl = ''">이미지 삭제</button>
+            <button type="button" class="text-xs font-bold text-red-500 hover:underline" @click="form.imageUrl = ''; selectedFile = null">이미지 삭제</button>
           </div>
         </article>
       </div>
