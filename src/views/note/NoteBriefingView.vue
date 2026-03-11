@@ -187,9 +187,9 @@ const goToWriteNote = () => {
             <div class="flex items-center gap-2 mb-3">
               <span class="text-xs text-white/70 font-bold uppercase tracking-widest">Strategy Briefing</span>
               <span class="h-1 w-1 rounded-full bg-white/30"></span>
-              <span class="text-xs text-white/70">Revision {{ briefing.revision }}</span>
+              <span class="text-xs text-white/70">version NO.{{ briefing.revision }}</span>
             </div>
-            <h3 class="text-5xl font-extrabold mb-4">{{ selectedClientName }}</h3>
+            <h3 class="text-5xl text-white/95 font-extrabold mb-4">{{ selectedClientName }}</h3>
             <p class="text-white/80 font-medium text-lg">영업 데이터 기반 전략 브리핑</p>
           </div>
           <i class="fas fa-brain absolute -right-4 -bottom-4 text-white/10 text-[12rem]"></i>
