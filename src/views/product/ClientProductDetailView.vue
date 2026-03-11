@@ -100,7 +100,7 @@ const saveNote = () => {
             <div v-if="!isClient" class="mt-3">
               <div class="flex items-baseline gap-2">
                 <span class="text-2xl font-bold text-[var(--color-text-strong)]">₩{{ (product.price || 0).toLocaleString() }}</span>
-                <span class="text-sm text-[var(--color-text-sub)]">/ {{ product.unit || '단위 미정' }}</span>
+                <span class="text-sm text-[var(--color-text-sub)]">/ {{ product.amount || '' }}{{ product.unit || '단위 미정' }}</span>
               </div>
               <div class="mt-2 flex items-center gap-3">
                 <span class="rounded px-2 py-1 text-xs font-semibold"
