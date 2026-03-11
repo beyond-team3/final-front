@@ -1,5 +1,34 @@
 pipeline {
-	agent any
+	// 백엔드와 동일하게 docker-cli를 사용할 수 있는 Kubernetes Agent 설정 적용
+	agent {
+		kubernetes {
+			yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: jnlp
+    image: jenkins/inbound-agent:3355.v388858a_47b_33-6-jdk21
+  - name: docker-cli
+    image: docker:27-cli
+    command: ['cat']
+    tty: true
+    volumeMounts:
+    - name: docker-sock
+      mountPath: /var/run/docker.sock
+    - name: ssh-config
+      mountPath: /home/jenkins/.ssh/known_hosts
+      subPath: known_hosts
+  volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+  - name: ssh-config
+    configMap:
+      name: ssh-known-hosts
+"""
+		}
+	}
 
 	tools {
 		nodejs 'node-24'
@@ -26,86 +55,104 @@ pipeline {
 					sh 'npm install'
 
 					echo 'Building Project...'
-					// CI=false: 경고를 에러로 처리하지 않음 (빌드 중단 방지)
+
 					sh 'CI=false npm run build'
 				}
 			}
 		}
 
 		stage('Docker Build & Push') {
-			when { branch 'main' }
 			steps {
-				script {
-					def newTag = "${env.APP_VERSION_PREFIX}.${env.BUILD_ID}"
-					echo "Building Docker Image: ${IMAGE_NAME}:${newTag}"
+				container('docker-cli') {
+					script {
+						def prefix = env.APP_VERSION_PREFIX
+						def cleanBranchName = env.BRANCH_NAME.replaceAll("/", "-")
+						def buildNum = env.BUILD_NUMBER
+						def shortSha = env.GIT_COMMIT.take(7)
 
-					docker.withRegistry('', "${DOCKER_CREDENTIAL_ID}") {
-						def customImage = docker.build("${IMAGE_NAME}:${newTag}")
-						customImage.push()
-						customImage.push('latest')
+						def newTag = "${prefix}.${cleanBranchName}.${buildNum}.${shortSha}"
+
+						withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIAL_ID,
+							usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+
+							echo "Building and Pushing Tag: ${newTag}"
+
+							// 도커 빌드 및 푸시
+							sh "docker build --no-cache -t ${IMAGE_NAME}:${newTag} ."
+							sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+							sh "docker push ${IMAGE_NAME}:${newTag}"
+
+							// main 브랜치일 경우에만 latest 태그 푸시
+							if (env.BRANCH_NAME == 'main') {
+								sh "docker tag ${IMAGE_NAME}:${newTag} ${IMAGE_NAME}:latest"
+								sh "docker push ${IMAGE_NAME}:latest"
+							}
+
+							sh "docker logout"
+						}
 					}
 				}
 			}
 		}
 
-	    stage('Update Manifest') {
-            when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    // SSH 주소 형식으로 변경
-                    def manifestRepoUrl = "git@github.com:beyond-team3/final-manifests.git"
-                    def targetFile = "frontend/deployment.yml"
-                    def imageName = "21monsoon/monsoon-frontend"
-                    def newTag = "${env.APP_VERSION_PREFIX}.${env.BUILD_ID}"
+		stage('Update Manifest') {
+			when {
+				anyOf {
+					branch 'main'
+					branch 'dev'
+				}
+			}
+			steps {
+				script {
+					def manifestRepoUrl = "git@github.com:beyond-team3/final-manifests.git"
+					def targetFile = "frontend/deployment.yml"
+					def imageName = "21monsoon/monsoon-frontend"
 
-                    // 등록하신 SSH 자격 증명 ID 사용
-                    sshagent(credentials: ['github-deploy-key']) {
-                        sh """
-                            # 기존 임시 폴더 정리
+					def prefix = env.APP_VERSION_PREFIX
+					def cleanBranchName = env.BRANCH_NAME.replaceAll("/", "-")
+					def buildNum = env.BUILD_NUMBER
+					def shortSha = env.GIT_COMMIT.take(7)
+					def newTag = "${prefix}.${cleanBranchName}.${buildNum}.${shortSha}"
+
+					// 현재 브랜치에 따라 대상 브랜치 결정
+					def targetBranch = (env.BRANCH_NAME == 'main') ? 'main' : 'dev'
+
+					sshagent(credentials: ['github-deploy-key']) {
+						sh """
+                            mkdir -p ~/.ssh
+                            ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
                             rm -rf temp-manifests
-
-                            # SSH를 통한 보안 클론
                             git clone ${manifestRepoUrl} temp-manifests
                             cd temp-manifests
 
-                            # 젠킨스 봇 계정 설정
+                            // 타겟 브랜치로 체크아웃
+                            git checkout ${targetBranch} || git checkout -b ${targetBranch}
+
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
 
-                            # 태그 업데이트
                             sed -i "s|image: ${imageName}:.*|image: ${imageName}:${newTag}|g" ${targetFile}
 
-                            # 변경 사항이 있을 때만 커밋 및 푸시
                             git add ${targetFile}
 
                             if git diff --cached --quiet; then
                                 echo "No changes detected in manifest; skipping commit/push."
                             else
-                                # 동시 푸시 충돌 방지를 위한 rebase 전략 적용
-                                git commit -m "[CD] Update ${imageName} to ${newTag} [skip ci]"
-                                for attempt in 1 2 3; do
-                                    git pull --rebase origin main && git push origin main && break
-                                    if [ "$attempt" -eq 3 ]; then
-                                        echo "Push failed after 3 attempts."
-                                        exit 1
-                                    fi
-                                    sleep 2
-                                done
-                                echo "Manifest update stage completed for beyond-team3/final-manifests frontend"
+                                git commit -m "🚀 [CD] Update ${imageName} to ${newTag} [skip ci]"
+                                git push origin ${targetBranch}
                             fi
                         """
-                    }
-                }
-            }
-            post {
-                always {
-                    sh 'rm -rf temp-manifests'
-                }
-            }
-        }
-    }
+					}
+				}
+			}
+			post {
+				always {
+					sh 'rm -rf temp-manifests'
+				}
+			}
+		}
+	}
 
 	post {
 		success {
