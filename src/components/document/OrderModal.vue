@@ -10,6 +10,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // ✅ 새로 추가: 로딩 상태
+  loading: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'select'])
@@ -61,7 +66,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
 
         <!-- body -->
         <div class="flex-1 overflow-y-auto p-5">
-          <div class="overflow-hidden rounded border border-[#DDD7CE]">
+          <!-- ✅ 로딩 상태 표시 -->
+          <div v-if="loading" class="flex flex-col items-center justify-center py-16">
+            <div class="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-[#DDD7CE] border-t-[#C8622A]"></div>
+            <p class="text-sm text-[#6B5F50]">계약 정보를 불러오는 중...</p>
+          </div>
+
+          <div v-else class="overflow-hidden rounded border border-[#DDD7CE]">
             <table class="min-w-full text-sm">
 
               <!-- table head -->

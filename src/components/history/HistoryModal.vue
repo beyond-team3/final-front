@@ -70,8 +70,8 @@ const normalizeOrderStatus = (status) => {
 
 // 💡 유저 요청 3: 견적 요청서의 memo는 요구사항이므로 우측 비고란에서 제외
 const isQuotationRequest = computed(() => {
-  const type = String(props.docType || '').toLowerCase().replace(/\s+/g, '')
-  const detailType = String(docDetail.value?.type || '').toLowerCase().replace(/\s+/g, '')
+  const type = String(props.docType || '').toLowerCase().replace(/[\s-]+/g, '')
+  const detailType = String(docDetail.value?.type || '').toLowerCase().replace(/[\s-]+/g, '')
   const docId = String(props.docId || '').toUpperCase()
 
   const labels = ['견적요청', '견적요청서', 'quotationrequest', 'rfq']
@@ -219,28 +219,40 @@ const loadDetail = async () => {
   isLoading.value = true
 
   try {
-    if (employeeStore.employees.length === 0) {
-      await employeeStore.fetchEmployees()
+    // 💡 사원 목록 조회가 필요한 경우(본인 외 타인 지정 등)에만 긁어옴
+    // CLIENT 권한은 사원 목록 조회 권한이 없으므로(403) 제외
+    if (authStore.currentRole !== ROLES.CLIENT && employeeStore.employees.length === 0) {
+      try {
+        await employeeStore.fetchEmployees()
+      } catch (empError) {
+        console.warn('[HistoryModal] 사원 목록 로드 실패(권한 부족 가능성):', empError)
+      }
     }
 
     // 💡 1. 타입 매핑
+    const normalizedType = String(props.docType || '').toLowerCase().trim()
+
     const typeMap = {
       '견적': 'quotation',
       '견 적': 'quotation',
       '견적서': 'quotation',
       'quotation': 'quotation',
+      'quo': 'quotation',
       '주문': 'order',
       '주 문': 'order',
       '주문서': 'order',
       'order': 'order',
+      'ord': 'order',
       '계약': 'contract',
       '계 약': 'contract',
       '계약서': 'contract',
       'contract': 'contract',
+      'cnt': 'contract',
       '청구': 'invoice',
       '청 구': 'invoice',
       '청구서': 'invoice',
       'invoice': 'invoice',
+      'inv': 'invoice',
       '견적요청': 'quotation-request',
       '견적 요청': 'quotation-request',
       '견적 요청서': 'quotation-request',
@@ -249,7 +261,6 @@ const loadDetail = async () => {
       'rfq': 'quotation-request'
     }
 
-    const normalizedType = String(props.docType || '').toLowerCase().replace(/\s+/g, '')
     const typeKey = typeMap[normalizedType] || normalizedType
 
     // 💡 2. 스토어 캐시에서 긁어오기 (String 변환으로 ID 타입 차이 극복)
@@ -262,17 +273,32 @@ const loadDetail = async () => {
 
     // 💡 3. 캐시에 없거나(summary만 있는 경우) 품목 정보가 없으면 서버에서 강제로 가져옴
     if (!detail || !detail.items || detail.items.length === 0) {
+      console.log(`[HistoryModal] 데이터 fetch 시작... id: ${currentId}, type: ${typeKey}`)
       let fetched = null
-      if (['quotation-request', 'rfq', '견적요청'].includes(typeKey)) {
-        fetched = await documentStore.fetchQuotationRequestDetail(currentId)
-      } else if (typeKey === 'quotation') {
-        fetched = await documentStore.fetchQuotationDetail(currentId)
-      } else if (typeKey === 'contract') {
-        fetched = await documentStore.fetchContractDetail(currentId)
-      } else {
-        fetched = await documentStore.fetchDocumentDetail(currentId)
+      try {
+        if (['quotation-request', 'rfq', '견적요청'].includes(typeKey)) {
+          fetched = await documentStore.fetchQuotationRequestDetail(currentId)
+        } else if (typeKey === 'quotation') {
+          fetched = await documentStore.fetchQuotationDetail(currentId)
+        } else if (typeKey === 'contract') {
+          fetched = await documentStore.fetchContractDetail(currentId)
+        } else if (typeKey === 'order') {
+          fetched = await documentStore.fetchOrderDetail(currentId)
+        } else if (typeKey === 'invoice') {
+          fetched = await documentStore.fetchInvoiceDetail(currentId)
+        } else {
+          fetched = await documentStore.fetchDocumentDetail(currentId)
+        }
+      } catch (innerError) {
+        console.error('[HistoryModal] Step 3 Fetch Error:', innerError)
       }
-      if (fetched) detail = fetched
+
+      if (fetched) {
+        detail = fetched
+        console.log('[HistoryModal] Fetch 결과 적용됨:', detail)
+      } else {
+        console.warn('[HistoryModal] Fetch 실패 또는 데이터 없음. 기존 detail 유지:', detail)
+      }
     }
 
     docDetail.value = detail
@@ -858,11 +884,11 @@ const getValidityDate = (dateStr) => {
                     </div>
                     <div class="text-right flex flex-col gap-0.5">
                       <span class="text-xs font-black text-[var(--color-text-strong)]">{{ item.quantity || item.count }} {{ item.unit }}</span>
-                      <span class="text-[10px] font-bold text-[var(--color-olive)]">₩{{ Number(item.amount || ((item.quantity||item.count)*(item.unitPrice||item.price))).toLocaleString() }}</span>
+                      <span v-if="!isQuotationRequest" class="text-[10px] font-bold text-[var(--color-olive)]">₩{{ Number(item.amount || ((item.quantity||item.count)*(item.unitPrice||item.price))).toLocaleString() }}</span>
                     </div>
                   </div>
                 </div>
-                <div class="flex justify-between items-end bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]">
+                <div v-if="!isQuotationRequest" class="flex justify-between items-end bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]">
                   <div class="flex flex-col">
                     <span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">Final Quote</span>
                     <span class="text-xs font-medium text-[var(--color-text-sub)] line-through">₩{{ Number((docDetail.totalAmount || docDetail.amount || 0) * 1.1).toLocaleString() }}</span>
@@ -875,7 +901,7 @@ const getValidityDate = (dateStr) => {
               </article>
 
               <!-- 섹션 3: 비고 / 반려 사유 -->
-              <article v-if="docDetail.memo || docDetail.requirements || remark || showRejectReason" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+              <article v-if="!isQuotationRequest && (docDetail.memo || docDetail.requirements || remark || showRejectReason)" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
                 <div class="flex items-center gap-2 mb-5">
                   <span class="w-1.5 h-4 bg-slate-400 rounded-full"></span>
                   <h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">공지 및 비고</h3>

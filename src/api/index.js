@@ -28,6 +28,12 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`
         }
 
+        // Axios가 FormData를 보낼 때 브라우저가 자동으로 boundary를 포함한 Content-Type을
+        // 설정하도록, 전역에 세팅된 application/json 헤더를 삭제해줍니다.
+        if (config.data instanceof FormData) {
+            delete config.headers['Content-Type']
+        }
+
         startApiMeasure(config)
 
         config.headers['X-Request-Started-At'] = String(Date.now())
