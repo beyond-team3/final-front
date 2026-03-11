@@ -94,7 +94,7 @@ const onKeyActivate = (event, id) => {
         <p class="text-xs font-semibold text-[var(--color-olive)]">{{ item.category }}</p>
         <!-- showPrice props가 true일 때만 노출 -->
         <p v-if="showPrice && item.price" class="text-xs font-bold text-[var(--color-text)]">
-          ₩{{ item.price.toLocaleString() }} <span class="font-normal text-[var(--color-muted)]">/ {{ item.unit }}</span>
+          ₩{{ item.price.toLocaleString() }} <span class="font-normal text-[var(--color-muted)]">/ {{ item.amount || '' }}{{ item.unit || '단위 미정' }}</span>
         </p>
       </div>
       <h3 class="mt-1 text-base font-bold text-[var(--color-text)]">{{ item.name }}</h3>
