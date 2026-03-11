@@ -28,7 +28,7 @@ const totalDeals = computed(() => filteredDeals.value.length)
 const selectedSortLabel = computed(() => {
     if (sortType.value === 'stage') return '단계 높은순'
     if (sortType.value === 'client') return '거래처명순'
-    return '최근 활동순'
+    return '최신순'
 })
 
 const filteredDeals = computed(() => {
@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
                             </CdrButton>
                             <div v-if="showSortMenu" class="filter-dropdown" @click.stop>
                                 <button type="button" class="filter-dropdown-item" :class="{ active: sortType === 'lastActivity' }" @click="applySortType('lastActivity')">
-                                    최근 활동순
+                                    최신순
                                 </button>
                                 <button type="button" class="filter-dropdown-item" :class="{ active: sortType === 'stage' }" @click="applySortType('stage')">
                                     단계 높은순
