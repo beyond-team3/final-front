@@ -5,6 +5,7 @@ import { CdrButton, IconListView, IconSort } from '@rei/cedar'
 import DataTable from '@/components/common/DataTable.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
 import { getDocumentSummaries } from '@/api/document'
+import HistoryModal from '@/components/history/HistoryModal.vue'
 
 const route = useRoute()
 
@@ -51,6 +52,7 @@ const sortDirection = ref('desc')
 const page = ref(1)
 const pageSize = ref(10)
 const selectedDocument = ref(null)
+const isHistoryModalOpen = ref(false)
 const showSortMenu = ref(false)
 const showPageSizeMenu = ref(false)
 let keywordDebounceTimer = null
@@ -88,10 +90,10 @@ const decorateDocument = (doc) => ({
 const normalizePageResponse = (response) => {
   const payload = response?.data ?? response
   const pageData = payload?.content
-    ? payload
-    : payload?.result === 'SUCCESS' && payload?.data
-      ? payload.data
-      : null
+      ? payload
+      : payload?.result === 'SUCCESS' && payload?.data
+          ? payload.data
+          : null
 
   if (!pageData || !Array.isArray(pageData.content)) {
     return null
@@ -127,7 +129,7 @@ const loadDocuments = async () => {
     }
 
     const filteredContent = normalized.content.filter(
-      (doc) => !EXCLUDED_DOC_TYPES.has(String(doc?.docType || '').toUpperCase()),
+        (doc) => !EXCLUDED_DOC_TYPES.has(String(doc?.docType || '').toUpperCase()),
     )
 
     documentPage.value = {
@@ -149,23 +151,23 @@ onMounted(() => {
 })
 
 const allDocuments = computed(() =>
-  documentPage.value.content
-    .filter((doc) => !EXCLUDED_DOC_TYPES.has(String(doc?.docType || '').toUpperCase()))
-    .map(decorateDocument),
+    documentPage.value.content
+        .filter((doc) => !EXCLUDED_DOC_TYPES.has(String(doc?.docType || '').toUpperCase()))
+        .map(decorateDocument),
 )
 
 const docTypeOptions = computed(() => [
   { value: 'ALL', label: '전체 문서 유형' },
   ...Array.from(new Set(allDocuments.value.map((doc) => doc.docType)))
-    .filter(Boolean)
-    .map((value) => ({ value, label: DOC_TYPE_META[value]?.label || value })),
+      .filter(Boolean)
+      .map((value) => ({ value, label: DOC_TYPE_META[value]?.label || value })),
 ])
 
 const statusOptions = computed(() => [
   { value: 'ALL', label: '전체 상태' },
   ...Array.from(new Set(allDocuments.value.map((doc) => doc.status)))
-    .filter(Boolean)
-    .map((value) => ({ value, label: STATUS_META[value]?.label || value })),
+      .filter(Boolean)
+      .map((value) => ({ value, label: STATUS_META[value]?.label || value })),
 ])
 
 const totalPages = computed(() => Math.max(1, documentPage.value.totalPages || 1))
@@ -214,6 +216,7 @@ watch(() => route.query.documentId, (documentId) => {
   const matched = allDocuments.value.find((doc) => String(doc.docId) === String(documentId) || doc.surrogateId === String(documentId))
   if (matched) {
     selectedDocument.value = matched
+    isHistoryModalOpen.value = true
   }
 }, { immediate: true })
 
@@ -225,11 +228,18 @@ onBeforeUnmount(() => {
 
 const openDocument = (row) => {
   selectedDocument.value = row
+  isHistoryModalOpen.value = true
 }
 
 const closeDetail = () => {
-  selectedDocument.value = null
+  isHistoryModalOpen.value = false
 }
+
+watch(isHistoryModalOpen, (val) => {
+  if (!val) {
+    selectedDocument.value = null
+  }
+})
 
 const docTypeBadgeStyle = (tone) => ({
   rfq: { backgroundColor: 'var(--color-orange-light)', color: 'var(--color-orange-dark)' },
@@ -262,7 +272,6 @@ const applyPageSize = (size) => {
 </script>
 
 <template>
-  <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <section class="screen-content document-summary-page">
       <div class="mb-5 flex items-center justify-between border-b pb-[15px]" style="border-color: #E8E3D8;">
         <div>
@@ -274,9 +283,9 @@ const applyPageSize = (size) => {
       </div>
 
       <div
-        v-if="loadError"
-        class="mb-4 rounded-lg border px-4 py-3 text-sm"
-        style="border-color: #E1B4B4; background-color: #F8E3E3; color: #9D4B4B;"
+          v-if="loadError"
+          class="mb-4 rounded-lg border px-4 py-3 text-sm"
+          style="border-color: #E1B4B4; background-color: #F8E3E3; color: #9D4B4B;"
       >
         {{ loadError }}
       </div>
@@ -285,19 +294,19 @@ const applyPageSize = (size) => {
         <div class="grid gap-3 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto_auto]">
           <label class="flex flex-col gap-2">
             <input
-              v-model="keyword"
-              type="text"
-              class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
-              style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
-              placeholder="문서 ID, 코드, 거래처, 담당자 검색"
+                v-model="keyword"
+                type="text"
+                class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
+                style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
+                placeholder="문서 ID, 코드, 거래처, 담당자 검색"
             >
           </label>
 
           <label class="flex flex-col gap-2">
             <select
-              v-model="selectedDocType"
-              class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
-              style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
+                v-model="selectedDocType"
+                class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
+                style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
             >
               <option v-for="option in docTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
@@ -305,9 +314,9 @@ const applyPageSize = (size) => {
 
           <label class="flex flex-col gap-2">
             <select
-              v-model="selectedStatus"
-              class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
-              style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
+                v-model="selectedStatus"
+                class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
+                style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
             >
               <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
@@ -316,14 +325,14 @@ const applyPageSize = (size) => {
           <div class="flex flex-col gap-2">
             <div class="relative filter-popover">
               <CdrButton
-                type="button"
-                modifier="secondary"
-                icon-only
-                with-background
-                class="filter-icon-btn"
-                :aria-expanded="showSortMenu"
-                aria-label="정렬 선택"
-                @click="showSortMenu = !showSortMenu; showPageSizeMenu = false"
+                  type="button"
+                  modifier="secondary"
+                  icon-only
+                  with-background
+                  class="filter-icon-btn"
+                  :aria-expanded="showSortMenu"
+                  aria-label="정렬 선택"
+                  @click="showSortMenu = !showSortMenu; showPageSizeMenu = false"
               >
                 <IconSort />
               </CdrButton>
@@ -341,14 +350,14 @@ const applyPageSize = (size) => {
           <div class="flex flex-col gap-2">
             <div class="relative filter-popover">
               <CdrButton
-                type="button"
-                modifier="secondary"
-                icon-only
-                with-background
-                class="filter-icon-btn"
-                :aria-expanded="showPageSizeMenu"
-                aria-label="페이지 크기 선택"
-                @click="showPageSizeMenu = !showPageSizeMenu; showSortMenu = false"
+                  type="button"
+                  modifier="secondary"
+                  icon-only
+                  with-background
+                  class="filter-icon-btn"
+                  :aria-expanded="showPageSizeMenu"
+                  aria-label="페이지 크기 선택"
+                  @click="showPageSizeMenu = !showPageSizeMenu; showSortMenu = false"
               >
                 <IconListView />
               </CdrButton>
@@ -369,12 +378,12 @@ const applyPageSize = (size) => {
       </section>
 
       <DataTable
-        :columns="columns"
-        :rows="pagedDocuments"
-        row-key="surrogateId"
-        :loading="isLoading"
-        empty-text="조건에 맞는 문서가 없습니다."
-        @row-click="openDocument"
+          :columns="columns"
+          :rows="pagedDocuments"
+          row-key="surrogateId"
+          :loading="isLoading"
+          empty-text="조건에 맞는 문서가 없습니다."
+          @row-click="openDocument"
       >
         <template #cell-docTypeLabel="{ row }">
           <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :style="docTypeBadgeStyle(row.docTypeTone)">
@@ -390,95 +399,33 @@ const applyPageSize = (size) => {
 
         <template #cell-action="{ row }">
           <button
-            type="button"
-            class="rounded px-3 py-1.5 text-xs font-semibold transition-colors"
-            style="border: 1px solid #DDD7CE; background-color: #FAF7F3; color: #6B5F50;"
-            @click.stop="openDocument(row)"
+              type="button"
+              class="rounded px-3 py-1.5 text-xs font-semibold transition-colors"
+              style="border: 1px solid #DDD7CE; background-color: #FAF7F3; color: #6B5F50;"
+              @click.stop="openDocument(row)"
           >
             보기
           </button>
         </template>
 
         <template #footer>
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <p class="text-sm" style="color: #9A8C7E;">
-                총 {{ totalElements }}건 중
-                {{ visibleStart }}-{{ visibleEnd }}건 표시
-              </p>
-              <PaginationControls v-model="page" :total-pages="totalPages" />
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <p class="text-sm" style="color: #9A8C7E;">
+              총 {{ totalElements }}건 중
+              {{ visibleStart }}-{{ visibleEnd }}건 표시
+            </p>
+            <PaginationControls v-model="page" :total-pages="totalPages" />
           </div>
         </template>
       </DataTable>
 
-      <div
-        v-if="selectedDocument"
-        class="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4 py-8 backdrop-blur-sm"
-        @click.self="closeDetail"
-      >
-        <article class="w-full max-w-3xl rounded-lg border shadow-2xl" style="background-color: #F7F3EC; border-color: #DDD7CE;">
-          <div class="flex items-start justify-between gap-4 border-b px-6 py-5" style="border-color: #E8E3D8;">
-            <div>
-              <p class="text-sm font-medium" style="color: #9A8C7E;">{{ selectedDocument.surrogateId }}</p>
-              <h2 class="mt-1 text-2xl font-semibold" style="color: #3D3529;">{{ selectedDocument.docCode }}</h2>
-            </div>
-            <button
-              type="button"
-              class="rounded px-3 py-1 text-sm transition-colors"
-              style="border: 1px solid #DDD7CE; background-color: #FAF7F3; color: #6B5F50;"
-              @click="closeDetail"
-            >
-              닫기
-            </button>
-          </div>
-
-          <div class="px-6 py-5">
-            <div class="flex flex-wrap gap-2">
-              <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :style="docTypeBadgeStyle(selectedDocument.docTypeTone)">
-                {{ selectedDocument.docTypeLabel }}
-              </span>
-              <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :style="statusBadgeStyle(selectedDocument.statusTone)">
-                {{ selectedDocument.statusLabel }}
-              </span>
-            </div>
-
-            <div class="mt-5 grid gap-4 rounded-lg border p-5 md:grid-cols-2" style="background-color: #FAF7F3; border-color: #DDD7CE;">
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: #9A8C7E;">문서 번호</p>
-                <p class="text-sm" style="color: #3D3529;">{{ selectedDocument.docId }}</p>
-              </div>
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: #9A8C7E;">생성일</p>
-                <p class="text-sm" style="color: #3D3529;">{{ selectedDocument.createdAtLabel }}</p>
-              </div>
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: #9A8C7E;">거래처</p>
-                <p class="text-sm" style="color: #3D3529;">{{ selectedDocument.clientName }}</p>
-              </div>
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: #9A8C7E;">담당자</p>
-                <p class="text-sm" style="color: #3D3529;">{{ selectedDocument.ownerEmployeeName }}</p>
-              </div>
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: #9A8C7E;">금액</p>
-                <p class="text-sm font-semibold" style="color: #3D3529;">{{ selectedDocument.amountLabel }}</p>
-              </div>
-              <div class="space-y-1">
-                <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: #9A8C7E;">만료일</p>
-                <p class="text-sm" style="color: #3D3529;">{{ selectedDocument.expiredDateLabel }}</p>
-              </div>
-            </div>
-
-            <div class="mt-5 rounded-lg border p-4" style="background-color: #FAF7F3; border-color: #DDD7CE;">
-              <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: #9A8C7E;">API 연결 메모</p>
-              <p class="mt-2 text-sm leading-6" style="color: #6B5F50;">
-                현재 화면은 API를 먼저 호출하고, 실패하거나 데이터가 없으면 더미데이터로 fallback 됩니다.
-              </p>
-            </div>
-          </div>
-        </article>
-      </div>
+      <HistoryModal
+          v-model="isHistoryModalOpen"
+          :title="selectedDocument?.docCode || '문서 상세'"
+          :doc-id="String(selectedDocument?.docId || '')"
+          :doc-type="selectedDocument?.docTypeLabel || selectedDocument?.docType || ''"
+      />
     </section>
-  </div>
 </template>
 
 <style scoped>

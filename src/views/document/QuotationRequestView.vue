@@ -3,7 +3,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
-import { ROLES } from '@/utils/constants'
+import { ROLES, PRODUCT_CATEGORY } from '@/utils/constants'
 
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -29,6 +29,14 @@ const clickOutsideHandler = (e) => {
 
 onMounted(() => {
   window.addEventListener('click', clickOutsideHandler)
+
+  // 💡 상품 및 거래처 목록 미리 로드
+  if (documentStore.productMaster.length === 0) {
+    void documentStore.fetchProductMaster('estimate')
+  }
+  if (documentStore.clientMaster.length === 0) {
+    documentStore.fetchClientMaster()
+  }
 })
 
 onUnmounted(() => {
@@ -42,16 +50,17 @@ const todayText = computed(() => {
 
 // --- [로직] ---
 
-// 품종 옵션 추출
 const varietyOptions = computed(() => {
   const varieties = documentStore.productMaster?.map(p => p.category) || []
-  return ['전체', ...new Set(varieties.filter(v => v))]
+  const uniqueVars = [...new Set(varieties.filter(v => v))]
+  return ['전체', ...uniqueVars.map(v => PRODUCT_CATEGORY[v] || v)]
 })
 
 // 모달 내 상품 필터링
 const filteredProducts = computed(() => {
   return documentStore.productMaster?.filter(p => {
-    const matchVariety = varietyFilter.value === '전체' || p.category === varietyFilter.value
+    const pVar = PRODUCT_CATEGORY[p.category] || p.category
+    const matchVariety = varietyFilter.value === '전체' || pVar === varietyFilter.value
     const matchKeyword = p.name.toLowerCase().includes(modalSearchInput.value.toLowerCase())
     return matchVariety && matchKeyword
   }) || []
@@ -69,8 +78,8 @@ const addProduct = (product) => {
     selectedItems.value.push({
       uid: Date.now() + product.id,
       productId: product.id,
-      productCategory: product.category,
-      variety: product.variety || product.category,
+      productCategory: PRODUCT_CATEGORY[product.category] || product.category,
+      variety: PRODUCT_CATEGORY[product.variety || product.category] || (product.variety || product.category),
       name: product.name,
       unit: product.unit,
       unitPrice: product.unitPrice || 0,
@@ -316,7 +325,7 @@ const submit = () => {
                 </thead>
                 <tbody>
                 <tr v-for="p in filteredProducts" :key="p.id" class="border-b transition-colors hover-row" style="border-color: #E8E3D8; color: #6B5F50 !important;">
-                  <td class="p-3 text-xs font-bold" style="color: #9A8C7E !important; border-color: #E8E3D8;">{{ p.variety }}</td>
+                  <td class="p-3 text-xs font-bold" style="color: #9A8C7E !important; border-color: #E8E3D8;">{{ PRODUCT_CATEGORY[p.variety || p.category] || (p.variety || p.category) }}</td>
                   <td class="p-3 font-bold text-left" style="color: #3D3529 !important; border-color: #E8E3D8;">{{ p.name }}</td>
                   <td class="p-3 font-bold" style="color: #6B5F50 !important; border-color: #E8E3D8;">{{ p.unit }}</td>
                   <td class="p-3" style="border-color: #E8E3D8;">

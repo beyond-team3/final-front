@@ -1,11 +1,13 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
-// axios 제거 (Store를 통해 통신)
+import { PRODUCT_CATEGORY } from '@/utils/constants'
+
+const route = useRoute()
 const router = useRouter()
 const documentStore = useDocumentStore()
 const productStore = useProductStore()
@@ -15,18 +17,21 @@ const authStore = useAuthStore()
 // --- [상태 관리] ---
 const isProcessStarted = ref(false)
 const isNewMode = ref(false)
-const showStartModal = ref(true) // 처음부터 모달을 띄워서 사용자 경험을 개선
+const isViewMode = ref(false) // 상세 조회 모드 여부
+const showStartModal = ref(true) 
 const showCorpModal = ref(false)
 const showProductModal = ref(false)
 const isVarietyDropdownOpen = ref(false)
 const varietyDropdownRef = ref(null)
 
 // 원본 데이터 추적
+const quotationId = ref(null)
 const sourceRequestId = ref(null)
 const sourceHistoryId = ref(null)
 const selectedClientId = ref(null)
 
 // 폼 데이터
+const quotationCode = ref('')
 const inCorpCode = ref('')
 const inCorp = ref('')
 const inName = ref('')
@@ -36,6 +41,8 @@ const selectedItems = ref([])
 const modalSearchInput = ref('')
 const clientSearchInput = ref('')
 const varietyFilter = ref('전체')
+const createdAt = ref('')
+const status = ref('')
 
 const handleClickOutside = (event) => {
   if (varietyDropdownRef.value && !varietyDropdownRef.value.contains(event.target)) {
@@ -43,22 +50,55 @@ const handleClickOutside = (event) => {
   }
 }
 
+// 상세 조회 데이터 로드
+const loadQuotationDetail = async (id) => {
+  const data = await documentStore.fetchQuotationDetail(id)
+  if (!data) {
+    window.alert('견적서 정보를 불러오지 못했습니다.')
+    router.push('/documents/all')
+    return
+  }
+
+  isViewMode.value = true
+  isProcessStarted.value = true
+  showStartModal.value = false
+  quotationId.value = data.id
+  quotationCode.value = data.quotationCode || data.displayCode
+  selectedClientId.value = data.clientId
+  inCorpCode.value = data.client?.code || data.clientId || ''
+  inCorp.value = data.client?.name || data.clientName || ''
+  inName.value = data.client?.contact || data.authorName || ''
+  internalMemo.value = data.memo || ''
+  createdAt.value = data.createdAt
+  status.value = data.status
+
+  selectedItems.value = (data.items || []).map(i => ({
+    uid: Math.random(),
+    productId: i.productId,
+    variety: PRODUCT_CATEGORY[i.variety || i.productCategory] || (i.variety || i.productCategory || '-'),
+    name: i.name || i.productName,
+    count: i.quantity,
+    unit: i.unit,
+    price: i.unitPrice || i.price || 0
+  }))
+}
+
 onMounted(async () => {
   window.addEventListener('click', handleClickOutside)
   try {
-    // 백그라운드에서 데이터 로딩
+    // 마스터 데이터 로딩
     if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2()
-
-    // ⭐ 대기 중(PENDING)인 견적요청서 목록 서버에서 받아오기
-    if (documentStore.fetchPendingQuotationRequests) {
-      await documentStore.fetchPendingQuotationRequests()
-    }
-
+    if (documentStore.fetchPendingQuotationRequests) await documentStore.fetchPendingQuotationRequests()
     if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
-    else if (documentStore.fetchClients) await documentStore.fetchClients()
-
     if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
     if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
+
+    // URL 쿼리에 id가 있는지 확인 (상세 조회 모드)
+    const id = route.query.id
+    if (id) {
+      await loadQuotationDetail(id)
+      return
+    }
   } catch (e) {
     console.error("데이터 로딩 실패:", e)
   }
@@ -67,8 +107,6 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('click', handleClickOutside)
 })
-
-// --- [핵심 로직] ---
 
 const handleCloseModal = () => {
   showStartModal.value = false
@@ -84,8 +122,6 @@ const startFromRequest = async (reqSummary) => {
   }
 
   isProcessStarted.value = true
-
-  // 모달을 유지한 채 로딩 처리 (필요시)
   const req = await documentStore.fetchQuotationRequestDetail(reqSummary.id)
   if (!req) {
     window.alert('견적 요청서 상세 정보를 불러오지 못했습니다.')
@@ -99,7 +135,6 @@ const startFromRequest = async (reqSummary) => {
   sourceRequestId.value = req.id
   sourceHistoryId.value = req.historyId || null
 
-  // 서버에서 받은 데이터를 기반으로 세팅
   selectedClientId.value = req.clientId
   inCorpCode.value = req.clientCode || req.clientId || ''
   inCorp.value = req.clientName || ''
@@ -108,19 +143,16 @@ const startFromRequest = async (reqSummary) => {
   customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
 
   selectedItems.value = (req.items || []).map(i => {
-    // 상품 마스터는 variety 정보를 가져오기 위해 참조
     const masterProduct = documentStore.productMaster?.find(p =>
         (i.productId && Number(p.id) === Number(i.productId)) ||
         (p.name === (i.productName || i.name))
     )
-
-    // 단가 결정 로직: 서버(Response)에서 내려준 단가 -> 마스터 단가 -> 0
     const finalPrice = i.unitPrice || masterProduct?.unitPrice || masterProduct?.price || 0
 
     return {
       uid: Date.now() + Math.random(),
       productId: i.productId || masterProduct?.id,
-      variety: masterProduct?.variety || masterProduct?.category || i.productCategory || '일반',
+      variety: PRODUCT_CATEGORY[masterProduct?.variety || masterProduct?.category || i.productCategory] || (masterProduct?.variety || masterProduct?.category || i.productCategory || '일반'),
       name: i.productName || i.name,
       count: i.quantity || 1,
       unit: i.unit || masterProduct?.unit || '립',
@@ -160,7 +192,7 @@ const addProduct = (p) => {
     selectedItems.value.push({
       uid: Date.now() + Math.random(),
       productId: p.id,
-      variety: p.variety || p.category || '-',
+      variety: PRODUCT_CATEGORY[p.variety || p.category] || (p.variety || p.category || '-'),
       name: p.name,
       count: 1,
       unit: p.unit || (p.unit?.includes('kg') ? 'kg' : '립'),
@@ -171,6 +203,7 @@ const addProduct = (p) => {
 }
 
 const updateItem = (item, field, val) => {
+  if (isViewMode.value) return
   let num = parseInt(val)
   if (field === 'count' && (isNaN(num) || num < 1)) num = 1
   if (field === 'price' && (isNaN(num) || num < 0)) num = 0
@@ -178,6 +211,7 @@ const updateItem = (item, field, val) => {
 }
 
 const removeItem = (uid) => {
+  if (isViewMode.value) return
   selectedItems.value = selectedItems.value.filter(i => i.uid !== uid)
 }
 
@@ -188,7 +222,8 @@ const totalSum = computed(() =>
 
 const varietyOptions = computed(() => {
   const varieties = documentStore.productMaster?.map(p => p.variety || p.category) || []
-  return ['전체', ...new Set(varieties.filter(v => v))]
+  const uniqueVars = [...new Set(varieties.filter(v => v))]
+  return ['전체', ...uniqueVars.map(v => PRODUCT_CATEGORY[v] || v)]
 })
 
 const filteredClients = computed(() => {
@@ -201,20 +236,26 @@ const filteredClients = computed(() => {
 
 const filteredProducts = computed(() => {
   return documentStore.productMaster?.filter(p => {
-    const matchVariety = varietyFilter.value === '전체' || (p.variety || p.category) === varietyFilter.value
+    const pVar = PRODUCT_CATEGORY[p.variety || p.category] || (p.variety || p.category)
+    const matchVariety = varietyFilter.value === '전체' || pVar === varietyFilter.value
     const matchKeyword = p.name.toLowerCase().includes(modalSearchInput.value.toLowerCase())
     return matchVariety && matchKeyword
   }) || []
 })
 
 const validityDate = computed(() => {
-  const today = new Date()
-  today.setDate(today.getDate() + 30)
-  return today.toISOString().split('T')[0]
+  const baseDate = (isViewMode.value && createdAt.value) ? new Date(createdAt.value) : new Date()
+  baseDate.setDate(baseDate.getDate() + 30)
+  return baseDate.toISOString().split('T')[0]
 })
 
-// --- [저장 핵심 로직] ---
+const displayDate = computed(() => {
+  const d = (isViewMode.value && createdAt.value) ? new Date(createdAt.value) : new Date()
+  return `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`
+})
+
 const submitDoc = async () => {
+  if (isViewMode.value) return
   if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
   if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
 
@@ -239,7 +280,6 @@ const submitDoc = async () => {
     }
 
     const result = await documentStore.createQuotation(payload)
-
     if (result) {
       window.alert(`견적서 발행 완료`);
       router.push('/documents/all');
@@ -255,13 +295,13 @@ const submitDoc = async () => {
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 작성</span></p>
+        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
         <button
             v-if="isProcessStarted"
             type="button"
             class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
             style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
-            @click="router.push('/documents/create')"
+            @click="isViewMode ? router.back() : router.push('/documents/create')"
         >
           뒤로가기
         </button>
@@ -272,13 +312,16 @@ const submitDoc = async () => {
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-base font-bold" style="color: #3D3529;">거래처 정보</h3>
               <button
-                  v-if="isNewMode"
+                  v-if="isNewMode && !isViewMode"
                   class="text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors hover:opacity-90"
                   style="background-color: #C8622A !important;"
                   @click="showCorpModal = true"
               >
                 거래처 선택
               </button>
+              <div v-if="isViewMode && status" class="px-3 py-1 rounded text-xs font-bold bg-[#7A8C42] text-white">
+                {{ status }}
+              </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <input v-model="inCorpCode" readonly class="p-2 border rounded text-sm font-semibold outline-none" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="거래처 코드">
@@ -289,8 +332,9 @@ const submitDoc = async () => {
 
           <div class="card border p-5 rounded-lg shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-base font-bold" style="color: #3D3529;">작성 품목</h3>
+              <h3 class="text-base font-bold" style="color: #3D3529;">{{ isViewMode ? '견적 품목' : '작성 품목' }}</h3>
               <button
+                  v-if="!isViewMode"
                   class="text-white px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors hover:opacity-90"
                   style="background-color: #C8622A !important;"
                   @click="showProductModal = true"
@@ -307,7 +351,7 @@ const submitDoc = async () => {
                   <th class="p-3 w-[15%] text-center">수량</th>
                   <th class="p-3 w-[15%] text-center">단위</th>
                   <th class="p-3 w-[20%] text-right">단가</th>
-                  <th class="p-3 w-[10%] text-center">작업</th>
+                  <th v-if="!isViewMode" class="p-3 w-[10%] text-center">작업</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -315,15 +359,18 @@ const submitDoc = async () => {
                   <td class="p-3 text-xs text-left" style="color: #6B5F50;">{{ item.variety }}</td>
                   <td class="p-3 font-bold text-left" style="color: #3D3529;">{{ item.name }}</td>
                   <td class="p-3 text-center">
-                    <input type="number" min="1" class="w-full rounded text-center p-1 font-bold outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.count" @input="updateItem(item, 'count', $event.target.value)">
+                    <input v-if="!isViewMode" type="number" min="1" class="w-full rounded text-center p-1 font-bold outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.count" @input="updateItem(item, 'count', $event.target.value)">
+                    <span v-else>{{ item.count }}</span>
                   </td>
                   <td class="p-3 text-center">
-                    <input type="text" class="w-full rounded p-1 text-xs text-center outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" v-model="item.unit">
+                    <input v-if="!isViewMode" type="text" class="w-full rounded p-1 text-xs text-center outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" v-model="item.unit">
+                    <span v-else>{{ item.unit }}</span>
                   </td>
                   <td class="p-3 text-right">
-                    <input type="number" min="0" class="w-full rounded text-right p-1 font-mono outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.price" @input="updateItem(item, 'price', $event.target.value)">
+                    <input v-if="!isViewMode" type="number" min="0" class="w-full rounded text-right p-1 font-mono outline-none border focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.price" @input="updateItem(item, 'price', $event.target.value)">
+                    <span v-else class="font-mono">{{ item.price.toLocaleString() }}</span>
                   </td>
-                  <td class="p-3 text-center">
+                  <td v-if="!isViewMode" class="p-3 text-center">
                     <button
                         class="inline-flex items-center justify-center rounded-lg p-2 text-white transition-all hover:bg-[#A64D4D] active:scale-95 shadow-sm"
                         style="background-color: #B85C5C;"
@@ -355,10 +402,11 @@ const submitDoc = async () => {
 
           <article class="rounded-lg border p-5 shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
             <h3 class="text-lg font-bold" style="color: #3D3529;">내부 비고</h3>
-            <textarea v-model="internalMemo" rows="3" class="w-full p-2 border border-l-4 rounded text-sm mt-3 resize-none outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; border-left-color: #C8622A; color: #3D3529;" placeholder="내부 관리용 메모"></textarea>
+            <textarea v-model="internalMemo" :readonly="isViewMode" rows="3" class="w-full p-2 border border-l-4 rounded text-sm mt-3 resize-none outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isViewMode ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', borderLeftColor: '#C8622A', color: '#3D3529' }" placeholder="내부 관리용 메모"></textarea>
           </article>
 
           <button
+              v-if="!isViewMode"
               class="w-full text-white py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:opacity-90"
               style="background-color: #7A8C42 !important;"
               @click="submitDoc"
@@ -372,6 +420,7 @@ const submitDoc = async () => {
             <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black" style="font-family: 'KoPub Dotum', sans-serif !important;">
               <div class="text-center border-b-2 border-black pb-3 mb-5">
                 <h1 class="text-2xl font-bold tracking-widest" style="font-family: 'KoPub Dotum', sans-serif !important;">견 적 서</h1>
+                <p v-if="quotationCode" class="text-[10px] mt-1 text-right">No. {{ quotationCode }}</p>
               </div>
               <div class="flex justify-between items-start mb-6 text-[12px]">
                 <div class="space-y-1">
@@ -400,7 +449,7 @@ const submitDoc = async () => {
                 </tfoot>
               </table>
               <div class="absolute bottom-10 left-0 right-0 text-center space-y-4">
-                <p>2026년 02월 19일</p>
+                <p>{{ displayDate }}</p>
                 <p class="text-sm font-bold tracking-widest border-t-2 border-slate-100 pt-4 mx-10">위와 같이 견적함 ( (주) 몬순 )</p>
               </div>
             </div>
@@ -544,7 +593,7 @@ const submitDoc = async () => {
                 </thead>
                 <tbody>
                 <tr v-for="p in filteredProducts" :key="p.id" class="border-b transition-colors hover-row" style="border-color: #E8E3D8; color: #6B5F50 !important;">
-                  <td class="p-3 text-xs font-bold" style="color: #9A8C7E !important; border-color: #E8E3D8;">{{ p.variety || p.category }}</td>
+                  <td class="p-3 text-xs font-bold" style="color: #9A8C7E !important; border-color: #E8E3D8;">{{ PRODUCT_CATEGORY[p.variety || p.category] || (p.variety || p.category) }}</td>
                   <td class="p-3 font-bold text-left" style="color: #3D3529 !important; border-color: #E8E3D8;">{{ p.name }}</td>
                   <td class="p-3 font-bold" style="color: #6B5F50 !important; border-color: #E8E3D8;">{{ p.unit }}</td>
                   <td class="p-3 text-right font-mono" style="color: #7A8C42 !important; border-color: #E8E3D8;">{{ (p.price || p.unitPrice || 0).toLocaleString() }}원</td>
