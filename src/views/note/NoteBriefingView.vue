@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useNoteStore } from '@/stores/note'
+import seedLogo from '@/assets/images/Seed_logo.png'
 
 const noteStore = useNoteStore()
 const route = useRoute()
@@ -45,7 +46,9 @@ const loadBriefing = async () => {
   try {
     const result = await noteStore.fetchBriefingByClient(currentId)
     if (currentId !== selectedClientId.value) return
-    if (result) {
+
+    // 수정 포인트: result가 있어도 핵심 전략 제안이 없으면 EMPTY로 취급
+    if (result && result.strategySuggestion && result.strategySuggestion.trim() !== "") {
       briefing.value = result
       status.value = 'SUCCESS'
     } else {
@@ -156,20 +159,26 @@ const goToWriteNote = () => {
     <div id="brief-view-container" @click="handleInteraction" @mouseover="handleInteraction" @mouseout="handleInteraction">
       <!-- IDLE / LOADING / ERROR -->
       <div v-if="status === 'IDLE'" class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm">
-        <div class="mb-6 flex h-20 w-20 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)] text-[var(--color-text-placeholder)]">
-          <i class="fas fa-address-card text-4xl"></i>
+        <div class="mb-6 flex h-24 w-24 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)]">
+          <img :src="seedLogo" alt="Seed Logo" class="w-14 h-14 object-contain opacity-50" />
         </div>
         <h3 class="text-xl font-bold text-[var(--color-text-strong)] mb-2">분석 대기 중</h3>
         <p class="text-[var(--color-text-sub)]">상단에서 고객사를 선택하여 리포트를 확인하세요.</p>
       </div>
 
-      <div v-else-if="status === 'EMPTY'" class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm">
-        <div class="mb-6 flex h-20 w-20 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)] text-[var(--color-text-placeholder)]">
-          <i class="fas fa-hourglass-half text-4xl"></i>
+      <div v-else-if="status === 'EMPTY'" class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm animate-in fade-in duration-500">
+        <div class="mb-6 flex h-24 w-24 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)]">
+          <img :src="seedLogo" alt="Seed Logo" class="w-16 h-16 object-contain grayscale opacity-60" />
         </div>
-        <h4 class="font-bold text-[var(--color-text-strong)] mb-2">분석 데이터 부족</h4>
-        <p class="text-[var(--color-text-sub)] mb-6">해당 고객에 대해 AI가 분석할 수 있는 영업 기록이 충분하지 않습니다.</p>
-        <button @click="goToWriteNote" class="px-6 py-3 bg-[var(--color-olive)] text-white rounded-xl font-bold shadow-md hover:bg-[var(--color-olive-dark)] transition-all flex items-center gap-2 mx-auto">
+        <h4 class="text-2xl font-bold text-[var(--color-text-strong)] mb-3">분석 데이터 부족</h4>
+        <p class="text-[var(--color-text-sub)] mb-8 text-lg">
+          해당 고객에 대해 AI가 분석할 수 있는 영업 기록이 충분하지 않습니다.<br>
+          최소 3개 이상의 영업 노트를 작성해 주세요.
+        </p>
+        <button 
+          @click="goToWriteNote" 
+          class="px-8 py-4 bg-[var(--color-olive)] text-white rounded-xl font-bold shadow-lg hover:bg-[var(--color-olive-dark)] transition-all flex items-center mx-auto transform hover:scale-105"
+        >
           <i class="fas fa-pen-to-square"></i> 영업 노트 작성하기
         </button>
       </div>
