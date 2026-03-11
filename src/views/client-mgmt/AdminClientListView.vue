@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import DataTable from '@/components/common/DataTable.vue'
@@ -9,6 +9,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SearchFilter from '@/components/common/SearchFilter.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import PaginationControls from '@/components/common/PaginationControls.vue'
 import { useClientStore } from '@/stores/client'
 
 const router = useRouter()
@@ -20,6 +21,9 @@ const filters = ref({
   type: '',
   region: '',
 })
+
+const currentPage = ref(1)
+const itemsPerPage = 10
 
 const regionOptions = [
   { label: '서울', value: '서울' },
@@ -82,7 +86,7 @@ const getRegion = (address) => {
   return '기타'
 }
 
-const rows = computed(() => {
+const filteredRows = computed(() => {
   return clients.value.map(client => ({
     ...client,
     region: getRegion(client.address || client.displaySido || client.region)
@@ -101,6 +105,18 @@ const rows = computed(() => {
     return matchKeyword && matchType && matchRegion
   })
 })
+
+const totalPages = computed(() => Math.ceil(filteredRows.value.length / itemsPerPage))
+
+const paginatedRows = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredRows.value.slice(start, end)
+})
+
+watch(filters, () => {
+  currentPage.value = 1
+}, { deep: true })
 
 const toCurrency = (value) => clientStore.toCurrency(value)
 
@@ -149,50 +165,58 @@ onMounted(fetchClients)
       <ErrorMessage v-else-if="error" :message="error" @retry="fetchClients" />
 
       <EmptyState
-          v-else-if="rows.length === 0"
+          v-else-if="filteredRows.length === 0"
           title="조회 가능한 거래처가 없습니다."
           description="검색 조건에 맞는 거래처가 없거나 데이터가 비어있습니다."
       />
 
-      <DataTable
-          v-else
-          :columns="columns"
-          :rows="rows"
-          row-key="id"
-          empty-text="등록된 거래처가 없습니다."
-          class="shadow-sm"
-          @row-click="openDetail"
-      >
-        <template #cell-id="{ value }">
-          <span class="font-mono text-xs font-bold text-[var(--color-olive)]">{{ value }}</span>
-        </template>
+      <div v-else class="space-y-4">
+        <DataTable
+            :columns="columns"
+            :rows="paginatedRows"
+            row-key="id"
+            empty-text="등록된 거래처가 없습니다."
+            class="shadow-sm"
+            @row-click="openDetail"
+        >
+          <template #cell-id="{ value }">
+            <span class="font-mono text-xs font-bold text-[var(--color-olive)]">{{ value }}</span>
+          </template>
 
-        <template #cell-name="{ value }">
-          <span class="font-bold text-[var(--color-text-strong)]">{{ value }}</span>
-        </template>
+          <template #cell-name="{ value }">
+            <span class="font-bold text-[var(--color-text-strong)]">{{ value }}</span>
+          </template>
 
-        <template #cell-monthlyAmount="{ value }">
-          <span class="font-semibold text-[var(--color-text-body)]">{{ toCurrency(value) }}</span>
-        </template>
+          <template #cell-monthlyAmount="{ value }">
+            <span class="font-semibold text-[var(--color-text-body)]">{{ toCurrency(value) }}</span>
+          </template>
 
-        <template #cell-status="{ row }">
-          <StatusBadge
-              :status="row.status === 'active' ? 'APPROVED' : 'REJECTED'"
-              :label="row.status === 'active' ? '사용중' : '비활성'"
+          <template #cell-status="{ row }">
+            <StatusBadge
+                :status="row.status === 'active' ? 'APPROVED' : 'REJECTED'"
+                :label="row.status === 'active' ? '사용중' : '비활성'"
+            />
+          </template>
+
+          <template #cell-actions>
+            <div class="flex justify-center">
+              <button
+                  type="button"
+                  class="rounded-full bg-[var(--color-bg-base)] px-4 py-1.5 text-xs font-bold text-[var(--color-text-body)] transition-all hover:bg-[var(--color-olive)] hover:text-white"
+              >
+                조회
+              </button>
+            </div>
+          </template>
+        </DataTable>
+
+        <div class="flex justify-center py-4">
+          <PaginationControls
+              v-model="currentPage"
+              :total-pages="totalPages"
           />
-        </template>
-
-        <template #cell-actions>
-          <div class="flex justify-center">
-            <button
-                type="button"
-                class="rounded-full bg-[var(--color-bg-base)] px-4 py-1.5 text-xs font-bold text-[var(--color-text-body)] transition-all hover:bg-[var(--color-olive)] hover:text-white"
-            >
-              조회
-            </button>
-          </div>
-        </template>
-      </DataTable>
+        </div>
+      </div>
     </div>
   </section>
 </template>
