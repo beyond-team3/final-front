@@ -77,7 +77,6 @@ const progress = computed(() => Math.round((props.deal.stageOrder / props.deal.s
             </section>
 
             <section class="mb-4 rounded-[20px] bg-[var(--color-bg-input)] p-4">
-                <div class="mb-3 text-[13px] text-[var(--color-text-sub)]">최근 문서</div>
                 <div class="space-y-3">
                     <div v-for="document in deal.summaryDocuments" :key="document.documentKey" class="flex items-center justify-between gap-3">
                         <div class="min-w-0">
