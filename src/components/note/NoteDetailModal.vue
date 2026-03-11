@@ -61,7 +61,12 @@ const renderMarkdown = (text) => {
       <div class="p-8 lg:p-10 overflow-y-auto flex-1">
         <div class="flex justify-between items-start mb-8">
           <div>
-            <span class="font-extrabold text-[var(--color-olive)] text-3xl block mb-2">{{ noteStore.getClientName(note?.clientId) }}</span>
+            <div class="mb-3 flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-md bg-[var(--color-olive)] text-[10px] font-black text-white uppercase tracking-widest shadow-sm">
+                영업 노트 #{{ note?.id }}
+              </span>
+            </div>
+            <span class="font-extrabold text-[var(--color-strong)] text-3xl block mb-2">{{ noteStore.getClientName(note?.clientId) }}</span>
             <div class="flex items-center gap-3 text-[var(--color-text-sub)]">
               <span class="font-bold flex items-center gap-2">
                 <i class="fa-regular fa-file-lines"></i>

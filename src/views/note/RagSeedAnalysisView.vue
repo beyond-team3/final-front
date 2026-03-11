@@ -171,7 +171,7 @@ onMounted(async () => {
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
     <!-- Header & Filter Bar -->
-    <div class="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <div class="mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between">
       <PageHeader 
         title="RAGseed 전략 분석" 
         subtitle="영업 데이터(Seed)에서 인출한 AI 전략 리포트입니다." 
@@ -323,7 +323,7 @@ onMounted(async () => {
                 v-for="id in analysisResult.evidenceIds" 
                 :key="id"
                 @click="handleEvidenceClick(id)"
-                class="evidence-item group flex cursor-pointer items-center gap-2 rounded-lg bg-white border border-[var(--color-border-card)] px-4 py-2 transition-all shadow-sm"
+                class="evidence-item group flex cursor-pointer items-center rounded-lg bg-white border border-[var(--color-border-card)] px-4 py-2 transition-all shadow-sm"
               >
                 <i class="fas fa-file-alt text-xs text-[var(--color-olive)] group-hover:text-white"></i>
                 <span class="text-xs font-bold text-[var(--color-text-strong)] group-hover:text-white">영업 노트 #{{ id }}</span>
