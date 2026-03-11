@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useNoteStore } from '@/stores/note'
@@ -74,7 +74,6 @@ const handleInteraction = (e) => {
   const note = noteStore.notes.find(n => n.id === id)
 
   if (e.type === 'click') {
-    // 앵커링: 클릭 시 해당 노트로 이동 및 하이라이트
     const targetId = `note-${id}`
     const el = document.getElementById(targetId)
     if (el) {
@@ -83,7 +82,6 @@ const handleInteraction = (e) => {
       setTimeout(() => el.classList.remove('highlight-note'), 2000)
     }
   } else if (e.type === 'mouseover') {
-    // 프리뷰: 마우스 오버 시 미니 팝오버 표시
     if (note) {
       hoverPreview.value = {
         show: true,
@@ -156,7 +154,7 @@ const goToWriteNote = () => {
     </div>
 
     <div id="brief-view-container" @click="handleInteraction" @mouseover="handleInteraction" @mouseout="handleInteraction">
-      <!-- IDLE / LOADING / ERROR 생략 (기존 코드 유지) -->
+      <!-- IDLE / LOADING / ERROR -->
       <div v-if="status === 'IDLE'" class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm">
         <div class="mb-6 flex h-20 w-20 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)] text-[var(--color-text-placeholder)]">
           <i class="fas fa-address-card text-4xl"></i>
@@ -172,7 +170,7 @@ const goToWriteNote = () => {
         <h4 class="font-bold text-[var(--color-text-strong)] mb-2">분석 데이터 부족</h4>
         <p class="text-[var(--color-text-sub)] mb-6">해당 고객에 대해 AI가 분석할 수 있는 영업 기록이 충분하지 않습니다.</p>
         <button @click="goToWriteNote" class="px-6 py-3 bg-[var(--color-olive)] text-white rounded-xl font-bold shadow-md hover:bg-[var(--color-olive-dark)] transition-all flex items-center gap-2 mx-auto">
-          <i class="fas fa-pen-to-square"></i>영업 노트 작성하기
+          <i class="fas fa-pen-to-square"></i> 영업 노트 작성하기
         </button>
       </div>
 
@@ -183,7 +181,7 @@ const goToWriteNote = () => {
 
       <!-- SUCCESS State -->
       <div v-else-if="status === 'SUCCESS' && briefing" class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <!-- Hero Header (Enhanced Hierarchy) -->
+        <!-- 1. Hero Header -->
         <div class="bg-gradient-to-br from-[var(--color-olive)] to-[var(--color-olive-dark)] p-10 rounded-2xl text-white shadow-lg relative overflow-hidden">
           <div class="relative z-10">
             <div class="flex items-center gap-2 mb-3">
@@ -192,75 +190,83 @@ const goToWriteNote = () => {
               <span class="text-xs text-white/70">Revision {{ briefing.revision }}</span>
             </div>
             <h3 class="text-5xl font-extrabold mb-4">{{ selectedClientName }}</h3>
-            <p class="text-white/80 font-medium text-lg mb-8">실시간 영업 데이터 자산 기반 전략 브리핑</p>
-            
-            <div class="flex flex-wrap gap-8 pt-6 border-t border-white/20">
-              <div class="flex flex-col">
-                <span class="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">참조된 데이터 자산</span>
-                <span class="text-2xl font-bold">{{ briefing.evidenceNoteIds?.length || 0 }} <small class="text-sm font-medium opacity-70">Notes</small></span>
-              </div>
-              <div class="flex flex-col border-l border-white/20 pl-8">
-                <span class="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-1">최종 분석 업데이트</span>
-                <span class="text-lg font-bold">최신 상태</span>
-              </div>
-            </div>
+            <p class="text-white/80 font-medium text-lg">영업 데이터 기반 전략 브리핑</p>
           </div>
           <i class="fas fa-brain absolute -right-4 -bottom-4 text-white/10 text-[12rem]"></i>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <!-- Left: Details -->
-          <div class="lg:col-span-3 space-y-8">
+        <!-- 2. AI Recommendation (Simple Design - Full Width) -->
+        <div class="bg-[var(--color-bg-card)] p-8 lg:p-10 rounded-2xl border border-[var(--color-border-card)] shadow-sm">
+          <h4 class="font-bold text-[var(--color-text-strong)] mb-6 text-xl flex items-center gap-3">
+            <i class="fa-solid fa-lightbulb text-[var(--color-orange)]"></i>
+            AI 추천 전략
+          </h4>
+          <div 
+            class="prose text-[var(--color-text-body)] leading-relaxed text-sm"
+            v-html="renderMarkdown(briefing.strategySuggestion || '추천 전략이 없습니다.')"
+          ></div>
+        </div>
+
+        <!-- 3. Split Layout (6:4 Ratio) -->
+        <div class="grid grid-cols-1 lg:grid-cols-10 gap-8 items-start">
+          
+          <!-- Left Column (6/10): Analysis -->
+          <div class="lg:col-span-6 space-y-8">
             <div class="bg-[var(--color-bg-card)] p-8 rounded-2xl shadow-sm border border-[var(--color-border-card)]">
-              <h4 class="font-bold text-[var(--color-text-strong)] mb-6 text-xl flex items-center">
-                <i class="fa-solid fa-arrows-to-dot w-8 text-[var(--color-olive)]"></i> 핵심 현황 및 최근 변화
+              <h4 class="font-bold text-[var(--color-text-strong)] mb-6 text-xl flex items-center gap-3">
+                <i class="fa-solid fa-arrows-to-dot text-[var(--color-olive)]"></i>
+                핵심 현황 및 최근 변화
               </h4>
               <div class="space-y-4">
-                <div v-for="(item, idx) in briefing.statusChange" :key="idx" class="flex gap-3 bg-[var(--color-bg-section)] p-4 rounded-xl border border-[var(--color-border-divider)]">
-                  <span class="text-[var(--color-olive)] mt-1">•</span>
+                <div v-for="(item, idx) in briefing.statusChange" :key="idx" class="flex gap-3 bg-[var(--color-bg-section)] p-5 rounded-xl border border-[var(--color-border-divider)]">
+                  <span class="text-[var(--color-olive)] font-bold">●</span>
                   <div class="prose text-[var(--color-text-body)] leading-relaxed text-sm flex-1" v-html="renderMarkdown(item)"></div>
                 </div>
               </div>
             </div>
 
             <div class="bg-[var(--color-bg-card)] p-8 rounded-2xl shadow-sm border border-[var(--color-border-card)]">
-              <h4 class="font-bold text-[var(--color-text-strong)] mb-6 text-xl flex items-center">
-                <i class="fa-solid fa-chart-line w-8 text-[var(--color-orange)]"></i> 장기 패턴 및 특이사항
+              <h4 class="font-bold text-[var(--color-text-strong)] mb-6 text-xl flex items-center gap-3">
+                <i class="fa-solid fa-chart-line text-[var(--color-olive)]"></i>
+                장기 패턴 및 특이사항
               </h4>
               <div class="space-y-4">
-                <div v-for="(item, idx) in briefing.longTermPattern" :key="idx" class="flex gap-3 bg-[var(--color-bg-section)] p-4 rounded-xl border border-[var(--color-border-divider)]">
-                  <span class="text-[var(--color-orange)] mt-1">•</span>
+                <div v-for="(item, idx) in briefing.longTermPattern" :key="idx" class="flex gap-3 bg-[var(--color-bg-section)] p-5 rounded-xl border border-[var(--color-border-divider)]">
+                  <span class="text-[var(--color-olive)] font-bold">●</span>
                   <div class="prose text-[var(--color-text-body)] leading-relaxed text-sm flex-1" v-html="renderMarkdown(item)"></div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Right: Strategy & Anchor Targets -->
-          <div class="lg:col-span-2 space-y-8">
-            <div class="bg-[var(--color-orange-light)]/30 border-[var(--color-orange-light)] border p-8 rounded-2xl shadow-sm">
-              <h4 class="font-bold text-[var(--color-orange-dark)] mb-6 text-xl flex items-center">
-                <i class="fa-solid fa-lightbulb w-8"></i>
-                AI 추천 전략
+          <!-- Right Column (4/10): Evidence -->
+          <div class="lg:col-span-4 sticky top-8">
+            <div class="bg-[var(--color-bg-card)] p-8 rounded-2xl shadow-sm border border-[var(--color-border-card)] max-h-[calc(100vh-100px)] overflow-y-auto">
+              <h4 class="font-bold text-[var(--color-text-strong)] mb-8 text-lg flex items-center gap-3">
+                <i class="fa-solid fa-clock-rotate-left text-[var(--color-text-sub)]"></i>
+                분석 근거 데이터
               </h4>
-              <div 
-                class="prose text-[var(--color-text-strong)] font-medium text-sm leading-relaxed bg-white/50 p-5 rounded-xl border border-[var(--color-orange-light)]"
-                v-html="renderMarkdown(briefing.strategySuggestion || '추천 전략이 없습니다.')"
-              ></div>
-            </div>
-
-            <div class="bg-[var(--color-bg-card)] p-8 rounded-2xl shadow-sm border border-[var(--color-border-card)]">
-              <h4 class="font-bold text-[var(--color-text-strong)] mb-6 text-lg flex items-center gap-2">
-                <i class="fa-solid fa-clock-rotate-left text-[var(--color-text-sub)]"></i> 최근 반영된 노트
-              </h4>
-              <div class="space-y-4">
-                <div v-for="note in recentNotes" :key="note.id" :id="`note-${note.id}`" class="recent-note-item border-l-4 pl-4 border-[var(--color-border-divider)] hover:border-[var(--color-olive)] transition-all py-3">
-                  <p class="text-[var(--text-caption)] text-[var(--color-text-placeholder)] font-black mb-1">#{{ note.id }} · {{ note.activityDate }}</p>
-                  <div class="prose text-[var(--color-text-body)] font-medium text-sm line-clamp-3 leading-relaxed" v-html="renderMarkdown(note.aiSummary?.[0] || '요약 내용 없음')"></div>
+              <div class="space-y-6">
+                <div 
+                  v-for="note in recentNotes" 
+                  :key="note.id" 
+                  :id="`note-${note.id}`"
+                  class="recent-note-item bg-[var(--color-bg-section)] border-l-4 p-5 rounded-r-xl border-[var(--color-border-divider)] hover:border-[var(--color-olive)] transition-all"
+                >
+                  <div class="flex justify-between items-center mb-3">
+                    <span class="text-[10px] font-black text-[var(--color-text-placeholder)] uppercase">영업 노트 #{{ note.id }}</span>
+                    <span class="text-xs font-bold text-[var(--color-text-sub)] opacity-70">{{ note.activityDate }}</span>
+                  </div>
+                  <div 
+                    class="prose text-[var(--color-text-body)] font-medium text-xs line-clamp-5 leading-relaxed"
+                    v-html="renderMarkdown(note.aiSummary?.[0] || '요약 내용 없음')"
+                  ></div>
                 </div>
+                <p v-if="!recentNotes.length" class="text-center py-10 text-[var(--color-text-placeholder)] italic text-sm">최근 분석에 반영된 노트가 없습니다.</p>
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
@@ -270,7 +276,7 @@ const goToWriteNote = () => {
 <style scoped>
 .prose :deep(strong) {
   color: var(--color-olive-dark);
-  background: linear-gradient(120deg, rgba(171, 200, 186, 0.2) 0%, rgba(171, 200, 186, 0.2) 100%);
+  background: linear-gradient(120deg, rgba(171, 200, 186, 0.1) 0%, rgba(171, 200, 186, 0.1) 100%);
   padding: 0 4px;
   border-radius: 4px;
 }
@@ -279,7 +285,7 @@ const goToWriteNote = () => {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  background: var(--color-bg-base);
+  background: white;
   border: 1px solid var(--color-border-card);
   border-radius: 12px;
   font-size: 11px;
@@ -294,13 +300,11 @@ const goToWriteNote = () => {
 .prose :deep(.evidence-chip:hover) {
   background: var(--color-olive);
   color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.recent-note-item { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+.recent-note-item { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 .highlight-note {
-  background-color: rgba(171, 200, 186, 0.15);
+  background-color: rgba(171, 200, 186, 0.2) !important;
   border-left-color: var(--color-olive) !important;
   transform: translateX(4px);
 }
@@ -308,4 +312,7 @@ const goToWriteNote = () => {
 .prose :deep(p) { margin-bottom: 0.75rem; }
 .prose :deep(br) { content: ""; display: block; margin-top: 0.5rem; }
 .prose :deep(li) { margin-bottom: 0.5rem; }
+
+.overflow-y-auto::-webkit-scrollbar { width: 4px; }
+.overflow-y-auto::-webkit-scrollbar-thumb { background: var(--color-border-divider); border-radius: 10px; }
 </style>
