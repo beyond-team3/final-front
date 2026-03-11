@@ -23,6 +23,8 @@
   "/api/products/:id/similarity": "/products",
   "/api/documents": "/documents",
   "/api/documents/:id": "/documents/:id",
+  "/api/contracts": "/contracts",
+  "/api/contracts/:id": "/contracts/:id",
   "/api/history": "/history",
   "/api/history/:id/documents": "/history/:id",
   "/api/history/sales": "/history",
