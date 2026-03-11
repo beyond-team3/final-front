@@ -15,6 +15,8 @@ import {
     getInvoice,
     getInvoice as getInvoiceApi,
     getOrder as getOrderApi,
+    getQuotation as getQuotationApi,
+    getContract as getContractApi,
     createQuotation as createQuotationApi,
     createQuotationRequest as createQuotationRequestApi,
     updateDocumentStatus as updateDocumentStatusApi,
@@ -23,6 +25,8 @@ import {
     deleteQuotation as deleteQuotationApi,
     deleteContract as deleteContractApi,
     getQuotationRequest as getQuotationRequestApi,
+    getPendingQuotationRequests as getPendingQuotationRequestsApi,
+    getApprovedQuotations as getApprovedQuotationsApi,
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts, getProductsForContract, getProductsForQuotationRequest } from '@/api/product'
@@ -84,30 +88,64 @@ const normalizeClient = (doc = {}) => {
 const normalizeDocument = (doc = {}) => {
     if (!doc) return null
 
+    // 💡 백엔드 필드(docType, docId) -> 프론트엔드 표준 필드(type, id) 매핑 및 정규화
+    let type = String(doc.type || doc.docType || '').trim().toLowerCase()
+    const id = doc.id || doc.docId || null
+
+    // 타입 코드 정규화 (backend RFQ -> front quotation-request 등)
+    if (['rfq', 'quotation-request', 'quotationrequest'].includes(type) || String(doc.docCode || '').startsWith('RFQ')) {
+        type = 'quotation-request'
+    } else if (['quo', 'quotation'].includes(type) || String(doc.docCode || '').startsWith('QUO')) {
+        type = 'quotation'
+    } else if (['cnt', 'contract'].includes(type) || String(doc.docCode || '').startsWith('CNT')) {
+        type = 'contract'
+    } else if (['ord', 'order'].includes(type) || String(doc.docCode || '').startsWith('ORD')) {
+        type = 'order'
+    } else if (['stmt', 'statement'].includes(type) || String(doc.docCode || '').startsWith('STMT')) {
+        type = 'statement'
+    } else if (['inv', 'invoice'].includes(type) || String(doc.docCode || '').startsWith('INV')) {
+        type = 'invoice'
+    }
+
     // 품목(items) 표준화: productName -> name, productCategory -> variety 등
     const items = (Array.isArray(doc.items) ? doc.items : []).map(item => ({
         ...item,
         name: item.productName || item.name || '',
         variety: item.productCategory || item.variety || '',
-        quantity: item.quantity ?? item.count ?? 0,
+        quantity: item.totalQuantity ?? item.quantity ?? item.count ?? 0,
         unit: item.unit || '',
         unitPrice: Number(item.unitPrice ?? item.price ?? 0),
-        amount: Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0)))
+        amount: Number(item.amount ?? ((item.totalQuantity ?? item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0)))
     }))
 
     // 전체 금액 계산 (필드 없을 시 합산)
     const totalAmount = Number(doc.totalAmount ?? doc.amount ?? items.reduce((sum, i) => sum + i.amount, 0))
 
+    // 청구 주기 정규화 (백엔드 Enum -> 프론트 단어)
+    let billingCycle = doc.billingCycle || ''
+    if (billingCycle === 'MONTHLY') billingCycle = '월'
+    else if (billingCycle === 'QUARTERLY') billingCycle = '분기'
+    else if (billingCycle === 'HALF_YEARLY') billingCycle = '반기'
+
     return {
         ...doc,
-        // 표시용 코드 (최우선: displayCode, 차선: 각 문서별 코드 필드들)
-        displayCode: doc.displayCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || String(doc.id || ''),
+        id,
+        type,
+        billingCycle,
+        // 표시용 코드
+        displayCode: doc.displayCode || doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || String(id || ''),
         client: normalizeClient(doc),
         items,
         totalAmount,
-        // 견적요청서의 요구사항을 memo 필드로 통합 매핑 (UI 표시용)
-        memo: doc.requirements || doc.memo || '',
-        authorName: doc.authorName || doc.writerName || doc.clientName || doc.managerName || '',
+        // 요구사항과 비고를 명확히 분리
+        requirements: doc.requirements || doc.memo || '',
+        memo: (type === 'quotation-request') ? '' : (doc.memo || ''),
+        // 작성자 고유 ID (본인 확인용) - 더 많은 필드 시도
+        authorId: doc.authorId || doc.writerId || doc.userId || doc.clientId || doc.salesRepId || doc.client?.id || null,
+        // 원본 필드 보존
+        salesRepName: doc.salesRepName || '',
+        managerName: doc.managerName || doc.client?.managerName || doc.client?.contact || '',
+        authorName: doc.authorName || doc.writerName || doc.client?.managerName || '',
         createdAt: doc.createdAt || doc.date || (doc.createdAt ? doc.createdAt : new Date().toISOString().slice(0, 10)),
         historyId: doc.historyId || doc.pipelineId || doc.dealId || null,
         statusHistory: Array.isArray(doc.statusHistory) ? doc.statusHistory : [],
@@ -418,22 +456,53 @@ export const useDocumentStore = defineStore('document', () => {
     }
 
     async function fetchQuotationDetail(id) {
-        const detail = await fetchDocumentDetail(id)
-        if (!detail) return null
-        return normalizeDocument({ ...detail, type: 'quotation' })
+        loading.value = true
+        try {
+            const response = await getQuotationApi(id)
+            const detail = unwrapData(response)
+            if (!detail) return null
+            return normalizeDocument({ ...detail, type: 'quotation' })
+        } catch (e) {
+            error.value = getErrorMessage(e, '견적서 상세 정보를 불러오지 못했습니다.')
+            return null
+        } finally {
+            loading.value = false
+        }
     }
 
     async function fetchApprovedQuotations() {
-        const docs = await fetchDocumentsV2()
-        return docs.filter((doc) =>
-            matchesDocumentType(doc, ['quotation']) && ['FINAL_APPROVED', 'APPROVED'].includes(String(doc.status || '').toUpperCase())
-        )
+        try {
+            const response = await getApprovedQuotationsApi()
+            const data = normalizeList(response)
+            const normalized = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation'
+            }))
+            // allRawDocuments에도 병합하여 다른 곳에서 참조 가능하게 함
+            allRawDocuments.value = [
+                ...allRawDocuments.value.filter(d => !normalized.some(n => n.id === d.id)),
+                ...normalized
+            ]
+            return normalized
+        } catch (e) {
+            console.error('승인된 견적서 로드 실패:', e)
+            return []
+        }
     }
 
     async function fetchContractDetail(id) {
-        const detail = await fetchDocumentDetail(id)
-        if (!detail) return null
-        return normalizeDocument({ ...detail, type: 'contract' })
+        loading.value = true
+        try {
+            const response = await getContractApi(id)
+            const detail = unwrapData(response)
+            if (!detail) return null
+            return normalizeDocument({ ...detail, type: 'contract' })
+        } catch (e) {
+            error.value = getErrorMessage(e, '계약서 상세 정보를 불러오지 못했습니다.')
+            return null
+        } finally {
+            loading.value = false
+        }
     }
 
     async function fetchQuotationRequestDetail(id) {
@@ -464,12 +533,19 @@ export const useDocumentStore = defineStore('document', () => {
     }
 
     async function fetchPendingQuotationRequests() {
-        const docs = await fetchDocumentsV2()
-        const normalizedList = docs.filter((doc) =>
-            matchesDocumentType(doc, ['quotation-request', 'rfq']) && ['PENDING', 'REQUESTED', 'WAITING'].includes(String(doc.status || '').toUpperCase())
-        )
-        pendingQuotationRequests.value = normalizedList
-        return normalizedList
+        try {
+            const response = await getPendingQuotationRequestsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation-request'
+            }))
+            pendingQuotationRequests.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('대기 중인 견적 요청 로드 실패:', e)
+            return []
+        }
     }
 
     async function fetchStatements() {
