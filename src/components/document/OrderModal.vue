@@ -80,7 +80,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
               <tr class="text-left">
                 <th class="px-4 py-2.5">계약 번호</th>
                 <th class="px-4 py-2.5">계약 기간</th>
-                <th class="px-4 py-2.5">담당 영업사원</th>
                 <th class="px-4 py-2.5">상태</th>
                 <th class="px-4 py-2.5"></th>
               </tr>
@@ -99,10 +98,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
 
                 <td class="px-4 py-3 text-[#6B5F50]">
                   {{ contract.startDate }} ~ {{ contract.endDate }}
-                </td>
-
-                <td class="px-4 py-3 text-[#6B5F50]">
-                  {{ contract.salesRepName || contract.salesRep?.name || '-' }}
                 </td>
 
                 <td class="px-4 py-3">
@@ -124,7 +119,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
               <!-- empty -->
               <tr v-if="!contracts?.length">
                 <td
-                    colspan="5"
+                    colspan="4"
                     class="px-4 py-10 text-center italic text-[#BFB3A5]"
                 >
                   선택 가능한 계약이 없습니다.
