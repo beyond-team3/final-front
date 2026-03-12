@@ -237,37 +237,41 @@ export const useProductStore = defineStore('product', () => {
   const getFeedbackMessages = (pid) => feedbackByProduct.value[pid] || []
 
   const addFeedbackMessage = async (pid, content, sender, parentId = null) => {
+    const payload = {
+      content,
+      ...(parentId != null ? { parentId } : {}),
+      ...(sender ? { sender } : {}),
+    }
+    await submitFeedbackApi(pid, payload)
+
+    // 리스트 갱신은 별도로 처리하여 실패해도 전송 성공 흐름을 방해하지 않음
     try {
-      const payload = {
-        content,
-        ...(parentId != null ? { parentId } : {}),
-        ...(sender ? { sender } : {}),
-      }
-      await submitFeedbackApi(pid, payload)
       await fetchFeedbackMessages(pid)
     } catch (e) {
-      throw e
+      console.error('피드백 목록 갱신 실패 (데이터는 서버에 저장됨):', e)
     }
   }
 
   const updateFeedbackMessage = async (pid, mid, content) => {
+    await updateFeedbackApi(pid, mid, { content })
+
     try {
-      await updateFeedbackApi(pid, mid, { content })
       await fetchFeedbackMessages(pid)
-      return true
     } catch (e) {
-      throw e
+      console.error('피드백 수정 후 목록 갱신 실패:', e)
     }
+    return true
   }
 
   const deleteFeedbackMessage = async (pid, mid) => {
+    await deleteFeedbackApi(pid, mid)
+
     try {
-      await deleteFeedbackApi(pid, mid)
       await fetchFeedbackMessages(pid)
-      return true
     } catch (e) {
-      throw e
+      console.error('피드백 삭제 후 목록 갱신 실패:', e)
     }
+    return true
   }
 
   const getProductNote = (pid) => productNotes.value[pid] || ''
