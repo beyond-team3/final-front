@@ -6,6 +6,8 @@ import DataTable from '@/components/common/DataTable.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
 import { getDocumentSummaries } from '@/api/document'
 import HistoryModal from '@/components/history/HistoryModal.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import { DOC_STATUS } from '@/utils/constants'
 
 const route = useRoute()
 
@@ -65,7 +67,6 @@ const columns = [
   { key: 'expiredDateLabel', label: '만료일', width: '8rem' },
   { key: 'statusLabel', label: '상태', width: '8rem' },
   { key: 'createdAtLabel', label: '생성일', width: '10rem' },
-  { key: 'action', label: '상세', width: '6rem' },
 ]
 
 const formatDate = (value) => {
@@ -163,12 +164,37 @@ const docTypeOptions = computed(() => [
       .map((value) => ({ value, label: DOC_TYPE_META[value]?.label || value })),
 ])
 
-const statusOptions = computed(() => [
-  { value: 'ALL', label: '전체 상태' },
-  ...Array.from(new Set(allDocuments.value.map((doc) => doc.status)))
-      .filter(Boolean)
-      .map((value) => ({ value, label: STATUS_META[value]?.label || value })),
-])
+const statusOptions = computed(() => {
+  const options = [{ value: 'ALL', label: '전체 상태' }]
+  
+  // 선택된 문서 유형에 해당하는 상태들만 추출
+  if (selectedDocType.value !== 'ALL') {
+    const typeKey = selectedDocType.value // RFQ, QUO 등 (StatusBadge의 TYPE_MAP이 처리함)
+    // 하지만 여기서는 DOC_STATUS 키를 직접 찾아야 할 수도 있음
+    const TYPE_MAP = { RFQ: 'QUOTATION_REQUEST', QUO: 'QUOTATION', CNT: 'CONTRACT', ORD: 'ORDER', STMT: 'STATEMENT', INV: 'INVOICE' }
+    const fullType = TYPE_MAP[typeKey] || typeKey
+    
+    if (DOC_STATUS[fullType]) {
+      Object.entries(DOC_STATUS[fullType]).forEach(([key, val]) => {
+        options.push({ value: key, label: val.label })
+      })
+      return options
+    }
+  }
+
+  // 전체인 경우 모든 상태 합집합 (기존 STATUS_META 참고)
+  const allStatuses = new Set()
+  Object.values(DOC_STATUS).forEach(typeObj => {
+    Object.entries(typeObj).forEach(([key, val]) => {
+      if (!allStatuses.has(key)) {
+        allStatuses.add(key)
+        options.push({ value: key, label: val.label })
+      }
+    })
+  })
+  
+  return options
+})
 
 const totalPages = computed(() => Math.max(1, documentPage.value.totalPages || 1))
 const totalElements = computed(() => Number(documentPage.value.totalElements || 0))
@@ -386,26 +412,13 @@ const applyPageSize = (size) => {
           @row-click="openDocument"
       >
         <template #cell-docTypeLabel="{ row }">
-          <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :style="docTypeBadgeStyle(row.docTypeTone)">
+          <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap" :style="docTypeBadgeStyle(row.docTypeTone)">
             {{ row.docTypeLabel }}
           </span>
         </template>
 
         <template #cell-statusLabel="{ row }">
-          <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold" :style="statusBadgeStyle(row.statusTone)">
-            {{ row.statusLabel }}
-          </span>
-        </template>
-
-        <template #cell-action="{ row }">
-          <button
-              type="button"
-              class="rounded px-3 py-1.5 text-xs font-semibold transition-colors"
-              style="border: 1px solid #DDD7CE; background-color: #FAF7F3; color: #6B5F50;"
-              @click.stop="openDocument(row)"
-          >
-            보기
-          </button>
+          <StatusBadge :type="row.docType" :status="row.status" />
         </template>
 
         <template #footer>

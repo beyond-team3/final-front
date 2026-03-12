@@ -4,6 +4,11 @@ import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES, PRODUCT_CATEGORY } from '@/utils/constants'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const requestStatus = ref('')
 
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -27,8 +32,18 @@ const clickOutsideHandler = (e) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
+
+  // 상세 조회 모드인 경우
+  const id = route.query.id
+  if (id) {
+    const data = await documentStore.fetchQuotationRequestDetail(id)
+    if (data) {
+      requestStatus.value = data.status
+      // ... 기타 필요한 데이터 세팅
+    }
+  }
 
   // 💡 상품 및 거래처 목록 미리 로드
   if (documentStore.productMaster.length === 0) {
@@ -124,6 +139,8 @@ const submit = () => {
     items: selectedItems.value,
     requirements: requirements.value,
   })
+
+  window.alert('견적 요청서가 정상적으로 제출되었습니다.')
 
   if (isClient.value) {
     router.push('/documents/create')
