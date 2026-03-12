@@ -18,11 +18,6 @@ export async function getApprovalDetail(approvalId) {
   return unwrapApiResult(result)
 }
 
-export async function createApprovalRequest(payload) {
-  const result = await api.post('/approvals', payload)
-  return unwrapApiResult(result)
-}
-
 export async function decideApprovalStep(approvalId, stepId, payload) {
   const result = await api.post(`/approvals/${approvalId}/steps/${stepId}/decision`, payload)
   return unwrapApiResult(result)

@@ -7,17 +7,12 @@ import PaginationControls from '@/components/common/PaginationControls.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import { decideApprovalStep, getApprovalDetail, searchApprovals } from '@/api/approval'
+import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
 
 const authStore = useAuthStore()
-
-const TAB_OPTIONS = [
-  { key: 'ALL', label: '전체' },
-  { key: 'ADMIN', label: '관리자 승인' },
-  { key: 'CLIENT', label: '거래처 승인' },
-  { key: 'DONE', label: '완료/반려' },
-]
+const documentStore = useDocumentStore()
 
 const STATUS_OPTIONS = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']
 const DEAL_TYPE_OPTIONS = ['QUO', 'CNT']
@@ -27,7 +22,6 @@ const DECISION_ROLE_MAP = {
 }
 
 const filterForm = reactive({
-  tab: 'ALL',
   status: 'ALL',
   dealType: 'ALL',
   targetId: '',
@@ -59,6 +53,7 @@ const decisionModalOpen = ref(false)
 const detailLoading = ref(false)
 const selectedApproval = ref(null)
 const selectedApprovalId = ref(null)
+const selectedDocumentDetail = ref(null)
 
 const decisionSubmitting = ref(false)
 const decisionReason = ref('')
@@ -134,6 +129,140 @@ const normalizeApproval = (approval) => {
   }
 }
 
+const firstFilledValue = (...values) => values.find((value) => value !== undefined && value !== null && value !== '')
+
+const detailClientInfo = computed(() => {
+  const documentDetail = selectedDocumentDetail.value
+  if (documentDetail) {
+    return {
+      clientCode: firstFilledValue(documentDetail.client?.code, documentDetail.clientId, '-'),
+      clientName: firstFilledValue(documentDetail.client?.name, documentDetail.clientName, '-'),
+      managerName: firstFilledValue(
+        documentDetail.client?.contact,
+        documentDetail.client?.managerName,
+        documentDetail.authorName,
+        documentDetail.salesRepName,
+        '-',
+      ),
+    }
+  }
+
+  const approval = selectedApproval.value
+  const snapshot = approval?.targetSnapshot
+    || approval?.documentSnapshot
+    || approval?.targetDocumentSnapshot
+    || approval?.targetDocument
+    || approval?.target
+    || {}
+  const client = snapshot?.client || approval?.client || {}
+
+  return {
+    clientCode: firstFilledValue(
+      client.code,
+      client.clientCode,
+      snapshot.clientCode,
+      snapshot.clientId,
+      approval?.clientIdSnapshot,
+      '-',
+    ),
+    clientName: firstFilledValue(
+      client.name,
+      client.clientName,
+      snapshot.clientName,
+      approval?.clientNameSnapshot,
+      '-',
+    ),
+    managerName: firstFilledValue(
+      client.managerName,
+      client.contact,
+      client.manager,
+      snapshot.managerName,
+      snapshot.clientManagerName,
+      snapshot.contact,
+      approval?.clientManagerNameSnapshot,
+      '-',
+    ),
+  }
+})
+
+const detailItems = computed(() => {
+  const documentDetail = selectedDocumentDetail.value
+  if (Array.isArray(documentDetail?.items)) {
+    return documentDetail.items.map((item, index) => ({
+      key: firstFilledValue(item.id, item.itemId, item.productId, `${documentDetail.id || 'document'}-${index}`),
+      variety: firstFilledValue(item.variety, item.productCategory, item.varietyName, '-'),
+      name: firstFilledValue(item.name, item.productName, item.itemName, '-'),
+      quantity: firstFilledValue(item.quantity, item.qty, item.count, 0),
+      unit: firstFilledValue(item.unit, item.unitName, '-'),
+      price: Number(firstFilledValue(item.unitPrice, item.price, item.amount, 0) || 0),
+    }))
+  }
+
+  const approval = selectedApproval.value
+  const snapshot = approval?.targetSnapshot
+    || approval?.documentSnapshot
+    || approval?.targetDocumentSnapshot
+    || approval?.targetDocument
+    || approval?.target
+    || {}
+  const rawItems = snapshot?.items || snapshot?.lineItems || approval?.items || []
+
+  return Array.isArray(rawItems)
+    ? rawItems.map((item, index) => ({
+      key: firstFilledValue(item.id, item.itemId, item.productId, `${approval?.approvalId || 'approval'}-${index}`),
+      variety: firstFilledValue(item.variety, item.category, item.varietyName, '-'),
+      name: firstFilledValue(item.name, item.productName, item.itemName, '-'),
+      quantity: firstFilledValue(item.quantity, item.qty, item.count, 0),
+      unit: firstFilledValue(item.unit, item.unitName, '-'),
+      price: Number(firstFilledValue(item.unitPrice, item.price, item.amount, 0) || 0),
+    }))
+    : []
+})
+
+const detailItemsTotal = computed(() => detailItems.value
+  .reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.price || 0)), 0))
+
+const approvalSortWeight = (approval) => {
+  if (approval.status === 'PENDING') {
+    if (approval.activeStep?.actorType === 'ADMIN') return 0
+    if (approval.activeStep?.actorType === 'CLIENT') return 1
+    return 2
+  }
+
+  return 3
+}
+
+const compareApprovals = (left, right) => {
+  const weightDiff = approvalSortWeight(left) - approvalSortWeight(right)
+  if (weightDiff !== 0) {
+    return weightDiff
+  }
+
+  return Number(right.approvalId || 0) - Number(left.approvalId || 0)
+}
+
+const buildSearchParams = (pageNumber, size) => ({
+  page: pageNumber,
+  size,
+  sort: 'approvalId,desc',
+  ...(appliedFilters.status !== 'ALL' ? { status: appliedFilters.status } : {}),
+  ...(appliedFilters.dealType !== 'ALL' ? { dealType: appliedFilters.dealType } : {}),
+  ...(appliedFilters.targetId ? { targetId: Number(appliedFilters.targetId) } : {}),
+})
+
+const fetchApprovalPage = async (pageNumber, size) => {
+  const data = await searchApprovals(buildSearchParams(pageNumber, size))
+
+  return {
+    ...data,
+    content: Array.isArray(data?.content) ? data.content.map(normalizeApproval) : [],
+    totalElements: Number(data?.totalElements || 0),
+    totalPages: Number(data?.totalPages || 1),
+    number: Number(data?.number || pageNumber),
+    size: Number(data?.size || size),
+  }
+}
+
 const parseApprovalError = (error, fallbackMessage) => {
   const status = error?.response?.status || 0
   const code = error?.response?.data?.error?.code || ''
@@ -189,28 +318,12 @@ const filteredApprovals = computed(() => {
   const keyword = filterForm.keyword.trim().toLowerCase()
 
   return serverApprovals.value.filter((approval) => {
-    const matchesTab = (() => {
-      if (filterForm.tab === 'ADMIN') {
-        return approval.status === 'PENDING' && approval.activeStep?.actorType === 'ADMIN'
-      }
-
-      if (filterForm.tab === 'CLIENT') {
-        return approval.status === 'PENDING' && approval.activeStep?.actorType === 'CLIENT'
-      }
-
-      if (filterForm.tab === 'DONE') {
-        return approval.status !== 'PENDING'
-      }
-
-      return true
-    })()
-
     const matchesKeyword = !keyword
       || String(approval.approvalId).toLowerCase().includes(keyword)
       || String(approval.targetId).toLowerCase().includes(keyword)
       || String(approval.displayCode).toLowerCase().includes(keyword)
 
-    return matchesTab && matchesKeyword
+    return matchesKeyword
   })
 })
 
@@ -222,23 +335,50 @@ const groupedApprovals = computed(() => ({
 
 const stats = computed(() => ({
   total: listResponse.value.totalElements || 0,
-  pending: serverApprovals.value.filter((approval) => approval.status === 'PENDING').length,
   admin: serverApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'ADMIN').length,
   client: serverApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'CLIENT').length,
 }))
 
 const totalPages = computed(() => Math.max(1, listResponse.value.totalPages || 1))
 
+const getDecisionStepForActor = (approval, actorType = currentActorType.value) => {
+  if (!approval || !actorType) {
+    return null
+  }
+
+  const steps = Array.isArray(approval.steps) ? approval.steps : []
+
+  if (actorType === 'ADMIN') {
+    return steps.find((step) =>
+      step.stepOrder === 1
+      && step.actorType === 'ADMIN'
+      && step.status === 'WAITING',
+    ) || null
+  }
+
+  if (actorType === 'CLIENT') {
+    return steps.find((step) =>
+      step.stepOrder === 2
+      && step.actorType === 'CLIENT'
+      && step.status === 'WAITING',
+    ) || null
+  }
+
+  return null
+}
+
 const canDecideApproval = (approval) => {
   if (!approval || approval.status !== 'PENDING') {
     return false
   }
 
-  if (!approval.activeStep?.stepId || !currentActorType.value) {
+  const decisionStep = getDecisionStepForActor(approval)
+
+  if (!decisionStep?.stepId || !currentActorType.value) {
     return false
   }
 
-  return approval.activeStep.actorType === currentActorType.value
+  return decisionStep.actorType === currentActorType.value
 }
 
 const decisionButtonText = (approval) => {
@@ -254,22 +394,30 @@ const loadApprovals = async () => {
   listError.value = ''
 
   try {
-    const data = await searchApprovals({
-      page: page.value - 1,
-      size: pageSize,
-      sort: 'approvalId,desc',
-      ...(appliedFilters.status !== 'ALL' ? { status: appliedFilters.status } : {}),
-      ...(appliedFilters.dealType !== 'ALL' ? { dealType: appliedFilters.dealType } : {}),
-      ...(appliedFilters.targetId ? { targetId: Number(appliedFilters.targetId) } : {}),
-    })
+    const batchSize = 100
+    const firstPage = await fetchApprovalPage(0, batchSize)
+    const totalPagesToFetch = Math.max(1, firstPage.totalPages)
+    const remainingPages = totalPagesToFetch > 1
+      ? await Promise.all(
+        Array.from({ length: totalPagesToFetch - 1 }, (_, index) => fetchApprovalPage(index + 1, batchSize)),
+      )
+      : []
+    const mergedApprovals = [firstPage, ...remainingPages]
+      .flatMap((response) => response.content)
+      .sort(compareApprovals)
+    const totalElements = mergedApprovals.length
+    const derivedTotalPages = Math.max(1, Math.ceil(totalElements / pageSize))
+    const safePage = Math.min(page.value, derivedTotalPages)
+    const startIndex = (safePage - 1) * pageSize
 
+    page.value = safePage
     listResponse.value = {
-      ...data,
-      content: Array.isArray(data?.content) ? data.content.map(normalizeApproval) : [],
-      totalElements: Number(data?.totalElements || 0),
-      totalPages: Number(data?.totalPages || 1),
-      number: Number(data?.number || 0),
-      size: Number(data?.size || pageSize),
+      ...firstPage,
+      content: mergedApprovals.slice(startIndex, startIndex + pageSize),
+      totalElements,
+      totalPages: derivedTotalPages,
+      number: safePage - 1,
+      size: pageSize,
     }
   } catch (error) {
     listError.value = parseApprovalError(error, '승인 목록을 불러오지 못했습니다.')
@@ -281,6 +429,7 @@ const loadApprovals = async () => {
 const loadApprovalDetail = async (approvalId, openModal = true) => {
   detailLoading.value = true
   selectedApprovalId.value = approvalId
+  selectedDocumentDetail.value = null
 
   if (openModal) {
     detailModalOpen.value = true
@@ -288,9 +437,19 @@ const loadApprovalDetail = async (approvalId, openModal = true) => {
 
   try {
     const data = await getApprovalDetail(approvalId)
-    selectedApproval.value = normalizeApproval(data)
+    const normalizedApproval = normalizeApproval(data)
+    selectedApproval.value = normalizedApproval
+
+    if (normalizedApproval?.targetId) {
+      if (normalizedApproval.dealType === 'QUO') {
+        selectedDocumentDetail.value = await documentStore.fetchQuotationDetail(normalizedApproval.targetId)
+      } else if (normalizedApproval.dealType === 'CNT') {
+        selectedDocumentDetail.value = await documentStore.fetchContractDetail(normalizedApproval.targetId)
+      }
+    }
   } catch (error) {
     selectedApproval.value = null
+    selectedDocumentDetail.value = null
     showFeedback('error', parseApprovalError(error, '승인 상세 정보를 불러오지 못했습니다.'))
   } finally {
     detailLoading.value = false
@@ -302,13 +461,30 @@ const openDetail = async (approvalId) => {
   await loadApprovalDetail(approvalId, true)
 }
 
-const openDecisionModal = (approval, decision) => {
+const openDecisionModal = async (approval, decision) => {
   decisionReason.value = ''
   decisionError.value = ''
-  decisionModalOpen.value = true
-  decisionContext.value = {
-    ...approval,
-    decision,
+  clearFeedback()
+
+  try {
+    const latestApproval = approval?.approvalId
+      ? normalizeApproval(await getApprovalDetail(approval.approvalId))
+      : approval
+    const decisionStep = getDecisionStepForActor(latestApproval)
+
+    if (!decisionStep?.stepId) {
+      showFeedback('error', '현재 사용자에게 처리 가능한 승인 단계가 없습니다.')
+      return
+    }
+
+    decisionModalOpen.value = true
+    decisionContext.value = {
+      ...latestApproval,
+      activeStep: decisionStep,
+      decision,
+    }
+  } catch (error) {
+    showFeedback('error', parseApprovalError(error, '승인 정보를 최신 상태로 불러오지 못했습니다.'))
   }
 }
 
@@ -369,7 +545,6 @@ const applyFilters = async () => {
 }
 
 const resetFilters = async () => {
-  filterForm.tab = 'ALL'
   filterForm.status = 'ALL'
   filterForm.dealType = 'ALL'
   filterForm.targetId = ''
@@ -403,16 +578,11 @@ const railClass = (approval) => {
 }
 
 const sectionList = computed(() => {
-  if (filterForm.tab === 'ADMIN') {
-    return [{ key: 'admin', title: '관리자 승인 대기', accent: 'accent-admin', items: groupedApprovals.value.admin }]
-  }
-
-  if (filterForm.tab === 'CLIENT') {
-    return [{ key: 'client', title: '거래처 승인 대기', accent: 'accent-client', items: groupedApprovals.value.client }]
-  }
-
-  if (filterForm.tab === 'DONE') {
-    return [{ key: 'done', title: '완료/반려', accent: 'accent-done', items: groupedApprovals.value.done }]
+  if (currentRole.value === ROLES.CLIENT) {
+    return [
+      { key: 'client', title: '거래처 승인 대기', accent: 'accent-client', items: groupedApprovals.value.client },
+      { key: 'done', title: '완료/반려', accent: 'accent-done', items: groupedApprovals.value.done },
+    ]
   }
 
   return [
@@ -461,10 +631,6 @@ onBeforeUnmount(() => {
         <p class="kpi-label">검색 결과 전체</p>
       </article>
       <article class="kpi-card">
-        <p class="kpi-number kpi-number-warn">{{ stats.pending }}</p>
-        <p class="kpi-label">현재 페이지 진행 중</p>
-      </article>
-      <article class="kpi-card">
         <p class="kpi-number">{{ stats.admin }}</p>
         <p class="kpi-label">관리자 단계 대기</p>
       </article>
@@ -475,20 +641,6 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="filter-panel">
-      <div class="tab-row" role="tablist" aria-label="승인 분류">
-        <button
-          v-for="tab in TAB_OPTIONS"
-          :key="tab.key"
-          type="button"
-          class="tab-chip"
-          :class="{ active: filterForm.tab === tab.key }"
-          :aria-selected="filterForm.tab === tab.key"
-          @click="filterForm.tab = tab.key"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-
       <div class="filter-grid">
         <label class="filter-field">
           <span>상태</span>
@@ -519,25 +671,27 @@ onBeforeUnmount(() => {
           >
         </label>
 
-        <label class="filter-field filter-field-wide">
-          <span>현재 페이지 검색</span>
-          <input
-            v-model="filterForm.keyword"
-            placeholder="승인 ID, targetId, 문서 코드 검색"
-          >
-        </label>
+        <div class="filter-search-row filter-field-wide">
+          <label class="filter-field filter-search-field">
+            <span>현재 페이지 검색</span>
+            <input
+              v-model="filterForm.keyword"
+              placeholder="승인 ID, targetId, 문서 코드 검색"
+            >
+          </label>
 
-        <div class="filter-actions">
-          <CdrButton
-            type="button"
-            modifier="secondary"
-            icon-only
-            class="filter-reset-btn"
-            aria-label="필터 초기화"
-            @click="resetFilters"
-          >
-            <IconRefresh />
-          </CdrButton>
+          <div class="filter-actions">
+            <CdrButton
+              type="button"
+              modifier="secondary"
+              icon-only
+              class="filter-reset-btn"
+              aria-label="필터 초기화"
+              @click="resetFilters"
+            >
+              <IconRefresh />
+            </CdrButton>
+          </div>
         </div>
       </div>
     </section>
@@ -568,7 +722,6 @@ onBeforeUnmount(() => {
                 <span class="section-accent" :class="section.accent" />
                 <h3>{{ section.title }}</h3>
               </div>
-              <span class="section-count">{{ section.items.length }}건</span>
             </div>
 
             <div class="approval-list">
@@ -586,42 +739,16 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="badge-row">
-                      <span class="badge">{{ actorTypeLabel(approval.activeStep?.actorType || '-') }}</span>
+                      <span v-if="approval.activeStep?.actorType" class="badge">{{ actorTypeLabel(approval.activeStep.actorType) }}</span>
                       <span class="badge" :class="statusToneClass(approval.status)">
                         {{ approvalStatusLabel(approval.status) }}
                       </span>
                     </div>
                   </div>
-
-                  <dl class="meta-grid">
-                    <div>
-                      <dt>승인 ID</dt>
-                      <dd>#{{ approval.approvalId }}</dd>
-                    </div>
-                    <div>
-                      <dt>대상 문서 ID</dt>
-                      <dd>{{ approval.targetId }}</dd>
-                    </div>
-                    <div>
-                      <dt>거래처 스냅샷</dt>
-                      <dd>{{ approval.clientIdSnapshot ?? '-' }}</dd>
-                    </div>
-                    <div>
-                      <dt>현재 단계</dt>
-                      <dd>
-                        <template v-if="approval.activeStep">
-                          {{ approval.activeStep.stepOrder }}단계 · {{ actorTypeLabel(approval.activeStep.actorType) }}
-                        </template>
-                        <template v-else>
-                          처리 완료
-                        </template>
-                      </dd>
-                    </div>
-                  </dl>
                 </div>
 
                 <div class="card-actions">
-                  <button type="button" class="btn ghost-btn" @click="openDetail(approval.approvalId)">상세 보기</button>
+                  <button type="button" class="btn ghost-btn" @click="openDetail(approval.approvalId)">상세보기</button>
                   <button
                     v-if="canDecideApproval(approval)"
                     type="button"
@@ -663,45 +790,64 @@ onBeforeUnmount(() => {
             {{ approvalStatusLabel(selectedApproval.status) }}
           </span>
           <span>승인 ID #{{ selectedApproval.approvalId }}</span>
-          <span>문서 코드 {{ selectedApproval.displayCode }}</span>
+          <span>문서 코드 {{ selectedDocumentDetail?.displayCode || selectedApproval.displayCode }}</span>
         </div>
 
         <div class="detail-grid">
           <div class="detail-card">
-            <h4>기본 정보</h4>
-            <dl>
-              <div><dt>대상 문서 ID</dt><dd>{{ selectedApproval.targetId }}</dd></div>
-              <div><dt>거래처 스냅샷</dt><dd>{{ selectedApproval.clientIdSnapshot ?? '-' }}</dd></div>
-              <div><dt>현재 상태</dt><dd>{{ approvalStatusLabel(selectedApproval.status) }}</dd></div>
-              <div><dt>활성 단계</dt><dd>{{ selectedApproval.activeStep ? `${selectedApproval.activeStep.stepOrder}단계 · ${actorTypeLabel(selectedApproval.activeStep.actorType)}` : '없음' }}</dd></div>
-            </dl>
+            <h4>거래처 및 담당자</h4>
+            <div class="detail-info-grid">
+              <div>
+                <dt>거래처 코드</dt>
+                <dd>{{ detailClientInfo.clientCode }}</dd>
+              </div>
+              <div>
+                <dt>법인명</dt>
+                <dd>{{ detailClientInfo.clientName }}</dd>
+              </div>
+              <div>
+                <dt>담당자</dt>
+                <dd>{{ detailClientInfo.managerName }}</dd>
+              </div>
+              <div>
+                <dt>문서 코드</dt>
+                <dd>{{ selectedDocumentDetail?.displayCode || selectedApproval.displayCode }}</dd>
+              </div>
+            </div>
           </div>
 
-          <div class="detail-card">
-            <h4>처리 액션</h4>
-            <p class="detail-copy">
-              상태가 `PENDING` 이고 현재 로그인 역할이 활성 단계의 처리 주체와 일치할 때만 결정 버튼이 노출됩니다.
-            </p>
-            <div class="detail-actions">
-              <button
-                v-if="canDecideApproval(selectedApproval)"
-                type="button"
-                class="btn approve-btn"
-                @click="openDecisionModal(selectedApproval, 'APPROVE')"
-              >
-                {{ decisionButtonText(selectedApproval) }}
-              </button>
-              <button
-                v-if="canDecideApproval(selectedApproval)"
-                type="button"
-                class="btn reject-btn"
-                @click="openDecisionModal(selectedApproval, 'REJECT')"
-              >
-                반려
-              </button>
-              <button type="button" class="btn ghost-btn" @click="loadApprovalDetail(selectedApproval.approvalId, false)">
-                다시 조회
-              </button>
+          <div class="detail-card detail-card-wide">
+            <h4>세부 품목 내역</h4>
+            <div class="detail-table-wrap">
+              <table class="detail-items-table">
+                <thead>
+                  <tr>
+                    <th>품종명</th>
+                    <th>상품명</th>
+                    <th>수량</th>
+                    <th>단위</th>
+                    <th>단가</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in detailItems" :key="item.key">
+                    <td>{{ item.variety }}</td>
+                    <td class="detail-item-name">{{ item.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.unit }}</td>
+                    <td class="detail-item-price">{{ Number(item.price || 0).toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="detailItems.length === 0">
+                    <td colspan="5" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
+                  </tr>
+                </tbody>
+                <tfoot v-if="detailItems.length > 0">
+                  <tr>
+                    <td colspan="4">총 합계</td>
+                    <td class="detail-item-price">{{ detailItemsTotal.toLocaleString() }}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
         </div>
@@ -730,6 +876,23 @@ onBeforeUnmount(() => {
             </li>
           </ol>
         </section>
+
+        <div v-if="canDecideApproval(selectedApproval)" class="detail-sticky-actions">
+          <button
+            type="button"
+            class="btn approve-btn"
+            @click="openDecisionModal(selectedApproval, 'APPROVE')"
+          >
+            {{ decisionButtonText(selectedApproval) }}
+          </button>
+          <button
+            type="button"
+            class="btn reject-btn"
+            @click="openDecisionModal(selectedApproval, 'REJECT')"
+          >
+            반려
+          </button>
+        </div>
       </template>
     </ModalBase>
 
@@ -855,34 +1018,15 @@ onBeforeUnmount(() => {
   padding: 18px;
 }
 
-.tab-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.tab-chip {
-  border: 1px solid var(--color-border-card);
-  border-radius: 999px;
-  background: var(--color-bg-input);
-  color: var(--color-text-body);
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.tab-chip.active {
-  border-color: var(--color-olive);
-  background: var(--color-olive);
-  color: #fff;
-}
-
 .filter-grid,
 .form-grid {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.filter-grid {
+  grid-template-columns: minmax(0, 148px) minmax(0, 148px) minmax(0, 148px) minmax(0, 1fr);
 }
 
 .filter-field {
@@ -898,7 +1042,17 @@ onBeforeUnmount(() => {
 }
 
 .filter-field-wide {
-  grid-column: span 2;
+  grid-column: span 1;
+}
+
+.filter-search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.filter-search-field {
+  flex: 1 1 auto;
 }
 
 .filter-actions,
@@ -908,6 +1062,31 @@ onBeforeUnmount(() => {
   gap: 8px;
   align-items: flex-end;
   flex-wrap: wrap;
+}
+
+.modal-footer-actions {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.modal-footer-actions .btn {
+  flex: 0 0 auto;
+  min-width: 96px;
+  white-space: nowrap;
+}
+
+.detail-sticky-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.detail-sticky-actions .btn {
+  min-width: 96px;
+  white-space: nowrap;
 }
 
 .filter-reset-btn {
@@ -1024,7 +1203,6 @@ onBeforeUnmount(() => {
   background: var(--color-status-success);
 }
 
-.section-count,
 .timeline-header p,
 .footer-meta,
 .detail-copy,
@@ -1042,12 +1220,12 @@ onBeforeUnmount(() => {
 .approval-card {
   position: relative;
   display: grid;
-  gap: 16px;
+  gap: 12px;
   border: 1px solid var(--color-border-card);
   border-radius: 18px;
-  padding: 18px 18px 18px 24px;
+  padding: 14px 14px 14px 20px;
   background: linear-gradient(135deg, rgba(247, 243, 236, 0.98) 0%, rgba(250, 247, 243, 0.96) 100%);
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 1fr) 148px;
   overflow: hidden;
 }
 
@@ -1090,9 +1268,9 @@ onBeforeUnmount(() => {
 }
 
 .doc-code {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   color: var(--color-text-sub);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -1134,21 +1312,12 @@ onBeforeUnmount(() => {
   color: var(--color-text-sub);
 }
 
-.meta-grid {
-  margin-top: 14px;
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.meta-grid dt,
 .detail-card dt {
   color: var(--color-text-sub);
   font-size: 12px;
   font-weight: 700;
 }
 
-.meta-grid dd,
 .detail-card dd {
   margin-top: 2px;
   color: var(--color-text-strong);
@@ -1158,8 +1327,21 @@ onBeforeUnmount(() => {
 .card-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
+}
+
+.card-actions .btn {
+  align-self: center;
+  width: auto;
+  min-width: 88px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.card-actions .ghost-btn {
+  padding-inline: 8px;
 }
 
 .board-footer {
@@ -1186,11 +1368,15 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 16px;
   margin-top: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
 }
 
 .detail-card {
   padding: 18px;
+}
+
+.detail-card-wide {
+  min-width: 0;
 }
 
 .detail-card h4,
@@ -1199,9 +1385,65 @@ onBeforeUnmount(() => {
   color: var(--color-text-strong);
 }
 
-.detail-card dl {
+.detail-info-grid {
   display: grid;
   gap: 10px;
+}
+
+.detail-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 14px;
+  background: var(--color-bg-input);
+}
+
+.detail-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+.detail-items-table thead {
+  background: var(--color-bg-section);
+}
+
+.detail-items-table th,
+.detail-items-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border-divider);
+  text-align: left;
+  font-size: 13px;
+}
+
+.detail-items-table th {
+  color: var(--color-text-sub);
+  font-weight: 700;
+}
+
+.detail-items-table td {
+  color: var(--color-text-body);
+}
+
+.detail-item-name {
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.detail-item-price {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-empty-row {
+  text-align: center !important;
+  color: var(--color-text-sub) !important;
+  padding: 24px 14px !important;
+}
+
+.detail-items-table tfoot td {
+  background: var(--color-bg-section);
+  font-weight: 700;
+  border-bottom: none;
 }
 
 .timeline-card {
@@ -1308,8 +1550,7 @@ onBeforeUnmount(() => {
   .kpi-grid,
   .filter-grid,
   .form-grid,
-  .detail-grid,
-  .meta-grid {
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 
