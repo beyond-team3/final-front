@@ -2,10 +2,16 @@
 import { computed, ref, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/product'
+import { useAuthStore } from '@/stores/auth'
+import PageHeader from '@/components/common/PageHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
 const productStore = useProductStore()
+const authStore = useAuthStore()
+
+const productId = computed(() => Number(route.query.id) || Number(route.params.id) || 0)
+const product = computed(() => productStore.getProductById(productId.value))
 
 onMounted(async () => {
   try {
@@ -17,13 +23,8 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('피드백 뷰 초기화 중 오류 발생:', error)
-    window.alert('데이터를 불러오는 중 문제가 발생했습니다.')
   }
 })
-
-const productId = computed(() => Number(route.query.id) || Number(route.params.id) || 0)
-const fallbackProduct = computed(() => productStore.products[0] || null)
-const product = computed(() => productStore.getProductById(productId.value) || fallbackProduct.value)
 
 const draft = ref('')
 const editingId = ref(null)
@@ -31,45 +32,31 @@ const editingText = ref('')
 const replyingId = ref(null)
 const replyDraft = ref('')
 
-// 평면적인 메시지 목록을 중첩 구조(부모-자식)로 변환
+// 평면 메시지 → 중첩 구조(부모-자식)로 변환
 const nestedMessages = computed(() => {
   if (!product.value) return []
-
   const all = productStore.getFeedbackMessages(product.value.id)
   if (!all || all.length === 0) return []
-
-  // 부모 메시지 추출 (parentId가 null이거나 undefined인 경우)
   const parents = all.filter(m => !m.parentId).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-
-  return parents.map(p => {
-    const children = all
-        .filter(m => m.parentId === p.id)
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-    return {
-      ...p,
-      children
-    }
-  })
+  return parents.map(p => ({
+    ...p,
+    children: all.filter(m => m.parentId === p.id).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  }))
 })
 
-const formatTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const currentUserId = computed(() => authStore.me?.loginId || authStore.me?.id)
 
-const sendMessage = () => {
-  if (!product.value || !draft.value.trim()) {
-    return
-  }
-
-  productStore.addFeedbackMessage(product.value.id, draft.value.trim())
-  draft.value = ''
-  scrollToBottom()
+const formatDate = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-const sendReply = (parentId) => {
-  if (!product.value || !replyDraft.value.trim()) return
-
-  productStore.addFeedbackMessage(product.value.id, replyDraft.value.trim(), '나', parentId)
-  replyDraft.value = ''
-  replyingId.value = null
+const sendMessage = async () => {
+  if (!product.value || !draft.value.trim()) return
+  await productStore.addFeedbackMessage(product.value.id, draft.value.trim())
+  draft.value = ''
+  scrollToBottom()
 }
 
 const replyInputRefs = ref({})
@@ -87,11 +74,15 @@ const toggleReply = (id) => {
     })
   }
 }
-const startEdit = (message) => {
-  if (!message.isMine) {
-    return
-  }
 
+const sendReply = async (parentId) => {
+  if (!product.value || !replyDraft.value.trim()) return
+  await productStore.addFeedbackMessage(product.value.id, replyDraft.value.trim(), null, parentId)
+  replyDraft.value = ''
+  replyingId.value = null
+}
+
+const startEdit = (message) => {
   editingId.value = message.id
   editingText.value = message.content
 }
@@ -102,153 +93,162 @@ const cancelEdit = () => {
 }
 
 const saveEdit = () => {
-  if (!product.value || !editingId.value || !editingText.value.trim()) {
-    return
-  }
-
-  const ok = productStore.updateFeedbackMessage(product.value.id, editingId.value, editingText.value)
-  if (ok) {
-    cancelEdit()
-  }
+  if (!product.value || !editingId.value || !editingText.value.trim()) return
+  productStore.updateFeedbackMessage(product.value.id, editingId.value, editingText.value)
+  cancelEdit()
 }
 
 const removeMessage = (id) => {
-  if (!product.value) {
-    return
-  }
-
+  if (!product.value) return
   if (window.confirm('해당 피드백을 삭제하시겠습니까?')) {
     productStore.deleteFeedbackMessage(product.value.id, id)
-    if (editingId.value === id) {
-      cancelEdit()
-    }
   }
 }
 
 const commentContainerRef = ref(null)
-
 const scrollToBottom = () => {
   nextTick(() => {
     const container = commentContainerRef.value
-    if (container) {
-      container.scrollTop = container.scrollHeight
-    }
+    if (container) container.scrollTop = container.scrollHeight
   })
 }
 </script>
 
 <template>
-  <div class="fixed inset-0 top-[60px] left-0 md:left-[250px] bg-[#f0f2f5] flex flex-col transition-all duration-300">
-    <header class="bg-white px-5 py-4 border-b border-[#ddd] flex justify-between items-center shrink-0">
-      <div v-if="product" class="flex items-center gap-4">
-        <img :src="product.imageUrl" :alt="product.name" class="w-[50px] h-[50px] rounded-lg object-cover border border-[#eee]" />
-        <div>
-          <h3 class="text-base font-bold text-[#2c3e50] mb-1">{{ product.name }}</h3>
-          <p class="text-[13px] text-[#7f8c8d]">영업사원 피드백 커뮤니티</p>
-        </div>
-      </div>
-      <button
+  <section class="flex flex-col h-[calc(100vh-60px)]">
+    <PageHeader :title="product ? `${product.name} — 피드백 커뮤니티` : '피드백 커뮤니티'">
+      <template #actions>
+        <button
           type="button"
-          class="bg-white border border-[#ddd] rounded px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-50"
+          class="rounded border border-[var(--color-border-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]"
           @click="router.back()"
-      >
-        돌아가기
-      </button>
-    </header>
+        >
+          돌아가기
+        </button>
+      </template>
+    </PageHeader>
 
-    <div ref="commentContainerRef" class="flex-1 p-5 overflow-y-auto flex flex-col gap-3">
-      <template v-for="parent in nestedMessages" :key="parent.id">
-        <article class="bg-white border border-[#e1e4e8] rounded-lg p-4 flex flex-col gap-2 transition-all duration-200"
-                 :class="{ 'bg-[#f0f7ff] border-[#cce0ff] border-l-4 border-l-[#3498db]': parent.isMine }">
+    <!-- 상품 요약 헤더 -->
+    <div
+      v-if="product"
+      class="flex items-center gap-4 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-4 shadow-sm mb-4"
+    >
+      <img :src="product.imageUrl" :alt="product.name" class="h-14 w-14 rounded-lg border border-[var(--color-border-card)] object-cover" />
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-[var(--color-olive)]">{{ product.category }}</p>
+        <h3 class="text-base font-bold text-[var(--color-text-strong)]">{{ product.name }}</h3>
+        <p class="text-xs text-[var(--color-text-sub)]">영업사원 피드백 커뮤니티 · {{ nestedMessages.length }}개의 피드백</p>
+      </div>
+    </div>
 
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center text-sm">👤</div>
-            <div class="text-sm font-bold text-[#2c3e50]">{{ parent.sender }}</div>
-            <span v-if="parent.isMine" class="bg-[#3498db] text-white px-1.5 py-0.5 rounded text-[11px] font-semibold">내 작성글</span>
-            <div class="text-xs text-[#95a5a6] ml-auto">{{ formatTime(parent.createdAt) }}</div>
-          </div>
-
-          <div v-if="editingId !== parent.id" class="text-sm text-[#333] leading-normal py-1 whitespace-pre-wrap break-all">
-            {{ parent.content }}
-          </div>
-          <div v-else class="flex flex-col gap-2 w-full">
-            <textarea v-model="editingText" class="w-full h-[60px] p-2.5 rounded-md border border-[#ddd] text-sm resize-none focus:outline-none focus:border-[#3498db]"></textarea>
-            <div class="flex gap-2 justify-end">
-              <button @click="cancelEdit" class="bg-[#95a5a6] text-white border-none px-3 py-1.5 rounded cursor-pointer text-xs">취소</button>
-              <button @click="saveEdit" class="bg-[#3498db] text-white border-none px-3 py-1.5 rounded cursor-pointer text-xs">저장</button>
+    <!-- 피드백 목록 -->
+    <div
+      ref="commentContainerRef"
+      class="flex-1 overflow-y-auto space-y-3 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-4 mb-4 shadow-sm"
+    >
+      <template v-if="nestedMessages.length > 0">
+        <template v-for="parent in nestedMessages" :key="parent.id">
+          <article
+            class="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-section)] p-4"
+            :class="parent.isMine ? 'border-l-4 border-l-[var(--color-olive)]' : ''"
+          >
+            <!-- 작성자 헤더 -->
+            <div class="flex items-center gap-2 mb-2">
+              <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-olive-light)] text-xs font-bold text-[var(--color-olive-dark)]">
+                {{ (parent.sender || '?').charAt(0) }}
+              </div>
+              <span class="text-sm font-semibold text-[var(--color-text-strong)]">{{ parent.sender || '익명' }}</span>
+              <span v-if="parent.isMine" class="rounded bg-[var(--color-olive-light)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-olive-dark)]">나</span>
+              <span class="ml-auto text-xs text-[var(--color-text-sub)]">{{ formatDate(parent.createdAt) }}</span>
             </div>
-          </div>
 
-          <div v-if="editingId !== parent.id" class="flex gap-3 text-xs text-[#7f8c8d] font-semibold">
-            <span class="cursor-pointer hover:text-[#3498db] hover:underline" @click="toggleReply(parent.id)">답글</span>
-            <template v-if="parent.isMine">
-              <span class="cursor-pointer hover:text-[#3498db] hover:underline" @click="startEdit(parent)">수정</span>
-              <span class="cursor-pointer hover:text-[#e74c3c] hover:underline" @click="removeMessage(parent.id)">삭제</span>
-            </template>
-          </div>
+            <!-- 내용 또는 수정 입력창 -->
+            <div v-if="editingId !== parent.id" class="text-sm leading-relaxed text-[var(--color-text-body)] whitespace-pre-wrap">{{ parent.content }}</div>
+            <div v-else class="flex flex-col gap-2">
+              <textarea v-model="editingText" class="w-full h-16 rounded-lg border border-[var(--color-border-card)] p-2.5 text-sm focus:border-[var(--color-olive)] focus:outline-none resize-none"></textarea>
+              <div class="flex justify-end gap-2">
+                <button @click="cancelEdit" class="rounded border border-[var(--color-border-card)] px-3 py-1 text-xs font-semibold">취소</button>
+                <button @click="saveEdit" class="rounded bg-[var(--color-olive)] px-3 py-1 text-xs font-semibold text-white hover:bg-[var(--color-olive-dark)]">저장</button>
+              </div>
+            </div>
 
-          <div v-if="replyingId === parent.id" class="mt-2.5 flex gap-2">
-            <input
+            <!-- 액션 버튼 -->
+            <div v-if="editingId !== parent.id" class="mt-2 flex gap-3 text-xs text-[var(--color-text-sub)]">
+              <button class="font-semibold hover:text-[var(--color-olive)]" @click="toggleReply(parent.id)">답글</button>
+              <template v-if="parent.isMine">
+                <button class="font-semibold hover:text-[var(--color-olive)]" @click="startEdit(parent)">수정</button>
+                <button class="font-semibold hover:text-[var(--color-status-error)]" @click="removeMessage(parent.id)">삭제</button>
+              </template>
+            </div>
+
+            <!-- 답글 입력 -->
+            <div v-if="replyingId === parent.id" class="mt-3 flex gap-2">
+              <input
                 :ref="(el) => { if (el) replyInputRefs[parent.id] = el }"
-                :id="`reply-input-${parent.id}`"
                 v-model="replyDraft"
                 type="text"
-                class="flex-1 p-2.5 border border-[#ddd] rounded-md text-[13px] outline-none focus:border-[#3498db]"
+                class="flex-1 h-9 rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none"
                 placeholder="답글을 남겨주세요..."
                 @keyup.enter="sendReply(parent.id)"
-            >
-            <button @click="sendReply(parent.id)" class="bg-[#2c3e50] text-white border-none px-4 rounded-md cursor-pointer text-[13px]">등록</button>
-          </div>
-        </article>
-
-        <article
-            v-for="child in parent.children"
-            :key="child.id"
-            class="ml-[45px] bg-[#f8f9fa] border border-[#e1e4e8] border-l-4 border-l-[#bdc3c7] rounded-r-lg rounded-bl-lg p-4 flex flex-col gap-2 relative transition-all duration-200"
-            :class="{ 'bg-[#f0f7ff] border-[#cce0ff] border-l-[#3498db]': child.isMine }"
-        >
-          <div class="absolute left-[-28px] top-[14px] text-xl font-bold"
-               :class="child.isMine ? 'text-[#3498db]' : 'text-[#bdc3c7]'">↳</div>
-
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-full bg-[#e0e0e0] flex items-center justify-center text-sm">👤</div>
-            <div class="text-sm font-bold text-[#2c3e50]">{{ child.sender }}</div>
-            <span v-if="child.isMine" class="bg-[#3498db] text-white px-1.5 py-0.5 rounded text-[11px] font-semibold">내 작성글</span>
-            <div class="text-xs text-[#95a5a6] ml-auto">{{ formatTime(child.createdAt) }}</div>
-          </div>
-
-          <div v-if="editingId !== child.id" class="text-sm text-[#333] leading-normal py-1 whitespace-pre-wrap break-all">
-            {{ child.content }}
-          </div>
-          <div v-else class="flex flex-col gap-2 w-full">
-            <textarea v-model="editingText" class="w-full h-[60px] p-2.5 rounded-md border border-[#ddd] text-sm resize-none focus:outline-none focus:border-[#3498db]"></textarea>
-            <div class="flex gap-2 justify-end">
-              <button @click="cancelEdit" class="bg-[#95a5a6] text-white border-none px-3 py-1.5 rounded cursor-pointer text-xs">취소</button>
-              <button @click="saveEdit" class="bg-[#3498db] text-white border-none px-3 py-1.5 rounded cursor-pointer text-xs">저장</button>
+              />
+              <button @click="sendReply(parent.id)" class="rounded bg-[var(--color-olive)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]">등록</button>
             </div>
-          </div>
 
-          <div v-if="editingId !== child.id && child.isMine" class="flex gap-3 text-xs text-[#7f8c8d] font-semibold">
-            <span class="cursor-pointer hover:text-[#3498db] hover:underline" @click="startEdit(child)">수정</span>
-            <span class="cursor-pointer hover:text-[#e74c3c] hover:underline" @click="removeMessage(child.id)">삭제</span>
-          </div>
-        </article>
+            <!-- 대댓글 목록 -->
+            <div v-if="parent.children?.length > 0" class="mt-3 ml-6 space-y-2">
+              <article
+                v-for="child in parent.children"
+                :key="child.id"
+                class="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-card)] p-3 relative"
+                :class="child.isMine ? 'border-l-4 border-l-[var(--color-olive)]' : ''"
+              >
+                <span class="absolute -left-4 top-3 text-base text-[var(--color-text-sub)]">↳</span>
+                <div class="flex items-center gap-2 mb-1">
+                  <div class="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-bg-section)] text-xs font-bold text-[var(--color-text-sub)]">
+                    {{ (child.sender || '?').charAt(0) }}
+                  </div>
+                  <span class="text-xs font-semibold text-[var(--color-text-strong)]">{{ child.sender || '익명' }}</span>
+                  <span v-if="child.isMine" class="rounded bg-[var(--color-olive-light)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-olive-dark)]">나</span>
+                  <span class="ml-auto text-xs text-[var(--color-text-sub)]">{{ formatDate(child.createdAt) }}</span>
+                </div>
+                <div v-if="editingId !== child.id" class="text-sm leading-relaxed text-[var(--color-text-body)] whitespace-pre-wrap">{{ child.content }}</div>
+                <div v-else class="flex flex-col gap-2">
+                  <textarea v-model="editingText" class="w-full h-14 rounded-lg border border-[var(--color-border-card)] p-2.5 text-sm focus:border-[var(--color-olive)] focus:outline-none resize-none"></textarea>
+                  <div class="flex justify-end gap-2">
+                    <button @click="cancelEdit" class="rounded border border-[var(--color-border-card)] px-3 py-1 text-xs font-semibold">취소</button>
+                    <button @click="saveEdit" class="rounded bg-[var(--color-olive)] px-3 py-1 text-xs font-semibold text-white hover:bg-[var(--color-olive-dark)]">저장</button>
+                  </div>
+                </div>
+                <div v-if="editingId !== child.id && child.isMine" class="mt-1 flex gap-3 text-xs text-[var(--color-text-sub)]">
+                  <button class="font-semibold hover:text-[var(--color-olive)]" @click="startEdit(child)">수정</button>
+                  <button class="font-semibold hover:text-[var(--color-status-error)]" @click="removeMessage(child.id)">삭제</button>
+                </div>
+              </article>
+            </div>
+          </article>
+        </template>
       </template>
-
-      <div v-if="nestedMessages.length === 0" class="text-center text-[#95a5a6] py-10">
-        첫 번째 피드백을 남겨보세요!
+      <div v-else class="py-12 text-center text-sm text-[var(--color-text-sub)]">
+        첫 번째 피드백을 남겨보세요! 💬
       </div>
     </div>
 
-    <div class="bg-white p-5 border-t border-[#ddd] flex gap-2.5 shrink-0">
+    <!-- 입력 영역 -->
+    <div class="flex gap-2 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-4 shadow-sm">
       <input
-          v-model="draft"
-          type="text"
-          class="flex-1 h-[45px] px-4 border border-[#ddd] rounded-lg outline-none text-sm focus:border-[#3498db]"
-          placeholder="이 상품에 대한 새로운 피드백을 남겨주세요..."
-          @keyup.enter="sendMessage"
+        v-model="draft"
+        type="text"
+        class="flex-1 h-11 rounded-lg border border-[var(--color-border-card)] px-4 text-sm focus:border-[var(--color-olive)] focus:outline-none"
+        placeholder="이 상품에 대한 영업 피드백을 남겨주세요..."
+        @keyup.enter="sendMessage"
+      />
+      <button
+        type="button"
+        class="rounded-lg bg-[var(--color-olive)] px-6 text-sm font-bold text-white hover:bg-[var(--color-olive-dark)]"
+        @click="sendMessage"
       >
-      <button @click="sendMessage" class="w-20 bg-[#3498db] text-white border-none rounded-lg cursor-pointer font-bold">등록</button>
+        등록
+      </button>
     </div>
-  </div>
+  </section>
 </template>

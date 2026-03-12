@@ -25,7 +25,9 @@ watch(
     error.value = null
     try {
       const times_data = await getCultivationTimes(newId)
-      times.value = times_data || []
+      // ApiResult 래퍼를 안전하게 해체
+      const rawData = times_data?.data?.data || times_data?.data || times_data || []
+      times.value = Array.isArray(rawData) ? rawData : []
       
       // '작형(croppingSystem)'을 기준으로 데이터 그룹화
       const map = new Map()
