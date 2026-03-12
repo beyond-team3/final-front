@@ -21,8 +21,9 @@ const deliveryAddress = ref('')
 const deliveryRecipient = ref('')
 const deliveryPhone = ref('')
 const deliveryMemo = ref('')
-const deliveryDate = ref(new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString().slice(0, 10))
+const deliveryAddressDetail = ref('')
 const lineItems = ref([])
+const selectedSalesRepName = ref('')
 
 // ✅ 새로 추가: 진행 중인 계약 로드 상태
 const loadingContracts = ref(false)
@@ -56,21 +57,11 @@ const selectedContract = computed(() => {
   return contractsFromApi.value.find(c => String(c.id) === contractId) || null
 })
 
-watch(selectedContract, (contract) => {
-  if (!contract) return
-  selectedHistoryId.value = contract.historyId || ''
-  if (contract.items && Array.isArray(contract.items)) {
-    lineItems.value = contract.items.map((item) => ({ ...item, quantity: 0 }))
-  } else {
-    lineItems.value = []
-  }
-  deliveryAddress.value = ''
-  deliveryRecipient.value = contract.clientName || contract.client?.contact || ''
-  deliveryPhone.value = contract.client?.phone || ''
-})
 
 const baseClientId = computed(() => {
-  if (isClient.value) return documentStore.clientMaster[0]?.id || null
+  if (isClient.value) {
+    return authStore.me?.refId || documentStore.clientMaster[0]?.id || null
+  }
   return selectedContract.value?.client?.id || null
 })
 
@@ -81,6 +72,10 @@ const pipelineOptions = computed(() => {
 
 //  새로 추가: API에서 진행 중인 계약 로드
 const loadActiveContracts = async () => {
+  console.log('authStore.me:', authStore.me)
+  console.log('baseClientId:', baseClientId.value)
+  console.log('clientMaster:', documentStore.clientMaster)
+
   if (!baseClientId.value) return
 
   loadingContracts.value = true
@@ -97,9 +92,16 @@ const loadActiveContracts = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   void historyStore.ensureLoaded()
-  void loadActiveContracts() //  컴포넌트 마운트 시 계약 로드
+
+  // clientMaster가 비어있으면 먼저 로드
+  if (documentStore.clientMaster.length === 0) {
+    await documentStore.fetchClientMaster()
+  }
+
+  void loadActiveContracts()  // clientMaster 로드 후 실행
+
   if (isClient.value && selectedContract.value) {
     lineItems.value = selectedContract.value.items.map((item) => ({ ...item, quantity: 0 }))
   }
@@ -146,21 +148,21 @@ const submitOrder = async () => {
   }
 
   try {
-    // ✅ 주문 생성 - contractId 명시
     const response = await createOrder({
-      contractId: selectedContract.value.id,
-      deliveryRecipient: deliveryRecipient.value,
-      deliveryPhone: deliveryPhone.value,
-      deliveryAddress: deliveryAddress.value,
-      dealId: null,
+      headerId: selectedContract.value.id,
+      shippingName: deliveryRecipient.value,
+      shippingPhone: deliveryPhone.value,
+      shippingAddress: deliveryAddress.value,
+      shippingAddressDetail: deliveryAddressDetail.value,
+      deliveryRequest: deliveryMemo.value,
       items: orderedItems.map(item => ({
-        detailId: item.detailId,
+        contractDetailId: item.detailId,
         quantity: item.quantity
       }))
     })
 
     window.alert('주문이 정상적으로 생성되었습니다.')
-    router.push('/documents/order')
+    router.push({ name: 'document-all' })
   } catch (error) {
     console.error('주문 생성 실패:', error)
     window.alert('주문 생성에 실패했습니다. ' + (error.response?.data?.error?.message || error.message))
@@ -213,6 +215,7 @@ const onSelectContract = async (contract) => {
 
     selectedContractId.value = String(detailContract.id)
     selectedHistoryId.value = detailContract.historyId || ''
+    selectedSalesRepName.value = detailContract.salesRepName || '-'
 
     if (detailContract.items && Array.isArray(detailContract.items)) {
       lineItems.value = detailContract.items.map((item) => ({
@@ -298,7 +301,7 @@ const onSelectContract = async (contract) => {
                 </div>
                 <div class="contract-field">
                   <label>담당자</label>
-                  <div class="field-value">{{ selectedContract?.salesRepName || '-' }}</div>
+                  <div class="field-value">{{ selectedSalesRepName  || '-' }}</div>
                 </div>
                 <div class="contract-field" style="grid-column: 1 / -1">
                   <label>계약 기간</label>
@@ -379,42 +382,29 @@ const onSelectContract = async (contract) => {
                       v-model="deliveryAddress"
                       type="text"
                       class="form-input"
-                      placeholder="주소를 입력해주세요"
+                      placeholder="기본 주소를 입력해주세요"
+                  />
+                </div>
+                <div class="form-group full-width">
+                  <label class="form-label">상세 주소</label>
+                  <input
+                      v-model="deliveryAddressDetail"
+                      type="text"
+                      class="form-input"
+                      placeholder="상세 주소를 입력해주세요"
                   />
                 </div>
                 <div class="form-group">
                   <label class="form-label">수령인<span class="required">*</span></label>
-                  <input
-                      v-model="deliveryRecipient"
-                      type="text"
-                      class="form-input"
-                      placeholder="성명"
-                  />
+                  <input v-model="deliveryRecipient" type="text" class="form-input" placeholder="성명" />
                 </div>
                 <div class="form-group">
                   <label class="form-label">연락처<span class="required">*</span></label>
-                  <input
-                      v-model="deliveryPhone"
-                      type="tel"
-                      class="form-input"
-                      placeholder="010-0000-0000"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">배송 예정일</label>
-                  <input
-                      v-model="deliveryDate"
-                      type="date"
-                      class="form-input"
-                  />
+                  <input v-model="deliveryPhone" type="tel" class="form-input" placeholder="010-0000-0000" />
                 </div>
                 <div class="form-group full-width">
                   <label class="form-label">배송 요청사항</label>
-                  <textarea
-                      v-model="deliveryMemo"
-                      class="form-textarea"
-                      placeholder="배송 시 특이사항이 있으면 입력해주세요"
-                  />
+                  <textarea v-model="deliveryMemo" class="form-textarea" placeholder="배송 시 특이사항이 있으면 입력해주세요" />
                   <div class="form-hint">예시: 정문으로 배송, 오후 2시 이후 배송 가능 등</div>
                 </div>
               </div>

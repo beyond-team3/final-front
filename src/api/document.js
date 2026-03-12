@@ -93,7 +93,7 @@ export function getInvoice(invoiceId) {
 }
 
 export function getContractsByClient(clientId) {
-    return api.get('/contracts', { params: { clientId } })
+    return api.get('/contracts/active', { params: { clientId } })
 }
 
 export function publishInvoice(invoiceId) {
