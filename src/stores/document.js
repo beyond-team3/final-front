@@ -14,6 +14,8 @@ import {
     getInvoices,
     getInvoice,
     getInvoice as getInvoiceApi,
+    getInvoiceDetail as getInvoiceDetailApi,
+    toggleInvoiceStatement as toggleInvoiceStatementApi,
     getOrder as getOrderApi,
     getQuotation as getQuotationApi,
     getContract as getContractApi,
@@ -369,6 +371,70 @@ export const useDocumentStore = defineStore('document', () => {
     const getOrderById = (id) => orders.value.find((item) => String(item.id) === String(id))
     const getInvoiceById = (id) => invoices.value.find((item) => String(item.id) === String(id))
 
+    /**
+     * contractId 기준으로 해당 계약에 속한 명세서 목록 반환
+     * GET /api/v1/statements 응답에 contractId가 없으므로
+     * orderId → orders → contractId 역참조로 필터링
+     *
+     * @param {string|number} contractId
+     * @param {Array} [statementPool] - 외부에서 fetch한 명세서 배열 (없으면 store.statements 사용)
+     */
+    const getStatementsByContract = (contractId, statementPool) => {
+        const pool = statementPool ?? statements.value
+        if (!contractId || !pool.length) return []
+
+        const cid = String(contractId)
+
+        // invoices 목록에 contractId가 있음 → 같은 contract의 invoice들 수집
+        // 그 invoice들에 연결된 statementId Set 구성 (store의 invoices는 목록 API라 statements 없음)
+        // 대신 orders 경유: orders[].contractId(headerId) → orderId → statements[].orderId
+        const matchingOrderIds = new Set(
+            orders.value
+                .filter(o => {
+                    const oCid = String(
+                        o.contractId || o.contract_id ||
+                        o.headerId   || o.header_id   ||
+                        o.contractHeaderId || ''
+                    )
+                    return oCid === cid
+                })
+                .map(o => String(o.id || o.orderId || ''))
+                .filter(Boolean)
+        )
+
+        // orders 매핑 성공 시 orderId 기반 필터
+        if (matchingOrderIds.size > 0) {
+            return pool.filter(s => matchingOrderIds.has(String(s.orderId || s.order_id || '')))
+        }
+
+        // orders 매핑 실패 시: invoices[contractId]와 같은 contract의 invoiceId 수집
+        // → 나중에 invoice detail에서 statementIds를 얻으므로 여기선 빈 배열
+        // (InvoiceView의 loadInvoice → /detail에서 statements를 직접 내려줌)
+        console.warn(`[getStatementsByContract] contractId=${cid} orders 매핑 실패. orders:`, orders.value.slice(0, 2))
+        return []
+    }
+
+    /**
+     * 현재 active(DRAFT/PUBLISHED/PAID) 청구서에 포함된 statementId Set
+     * → statements의 includedInActiveInvoice 대용으로 사용
+     */
+    const activeInvoiceStatementIds = computed(() => {
+        const set = new Set()
+        invoices.value
+            .filter(inv => {
+                const s = String(inv.status || '').toUpperCase()
+                return s === 'DRAFT' || s === 'PUBLISHED' || s === 'PAID'
+            })
+            .forEach(inv => {
+                const stmts = inv.statements || inv.items || inv.statementIds || []
+                stmts.forEach(s => {
+                    const sid = s?.statementId || s?.id || (typeof s === 'number' ? s : null)
+                    if (sid) set.add(String(sid))
+                })
+            })
+        return set
+    })
+
     async function fetchProductMaster(type = 'contract') {
         try {
             // 견적/계약서용 한글 설명이 포함된 상품 목록 호출
@@ -604,6 +670,10 @@ export const useDocumentStore = defineStore('document', () => {
                 ...normalizeDocument(doc),
                 type: 'invoice',
                 id: doc.invoiceId,
+                invoiceId: doc.invoiceId,
+                contractId: doc.contractId,   // invoices 목록 API에 있음 - 반드시 보존
+                invoiceCode: doc.invoiceCode,
+                invoiceDate: doc.invoiceDate,
             }))
             allRawDocuments.value = [
                 ...allRawDocuments.value.filter(d => d.type?.toLowerCase() !== 'invoice'),
@@ -1127,11 +1197,13 @@ export const useDocumentStore = defineStore('document', () => {
         error.value = null
         try {
             await fetchClientMaster()
+            // orders가 먼저 로드되어야 getStatementsByContract에서 orderId→contractId 매핑이 가능
             await Promise.all([
                 fetchProductMaster(),
                 fetchDocumentsV2(),
-                fetchStatements(),
+                fetchOrders(),
             ])
+            await fetchStatements()
         } finally {
             loading.value = false
         }
@@ -1174,6 +1246,8 @@ export const useDocumentStore = defineStore('document', () => {
         getContractById,
         getOrderById,
         getInvoiceById,
+        getStatementsByContract,
+        activeInvoiceStatementIds,
         createQuotationRequest,
         createQuotation,
         createContract,
