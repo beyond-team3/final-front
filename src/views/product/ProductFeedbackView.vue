@@ -114,16 +114,32 @@ const cancelEdit = () => {
   editingText.value = ''
 }
 
-const saveEdit = () => {
-  if (!product.value || !editingId.value || !editingText.value.trim()) return
-  productStore.updateFeedbackMessage(product.value.id, editingId.value, editingText.value)
-  cancelEdit()
+const saveEdit = async () => {
+  if (!product.value || !editingId.value || !editingText.value.trim() || isSubmitting.value) return
+  isSubmitting.value = true
+  try {
+    await productStore.updateFeedbackMessage(product.value.id, editingId.value, editingText.value)
+    cancelEdit()
+  } catch (e) {
+    console.error('피드백 수정 실패:', e)
+    alert('피드백 수정에 실패했습니다.')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
-const removeMessage = (id) => {
-  if (!product.value) return
+const removeMessage = async (id) => {
+  if (!product.value || isSubmitting.value) return
   if (window.confirm('해당 피드백을 삭제하시겠습니까?')) {
-    productStore.deleteFeedbackMessage(product.value.id, id)
+    isSubmitting.value = true
+    try {
+      await productStore.deleteFeedbackMessage(product.value.id, id)
+    } catch (e) {
+      console.error('피드백 삭제 실패:', e)
+      alert('피드백 삭제에 실패했습니다.')
+    } finally {
+      isSubmitting.value = false
+    }
   }
 }
 
@@ -194,7 +210,6 @@ const scrollToBottom = () => {
               </div>
             </div>
 
-            <!-- 액션 버튼 -->
             <div v-if="editingId !== parent.id" class="mt-2 flex gap-3 text-xs text-[var(--color-text-sub)]">
               <button class="font-semibold hover:text-[var(--color-olive)]" @click="toggleReply(parent.id)">답글</button>
               <template v-if="parent.isMine">

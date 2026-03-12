@@ -8,6 +8,8 @@ import {
   getFeedbacks as getFeedbacksApi,
   updateProduct as updateProductApi,
   deleteProduct as deleteProductApi,
+  updateFeedback as updateFeedbackApi,
+  deleteFeedback as deleteFeedbackApi,
   getFavorites as getFavoritesApi,
   toggleBookmark as toggleBookmarkApi,
   getCompareHistory as getCompareHistoryApi,
@@ -227,7 +229,9 @@ export const useProductStore = defineStore('product', () => {
     try {
       const res = await getFeedbacksApi(pid)
       feedbackByProduct.value[pid] = Array.isArray(res) ? res : []
-    } catch (e) { }
+    } catch (e) {
+      throw e
+    }
   }
 
   const getFeedbackMessages = (pid) => feedbackByProduct.value[pid] || []
@@ -246,17 +250,24 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
-  const updateFeedbackMessage = (pid, mid, content) => {
-    // 로컬 상태 업데이트 (추후 백엔드 API 지원 시 연동 필요)
-    const msgs = getFeedbackMessages(pid)
-    const idx = msgs.findIndex(m => m.id === mid && m.isMine)
-    if (idx < 0) return false
-    msgs[idx].content = content
-    return true
+  const updateFeedbackMessage = async (pid, mid, content) => {
+    try {
+      await updateFeedbackApi(pid, mid, { content })
+      await fetchFeedbackMessages(pid)
+      return true
+    } catch (e) {
+      throw e
+    }
   }
 
-  const deleteFeedbackMessage = (pid, mid) => {
-    feedbackByProduct.value[pid] = getFeedbackMessages(pid).filter(m => !(m.id === mid && m.isMine))
+  const deleteFeedbackMessage = async (pid, mid) => {
+    try {
+      await deleteFeedbackApi(pid, mid)
+      await fetchFeedbackMessages(pid)
+      return true
+    } catch (e) {
+      throw e
+    }
   }
 
   const getProductNote = (pid) => productNotes.value[pid] || ''
