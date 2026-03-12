@@ -283,11 +283,17 @@ const submitDoc = async () => {
     const result = await documentStore.createQuotation(payload)
     if (result) {
       window.alert(`견적서 발행 완료`);
-      router.push('/documents/all');
+      // 실제 번호(docCode)가 있으면 검색어로 전달, 없으면 ID라도 전달
+      const keyword = result.docCode || result.id
+      router.push({
+        path: '/documents/all',
+        query: { keyword, type: 'QUO' }
+      });
     }
   } catch (error) {
-    console.error("저장 에러:", error);
-    window.alert("서버 저장 에러");
+    console.error("서버 저장 에러:", error);
+    // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
+    window.alert(documentStore.error || "견적서 저장 중 오류가 발생했습니다.");
   }
 }
 </script>
@@ -320,7 +326,6 @@ const submitDoc = async () => {
               >
                 거래처 선택
               </button>
-                <StatusBadge type="QUOTATION" :status="status" />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <input v-model="inCorpCode" readonly class="p-2 border rounded text-sm font-semibold outline-none" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="거래처 코드">

@@ -329,7 +329,7 @@ const submitContract = async () => {
   if (selectedItems.value.length === 0) return window.alert("계약할 상품을 하나라도 추가해주세요")
 
   try {
-    await documentStore.createContract({
+    const result = await documentStore.createContract({
       quotationId: isNewMode.value ? null : sourceQuotationId.value,
       client: {
         id: conInCorpCode.value,
@@ -351,11 +351,18 @@ const submitContract = async () => {
       historyId: sourceHistoryId.value
     })
 
-    window.alert(`계약서 생성 완료`);
-    router.push('/documents/all');
+    if (result) {
+      window.alert(`계약서 생성 완료`);
+      const keyword = result.docCode || result.id
+      router.push({
+        path: '/documents/all',
+        query: { keyword, type: 'CNT' }
+      });
+    }
   } catch (error) {
     console.error("서버 저장 에러:", error);
-    window.alert("서버 저장 에러: " + (error.response?.data?.message || error.message));
+    // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
+    window.alert(documentStore.error || "계약서 저장 중 오류가 발생했습니다.");
   }
 }
 </script>
@@ -389,7 +396,6 @@ const submitContract = async () => {
               >
                 거래처 선택
               </button>
-              <StatusBadge type="CONTRACT" :status="status" />
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>

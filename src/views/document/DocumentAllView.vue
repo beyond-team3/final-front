@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { CdrButton, IconListView, IconSort } from '@rei/cedar'
 import DataTable from '@/components/common/DataTable.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
@@ -10,6 +10,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { DOC_STATUS } from '@/utils/constants'
 
 const route = useRoute()
+const router = useRouter()
 
 const DOC_TYPE_META = {
   RFQ: { label: '견적요청서', tone: 'rfq' },
@@ -136,8 +137,6 @@ const loadDocuments = async () => {
     documentPage.value = {
       ...normalized,
       content: filteredContent,
-      totalElements: filteredContent.length,
-      totalPages: Math.max(1, Math.ceil(filteredContent.length / Number(normalized.size || pageSize.value || 10))),
     }
   } catch (error) {
     documentPage.value = EMPTY_PAGE
@@ -147,8 +146,68 @@ const loadDocuments = async () => {
   }
 }
 
-onMounted(() => {
+const loadDocumentsWithSync = () => {
   loadDocuments()
+}
+
+// 1. URL -> UI (초기 진입 및 브라우저 뒤로가기/앞으로가기 대응)
+watch(() => route.query, (query) => {
+  if (query.keyword !== undefined && query.keyword !== keyword.value) {
+    keyword.value = query.keyword || ''
+    debouncedKeyword.value = query.keyword || ''
+  }
+  if (query.type && query.type !== selectedDocType.value) {
+    selectedDocType.value = query.type.toUpperCase()
+  }
+  if (query.status && query.status !== selectedStatus.value) {
+    selectedStatus.value = query.status.toUpperCase()
+  }
+  if (query.page && Number(query.page) !== page.value) {
+    page.value = Number(query.page)
+  }
+  if (query.size && Number(query.size) !== pageSize.value) {
+    pageSize.value = Number(query.size)
+  }
+  if (query.sort && query.sort !== sortDirection.value) {
+    sortDirection.value = query.sort
+  }
+  loadDocuments()
+}, { immediate: true })
+
+// 2. UI -> URL (사용자가 입력/필터 변경 시 주소창 업데이트)
+watch([debouncedKeyword, selectedDocType, selectedStatus, page, pageSize, sortDirection], ([newK, newT, newS, newP, newSize, newSort]) => {
+  const query = { ...route.query }
+  
+  if (newK) query.keyword = newK
+  else delete query.keyword
+  
+  if (newT !== 'ALL') query.type = newT
+  else delete query.type
+  
+  if (newS !== 'ALL') query.status = newS
+  else delete query.status
+  
+  if (newP > 1) query.page = newP
+  else delete query.page
+
+  if (pageSize.value !== 10) query.size = pageSize.value
+  else delete query.size
+
+  if (sortDirection.value !== 'desc') query.sort = sortDirection.value
+  else delete query.sort
+
+  // 현재 URL과 다를 때만 replace 실행 (무한 루프 방지)
+  const currentQuery = route.query
+  const isChanged = Object.keys(query).length !== Object.keys(currentQuery).length ||
+      Object.entries(query).some(([key, val]) => String(currentQuery[key]) !== String(val))
+  
+  if (isChanged) {
+    router.replace({ query })
+  }
+}, { deep: true })
+
+onMounted(() => {
+  // watch(immediate)에서 loadDocuments()가 호출되므로 여기서는 추가 호출 생략 가능
 })
 
 const allDocuments = computed(() =>
@@ -157,12 +216,15 @@ const allDocuments = computed(() =>
         .map(decorateDocument),
 )
 
-const docTypeOptions = computed(() => [
+const docTypeOptions = [
   { value: 'ALL', label: '전체 문서 유형' },
-  ...Array.from(new Set(allDocuments.value.map((doc) => doc.docType)))
-      .filter(Boolean)
-      .map((value) => ({ value, label: DOC_TYPE_META[value]?.label || value })),
-])
+  { value: 'RFQ', label: '견적요청서' },
+  { value: 'QUO', label: '견적서' },
+  { value: 'CNT', label: '계약서' },
+  { value: 'ORD', label: '주문서' },
+  { value: 'STMT', label: '명세서' },
+  { value: 'INV', label: '청구서' },
+]
 
 const statusOptions = computed(() => {
   const options = [{ value: 'ALL', label: '전체 상태' }]
@@ -229,13 +291,16 @@ watch(keyword, (value) => {
   }, 250)
 })
 
-watch([selectedDocType, selectedStatus, sortDirection, pageSize], () => {
-  resetPage()
-})
+const applySortDirection = (dir) => {
+  sortDirection.value = dir
+  showSortMenu.value = false
+}
 
-watch([debouncedKeyword, selectedDocType, selectedStatus, sortDirection, pageSize, page], () => {
-  loadDocuments()
-})
+const applyPageSize = (size) => {
+  pageSize.value = size
+  showPageSizeMenu.value = false
+  page.value = 1 // 페이지 크기 변경 시 1페이지로 리셋
+}
 
 watch(() => route.query.documentId, (documentId) => {
   if (!documentId) return
@@ -286,15 +351,6 @@ const statusBadgeStyle = (tone) => ({
   default: { backgroundColor: 'var(--color-bg-section)', color: 'var(--color-text-body)' },
 }[tone] || { backgroundColor: 'var(--color-bg-section)', color: 'var(--color-text-body)' })
 
-const applySortDirection = (direction) => {
-  sortDirection.value = direction
-  showSortMenu.value = false
-}
-
-const applyPageSize = (size) => {
-  pageSize.value = size
-  showPageSizeMenu.value = false
-}
 </script>
 
 <template>

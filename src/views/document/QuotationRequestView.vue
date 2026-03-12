@@ -117,7 +117,7 @@ const removeItem = (uid) => {
   selectedItems.value = selectedItems.value.filter((item) => item.uid !== uid)
 }
 
-const submit = () => {
+const submit = async () => {
   if (selectedItems.value.length === 0) {
     window.alert('상품을 1개 이상 선택해주세요.')
     return
@@ -134,20 +134,28 @@ const submit = () => {
     return
   }
 
-  const request = documentStore.createQuotationRequest({
-    client: defaultClient,
-    items: selectedItems.value,
-    requirements: requirements.value,
-  })
+  try {
+    const request = await documentStore.createQuotationRequest({
+      client: defaultClient,
+      items: selectedItems.value,
+      requirements: requirements.value,
+    })
 
-  window.alert('견적 요청서가 정상적으로 제출되었습니다.')
+    window.alert('견적 요청서가 정상적으로 제출되었습니다.')
 
-  if (isClient.value) {
-    router.push('/documents/create')
-    return
+    // 발급된 실제 번호(docCode)가 있으면 검색어로 전달
+    router.push({
+      path: '/documents/all',
+      query: {
+        keyword: request?.docCode || undefined,
+        type: 'RFQ'
+      }
+    })
+  } catch (err) {
+    console.error("저장 에러:", err);
+    // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
+    window.alert(documentStore.error || "견적 요청서 저장 중 오류가 발생했습니다.");
   }
-
-  router.push(`/documents/quotation?requestId=${request.id}`)
 }
 </script>
 
