@@ -477,10 +477,6 @@ export const useDocumentStore = defineStore('document', () => {
                 ...allRawDocuments.value.filter((doc) => matchesDocumentType(doc, ['statement'])),
                 ...nonStatementDocs,
             ]
-            pendingQuotationRequests.value = nonStatementDocs.filter((doc) => {
-                const status = String(doc.status || '').trim().toUpperCase()
-                return matchesDocumentType(doc, ['quotation-request', 'rfq']) && ['PENDING', 'REQUESTED', 'WAITING'].includes(status)
-            })
             return nonStatementDocs
         } catch (e) {
             error.value = getErrorMessage(e, '문서 목록을 불러오지 못했습니다.')

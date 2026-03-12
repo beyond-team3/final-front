@@ -274,7 +274,8 @@ const onSelectContract = async (contract) => {
                   <div class="contract-card-label">선택된 계약서</div>
                 </div>
                 <div class="header-right">
-                  <StatusBadge :status="orderCardStatus" />
+                  <StatusBadge v-if="selectedContract" type="CONTRACT" :status="selectedContract.status" />
+                  <StatusBadge v-else status="DRAFT" />
                   <!-- 계약서 선택 버튼 (영업사원 + 거래처 모두) -->
                   <button
                       v-if="isSalesRep || isClient"

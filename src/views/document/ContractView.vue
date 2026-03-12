@@ -389,9 +389,7 @@ const submitContract = async () => {
               >
                 거래처 선택
               </button>
-              <div v-if="isViewMode" class="px-3 py-1 rounded text-xs font-bold bg-[#7A8C42] text-white">
-                {{ status }}
-              </div>
+              <StatusBadge type="CONTRACT" :status="status" />
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
