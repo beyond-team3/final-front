@@ -226,7 +226,7 @@ onUnmounted(() => {
                 <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">담당자</th>
                 <th class="px-6 py-4 text-left font-bold uppercase tracking-wider whitespace-nowrap">지역</th>
                 <th class="w-[110px] px-6 py-4 text-center font-bold uppercase tracking-wider whitespace-nowrap">상태</th>
-                <th class="w-[100px] px-6 py-4 text-center font-bold uppercase tracking-wider whitespace-nowrap">액션</th>
+                <th class="w-[100px] px-6 py-4 text-center font-bold uppercase tracking-wider whitespace-nowrap">상세</th>
               </tr>
               </thead>
               <tbody class="divide-y divide-[var(--color-border-divider)]">

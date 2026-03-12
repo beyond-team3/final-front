@@ -68,7 +68,7 @@ const columns = [
   { key: 'managerName', label: '담당자' },
   { key: 'region', label: '지역' },
   { key: 'status', label: '상태' },
-  { key: 'actions', label: '액션' },
+  { key: 'actions', label: '상세' },
 ]
 
 const getRegion = (address) => {
