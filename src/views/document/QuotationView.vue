@@ -100,8 +100,12 @@ onMounted(async () => {
       return
     }
 
-    if (route.query.rewrite === 'true' && route.query.requestId) {
-      await startFromRequest({ id: route.query.requestId })
+    if (route.query.rewrite === 'true') {
+      if (route.query.requestId) {
+        await startFromRequest({ id: route.query.requestId })
+      } else {
+        startNewQuotation()
+      }
       return
     }
   } catch (e) {

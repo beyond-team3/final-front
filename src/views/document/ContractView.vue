@@ -177,8 +177,12 @@ onMounted(async () => {
       return
     }
 
-    if (route.query.rewrite === 'true' && route.query.quotationId) {
-      await startContractFromPrefill(route.query.quotationId)
+    if (route.query.rewrite === 'true') {
+      if (route.query.quotationId) {
+        await startContractFromPrefill(route.query.quotationId)
+      } else {
+        startNewContract()
+      }
       return
     }
 

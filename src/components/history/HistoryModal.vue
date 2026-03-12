@@ -157,7 +157,6 @@ const showRewriteButton = computed(() => (
   isRejectedDocument.value
   && authStore.currentRole === ROLES.SALES_REP
   && isAuthor.value
-  && Boolean(rewriteSourceId.value)
   && (showQuotationCancelButton.value || showContractDeleteButton.value)
 ))
 
@@ -177,11 +176,6 @@ const handleRewrite = async () => {
       const latestDetail = await documentStore.fetchQuotationDetail(props.docId)
       const sourceId = latestDetail?.requestId || latestDetail?.quotationRequestId || null
 
-      if (!sourceId) {
-        window.alert('상위 견적요청서가 연결된 견적서만 재작성할 수 있습니다.')
-        return
-      }
-
       const deleted = await documentStore.deleteDocument(props.docId, props.docType)
       if (!deleted) {
         return
@@ -191,8 +185,8 @@ const handleRewrite = async () => {
       await router.push({
         path: '/documents/quotation',
         query: {
-          requestId: String(sourceId),
           rewrite: 'true',
+          ...(sourceId ? { requestId: String(sourceId) } : {}),
         },
       })
       return
@@ -201,11 +195,6 @@ const handleRewrite = async () => {
     if (isContractDocument.value) {
       const latestDetail = await documentStore.fetchContractDetail(props.docId)
       const sourceId = latestDetail?.quotationId || null
-
-      if (!sourceId) {
-        window.alert('상위 견적서가 연결된 계약서만 재작성할 수 있습니다.')
-        return
-      }
 
       const deleted = await documentStore.deleteContract(props.docId)
       if (!deleted) {
@@ -216,8 +205,8 @@ const handleRewrite = async () => {
       await router.push({
         path: '/documents/contract',
         query: {
-          quotationId: String(sourceId),
           rewrite: 'true',
+          ...(sourceId ? { quotationId: String(sourceId) } : {}),
         },
       })
     }
