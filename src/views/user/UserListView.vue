@@ -55,7 +55,7 @@ const columns = [
   { key: 'email', label: '이메일' },
   { key: 'status', label: '상태' },
   { key: 'lastLogin', label: '최근 로그인' },
-  { key: 'actions', label: '조회' },
+  { key: 'actions', label: '상세' },
 ]
 
 const rows = computed(() => {

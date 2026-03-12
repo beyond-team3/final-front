@@ -13,6 +13,7 @@ import PipelineTimelineCard from '@/components/history/PipelineTimelineCard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClientStore } from '@/stores/client'
 import { ROLES } from '@/utils/constants'
+import { formatWithCommas, stripCommas } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -133,6 +134,13 @@ const editForm = ref({
   managerId: null,
   totalCredit: 0, // 여신 한도 추가
 })
+
+const handleEditCreditLimitInput = (event) => {
+  const rawValue = event.target.value
+  const strippedValue = stripCommas(rawValue)
+  editForm.value.totalCredit = strippedValue ? Number(strippedValue) : 0
+  event.target.value = formatWithCommas(strippedValue)
+}
 
 const execDaumPostcode = () => {
   new window.daum.Postcode({
@@ -579,7 +587,13 @@ onUnmounted(() => {
 
             <!-- 여신 한도 수정 칸 추가 (관리자 전용) -->
             <label v-if="isAdmin" class="block text-sm font-bold text-[var(--color-text-sub)] md:col-span-2">여신 한도 (원)
-              <input v-model.number="editForm.totalCredit" class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm" type="number" step="10000" min="0" required />
+              <input
+                  :value="formatWithCommas(editForm.totalCredit)"
+                  @input="handleEditCreditLimitInput"
+                  class="mt-1.5 h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
+                  type="text"
+                  required
+              />
             </label>
           </form>
         </div>
