@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '@/stores/product'
 import { useAuthStore } from '@/stores/auth'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { PRODUCT_CATEGORY } from '@/utils/constants'
 
 const route = useRoute()
 const router = useRouter()
@@ -135,7 +136,7 @@ const scrollToBottom = () => {
     >
       <img :src="product.imageUrl" :alt="product.name" class="h-14 w-14 rounded-lg border border-[var(--color-border-card)] object-cover" />
       <div>
-        <p class="text-xs font-semibold uppercase tracking-wide text-[var(--color-olive)]">{{ product.category }}</p>
+        <p class="text-xs font-semibold uppercase tracking-wide text-[var(--color-olive)]">{{ PRODUCT_CATEGORY[product.category] || product.category }}</p>
         <h3 class="text-base font-bold text-[var(--color-text-strong)]">{{ product.name }}</h3>
         <p class="text-xs text-[var(--color-text-sub)]">영업사원 피드백 커뮤니티 · {{ nestedMessages.length }}개의 피드백</p>
       </div>
