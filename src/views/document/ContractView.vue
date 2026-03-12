@@ -141,10 +141,13 @@ onMounted(async () => {
 
     // 2. 신규 작성 모드인 경우 데이터 로딩
     showStartModal.value = true
-    if (documentStore.fetchApprovedQuotations) await documentStore.fetchApprovedQuotations()
-    if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
-    if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
-    if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
+    // 마스터 데이터 병렬 로딩 (로딩 속도 최적화)
+    await Promise.all([
+      documentStore.fetchApprovedQuotations?.(),
+      documentStore.fetchClientMaster?.(),
+      documentStore.fetchProductMaster?.(),
+      historyStore.ensureLoaded?.()
+    ])
   } catch (e) {
     console.error("데이터 로딩 중 에러 발생:", e)
   }
@@ -306,7 +309,8 @@ const totalSum = computed(() =>
 )
 
 const availableQuotations = computed(() => {
-  return documentStore.quotations?.filter(q => q.status !== 'CONTRACTED') || []
+  // 스토어의 전용 필드(approvedQuotations)를 직접 사용하여 권한 필터링 간섭 우회
+  return documentStore.approvedQuotations?.filter(q => q.status !== 'CONTRACTED') || []
 })
 
 const billingCycleDisplay = computed(() => {
@@ -352,6 +356,8 @@ const submitContract = async () => {
     })
 
     if (result) {
+      // 작성 후 참조 목록 최신화 (이미 사용한 견적 제거)
+      await documentStore.fetchApprovedQuotations()
       window.alert(`계약서 생성 완료`);
       const keyword = result.docCode || result.id
       router.push({

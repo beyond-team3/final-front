@@ -88,11 +88,14 @@ onMounted(async () => {
   window.addEventListener('click', handleClickOutside)
   try {
     // 마스터 데이터 로딩
-    if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2()
-    if (documentStore.fetchPendingQuotationRequests) await documentStore.fetchPendingQuotationRequests()
-    if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
-    if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
-    if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
+    // 마스터 데이터 병렬 로딩 (로딩 속도 최적화)
+    await Promise.all([
+      documentStore.fetchDocumentsV2?.(),
+      documentStore.fetchPendingQuotationRequests?.(),
+      documentStore.fetchClientMaster?.(),
+      documentStore.fetchProductMaster?.(),
+      historyStore.ensureLoaded?.()
+    ])
 
     // URL 쿼리에 id가 있는지 확인 (상세 조회 모드)
     const id = route.query.id
@@ -282,6 +285,8 @@ const submitDoc = async () => {
 
     const result = await documentStore.createQuotation(payload)
     if (result) {
+      // 작성 후 참조 목록 최신화 (이미 사용한 요청서 제거)
+      await documentStore.fetchPendingQuotationRequests()
       window.alert(`견적서 발행 완료`);
       // 실제 번호(docCode)가 있으면 검색어로 전달, 없으면 ID라도 전달
       const keyword = result.docCode || result.id

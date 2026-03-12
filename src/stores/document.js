@@ -227,6 +227,7 @@ export const useDocumentStore = defineStore('document', () => {
 
     const allRawDocuments = ref([])
     const pendingQuotationRequests = ref([])
+    const approvedQuotations = ref([])
     const statements = ref([])
 
     const quotationRequests = computed(() => {
@@ -393,7 +394,7 @@ export const useDocumentStore = defineStore('document', () => {
                 .filter(o => {
                     const oCid = String(
                         o.contractId || o.contract_id ||
-                        o.headerId   || o.header_id   ||
+                        o.headerId || o.header_id ||
                         o.contractHeaderId || ''
                     )
                     return oCid === cid
@@ -571,6 +572,10 @@ export const useDocumentStore = defineStore('document', () => {
                 ...doc,
                 type: 'quotation'
             }))
+
+            // 전용 상태에 저장 (권한 필터링 우회용)
+            approvedQuotations.value = normalized
+
             // allRawDocuments에도 병합하여 다른 곳에서 참조 가능하게 함
             allRawDocuments.value = [
                 ...allRawDocuments.value.filter(d => !normalized.some(n => n.id === d.id)),
@@ -748,14 +753,14 @@ export const useDocumentStore = defineStore('document', () => {
         try {
             const response = await createQuotationRequestApi(payload)
             let raw = unwrapData(response)
-            
+
             // 💡 백엔드 응답 데이터가 null인 경우 목록에서 최신 문서 조회 (안전한 우회 경로)
             if (!raw && response?.result === 'SUCCESS') {
                 await delay(1200)
-                const summaryResp = await getDocumentSummaries({ 
-                    docType: 'RFQ', 
-                    size: 1, 
-                    sort: 'createdAt,desc' 
+                const summaryResp = await getDocumentSummaries({
+                    docType: 'RFQ',
+                    size: 1,
+                    sort: 'createdAt,desc'
                 })
                 const summaryData = normalizePageResponse(summaryResp)
                 if (summaryData?.content?.length > 0) {
@@ -818,8 +823,8 @@ export const useDocumentStore = defineStore('document', () => {
         })
 
         const payload = {
-            requestId,
-            clientId: client.id,
+            requestId: Number(requestId),
+            clientId: Number(client.id),
             memo: memo || '',
             items: lineItems.map(item => ({
                 productId: item.productId,
@@ -838,10 +843,10 @@ export const useDocumentStore = defineStore('document', () => {
             // 💡 백엔드 응답이 비어있을 경우 최신 목록에서 조회 (안전장치)
             if (!raw && response?.result === 'SUCCESS') {
                 await delay(1200)
-                const summaryResp = await getDocumentSummaries({ 
-                    docType: 'QUO', 
-                    size: 1, 
-                    sort: 'createdAt,desc' 
+                const summaryResp = await getDocumentSummaries({
+                    docType: 'QUO',
+                    size: 1,
+                    sort: 'createdAt,desc'
                 })
                 const summaryData = normalizePageResponse(summaryResp)
                 if (summaryData?.content?.length > 0) {
@@ -875,7 +880,7 @@ export const useDocumentStore = defineStore('document', () => {
                 const idx = allRawDocuments.value.findIndex((item) => item.id === id)
                 if (idx >= 0) allRawDocuments.value[idx] = created
                 else allRawDocuments.value.unshift(created)
-                
+
                 emitDocumentCreated('quotation', id)
                 historyStore.fetchPipelines()
             }
@@ -911,8 +916,8 @@ export const useDocumentStore = defineStore('document', () => {
         })
 
         const payload = {
-            quotationId,
-            clientId: client.id,
+            quotationId: Number(quotationId),
+            clientId: Number(client.id),
             startDate,
             endDate,
             billingCycle: billingCycle === '월' ? 'MONTHLY' : (billingCycle === '분기' ? 'QUARTERLY' : (billingCycle === '반기' ? 'HALF_YEARLY' : billingCycle)),
@@ -935,10 +940,10 @@ export const useDocumentStore = defineStore('document', () => {
             // 💡 백엔드 응답이 비어있을 경우 최신 목록에서 조회 (안전장치)
             if (!raw && response?.result === 'SUCCESS') {
                 await delay(1200)
-                const summaryResp = await getDocumentSummaries({ 
-                    docType: 'CNT', 
-                    size: 1, 
-                    sort: 'createdAt,desc' 
+                const summaryResp = await getDocumentSummaries({
+                    docType: 'CNT',
+                    size: 1,
+                    sort: 'createdAt,desc'
                 })
                 const summaryData = normalizePageResponse(summaryResp)
                 if (summaryData?.content?.length > 0) {
@@ -1269,6 +1274,7 @@ export const useDocumentStore = defineStore('document', () => {
         fetchQuotationRequestDetail,
         pendingQuotationRequests,
         fetchPendingQuotationRequests,
+        approvedQuotations,
         fetchApprovedQuotations,
         fetchQuotationDetail,
         fetchContractDetail,
