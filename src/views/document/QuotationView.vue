@@ -5,6 +5,7 @@ import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 import { PRODUCT_CATEGORY } from '@/utils/constants'
 
 const route = useRoute()
@@ -328,9 +329,7 @@ const submitDoc = async () => {
               >
                 거래처 선택
               </button>
-              <div v-if="isViewMode && status" class="px-3 py-1 rounded text-xs font-bold bg-[#7A8C42] text-white">
-                {{ status }}
-              </div>
+                <StatusBadge type="QUOTATION" :status="status" />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <input v-model="inCorpCode" readonly class="p-2 border rounded text-sm font-semibold outline-none" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="거래처 코드">
