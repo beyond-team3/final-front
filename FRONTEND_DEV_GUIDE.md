@@ -170,7 +170,7 @@ npm run build  # dist/ 폴더 생성 확인
   src/views/payment/             ← 결제 (거래처 전용)
   src/views/notification/        ← 알림 (3역할 각각)
   src/views/settings/            ← 마이페이지 (역할별 다른 화면)
-  src/api/approval.js, payment.js, notification.js, user.js
+  src/api/approval.js, paymentStore.js, notification.js, user.js
 
 참조할 프로토타입:
   screen_definition/approval/, payment/, notification/, mypage/
