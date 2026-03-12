@@ -130,7 +130,8 @@ async function selectClient(client) {
   isLoadingContracts.value = true
   try {
     const res = await getContractsByClient(client.id)
-    contractsForSelectedClient.value = res.data || []
+    const raw = res?.data?.data ?? res?.data ?? []
+    contractsForSelectedClient.value = Array.isArray(raw) ? raw : []
   } catch (e) {
     console.error('[InvoiceListView] getContractsByClient error:', e)
     contractsForSelectedClient.value = []

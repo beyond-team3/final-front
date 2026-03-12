@@ -13,10 +13,12 @@ import {
   getInvoiceDetail,
   getInvoices,
   getStatements,
+  getOrders,
   getContract,
   toggleInvoiceStatement,
   createInvoice as apiCreateInvoice,
   publishInvoice as apiPublishInvoice,
+  cancelInvoice as apiCancelInvoice,
 } from '@/api/document'
 
 const route = useRoute()
@@ -100,23 +102,23 @@ async function loadStatements(resolvedContractId) {
   if (!resolvedContractId) return
   isLoadingStatements.value = true
   try {
-    const res = await getStatements()
-    const raw = res?.data?.data ?? res?.data ?? []
-    const all = Array.isArray(raw) ? raw : []
+    // 1단계: 해당 계약에 속한 주문 목록 조회
+    const ordersRes = await getOrders({ contractId: resolvedContractId })
+    const ordersRaw = ordersRes?.data?.data ?? ordersRes?.data ?? []
+    const orders = Array.isArray(ordersRaw) ? ordersRaw : []
+    const orderIdSet = new Set(orders.map(o => String(o.orderId ?? o.id)).filter(Boolean))
+
+    // 2단계: 전체 명세서 조회 후 해당 계약의 주문 ID로 필터링
+    const stmtsRes = await getStatements()
+    const stmtsRaw = stmtsRes?.data?.data ?? stmtsRes?.data ?? []
+    const all = Array.isArray(stmtsRaw) ? stmtsRaw : []
     allStatements.value = all
 
-    // invoices 목록에서 같은 contractId를 가진 invoiceId들 수집
-    // → 그 invoice에 포함된 statementId Set 구성 (이미 청구된 명세서 판별용)
-    const invoiceList = documentStore.invoices || []
-    const sameContractInvoiceIds = invoiceList
-        .filter(inv => String(inv.contractId || '') === String(resolvedContractId))
-        .map(inv => inv.id || inv.invoiceId)
-        .filter(Boolean)
+    // orderId가 해당 계약 주문에 속하는 명세서만 추출
+    const filtered = orderIdSet.size > 0
+        ? all.filter(s => orderIdSet.has(String(s.orderId ?? s.order_id)))
+        : []
 
-    // invoices 목록의 statements는 없으니, store의 activeInvoiceStatementIds 활용
-    // statements 목록 API → orderId 기반으로 contractId 연결
-    // invoices[].contractId → 같은 contract의 orderId들을 orders에서 찾음
-    const filtered = documentStore.getStatementsByContract?.(resolvedContractId, all) ?? []
     fetchedStatements.value = filtered
   } catch (e) {
     console.error('[InvoiceView] loadStatements error:', e)
@@ -168,25 +170,28 @@ function normalizeStatement(s) {
   const total  = Number(s.totalAmount  ?? s.total_amount  ?? 0)
   const supply = Number(s.supplyAmount ?? s.supply_amount ?? (total > 0 ? Math.round(total / 1.1) : 0))
   const vat    = Number(s.vatAmount    ?? s.vat_amount    ?? Math.round(supply * 0.1))
-  const sid    = String(s.statementId || s.statement_id || s.id || '')
+  // id는 숫자로 통일 (매칭 불일치 방지)
+  const id     = Number(s.statementId ?? s.statement_id ?? s.id)
+  const sid    = String(id)
 
-  // status 3단계:
-  // 'included'  → 현재 청구서에 포함됨 (included=true)
-  // 'available' → 포함 가능 (included=false, 다른 active 청구서에 없음)
-  // 'completed' → 다른 활성 청구서에 이미 포함됨
+  // _localIncluded: 신규/기존 모두 로컬 토글 플래그로 통일
+  // included(서버값) 보다 _localIncluded(로컬 변경값)를 우선 적용
   let status = 'available'
-  if (s.included === true) {
+  const localFlag = s._localIncluded  // undefined | true | false
+  const serverFlag = s.included       // undefined | true | false
+
+  if (localFlag !== undefined) {
+    // 로컬에서 토글된 경우 우선
+    status = localFlag ? 'included' : 'available'
+  } else if (serverFlag === true) {
     status = 'included'
-  } else if (s.included === false) {
-    // 현재 청구서에서 제외됐지만 다른 청구서에 있는지 확인
-    status = documentStore.activeInvoiceStatementIds?.has(sid) ? 'completed' : 'available'
   } else {
-    // included 필드 없음 (신규 발행 전 statements pool)
+    // serverFlag === false 또는 undefined (신규 명세서)
     status = documentStore.activeInvoiceStatementIds?.has(sid) ? 'completed' : 'available'
   }
 
   return {
-    id: s.statementId || s.statement_id || s.id,
+    id,
     statementCode: s.statementCode || s.statement_code || sid,
     orderId: s.orderId || s.order_id,
     orderCode: s.orderCode || s.order_code || '',
@@ -238,35 +243,52 @@ const isAllIndeterminate = computed(() => {
 })
 
 async function toggleStatement(statementId, checked) {
-  if (togglingIds.value.has(statementId)) return
+  const numId = Number(statementId)
+  if (togglingIds.value.has(numId)) return
+
+  // 로컬 상태 즉시 반영 (낙관적 업데이트)
+  applyLocalToggle(numId, checked)
 
   if (!invoiceId.value) {
-    // 신규: 로컬 토글
-    if (!currentInvoice.value) return
-    const stmts = (currentInvoice.value.statements || []).map(s =>
-        String(s.statementId || s.id) === String(statementId)
-            ? { ...s, included: checked }
-            : s
-    )
-    currentInvoice.value = { ...currentInvoice.value, statements: stmts }
+    // 신규 발행: API 없이 로컬만 토글
     return
   }
 
-  togglingIds.value = new Set([...togglingIds.value, statementId])
+  togglingIds.value = new Set([...togglingIds.value, numId])
   try {
-    const res = await toggleInvoiceStatement(invoiceId.value, statementId)
-    const updated = res?.data?.data ?? res?.data
-    if (updated?.statements) {
-      currentInvoice.value = { ...currentInvoice.value, ...updated }
-    }
+    await toggleInvoiceStatement(invoiceId.value, numId)
+    // 성공: 로컬 상태 그대로 유지
   } catch (e) {
+    // 실패: 로컬 상태 롤백
+    applyLocalToggle(numId, !checked)
     console.error('[InvoiceView] toggle error:', e)
     window.alert('명세서 포함/제외 처리 중 오류가 발생했습니다.')
   } finally {
     const next = new Set(togglingIds.value)
-    next.delete(statementId)
+    next.delete(numId)
     togglingIds.value = next
   }
+}
+
+// 로컬 토글 적용 헬퍼 (_localIncluded 플래그로 통일)
+function applyLocalToggle(numId, checked) {
+  const sid = String(numId)
+
+  // currentInvoice.statements 가 있으면 거기서 토글
+  if (currentInvoice.value?.statements?.length > 0) {
+    const stmts = currentInvoice.value.statements.map(s => {
+      const sId = String(s.statementId ?? s.statement_id ?? s.id)
+      return sId === sid ? { ...s, _localIncluded: checked } : s
+    })
+    currentInvoice.value = { ...currentInvoice.value, statements: stmts }
+    return
+  }
+
+  // fetchedStatements 에서 토글
+  fetchedStatements.value = fetchedStatements.value.map(s => {
+    const sId = String(s.statementId ?? s.statement_id ?? s.id)
+    return sId === sid ? { ...s, _localIncluded: checked } : s
+  })
 }
 
 async function toggleAll(checked) {
@@ -375,24 +397,33 @@ watch(
 onMounted(async () => {
   void historyStore.ensureLoaded?.()
 
-  // allStatements 항상 먼저 로드 (invoice detail statements 금액 보완용)
-  if (!allStatements.value.length) {
-    try {
-      const res = await getStatements()
-      const raw = res?.data?.data ?? res?.data ?? []
-      allStatements.value = Array.isArray(raw) ? raw : []
-    } catch (e) {
-      console.error('[InvoiceView] getStatements error:', e)
-    }
-  }
-
   if (invoiceId.value) {
     // 기존 청구서 열람: /detail API → contractId + statements[included] 포함
     await loadInvoice(invoiceId.value)
-    // detail에 statements가 없는 경우에만 contractId로 별도 fetch
-    if (!(currentInvoice.value?.statements?.length > 0)) {
-      const cid = contractId.value || currentInvoice.value?.contractId
-      if (cid) await loadStatements(String(cid))
+
+    const cid = contractId.value || currentInvoice.value?.contractId
+    if (cid) {
+      // allStatements pool 로드: 주문 기반 필터링
+      try {
+        const ordersRes = await getOrders({ contractId: cid })
+        const ordersRaw = ordersRes?.data?.data ?? ordersRes?.data ?? []
+        const orders = Array.isArray(ordersRaw) ? ordersRaw : []
+        const orderIdSet = new Set(orders.map(o => String(o.orderId ?? o.id)).filter(Boolean))
+
+        const stmtsRes = await getStatements()
+        const stmtsRaw = stmtsRes?.data?.data ?? stmtsRes?.data ?? []
+        const all = Array.isArray(stmtsRaw) ? stmtsRaw : []
+        allStatements.value = orderIdSet.size > 0
+            ? all.filter(s => orderIdSet.has(String(s.orderId ?? s.order_id)))
+            : all
+      } catch (e) {
+        console.error('[InvoiceView] getStatements error:', e)
+      }
+
+      // detail에 statements가 없는 경우에만 contractId로 별도 fetch
+      if (!(currentInvoice.value?.statements?.length > 0)) {
+        await loadStatements(String(cid))
+      }
     }
   } else if (contractId.value) {
     // 신규 발행: contractId 기준으로 명세서 fetch
@@ -483,17 +514,13 @@ async function confirmInvoiceCancel() {
   if (!invoiceId.value) return
 
   try {
-    // cancelInvoice는 document store 또는 직접 API 호출
-    const result = await documentStore.cancelInvoice(invoiceId.value)
-    if (!result?.success) {
-      cancelErrorMessage.value = result?.message || '청구서 취소에 실패했습니다.'
-      return
-    }
+    await apiCancelInvoice(invoiceId.value)
     showCancelModal.value = false
     await loadInvoice(invoiceId.value)
   } catch (e) {
     console.error('[InvoiceView] cancelInvoice error:', e)
-    cancelErrorMessage.value = '청구서 취소 중 오류가 발생했습니다.'
+    cancelErrorMessage.value =
+        e?.response?.data?.message || '청구서 취소 중 오류가 발생했습니다.'
   }
 }
 

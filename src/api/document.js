@@ -110,6 +110,10 @@ export function publishInvoice(invoiceId) {
     return api.patch(`invoices/${invoiceId}/publish`)
 }
 
+export function cancelInvoice(invoiceId) {
+    return api.patch(`invoices/${invoiceId}/cancel`)
+}
+
 export function updateDocumentStatus(id, data) {
     return api.patch(`documents/${id}`, data)
 }
