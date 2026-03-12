@@ -4,61 +4,112 @@ import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import { getInvoices, getContractsByClient } from '@/api/document'
 
 const router = useRouter()
 const documentStore = useDocumentStore()
 const authStore = useAuthStore()
 
+// ----------------------------------------------------------------
+// 상태 정규화 (DB enum: DRAFT / PUBLISHED / PAID / CANCELED)
+// 프론트 표시: DRAFT→발행대기, PUBLISHED/PAID→발행완료, CANCELED→취소
+// ----------------------------------------------------------------
 const normalizeInvoiceStatus = (status) => {
   const raw = String(status || '').trim().toUpperCase()
-  if (raw === 'ISSUED') return 'ISSUED'
-  if (raw === 'CANCELED') return 'CANCELED'
+  if (raw === 'PUBLISHED') return 'PUBLISHED'
+  if (raw === 'PAID')      return 'PAID'
+  if (raw === 'CANCELED')  return 'CANCELED'
   return 'DRAFT'
 }
 
+// ----------------------------------------------------------------
+// 청구서 목록 로드 (API 직접 호출)
+// ----------------------------------------------------------------
+const isLoading = ref(false)
+const invoices = ref([])
+
+async function fetchInvoices() {
+  isLoading.value = true
+  try {
+    const res = await getInvoices()
+    // axios: res.data = { result, data: [...] }
+    const raw = res?.data?.data ?? res?.data ?? []
+    const list = Array.isArray(raw) ? raw : []
+    invoices.value = list.map((inv) => ({
+      ...inv,
+      id: inv.invoiceId ?? inv.id,
+      status: normalizeInvoiceStatus(inv.status),
+    }))
+  } catch (e) {
+    console.error('[InvoiceListView] fetchInvoices error:', e)
+  } finally {
+    isLoading.value = false
+  }
+}
+
 onMounted(() => {
-  // fetchInvoices는 initialize()에서 이미 호출됨
+  fetchInvoices()
 })
 
-const tab = ref('draft')
+// ----------------------------------------------------------------
+// 탭 / 검색
+// ----------------------------------------------------------------
+const tab = ref('pending')
 const keyword = ref('')
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 
+const pendingInvoices = computed(() => invoices.value.filter((i) => i.status === 'DRAFT'))
+const issuedInvoices = computed(() => invoices.value.filter((i) => i.status === 'PUBLISHED' || i.status === 'PAID'))
+// 취소된 청구서는 별도 탭 없이 발행대기 탭에서 상태 배지로 구분
+const canceledInvoices = computed(() => invoices.value.filter((i) => i.status === 'CANCELED'))
+
 const filteredInvoices = computed(() => {
-  const source = tab.value === 'issued'
-      ? documentStore.issuedInvoices
-      : tab.value === 'canceled'
-          ? documentStore.canceledInvoices
-          : documentStore.pendingInvoices
+  const source =
+      tab.value === 'issued'
+          ? issuedInvoices.value
+          : [...pendingInvoices.value, ...canceledInvoices.value]  // DRAFT + CANCELED 모두 발행대기 탭
+
   const search = keyword.value.trim().toLowerCase()
   if (!search) return source
   return source.filter((item) => {
-    const text = [item.id, item.orderId, item.client?.name].join(' ').toLowerCase()
+    const text = [item.id, item.contractId, item.client?.name].join(' ').toLowerCase()
     return text.includes(search)
   })
 })
 
+// ----------------------------------------------------------------
+// 청구서 상세 이동
+// ----------------------------------------------------------------
+function goToInvoiceDetail(invoice) {
+  const mode = (invoice.status === 'PUBLISHED' || invoice.status === 'PAID') ? 'issued' : 'pending'
+  const contractId = invoice.contractId || invoice.contract?.id || ''
+  const clientId = invoice.clientId || invoice.client?.id || ''
+  router.push(
+      `/documents/invoice/new?mode=${mode}&id=${invoice.id}` +
+      (contractId ? `&contractId=${contractId}` : '') +
+      (clientId   ? `&clientId=${clientId}`     : '')
+  )
+}
+
+// ----------------------------------------------------------------
+// 신규 청구서 모달
+// ----------------------------------------------------------------
 const showModal = ref(false)
 const modalStep = ref(1)
 const clientSearch = ref('')
 const selectedClient = ref(null)
+const contractsForSelectedClient = ref([])
+const isLoadingContracts = ref(false)
 
 const clientMaster = computed(() => documentStore.clientMaster || [])
 
 const filteredClients = computed(() => {
   const q = clientSearch.value.trim().toLowerCase()
   if (!q) return clientMaster.value
-  return clientMaster.value.filter((c) =>
-      c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q)
+  return clientMaster.value.filter(
+      (c) => c.name?.toLowerCase().includes(q) || c.code?.toLowerCase().includes(q)
   )
-})
-
-const contractsForClient = computed(() => {
-  if (!selectedClient.value) return []
-  return documentStore.contracts?.filter(
-      (c) => c.client?.id === selectedClient.value.id
-  ) || []
 })
 
 function openModal() {
@@ -66,30 +117,49 @@ function openModal() {
   modalStep.value = 1
   clientSearch.value = ''
   selectedClient.value = null
+  contractsForSelectedClient.value = []
 }
 
 function closeModal() {
   showModal.value = false
 }
 
-function selectClient(client) {
+async function selectClient(client) {
   selectedClient.value = client
   modalStep.value = 2
+  isLoadingContracts.value = true
+  try {
+    const res = await getContractsByClient(client.id)
+    const raw = res?.data?.data ?? res?.data ?? []
+    contractsForSelectedClient.value = Array.isArray(raw) ? raw : []
+  } catch (e) {
+    console.error('[InvoiceListView] getContractsByClient error:', e)
+    contractsForSelectedClient.value = []
+  } finally {
+    isLoadingContracts.value = false
+  }
 }
 
 function goBackToStep1() {
   modalStep.value = 1
   selectedClient.value = null
+  contractsForSelectedClient.value = []
 }
 
 function selectContract(contract) {
   closeModal()
-  router.push(`/documents/invoice/new?contractId=${contract.id}&clientId=${selectedClient.value.id}`)
+  router.push(
+      `/documents/invoice/new?contractId=${contract.id}&clientId=${selectedClient.value.id}`
+  )
 }
 
-function goToInvoiceDetail(invoice) {
-  const mode = normalizeInvoiceStatus(invoice.status) === 'ISSUED' ? 'issued' : 'pending'
-  router.push(`/documents/invoice/new?mode=${mode}&id=${invoice.id}`)
+// ----------------------------------------------------------------
+// 계약의 다음 발행일 표시 헬퍼
+// ----------------------------------------------------------------
+function nextIssueDateLabel(contract) {
+  if (contract.nextIssueDate) return contract.nextIssueDate
+  if (contract.billingDay) return `매월 ${contract.billingDay}일`
+  return '—'
 }
 </script>
 
@@ -116,16 +186,19 @@ function goToInvoiceDetail(invoice) {
 
         <!-- 탭 + 검색 -->
         <div class="mb-4 flex flex-wrap items-center gap-2">
+          <!-- 발행 대기 탭 (취소 포함) -->
           <button
               type="button"
               class="rounded px-3 py-2 text-sm font-semibold transition-colors"
-              :style="tab === 'draft'
+              :style="tab === 'pending'
               ? 'background-color: #C8622A; color: white;'
               : 'background-color: #EFEADF; color: #6B5F50;'"
-              @click="tab = 'draft'"
+              @click="tab = 'pending'"
           >
-            초안 ({{ documentStore.pendingInvoices.length }})
+            발행 대기 ({{ pendingInvoices.length + canceledInvoices.length }})
           </button>
+
+          <!-- 발행 완료 탭 -->
           <button
               type="button"
               class="rounded px-3 py-2 text-sm font-semibold transition-colors"
@@ -134,18 +207,9 @@ function goToInvoiceDetail(invoice) {
               : 'background-color: #EFEADF; color: #6B5F50;'"
               @click="tab = 'issued'"
           >
-            발행 완료 ({{ documentStore.issuedInvoices.length }})
+            발행 완료 ({{ issuedInvoices.length }})
           </button>
-          <button
-              type="button"
-              class="rounded px-3 py-2 text-sm font-semibold transition-colors"
-              :style="tab === 'canceled'
-              ? 'background-color: #C8622A; color: white;'
-              : 'background-color: #EFEADF; color: #6B5F50;'"
-              @click="tab = 'canceled'"
-          >
-            취소 ({{ documentStore.canceledInvoices.length }})
-          </button>
+
           <input
               v-model="keyword"
               type="text"
@@ -155,13 +219,18 @@ function goToInvoiceDetail(invoice) {
           />
         </div>
 
+        <!-- 로딩 -->
+        <div v-if="isLoading" class="py-12 text-center text-sm" style="color: #9A8C7E;">
+          불러오는 중...
+        </div>
+
         <!-- 목록 테이블 -->
-        <div class="overflow-hidden rounded border" style="border-color: #DDD7CE;">
+        <div v-else class="overflow-hidden rounded border" style="border-color: #DDD7CE;">
           <table class="min-w-full text-sm">
             <thead class="text-left" style="background-color: #EFEADF; color: #6B5F50;">
             <tr>
               <th class="px-3 py-2">청구번호</th>
-              <th class="px-3 py-2">주문번호</th>
+              <th class="px-3 py-2">계약번호</th>
               <th class="px-3 py-2">거래처</th>
               <th class="px-3 py-2">상태</th>
               <th class="px-3 py-2">발행일</th>
@@ -177,27 +246,36 @@ function goToInvoiceDetail(invoice) {
                 style="border-color: #E8E3D8;"
                 @click="goToInvoiceDetail(invoice)"
             >
-              <td class="px-3 py-2 font-semibold" style="color: #C8622A;">{{ invoice.id }}</td>
-              <td class="px-3 py-2" style="color: #6B5F50;">{{ invoice.orderId }}</td>
-              <td class="px-3 py-2 font-semibold" style="color: #3D3529;">{{ invoice.client?.name }}</td>
+              <td class="px-3 py-2 font-semibold" style="color: #C8622A;">{{ invoice.invoiceCode || invoice.invoice_code || invoice.id || '—' }}</td>
+              <td class="px-3 py-2" style="color: #6B5F50;">{{ invoice.contract?.code || invoice.contractCode || invoice.contract_code || '—' }}</td>
+              <td class="px-3 py-2 font-semibold" style="color: #3D3529;">{{ invoice.client?.name || '—' }}</td>
               <td class="px-3 py-2">
-                <span
-                    class="rounded-full px-2 py-0.5 text-xs font-bold"
-                    :style="normalizeInvoiceStatus(invoice.status) === 'CANCELED'
-                    ? 'background-color: #E8E3D8; color: #9A8C7E;'
-                    : normalizeInvoiceStatus(invoice.status) === 'ISSUED'
+                  <span
+                      class="rounded-full px-2 py-0.5 text-xs font-bold"
+                      :style="invoice.status === 'CANCELED'
+                      ? 'background-color: #E8E3D8; color: #9A8C7E;'
+                      : (invoice.status === 'PUBLISHED' || invoice.status === 'PAID')
                       ? 'background-color: #C8D4A0; color: #3D3529;'
                       : 'background-color: #FAE8C8; color: #8C6B30;'"
-                >
-                  {{ normalizeInvoiceStatus(invoice.status) === 'CANCELED' ? '취소' : normalizeInvoiceStatus(invoice.status) === 'ISSUED' ? '발행 완료' : '초안' }}
-                </span>
+                  >
+                    {{
+                      invoice.status === 'CANCELED'  ? '취소' :
+                          invoice.status === 'PAID'      ? '수납 완료' :
+                              invoice.status === 'PUBLISHED' ? '발행 완료' : '발행 대기'
+                    }}
+                  </span>
               </td>
-              <td class="px-3 py-2" style="color: #9A8C7E;">{{ invoice.createdAt || '—' }}</td>
-              <td class="px-3 py-2 text-right font-semibold" style="color: #3D3529;">{{ invoice.totalAmount?.toLocaleString() }}원</td>
+              <td class="px-3 py-2" style="color: #9A8C7E;">{{ invoice.issueDate || invoice.createdAt || '—' }}</td>
+              <td class="px-3 py-2 text-right font-semibold" style="color: #3D3529;">
+                {{ invoice.totalAmount?.toLocaleString() }}원
+              </td>
               <td class="px-3 py-2" style="color: #BFB3A5;">›</td>
             </tr>
+
             <tr v-if="filteredInvoices.length === 0">
-              <td colspan="7" class="px-3 py-8 text-center" style="color: #BFB3A5;">청구서 데이터가 없습니다.</td>
+              <td colspan="7" class="px-3 py-8 text-center" style="color: #BFB3A5;">
+                청구서 데이터가 없습니다.
+              </td>
             </tr>
             </tbody>
           </table>
@@ -212,21 +290,33 @@ function goToInvoiceDetail(invoice) {
           class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           @click.self="closeModal"
       >
-        <div class="flex w-full max-w-lg flex-col rounded-lg border shadow-2xl" style="background-color: #F7F3EC; border-color: #DDD7CE; max-height: calc(100vh - 80px);">
-
+        <div
+            class="flex w-full max-w-lg flex-col rounded-lg border shadow-2xl"
+            style="background-color: #F7F3EC; border-color: #DDD7CE; max-height: calc(100vh - 80px);"
+        >
           <!-- 모달 헤더 -->
-          <div class="flex items-start justify-between border-b px-6 py-5" style="border-color: #E8E3D8; background-color: #C8622A;">
+          <div
+              class="flex items-start justify-between border-b px-6 py-5"
+              style="border-color: #E8E3D8; background-color: #C8622A;"
+          >
             <div>
               <p class="text-lg font-extrabold text-white">신규 청구서 발행</p>
               <p class="mt-0.5 text-xs" style="color: rgba(255,255,255,0.75);">
                 {{ modalStep === 1 ? '거래처를 먼저 선택하세요.' : '발행할 계약을 선택하세요.' }}
               </p>
             </div>
-            <button type="button" class="rounded p-1 text-white hover:opacity-75 transition-opacity text-xl font-bold" @click="closeModal">×</button>
+            <button
+                type="button"
+                class="rounded p-1 text-white hover:opacity-75 transition-opacity text-xl font-bold"
+                @click="closeModal"
+            >×</button>
           </div>
 
           <!-- 스텝 인디케이터 -->
-          <div class="flex items-center gap-0 border-b px-6 py-3" style="border-color: #E8E3D8; background-color: #EFEADF;">
+          <div
+              class="flex items-center gap-0 border-b px-6 py-3"
+              style="border-color: #E8E3D8; background-color: #EFEADF;"
+          >
             <div class="flex items-center gap-2">
               <div
                   class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white transition-colors"
@@ -262,14 +352,12 @@ function goToInvoiceDetail(invoice) {
                   placeholder="거래처명을 입력하세요"
                   autofocus
               />
-
               <div class="overflow-hidden rounded border" style="border-color: #DDD7CE;">
                 <div
                     v-for="client in filteredClients"
                     :key="client.id"
                     class="flex cursor-pointer items-center justify-between border-b px-4 py-3 last:border-b-0 transition-colors"
-                    style="border-color: #E8E3D8;"
-                    :style="'background-color: #FAF7F3;'"
+                    style="border-color: #E8E3D8; background-color: #FAF7F3;"
                     @mouseenter="$event.currentTarget.style.backgroundColor='#EFEADF'"
                     @mouseleave="$event.currentTarget.style.backgroundColor='#FAF7F3'"
                     @click="selectClient(client)"
@@ -295,9 +383,14 @@ function goToInvoiceDetail(invoice) {
 
               <p class="mb-3 text-xs font-bold uppercase tracking-wider" style="color: #9A8C7E;">계약 선택</p>
 
-              <div class="flex flex-col gap-3">
+              <!-- 로딩 -->
+              <div v-if="isLoadingContracts" class="py-8 text-center text-sm" style="color: #9A8C7E;">
+                계약 정보를 불러오는 중...
+              </div>
+
+              <div v-else class="flex flex-col gap-3">
                 <div
-                    v-for="contract in contractsForClient"
+                    v-for="contract in contractsForSelectedClient"
                     :key="contract.id"
                     class="cursor-pointer rounded border p-4 transition-all"
                     style="border-color: #DDD7CE; background-color: #FAF7F3;"
@@ -312,11 +405,12 @@ function goToInvoiceDetail(invoice) {
                   <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs" style="color: #9A8C7E;">
                     <span>기간 {{ contract.startDate }} ~ {{ contract.endDate }}</span>
                     <span>청구 주기 {{ contract.billingCycle }}</span>
+                    <span>다음 발행일 {{ nextIssueDateLabel(contract) }}</span>
                   </div>
                 </div>
 
-                <div v-if="contractsForClient.length === 0" class="py-8 text-center text-sm" style="color: #BFB3A5;">
-                  이 거래처에 연결된 계약이 없습니다.
+                <div v-if="contractsForSelectedClient.length === 0" class="py-8 text-center text-sm" style="color: #BFB3A5;">
+                  이 거래처에 연결된 활성 계약이 없습니다.
                 </div>
               </div>
             </template>
@@ -331,7 +425,7 @@ function goToInvoiceDetail(invoice) {
                 style="border-color: #DDD7CE; background-color: transparent; color: #6B5F50;"
                 @click="closeModal"
             >
-              취소
+              닫기
             </button>
           </div>
 
@@ -353,4 +447,5 @@ function goToInvoiceDetail(invoice) {
 ::-webkit-scrollbar-thumb:hover { background: #C8622A; }
 input::placeholder { color: #9A8C7E; font-style: italic; }
 button:active { transform: scale(0.98); }
+.hover-row:hover { background-color: #EFEADF; }
 </style>
