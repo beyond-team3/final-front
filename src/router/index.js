@@ -47,6 +47,7 @@ const DocumentListView = () => import('@/views/history/DocumentListView.vue')
 const NoteView = () => import('@/views/note/NoteView.vue')
 const NoteSearchView = () => import('@/views/note/NoteSearchView.vue')
 const NoteBriefingView = () => import('@/views/note/NoteBriefingView.vue')
+const RagSeedAnalysisView = () => import('@/views/note/RagSeedAnalysisView.vue')
 const PestMapView = () => import('@/views/pest-map/PestMapView.vue')
 const SalesRepStatsView = defineAsyncComponent(() => import('@/views/statistics/SalesRepStatsView.vue'))
 const AdminStatsView = defineAsyncComponent(() => import('@/views/statistics/AdminStatsView.vue'))
@@ -239,8 +240,9 @@ const routes = [
             { path: 'notes', name: 'notes', component: NoteView, meta: { roles: [ROLES.SALES_REP], title: '노트' } },
             { path: 'notes/search', name: 'note-search', component: NoteSearchView, meta: { roles: [ROLES.SALES_REP], title: '노트 검색' } },
             { path: 'notes/briefing', name: 'note-briefing', component: NoteBriefingView, meta: { roles: [ROLES.SALES_REP], title: 'AI 영업 브리핑' } },
+            { path: 'ragseed', name: 'note-ragseed', component: RagSeedAnalysisView, meta: { roles: [ROLES.SALES_REP], title: 'RAGseed 전략 분석' } },
 
-            { path: 'pest-map', name: 'pest-map', component: PestMapView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '병해충지도' } },
+            { path: 'pest-map', name: 'pest-map', component: PestMapView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '병해충-품종 매칭 지도' } },
             { path: 'statistics', name: 'statistics', component: StatisticsRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '통계' } },
             { path: 'schedule', name: 'schedule', component: CalendarView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '일정' } },
 

@@ -110,7 +110,12 @@ function normalizeClient(client = {}) {
         // [추가] 초기 품종 데이터 보장
         crops: client.crops || [],
 
-        monthlyAmount: Number(client.thisMonthAmount || 0)
+        monthlyAmount: Number(client.thisMonthAmount || 0),
+
+        // [핵심] 여신 및 사업자 정보 매핑 보완
+        bizNo: client.clientBrn || client.bizNo,
+        creditLimit: Number(client.totalCredit || client.creditLimit || 0),
+        receivable: Number(client.unpaidAmount || client.receivable || 0)
     }
 }
 
@@ -203,6 +208,10 @@ export const useClientStore = defineStore('client', () => {
                 currentClient.value.monthlyAmount = data.thisMonth?.totalAmount || 0
                 currentClient.value.monthlyInProgress = data.thisMonth?.inProgressCount || 0
                 currentClient.value.monthlyDone = data.thisMonth?.completedCount || 0
+                // 미수금 정보가 tradeSummary에 있다면 동기화
+                if (data.unpaidAmount !== undefined || data.receivable !== undefined) {
+                    currentClient.value.receivable = Number(data.unpaidAmount || data.receivable || 0)
+                }
             }
 
             return data

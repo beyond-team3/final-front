@@ -55,9 +55,9 @@ export const MENU_CONFIG = [
             { key: 'product-favorites', label: '즐겨찾기', route: '/products/favorites', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'product-compare', label: '상품 비교', route: '/products/compare', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'product-register', label: '상품 등록', route: '/products/register', roles: [ROLES.ADMIN] },
-            { key: 'pest-map', label: '병해충 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
         ],
     },
+    { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
     { key: 'employee-management', label: '사원 관리', roles: [ROLES.ADMIN], route: '/employees' },
     {
         key: 'note',
@@ -67,6 +67,7 @@ export const MENU_CONFIG = [
             { key: 'note-main', label: '노트 작성', route: '/notes' },
             { key: 'note-search', label: '노트 검색', route: '/notes/search' },
             { key: 'note-briefing', label: 'AI 영업 브리핑', route: '/notes/briefing' },
+            { key: 'ragseed-analysis', label: 'RAGseed 분석', route: '/ragseed' },
         ],
     },
     { key: 'payment', label: '결제', roles: [ROLES.CLIENT], route: '/payment' },
