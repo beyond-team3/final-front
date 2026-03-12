@@ -7,6 +7,7 @@ import PaginationControls from '@/components/common/PaginationControls.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import { decideApprovalStep, getApprovalDetail, searchApprovals } from '@/api/approval'
+import { getOrder as getOrderApi } from '@/api/document'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployeeStore } from '@/stores/employee'
@@ -139,6 +140,29 @@ const normalizeApproval = (approval) => {
 const firstFilledValue = (...values) => values.find((value) => value !== undefined && value !== null && value !== '')
 
 const formatCurrency = (value) => Number(value || 0).toLocaleString()
+
+const unwrapApiData = (response) => {
+  if (!response) return null
+  if (response.result === 'SUCCESS') return response.data
+  if (response.data !== undefined) return response.data
+  return response
+}
+
+const fetchOrderApprovalDetail = async (orderId) => {
+  if (typeof documentStore.fetchOrderDetail === 'function') {
+    return documentStore.fetchOrderDetail(orderId)
+  }
+
+  const raw = unwrapApiData(await getOrderApi(orderId))
+  if (!raw) return null
+
+  return {
+    ...raw,
+    id: raw.orderId || raw.id || orderId,
+    displayCode: raw.displayCode || raw.orderCode || `ORD-${orderId}`,
+    items: Array.isArray(raw.items) ? raw.items : [],
+  }
+}
 
 const approvalSnapshot = computed(() => {
   const approval = selectedApproval.value
@@ -276,6 +300,9 @@ const detailPartyFields = computed(() => {
     {
       label: '영업 담당자',
       value: firstFilledValue(
+        selectedContractDetail.value?.salesRepName,
+        selectedContractDetail.value?.authorName,
+        selectedContractDetail.value?.managerName,
         source.salesRepName,
         source.authorName,
         source.managerName,
@@ -692,7 +719,7 @@ const loadApprovalDetail = async (approvalOrId, openModal = true) => {
       } else if (selectedApproval.value.dealType === 'CNT') {
         selectedDocumentDetail.value = await documentStore.fetchContractDetail(selectedApproval.value.targetId)
       } else if (selectedApproval.value.dealType === 'ORD') {
-        selectedDocumentDetail.value = await documentStore.fetchOrderDetail(selectedApproval.value.targetId)
+        selectedDocumentDetail.value = await fetchOrderApprovalDetail(selectedApproval.value.targetId)
         const contractId = firstFilledValue(
           selectedDocumentDetail.value?.headerId,
           selectedDocumentDetail.value?.contractId,
