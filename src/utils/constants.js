@@ -43,6 +43,7 @@ export const MENU_CONFIG = [
             { key: 'document-create', label: '문서 작성', route: '/documents/create', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
             { key: 'document-history', label: '문서 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
             { key: 'document-all', label: '모든 문서', route: '/documents/all', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'approval', label: '승인', route: '/approval', roles: [ROLES.ADMIN, ROLES.CLIENT] },
         ],
     },
     {
@@ -68,7 +69,6 @@ export const MENU_CONFIG = [
             { key: 'note-briefing', label: 'AI 영업 브리핑', route: '/notes/briefing' },
         ],
     },
-    { key: 'approval', label: '승인', roles: [ROLES.ADMIN], route: '/approval' },
     { key: 'payment', label: '결제', roles: [ROLES.CLIENT], route: '/payment' },
     { key: 'statistics', label: '통계', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/statistics' },
 ]
