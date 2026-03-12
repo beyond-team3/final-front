@@ -65,6 +65,9 @@ const sendMessage = async () => {
     await productStore.addFeedbackMessage(product.value.id, draft.value.trim())
     draft.value = ''
     scrollToBottom()
+  } catch (e) {
+    console.error('피드백 전송 실패:', e)
+    // draft는 보존 - 사용자가 재시도할 수 있도록
   } finally {
     isSubmitting.value = false
   }
@@ -93,6 +96,9 @@ const sendReply = async (parentId) => {
     await productStore.addFeedbackMessage(product.value.id, replyDraft.value.trim(), null, parentId)
     replyDraft.value = ''
     replyingId.value = null
+  } catch (e) {
+    console.error('답글 전송 실패:', e)
+    // replyDraft는 보존 - 사용자가 재시도할 수 있도록
   } finally {
     isSubmitting.value = false
   }

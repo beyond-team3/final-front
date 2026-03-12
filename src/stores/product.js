@@ -241,7 +241,9 @@ export const useProductStore = defineStore('product', () => {
       }
       await submitFeedbackApi(pid, payload)
       await fetchFeedbackMessages(pid)
-    } catch (e) { }
+    } catch (e) {
+      throw e
+    }
   }
 
   const updateFeedbackMessage = (pid, mid, content) => {
