@@ -15,8 +15,9 @@ const authStore = useAuthStore()
 const documentStore = useDocumentStore()
 
 const STATUS_OPTIONS = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']
-const DEAL_TYPE_OPTIONS = ['QUO', 'CNT']
+const DEAL_TYPE_OPTIONS = ['QUO', 'CNT', 'ORD']
 const DECISION_ROLE_MAP = {
+  [ROLES.SALES_REP]: 'SALES_REP',
   [ROLES.ADMIN]: 'ADMIN',
   [ROLES.CLIENT]: 'CLIENT',
 }
@@ -51,6 +52,7 @@ const detailModalOpen = ref(false)
 const decisionModalOpen = ref(false)
 
 const detailLoading = ref(false)
+const detailError = ref('')
 const selectedApproval = ref(null)
 const selectedApprovalId = ref(null)
 const selectedDocumentDetail = ref(null)
@@ -67,6 +69,7 @@ const currentActorType = computed(() => DECISION_ROLE_MAP[currentRole.value] || 
 const dealTypeLabel = (dealType) => {
   if (dealType === 'QUO') return '견적서'
   if (dealType === 'CNT') return '계약서'
+  if (dealType === 'ORD') return '주문서'
   return dealType || '-'
 }
 
@@ -86,6 +89,7 @@ const stepStatusLabel = (status) => {
 }
 
 const actorTypeLabel = (actorType) => {
+  if (actorType === 'SALES_REP') return '영업사원'
   if (actorType === 'ADMIN') return '관리자'
   if (actorType === 'CLIENT') return '거래처'
   return actorType || '-'
@@ -224,12 +228,13 @@ const detailItemsTotal = computed(() => detailItems.value
 
 const approvalSortWeight = (approval) => {
   if (approval.status === 'PENDING') {
-    if (approval.activeStep?.actorType === 'ADMIN') return 0
-    if (approval.activeStep?.actorType === 'CLIENT') return 1
-    return 2
+    if (approval.activeStep?.actorType === 'SALES_REP') return 0
+    if (approval.activeStep?.actorType === 'ADMIN') return 1
+    if (approval.activeStep?.actorType === 'CLIENT') return 2
+    return 3
   }
 
-  return 3
+  return 4
 }
 
 const compareApprovals = (left, right) => {
@@ -278,7 +283,7 @@ const parseApprovalError = (error, fallbackMessage) => {
     AP007: '현재 사용자에게 이 승인 단계 처리 권한이 없습니다.',
     AP008: '승인 요청의 거래처 정보와 로그인 사용자가 일치하지 않습니다.',
     AP009: '해당 요청에는 clientIdSnapshot 값이 필요합니다.',
-    AP010: '현재 승인 기능은 QUO, CNT 문서만 지원합니다.',
+    AP010: '현재 승인 기능은 QUO, CNT, ORD 문서를 지원합니다.',
   }
 
   if (status === 401) {
@@ -328,6 +333,7 @@ const filteredApprovals = computed(() => {
 })
 
 const groupedApprovals = computed(() => ({
+  salesRep: filteredApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'SALES_REP'),
   admin: filteredApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'ADMIN'),
   client: filteredApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'CLIENT'),
   done: filteredApprovals.value.filter((approval) => approval.status !== 'PENDING'),
@@ -335,11 +341,46 @@ const groupedApprovals = computed(() => ({
 
 const stats = computed(() => ({
   total: listResponse.value.totalElements || 0,
+  salesRep: serverApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'SALES_REP').length,
   admin: serverApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'ADMIN').length,
   client: serverApprovals.value.filter((approval) => approval.status === 'PENDING' && approval.activeStep?.actorType === 'CLIENT').length,
+  done: serverApprovals.value.filter((approval) => approval.status !== 'PENDING').length,
 }))
 
 const totalPages = computed(() => Math.max(1, listResponse.value.totalPages || 1))
+
+const pageSubtitle = computed(() => {
+  if (currentRole.value === ROLES.SALES_REP) {
+    return '주문 승인 요청을 조회하고 승인 또는 반려할 수 있습니다.'
+  }
+
+  return '단계별 검토와 반려 처리를 한 화면에서 관리합니다.'
+})
+
+const kpiCards = computed(() => {
+  if (currentRole.value === ROLES.SALES_REP) {
+    return [
+      { key: 'total', value: stats.value.total, label: '검색 결과 전체' },
+      { key: 'salesRep', value: stats.value.salesRep, label: '영업 단계 대기' },
+      { key: 'done', value: stats.value.done, label: '완료/반려' },
+    ]
+  }
+
+  if (currentRole.value === ROLES.CLIENT) {
+    return [
+      { key: 'total', value: stats.value.total, label: '검색 결과 전체' },
+      { key: 'client', value: stats.value.client, label: '거래처 단계 대기' },
+      { key: 'done', value: stats.value.done, label: '완료/반려' },
+    ]
+  }
+
+  return [
+    { key: 'total', value: stats.value.total, label: '검색 결과 전체' },
+    { key: 'admin', value: stats.value.admin, label: '관리자 단계 대기' },
+    { key: 'client', value: stats.value.client, label: '거래처 단계 대기' },
+    { key: 'done', value: stats.value.done, label: '완료/반려' },
+  ]
+})
 
 const getDecisionStepForActor = (approval, actorType = currentActorType.value) => {
   if (!approval || !actorType) {
@@ -360,6 +401,14 @@ const getDecisionStepForActor = (approval, actorType = currentActorType.value) =
     return steps.find((step) =>
       step.stepOrder === 2
       && step.actorType === 'CLIENT'
+      && step.status === 'WAITING',
+    ) || null
+  }
+
+  if (actorType === 'SALES_REP') {
+    return steps.find((step) =>
+      step.stepOrder === 1
+      && step.actorType === 'SALES_REP'
       && step.status === 'WAITING',
     ) || null
   }
@@ -426,10 +475,19 @@ const loadApprovals = async () => {
   }
 }
 
-const loadApprovalDetail = async (approvalId, openModal = true) => {
+const loadApprovalDetail = async (approvalOrId, openModal = true) => {
+  const approvalId = typeof approvalOrId === 'object' ? approvalOrId?.approvalId : approvalOrId
+  const fallbackApproval = approvalOrId && typeof approvalOrId === 'object'
+    ? normalizeApproval(approvalOrId)
+    : null
+
   detailLoading.value = true
+  detailError.value = ''
   selectedApprovalId.value = approvalId
   selectedDocumentDetail.value = null
+  if (fallbackApproval) {
+    selectedApproval.value = fallbackApproval
+  }
 
   if (openModal) {
     detailModalOpen.value = true
@@ -439,26 +497,46 @@ const loadApprovalDetail = async (approvalId, openModal = true) => {
     const data = await getApprovalDetail(approvalId)
     const normalizedApproval = normalizeApproval(data)
     selectedApproval.value = normalizedApproval
+  } catch (error) {
+    console.error('승인 상세 로드 에러:', error)
+    selectedDocumentDetail.value = null
+    detailError.value = parseApprovalError(error, '승인 상세 정보를 불러오지 못했습니다.')
+    if (!selectedApproval.value) {
+      showFeedback('error', detailError.value)
+    }
+    detailLoading.value = false
+    return
+  }
 
-    if (normalizedApproval?.targetId) {
-      if (normalizedApproval.dealType === 'QUO') {
-        selectedDocumentDetail.value = await documentStore.fetchQuotationDetail(normalizedApproval.targetId)
-      } else if (normalizedApproval.dealType === 'CNT') {
-        selectedDocumentDetail.value = await documentStore.fetchContractDetail(normalizedApproval.targetId)
+  try {
+    if (selectedApproval.value?.targetId) {
+      if (selectedApproval.value.dealType === 'QUO') {
+        selectedDocumentDetail.value = await documentStore.fetchQuotationDetail(selectedApproval.value.targetId)
+      } else if (selectedApproval.value.dealType === 'CNT') {
+        selectedDocumentDetail.value = await documentStore.fetchContractDetail(selectedApproval.value.targetId)
+      } else if (selectedApproval.value.dealType === 'ORD') {
+        selectedDocumentDetail.value = await documentStore.fetchOrderDetail(selectedApproval.value.targetId)
+      }
+
+      if (
+        selectedApproval.value.dealType === 'ORD'
+        && !selectedDocumentDetail.value
+      ) {
+        detailError.value = '주문서 상세 정보를 불러오지 못했습니다. 승인 타임라인은 계속 확인할 수 있습니다.'
       }
     }
   } catch (error) {
-    selectedApproval.value = null
+    console.error('문서 상세 로드 에러:', error)
     selectedDocumentDetail.value = null
-    showFeedback('error', parseApprovalError(error, '승인 상세 정보를 불러오지 못했습니다.'))
+    detailError.value = '문서 상세 정보를 불러오지 못했습니다. 승인 타임라인은 계속 확인할 수 있습니다.'
   } finally {
     detailLoading.value = false
   }
 }
 
-const openDetail = async (approvalId) => {
+const openDetail = async (approval) => {
   clearFeedback()
-  await loadApprovalDetail(approvalId, true)
+  await loadApprovalDetail(approval, true)
 }
 
 const openDecisionModal = async (approval, decision) => {
@@ -574,10 +652,21 @@ const railClass = (approval) => {
     return approval.status === 'APPROVED' ? 'rail-approved' : 'rail-closed'
   }
 
+  if (approval.activeStep?.actorType === 'SALES_REP') {
+    return 'rail-sales'
+  }
+
   return approval.activeStep?.actorType === 'CLIENT' ? 'rail-client' : 'rail-admin'
 }
 
 const sectionList = computed(() => {
+  if (currentRole.value === ROLES.SALES_REP) {
+    return [
+      { key: 'sales-rep', title: '영업 승인 대기', accent: 'accent-sales', items: groupedApprovals.value.salesRep },
+      { key: 'done', title: '완료/반려', accent: 'accent-done', items: groupedApprovals.value.done },
+    ]
+  }
+
   if (currentRole.value === ROLES.CLIENT) {
     return [
       { key: 'client', title: '거래처 승인 대기', accent: 'accent-client', items: groupedApprovals.value.client },
@@ -619,24 +708,16 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="screen-content approval-page">
-    <PageHeader title="승인 관리" subtitle="단계별 검토와 반려 처리를 한 화면에서 관리합니다." />
+    <PageHeader title="승인 관리" :subtitle="pageSubtitle" />
 
     <div v-if="feedback.message" class="feedback-banner" :class="feedback.tone === 'success' ? 'feedback-success' : 'feedback-error'">
       {{ feedback.message }}
     </div>
 
     <section class="kpi-grid">
-      <article class="kpi-card">
-        <p class="kpi-number">{{ stats.total }}</p>
-        <p class="kpi-label">검색 결과 전체</p>
-      </article>
-      <article class="kpi-card">
-        <p class="kpi-number">{{ stats.admin }}</p>
-        <p class="kpi-label">관리자 단계 대기</p>
-      </article>
-      <article class="kpi-card">
-        <p class="kpi-number">{{ stats.client }}</p>
-        <p class="kpi-label">거래처 단계 대기</p>
+      <article v-for="card in kpiCards" :key="card.key" class="kpi-card">
+        <p class="kpi-number">{{ card.value }}</p>
+        <p class="kpi-label">{{ card.label }}</p>
       </article>
     </section>
 
@@ -731,7 +812,7 @@ onBeforeUnmount(() => {
                 class="approval-card"
                 :class="railClass(approval)"
               >
-                <div class="card-main" role="button" tabindex="0" @click="openDetail(approval.approvalId)" @keydown.enter.prevent="openDetail(approval.approvalId)">
+                <div class="card-main" role="button" tabindex="0" @click="openDetail(approval)" @keydown.enter.prevent="openDetail(approval)">
                   <div class="card-top">
                     <div>
                       <p class="doc-code">{{ approval.displayCode }}</p>
@@ -748,7 +829,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="card-actions">
-                  <button type="button" class="btn ghost-btn" @click="openDetail(approval.approvalId)">상세보기</button>
+                  <button type="button" class="btn ghost-btn" @click="openDetail(approval)">상세보기</button>
                   <button
                     v-if="canDecideApproval(approval)"
                     type="button"
@@ -784,6 +865,10 @@ onBeforeUnmount(() => {
       <div v-if="detailLoading" class="loading-panel">승인 상세를 불러오는 중입니다.</div>
 
       <template v-else-if="selectedApproval">
+        <div v-if="detailError" class="detail-inline-error">
+          {{ detailError }}
+        </div>
+
         <div class="detail-summary">
           <span class="badge">{{ dealTypeLabel(selectedApproval.dealType) }}</span>
           <span class="badge" :class="statusToneClass(selectedApproval.status)">
@@ -894,6 +979,10 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </template>
+
+      <div v-else-if="detailError" class="loading-panel">
+        {{ detailError }}
+      </div>
     </ModalBase>
 
     <ModalBase
@@ -1195,6 +1284,10 @@ onBeforeUnmount(() => {
   background: var(--color-orange);
 }
 
+.accent-sales {
+  background: var(--color-olive-dark);
+}
+
 .accent-client {
   background: var(--color-status-info);
 }
@@ -1240,6 +1333,10 @@ onBeforeUnmount(() => {
 
 .rail-admin::before {
   background: var(--color-orange);
+}
+
+.rail-sales::before {
+  background: var(--color-olive-dark);
 }
 
 .rail-client::before {
@@ -1362,6 +1459,17 @@ onBeforeUnmount(() => {
   align-items: center;
   color: var(--color-text-sub);
   font-size: 12px;
+}
+
+.detail-inline-error {
+  margin-bottom: 14px;
+  border: 1px solid rgba(184, 92, 92, 0.2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #f6e4e4;
+  color: var(--color-status-error);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .detail-grid {
