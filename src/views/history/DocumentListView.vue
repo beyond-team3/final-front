@@ -228,7 +228,7 @@ onMounted(() => {
               <th class="px-6 py-3 font-semibold">작성일</th>
               <th class="px-6 py-3 font-semibold">금액</th>
               <th class="px-6 py-3 font-semibold">상태</th>
-              <th class="px-6 py-3 font-semibold">액션</th>
+              <th class="px-6 py-3 font-semibold">상세</th>
             </tr>
             </thead>
             <tbody>

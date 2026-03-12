@@ -3,6 +3,7 @@ import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
 import { useClientStore } from '@/stores/client'
+import { formatWithCommas, stripCommas } from '@/utils/format'
 
 const router = useRouter()
 const clientStore = useClientStore()
@@ -24,6 +25,13 @@ const form = reactive({
   managerPhone: '',
   creditLimit: 0,
 })
+
+const handleCreditLimitInput = (event) => {
+  const rawValue = event.target.value
+  const strippedValue = stripCommas(rawValue)
+  form.creditLimit = strippedValue ? Number(strippedValue) : 0
+  event.target.value = formatWithCommas(strippedValue)
+}
 
 
 const execDaumPostcode = () => {
@@ -93,9 +101,14 @@ const onSubmit = async () => {
 
   try {
     // 스토어의 addClient 호출
-    await clientStore.addClient(payload)
+    const newClientId = await clientStore.addClient(payload)
     alert('새 거래처가 등록되었습니다.')
-    router.push('/clients')
+    
+    if (newClientId) {
+      router.push(`/clients/${newClientId}`)
+    } else {
+      router.push('/clients')
+    }
   } catch (error) {
     console.error('Registration error details:', error.response?.data || error)
     const msg = error.response?.data?.error?.message || error.response?.data?.message || '등록에 실패했습니다.'
@@ -207,7 +220,13 @@ const onSubmit = async () => {
           </div>
           <label class="block">
             <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">여신한도 (원)</span>
-            <input v-model="form.creditLimit" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] transition-all shadow-sm" type="number" min="0" step="1000" />
+            <input
+                :value="formatWithCommas(form.creditLimit)"
+                @input="handleCreditLimitInput"
+                class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:ring-1 focus:ring-[var(--color-olive)] focus:border-[var(--color-olive)] transition-all shadow-sm"
+                type="text"
+                placeholder="0"
+            />
           </label>
           <label class="block">
             <span class="block text-xs font-bold text-[var(--color-text-sub)] uppercase tracking-wider mb-1.5">담당자 이름</span>
