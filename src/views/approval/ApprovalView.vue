@@ -9,10 +9,12 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import { decideApprovalStep, getApprovalDetail, searchApprovals } from '@/api/approval'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
+import { useEmployeeStore } from '@/stores/employee'
 import { ROLES } from '@/utils/constants'
 
 const authStore = useAuthStore()
 const documentStore = useDocumentStore()
+const employeeStore = useEmployeeStore()
 
 const STATUS_OPTIONS = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']
 const DEAL_TYPE_OPTIONS = ['QUO', 'CNT', 'ORD']
@@ -56,6 +58,7 @@ const detailError = ref('')
 const selectedApproval = ref(null)
 const selectedApprovalId = ref(null)
 const selectedDocumentDetail = ref(null)
+const selectedContractDetail = ref(null)
 
 const decisionSubmitting = ref(false)
 const decisionReason = ref('')
@@ -135,6 +138,76 @@ const normalizeApproval = (approval) => {
 
 const firstFilledValue = (...values) => values.find((value) => value !== undefined && value !== null && value !== '')
 
+const formatCurrency = (value) => Number(value || 0).toLocaleString()
+
+const approvalSnapshot = computed(() => {
+  const approval = selectedApproval.value
+  return approval?.targetSnapshot
+    || approval?.documentSnapshot
+    || approval?.targetDocumentSnapshot
+    || approval?.targetDocument
+    || approval?.target
+    || {}
+})
+
+const detailDocumentSource = computed(() => {
+  const snapshot = approvalSnapshot.value || {}
+  const detail = selectedDocumentDetail.value || {}
+
+  return {
+    ...snapshot,
+    ...detail,
+    client: {
+      ...(snapshot.client || {}),
+      ...(detail.client || {}),
+    },
+    contract: {
+      ...(snapshot.contract || {}),
+      ...(detail.contract || {}),
+    },
+    contractSnapshot: {
+      ...(snapshot.contractSnapshot || {}),
+      ...(detail.contractSnapshot || {}),
+    },
+  }
+})
+
+const detailClientMasterRecord = computed(() => {
+  const source = detailDocumentSource.value || {}
+  const clientId = firstFilledValue(source.clientId, selectedApproval.value?.clientIdSnapshot, null)
+  if (clientId === null || clientId === undefined) {
+    return null
+  }
+
+  return documentStore.clientMaster.find((client) => String(client.id) === String(clientId)) || null
+})
+
+const detailEmployeeRecord = computed(() => {
+  const source = detailDocumentSource.value || {}
+  const employeeId = firstFilledValue(source.employeeId, source.salesRepId, null)
+  const currentUserName = firstFilledValue(
+    authStore.me?.targetPerson,
+    authStore.me?.employeeName,
+    authStore.me?.name,
+    authStore.me?.loginId,
+    null,
+  )
+  const currentUserEmployeeId = firstFilledValue(authStore.me?.employeeId, authStore.me?.refId, authStore.me?.id, null)
+
+  if (currentRole.value === ROLES.SALES_REP && currentUserName) {
+    return {
+      id: currentUserEmployeeId,
+      name: currentUserName,
+    }
+  }
+
+  if (employeeId === null || employeeId === undefined) {
+    return null
+  }
+
+  return employeeStore.getEmployeeById(employeeId) || null
+})
+
 const detailClientInfo = computed(() => {
   const documentDetail = selectedDocumentDetail.value
   if (documentDetail) {
@@ -152,12 +225,7 @@ const detailClientInfo = computed(() => {
   }
 
   const approval = selectedApproval.value
-  const snapshot = approval?.targetSnapshot
-    || approval?.documentSnapshot
-    || approval?.targetDocumentSnapshot
-    || approval?.targetDocument
-    || approval?.target
-    || {}
+  const snapshot = approvalSnapshot.value
   const client = snapshot?.client || approval?.client || {}
 
   return {
@@ -189,42 +257,142 @@ const detailClientInfo = computed(() => {
   }
 })
 
-const detailItems = computed(() => {
-  const documentDetail = selectedDocumentDetail.value
-  if (Array.isArray(documentDetail?.items)) {
-    return documentDetail.items.map((item, index) => ({
-      key: firstFilledValue(item.id, item.itemId, item.productId, `${documentDetail.id || 'document'}-${index}`),
-      variety: firstFilledValue(item.variety, item.productCategory, item.varietyName, '-'),
-      name: firstFilledValue(item.name, item.productName, item.itemName, '-'),
-      quantity: firstFilledValue(item.quantity, item.qty, item.count, 0),
-      unit: firstFilledValue(item.unit, item.unitName, '-'),
-      price: Number(firstFilledValue(item.unitPrice, item.price, item.amount, 0) || 0),
-    }))
+const detailPartyFields = computed(() => {
+  const source = detailDocumentSource.value || {}
+  const client = source.client || {}
+
+  return [
+    {
+      label: '법인명',
+      value: firstFilledValue(
+        source.clientName,
+        client.name,
+        detailClientMasterRecord.value?.name,
+        selectedApproval.value?.clientNameSnapshot,
+        detailClientInfo.value.clientName,
+        '-',
+      ),
+    },
+    {
+      label: '영업 담당자',
+      value: firstFilledValue(
+        source.salesRepName,
+        source.authorName,
+        source.managerName,
+        source.writerName,
+        detailEmployeeRecord.value?.name,
+        selectedApproval.value?.salesRepNameSnapshot,
+        '-',
+      ),
+    },
+  ]
+})
+
+const detailOrderFields = computed(() => {
+  if (selectedApproval.value?.dealType !== 'ORD') {
+    return []
   }
 
-  const approval = selectedApproval.value
-  const snapshot = approval?.targetSnapshot
-    || approval?.documentSnapshot
-    || approval?.targetDocumentSnapshot
-    || approval?.targetDocument
-    || approval?.target
-    || {}
-  const rawItems = snapshot?.items || snapshot?.lineItems || approval?.items || []
+  const source = detailDocumentSource.value || {}
 
-  return Array.isArray(rawItems)
-    ? rawItems.map((item, index) => ({
-      key: firstFilledValue(item.id, item.itemId, item.productId, `${approval?.approvalId || 'approval'}-${index}`),
-      variety: firstFilledValue(item.variety, item.category, item.varietyName, '-'),
-      name: firstFilledValue(item.name, item.productName, item.itemName, '-'),
-      quantity: firstFilledValue(item.quantity, item.qty, item.count, 0),
-      unit: firstFilledValue(item.unit, item.unitName, '-'),
-      price: Number(firstFilledValue(item.unitPrice, item.price, item.amount, 0) || 0),
-    }))
-    : []
+  return [
+    { label: '주문서 코드', value: firstFilledValue(source.displayCode, source.orderCode, selectedApproval.value?.displayCode, '-') },
+    {
+      label: '계약서 코드',
+      value: firstFilledValue(
+        source.contractCode,
+        source.headerCode,
+        source.contractName,
+        selectedContractDetail.value?.displayCode,
+        selectedContractDetail.value?.contractCode,
+        source.contract?.displayCode,
+        source.contract?.contractCode,
+        source.contractSnapshot?.displayCode,
+        source.contractSnapshot?.contractCode,
+        approvalSnapshot.value?.contractCode,
+        approvalSnapshot.value?.headerCode,
+        '-',
+      ),
+    },
+    { label: '주문 상태', value: firstFilledValue(source.status, '-') },
+    { label: '주문일', value: formatDateTime(firstFilledValue(source.createdAt, source.orderDate, source.date, null)) },
+  ]
+})
+
+const detailDeliveryFields = computed(() => {
+  if (selectedApproval.value?.dealType !== 'ORD') {
+    return []
+  }
+
+  const source = detailDocumentSource.value || {}
+  const shippingAddress = [
+    firstFilledValue(source.shippingAddress, source.deliveryAddress, ''),
+    firstFilledValue(source.shippingAddressDetail, source.deliveryAddressDetail, ''),
+  ].filter(Boolean).join(' ')
+
+  return [
+    { label: '배송지', value: shippingAddress || '-' },
+    { label: '수령인', value: firstFilledValue(source.shippingName, source.deliveryRecipient, detailClientInfo.value.managerName, '-') },
+    { label: '연락처', value: firstFilledValue(source.shippingPhone, source.deliveryPhone, source.clientContact, '-') },
+    { label: '배송 요청사항', value: firstFilledValue(source.deliveryRequest, source.memo, source.requirements, '-') },
+  ]
+})
+
+const detailInternalMemo = computed(() => {
+  const source = detailDocumentSource.value || {}
+  return firstFilledValue(source.memo, source.deliveryRequest, '')
+})
+
+const detailItems = computed(() => {
+  const documentItems = Array.isArray(selectedDocumentDetail.value?.items) ? selectedDocumentDetail.value.items : []
+  const snapshotItems = Array.isArray(approvalSnapshot.value?.items)
+    ? approvalSnapshot.value.items
+    : (Array.isArray(approvalSnapshot.value?.lineItems) ? approvalSnapshot.value.lineItems : [])
+  const contractItems = Array.isArray(selectedContractDetail.value?.items) ? selectedContractDetail.value.items : []
+  const fallbackItems = Array.isArray(selectedApproval.value?.items) ? selectedApproval.value.items : []
+  const baseItems = snapshotItems.length > 0 ? snapshotItems : fallbackItems
+  const maxLength = Math.max(documentItems.length, baseItems.length)
+  const orderTotalAmount = Number(firstFilledValue(selectedDocumentDetail.value?.totalAmount, approvalSnapshot.value?.totalAmount, 0) || 0)
+
+  return Array.from({ length: maxLength }, (_, index) => {
+    const baseItem = baseItems[index] || {}
+    const detailItem = documentItems[index] || {}
+    const matchedContractItem = contractItems.find((item) =>
+      String(item.detailId ?? item.contractDetailId ?? item.id ?? '') === String(detailItem.contractDetailId ?? baseItem.contractDetailId ?? ''),
+    ) || contractItems[index] || {}
+    const mergedItem = { ...matchedContractItem, ...baseItem, ...detailItem }
+    const quantity = Number(firstFilledValue(mergedItem.quantity, mergedItem.qty, mergedItem.count, 0) || 0)
+    const unitPrice = Number(firstFilledValue(mergedItem.unitPrice, mergedItem.price, 0) || 0)
+    let amount = Number(firstFilledValue(mergedItem.amount, quantity * unitPrice, 0) || 0)
+
+    if (amount === 0 && maxLength === 1 && orderTotalAmount > 0) {
+      amount = orderTotalAmount
+    }
+
+    return {
+      key: firstFilledValue(
+        mergedItem.id,
+        mergedItem.itemId,
+        mergedItem.productId,
+        `${selectedApproval.value?.approvalId || 'approval'}-${index}`,
+      ),
+      name: firstFilledValue(
+        mergedItem.name,
+        mergedItem.productName,
+        mergedItem.itemName,
+        matchedContractItem.productName,
+        mergedItem.productCode,
+        '-',
+      ),
+      quantity,
+      unit: firstFilledValue(mergedItem.unit, mergedItem.unitName, matchedContractItem.unit, '립'),
+      amount,
+    }
+  })
 })
 
 const detailItemsTotal = computed(() => detailItems.value
-  .reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.price || 0)), 0))
+  .reduce((sum, item) => sum + Number(item.amount || 0), 0))
 
 const approvalSortWeight = (approval) => {
   if (approval.status === 'PENDING') {
@@ -485,6 +653,7 @@ const loadApprovalDetail = async (approvalOrId, openModal = true) => {
   detailError.value = ''
   selectedApprovalId.value = approvalId
   selectedDocumentDetail.value = null
+  selectedContractDetail.value = null
   if (fallbackApproval) {
     selectedApproval.value = fallbackApproval
   }
@@ -509,6 +678,14 @@ const loadApprovalDetail = async (approvalOrId, openModal = true) => {
   }
 
   try {
+    if (documentStore.clientMaster.length === 0) {
+      await documentStore.fetchClientMaster()
+    }
+
+    if (employeeStore.employees.length === 0 && currentRole.value === ROLES.ADMIN) {
+      await employeeStore.fetchEmployees()
+    }
+
     if (selectedApproval.value?.targetId) {
       if (selectedApproval.value.dealType === 'QUO') {
         selectedDocumentDetail.value = await documentStore.fetchQuotationDetail(selectedApproval.value.targetId)
@@ -516,6 +693,24 @@ const loadApprovalDetail = async (approvalOrId, openModal = true) => {
         selectedDocumentDetail.value = await documentStore.fetchContractDetail(selectedApproval.value.targetId)
       } else if (selectedApproval.value.dealType === 'ORD') {
         selectedDocumentDetail.value = await documentStore.fetchOrderDetail(selectedApproval.value.targetId)
+        const contractId = firstFilledValue(
+          selectedDocumentDetail.value?.headerId,
+          selectedDocumentDetail.value?.contractId,
+          approvalSnapshot.value?.headerId,
+          approvalSnapshot.value?.contractId,
+          null,
+        )
+
+        if (contractId) {
+          selectedContractDetail.value = documentStore.getContractById(contractId)
+          if (!selectedContractDetail.value?.items?.length) {
+            try {
+              selectedContractDetail.value = await documentStore.fetchContractDetail(contractId)
+            } catch (error) {
+              console.warn('계약 상세 보강 로드 실패:', error)
+            }
+          }
+        }
       }
 
       if (
@@ -882,21 +1077,29 @@ onBeforeUnmount(() => {
           <div class="detail-card">
             <h4>거래처 및 담당자</h4>
             <div class="detail-info-grid">
-              <div>
-                <dt>거래처 코드</dt>
-                <dd>{{ detailClientInfo.clientCode }}</dd>
+              <div v-for="field in detailPartyFields" :key="field.label">
+                <dt>{{ field.label }}</dt>
+                <dd>{{ field.value }}</dd>
               </div>
-              <div>
-                <dt>법인명</dt>
-                <dd>{{ detailClientInfo.clientName }}</dd>
+            </div>
+          </div>
+
+          <div v-if="detailOrderFields.length > 0" class="detail-card">
+            <h4>주문 문서 정보</h4>
+            <div class="detail-info-grid">
+              <div v-for="field in detailOrderFields" :key="field.label">
+                <dt>{{ field.label }}</dt>
+                <dd>{{ field.value }}</dd>
               </div>
-              <div>
-                <dt>담당자</dt>
-                <dd>{{ detailClientInfo.managerName }}</dd>
-              </div>
-              <div>
-                <dt>문서 코드</dt>
-                <dd>{{ selectedDocumentDetail?.displayCode || selectedApproval.displayCode }}</dd>
+            </div>
+          </div>
+
+          <div v-if="detailDeliveryFields.length > 0" class="detail-card">
+            <h4>배송 정보</h4>
+            <div class="detail-info-grid">
+              <div v-for="field in detailDeliveryFields" :key="field.label">
+                <dt>{{ field.label }}</dt>
+                <dd class="detail-multiline">{{ field.value }}</dd>
               </div>
             </div>
           </div>
@@ -907,35 +1110,40 @@ onBeforeUnmount(() => {
               <table class="detail-items-table">
                 <thead>
                   <tr>
-                    <th>품종명</th>
-                    <th>상품명</th>
-                    <th>수량</th>
                     <th>단위</th>
-                    <th>단가</th>
+                    <th>품목명</th>
+                    <th>수량</th>
+                    <th>금액</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="item in detailItems" :key="item.key">
-                    <td>{{ item.variety }}</td>
+                    <td>{{ item.unit }}</td>
                     <td class="detail-item-name">{{ item.name }}</td>
                     <td>{{ item.quantity }}</td>
-                    <td>{{ item.unit }}</td>
-                    <td class="detail-item-price">{{ Number(item.price || 0).toLocaleString() }}</td>
+                    <td class="detail-item-price">{{ formatCurrency(item.amount) }}</td>
                   </tr>
                   <tr v-if="detailItems.length === 0">
-                    <td colspan="5" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
+                    <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
                   </tr>
                 </tbody>
                 <tfoot v-if="detailItems.length > 0">
                   <tr>
-                    <td colspan="4">총 합계</td>
-                    <td class="detail-item-price">{{ detailItemsTotal.toLocaleString() }}</td>
+                    <td colspan="3">총 합계</td>
+                    <td class="detail-item-price">{{ formatCurrency(detailItemsTotal) }}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
         </div>
+
+        <section v-if="detailInternalMemo" class="timeline-card">
+          <div class="timeline-header">
+            <h4>내부 비고</h4>
+          </div>
+          <p class="detail-memo-copy">{{ detailInternalMemo }}</p>
+        </section>
 
         <section class="timeline-card">
           <div class="timeline-header">
@@ -1421,6 +1629,11 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
+.detail-multiline {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .card-actions {
   display: flex;
   flex-direction: column;
@@ -1476,7 +1689,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 16px;
   margin-top: 16px;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  grid-template-columns: 1fr;
 }
 
 .detail-card {
@@ -1495,6 +1708,7 @@ onBeforeUnmount(() => {
 
 .detail-info-grid {
   display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -1557,6 +1771,14 @@ onBeforeUnmount(() => {
 .timeline-card {
   margin-top: 16px;
   padding: 18px;
+}
+
+.detail-memo-copy {
+  color: var(--color-text-strong);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .timeline-list {
@@ -1658,7 +1880,8 @@ onBeforeUnmount(() => {
   .kpi-grid,
   .filter-grid,
   .form-grid,
-  .detail-grid {
+  .detail-grid,
+  .detail-info-grid {
     grid-template-columns: 1fr;
   }
 
