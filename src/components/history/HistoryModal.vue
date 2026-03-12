@@ -138,6 +138,17 @@ const showRFQCancelButton = computed(() => isQuotationRequest.value && authStore
 const showQuotationCancelButton = computed(() => isQuotationDocument.value && authStore.currentRole === ROLES.SALES_REP && isAuthor.value && authStore.currentRole !== ROLES.ADMIN)
 const showContractDeleteButton = computed(() => isContractDocument.value && authStore.currentRole === ROLES.SALES_REP && isAuthor.value && authStore.currentRole !== ROLES.ADMIN)
 const displayedRejectReason = computed(() => String(props.rejectReason || approvalRejectReason.value || '').trim())
+const rewriteSourceId = computed(() => {
+  if (isQuotationDocument.value) {
+    return docDetail.value?.requestId || docDetail.value?.quotationRequestId || null
+  }
+
+  if (isContractDocument.value) {
+    return docDetail.value?.quotationId || null
+  }
+
+  return null
+})
 const isRejectedDocument = computed(() => {
   const rawStatus = String(docDetail.value?.status || '').trim().toUpperCase()
   return rawStatus.includes('REJECT') || rawStatus.includes('반려') || Boolean(displayedRejectReason.value)
@@ -146,6 +157,7 @@ const showRewriteButton = computed(() => (
   isRejectedDocument.value
   && authStore.currentRole === ROLES.SALES_REP
   && isAuthor.value
+  && Boolean(rewriteSourceId.value)
   && (showQuotationCancelButton.value || showContractDeleteButton.value)
 ))
 
@@ -161,14 +173,12 @@ const handleDelete = () => {
 
 const handleRewrite = async () => {
   try {
-    let sourceId = null
-
     if (isQuotationDocument.value) {
       const latestDetail = await documentStore.fetchQuotationDetail(props.docId)
-      sourceId = latestDetail?.requestId || latestDetail?.quotationRequestId || null
+      const sourceId = latestDetail?.requestId || latestDetail?.quotationRequestId || null
 
       if (!sourceId) {
-        window.alert('재작성에 필요한 RFQ 정보를 찾을 수 없습니다.')
+        window.alert('상위 견적요청서가 연결된 견적서만 재작성할 수 있습니다.')
         return
       }
 
@@ -190,10 +200,10 @@ const handleRewrite = async () => {
 
     if (isContractDocument.value) {
       const latestDetail = await documentStore.fetchContractDetail(props.docId)
-      sourceId = latestDetail?.quotationId || null
+      const sourceId = latestDetail?.quotationId || null
 
       if (!sourceId) {
-        window.alert('재작성에 필요한 견적서 정보를 찾을 수 없습니다.')
+        window.alert('상위 견적서가 연결된 계약서만 재작성할 수 있습니다.')
         return
       }
 
@@ -326,7 +336,9 @@ const loadDetail = async () => {
     else if (typeKey === 'invoice') detail = documentStore.getInvoiceById(currentId)
     else if (['quotation-request', 'rfq'].includes(typeKey)) detail = documentStore.getRequestById(currentId)
 
-    if (!detail || !detail.items || detail.items.length === 0) {
+    const requiresFreshDetail = isQuotationDocument.value || isContractDocument.value
+
+    if (requiresFreshDetail || !detail || !detail.items || detail.items.length === 0) {
       let fetched = null
       if (['quotation-request', 'rfq'].includes(typeKey)) fetched = await documentStore.fetchQuotationRequestDetail(currentId)
       else if (typeKey === 'quotation') fetched = await documentStore.fetchQuotationDetail(currentId)
@@ -590,10 +602,15 @@ const getValidityDate = (dateStr) => {
                 </div>
               </article>
               <article v-if="displayedRejectReason" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
-                <div class="flex items-center gap-2 mb-5"><span class="w-1.5 h-4 bg-[var(--status-error)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">반려 사유서</h3></div>
-                <div class="space-y-2">
-                  <p class="text-[10px] font-black text-[var(--status-error)] uppercase flex items-center gap-1"><span class="w-1 h-1 bg-[var(--status-error)] rounded-full"></span> 반려 사유</p>
-                  <div class="bg-[var(--color-bg-section)] border border-[var(--color-border-divider)] p-4 rounded-xl text-xs text-[var(--color-text-strong)] shadow-inner italic whitespace-pre-wrap">{{ displayedRejectReason }}</div>
+                <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-orange)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">반려 사유서</h3></div>
+                  <span class="text-[10px] font-bold text-[var(--color-text-sub)]">REJECT NOTE</span>
+                </div>
+                <div class="space-y-5">
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">반려 사유</label>
+                    <div class="bg-[var(--color-bg-input)] border border-[var(--color-border-card)] p-4 rounded-xl text-xs text-[var(--color-text-strong)] shadow-inner italic whitespace-pre-wrap">{{ displayedRejectReason }}</div>
+                  </div>
                 </div>
               </article>
             </div>
