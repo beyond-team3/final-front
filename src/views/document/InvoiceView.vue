@@ -181,15 +181,13 @@ const modeLabel = computed(() => {
 const isReadOnly = computed(() => currentInvoiceStatus.value !== 'DRAFT')
 
 const invoiceCardStatus = computed(() => {
-  if (currentInvoiceStatus.value === 'CANCELED') return 'CANCELED'
-  if (currentInvoiceStatus.value === 'ISSUED') return 'APPROVED'
-  return 'DRAFT'
+  return currentInvoice.value?.status || 'DRAFT'
 })
 
 const statementCardStatus = computed(() => {
-  if (currentInvoiceStatus.value === 'CANCELED') return 'CANCELED'
-  if (currentInvoiceStatus.value === 'ISSUED') return 'APPROVED'
-  if (invoiceId.value || selectedStatements.value.length > 0) return 'REQUESTED'
+  if (currentInvoice.value?.status === 'CANCELED') return 'CANCELED'
+  if (currentInvoice.value?.status === 'ISSUED') return 'ISSUED'
+  if (invoiceId.value || selectedStatements.value.length > 0) return 'PUBLISHED'
   return 'DRAFT'
 })
 
@@ -270,7 +268,7 @@ function onSuccessConfirm() {
 
           <!-- 계약 요약 카드 -->
           <article class="relative rounded-lg border p-5" style="background-color: #F7F3EC; border-color: #DDD7CE;">
-            <StatusBadge class="absolute right-4 top-4" :status="invoiceCardStatus" />
+            <StatusBadge class="absolute right-4 top-4" type="INVOICE" :status="invoiceCardStatus" />
             <div class="mb-3">
               <p class="text-[10px] font-bold uppercase tracking-widest" style="color: #9A8C7E;">선택된 계약</p>
             </div>
@@ -292,7 +290,7 @@ function onSuccessConfirm() {
 
           <!-- 명세서 목록 -->
           <article class="relative overflow-hidden rounded-lg border" style="background-color: #F7F3EC; border-color: #DDD7CE;">
-            <StatusBadge class="absolute right-4 top-3 z-10" :status="statementCardStatus" />
+            <StatusBadge class="absolute right-4 top-3 z-10" type="INVOICE" :status="statementCardStatus" />
             <div class="flex items-center gap-2 border-b px-5 py-3" style="border-color: #E8E3D8; background-color: #EFEADF;">
               <span class="text-sm font-bold" style="color: #3D3529;">명세서 목록</span>
               <span v-if="isReadOnly" class="ml-auto rounded border px-2 py-0.5 text-xs font-semibold" style="border-color: #DDD7CE; color: #9A8C7E; background-color: #FAF7F3;">읽기 전용</span>
