@@ -188,10 +188,13 @@ onMounted(async () => {
 
     // 2. 신규 작성 모드인 경우 데이터 로딩
     showStartModal.value = true
-    if (documentStore.fetchApprovedQuotations) await documentStore.fetchApprovedQuotations()
-    if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
-    if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
-    if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
+    // 마스터 데이터 병렬 로딩 (로딩 속도 최적화)
+    await Promise.all([
+      documentStore.fetchApprovedQuotations?.(),
+      documentStore.fetchClientMaster?.(),
+      documentStore.fetchProductMaster?.(),
+      historyStore.ensureLoaded?.()
+    ])
   } catch (e) {
     console.error("데이터 로딩 중 에러 발생:", e)
   }
@@ -353,7 +356,8 @@ const totalSum = computed(() =>
 )
 
 const availableQuotations = computed(() => {
-  return documentStore.quotations?.filter(q => q.status !== 'CONTRACTED') || []
+  // 스토어의 전용 필드(approvedQuotations)를 직접 사용하여 권한 필터링 간섭 우회
+  return documentStore.approvedQuotations?.filter(q => q.status !== 'CONTRACTED') || []
 })
 
 const billingCycleDisplay = computed(() => {
@@ -376,7 +380,7 @@ const submitContract = async () => {
   if (selectedItems.value.length === 0) return window.alert("계약할 상품을 하나라도 추가해주세요")
 
   try {
-    await documentStore.createContract({
+    const result = await documentStore.createContract({
       quotationId: isNewMode.value ? null : sourceQuotationId.value,
       client: {
         id: conInCorpCode.value,
@@ -398,11 +402,20 @@ const submitContract = async () => {
       historyId: sourceHistoryId.value
     })
 
-    window.alert(`계약서 생성 완료`);
-    router.push('/documents/all');
+    if (result) {
+      // 작성 후 참조 목록 최신화 (이미 사용한 견적 제거)
+      await documentStore.fetchApprovedQuotations()
+      window.alert(`계약서 생성 완료`);
+      const keyword = result.docCode || result.id
+      router.push({
+        path: '/documents/all',
+        query: { keyword, type: 'CNT' }
+      });
+    }
   } catch (error) {
     console.error("서버 저장 에러:", error);
-    window.alert("서버 저장 에러: " + (error.response?.data?.message || error.message));
+    // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
+    window.alert(documentStore.error || "계약서 저장 중 오류가 발생했습니다.");
   }
 }
 </script>
@@ -412,14 +425,6 @@ const submitContract = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 관리 &gt; <span class="font-semibold" style="color: #3D3529;">계약서 {{ isViewMode ? '상세' : '작성' }}</span></p>
-        <button
-            type="button"
-            class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
-            style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
-            @click="router.back()"
-        >
-          뒤로가기
-        </button>
       </div>
 
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 animate-in">
@@ -436,7 +441,6 @@ const submitContract = async () => {
               >
                 거래처 선택
               </button>
-              <StatusBadge type="CONTRACT" :status="status" />
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
@@ -640,7 +644,7 @@ const submitContract = async () => {
       <div class="w-[750px] rounded-lg shadow-2xl border overflow-hidden" style="background-color: #F7F3EC; border-color: #DDD7CE;">
         <div class="text-white p-4 flex justify-between items-center font-bold" style="background-color: #C8622A !important;">
           <h3 style="color: white !important;">문서 작성 방식 선택</h3>
-          <button @click="showStartModal = false; router.push('/documents/create')" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
+          <button @click="showStartModal = false" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
         </div>
         <div class="p-6">
           <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적서 참조</p>

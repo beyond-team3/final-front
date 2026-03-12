@@ -88,11 +88,14 @@ onMounted(async () => {
   window.addEventListener('click', handleClickOutside)
   try {
     // 마스터 데이터 로딩
-    if (documentStore.fetchDocumentsV2) await documentStore.fetchDocumentsV2()
-    if (documentStore.fetchPendingQuotationRequests) await documentStore.fetchPendingQuotationRequests()
-    if (documentStore.fetchClientMaster) await documentStore.fetchClientMaster()
-    if (documentStore.fetchProductMaster) await documentStore.fetchProductMaster()
-    if (historyStore.ensureLoaded) await historyStore.ensureLoaded()
+    // 마스터 데이터 병렬 로딩 (로딩 속도 최적화)
+    await Promise.all([
+      documentStore.fetchDocumentsV2?.(),
+      documentStore.fetchPendingQuotationRequests?.(),
+      documentStore.fetchClientMaster?.(),
+      documentStore.fetchProductMaster?.(),
+      historyStore.ensureLoaded?.()
+    ])
 
     // URL 쿼리에 id가 있는지 확인 (상세 조회 모드)
     const id = route.query.id
@@ -291,12 +294,20 @@ const submitDoc = async () => {
 
     const result = await documentStore.createQuotation(payload)
     if (result) {
+      // 작성 후 참조 목록 최신화 (이미 사용한 요청서 제거)
+      await documentStore.fetchPendingQuotationRequests()
       window.alert(`견적서 발행 완료`);
-      router.push('/documents/all');
+      // 실제 번호(docCode)가 있으면 검색어로 전달, 없으면 ID라도 전달
+      const keyword = result.docCode || result.id
+      router.push({
+        path: '/documents/all',
+        query: { keyword, type: 'QUO' }
+      });
     }
   } catch (error) {
-    console.error("저장 에러:", error);
-    window.alert("서버 저장 에러");
+    console.error("서버 저장 에러:", error);
+    // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
+    window.alert(documentStore.error || "견적서 저장 중 오류가 발생했습니다.");
   }
 }
 </script>
@@ -306,15 +317,6 @@ const submitDoc = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
-        <button
-            v-if="isProcessStarted"
-            type="button"
-            class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
-            style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
-            @click="isViewMode ? router.back() : router.push('/documents/create')"
-        >
-          뒤로가기
-        </button>
       </div>
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in">
         <div class="flex-1 space-y-5 w-full">
@@ -329,7 +331,6 @@ const submitDoc = async () => {
               >
                 거래처 선택
               </button>
-                <StatusBadge type="QUOTATION" :status="status" />
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <input v-model="inCorpCode" readonly class="p-2 border rounded text-sm font-semibold outline-none" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" placeholder="거래처 코드">
