@@ -53,11 +53,21 @@ const formatDate = (iso) => {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+const isSubmitting = ref(false)
+
+const canSubmit = computed(() => !!product.value && draft.value.trim() !== '' && !isSubmitting.value)
+const canReply = computed(() => !!product.value && replyDraft.value.trim() !== '' && !isSubmitting.value)
+
 const sendMessage = async () => {
-  if (!product.value || !draft.value.trim()) return
-  await productStore.addFeedbackMessage(product.value.id, draft.value.trim())
-  draft.value = ''
-  scrollToBottom()
+  if (!canSubmit.value) return
+  isSubmitting.value = true
+  try {
+    await productStore.addFeedbackMessage(product.value.id, draft.value.trim())
+    draft.value = ''
+    scrollToBottom()
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const replyInputRefs = ref({})
@@ -77,10 +87,15 @@ const toggleReply = (id) => {
 }
 
 const sendReply = async (parentId) => {
-  if (!product.value || !replyDraft.value.trim()) return
-  await productStore.addFeedbackMessage(product.value.id, replyDraft.value.trim(), null, parentId)
-  replyDraft.value = ''
-  replyingId.value = null
+  if (!canReply.value) return
+  isSubmitting.value = true
+  try {
+    await productStore.addFeedbackMessage(product.value.id, replyDraft.value.trim(), null, parentId)
+    replyDraft.value = ''
+    replyingId.value = null
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const startEdit = (message) => {
@@ -190,9 +205,14 @@ const scrollToBottom = () => {
                 type="text"
                 class="flex-1 h-9 rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none"
                 placeholder="답글을 남겨주세요..."
+                :disabled="isSubmitting"
                 @keyup.enter="sendReply(parent.id)"
               />
-              <button @click="sendReply(parent.id)" class="rounded bg-[var(--color-olive)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]">등록</button>
+              <button
+                @click="sendReply(parent.id)"
+                :disabled="!canReply"
+                class="rounded bg-[var(--color-olive)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >등록</button>
             </div>
 
             <!-- 대댓글 목록 -->
@@ -241,11 +261,13 @@ const scrollToBottom = () => {
         type="text"
         class="flex-1 h-11 rounded-lg border border-[var(--color-border-card)] px-4 text-sm focus:border-[var(--color-olive)] focus:outline-none"
         placeholder="이 상품에 대한 영업 피드백을 남겨주세요..."
+        :disabled="isSubmitting"
         @keyup.enter="sendMessage"
       />
       <button
         type="button"
-        class="rounded-lg bg-[var(--color-olive)] px-6 text-sm font-bold text-white hover:bg-[var(--color-olive-dark)]"
+        class="rounded-lg bg-[var(--color-olive)] px-6 text-sm font-bold text-white hover:bg-[var(--color-olive-dark)] disabled:opacity-50 disabled:cursor-not-allowed"
+        :disabled="!canSubmit"
         @click="sendMessage"
       >
         등록
