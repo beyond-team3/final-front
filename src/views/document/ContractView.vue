@@ -378,14 +378,6 @@ const submitContract = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 관리 &gt; <span class="font-semibold" style="color: #3D3529;">계약서 {{ isViewMode ? '상세' : '작성' }}</span></p>
-        <button
-            type="button"
-            class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
-            style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
-            @click="router.back()"
-        >
-          뒤로가기
-        </button>
       </div>
 
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 animate-in">
@@ -605,7 +597,7 @@ const submitContract = async () => {
       <div class="w-[750px] rounded-lg shadow-2xl border overflow-hidden" style="background-color: #F7F3EC; border-color: #DDD7CE;">
         <div class="text-white p-4 flex justify-between items-center font-bold" style="background-color: #C8622A !important;">
           <h3 style="color: white !important;">문서 작성 방식 선택</h3>
-          <button @click="showStartModal = false; router.push('/documents/create')" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
+          <button @click="showStartModal = false" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
         </div>
         <div class="p-6">
           <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적서 참조</p>

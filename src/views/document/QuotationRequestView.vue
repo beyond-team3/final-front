@@ -164,14 +164,6 @@ const submit = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적 요청서 작성</span></p>
-        <button
-            type="button"
-            class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
-            style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
-            @click="router.push('/documents/create')"
-        >
-          뒤로가기
-        </button>
       </div>
 
       <div class="grid gap-5 xl:grid-cols-[1.2fr_480px] animate-in">
