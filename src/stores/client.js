@@ -253,12 +253,44 @@ export const useClientStore = defineStore('client', () => {
         clients.value.unshift(optimistic)
 
         try {
-            const created = await createClient(payload)
-            const idx = clients.value.findIndex((item) => item.id === optimistic.id)
-            if (idx >= 0 && created) {
-                clients.value[idx] = normalizeClient(created)
+            const response = await createClient(payload)
+            console.log('[DEBUG] createClient response:', response)
+
+            // 1. 유연한 데이터 추출 (ApiResult.data 또는 전체 객체)
+            const rawData = response?.data ?? response
+            
+            // 2. ID 추출 시도 (다양한 케이스 대응)
+            let realId = null
+            
+            if (typeof rawData === 'number' || (typeof rawData === 'string' && !rawData.startsWith('temp-'))) {
+                // 케이스 A: 응답 자체가 ID인 경우
+                realId = rawData
+            } else {
+                // 케이스 B: 객체인 경우 normalizeClient 활용
+                const normalized = normalizeClient(rawData)
+                realId = normalized.id
+                
+                // 케이스 C: normalize 실패 시 data 필드가 순수 ID일 가능성 체크
+                if ((!realId || String(realId).startsWith('temp-')) && 
+                    (typeof response.data === 'number' || typeof response.data === 'string')) {
+                    realId = response.data
+                }
             }
-            return created.id || created.clientId || optimistic.id
+
+            console.log('[DEBUG] Extracted realId:', realId)
+
+            const idx = clients.value.findIndex((item) => item.id === optimistic.id)
+            if (idx >= 0) {
+                if (typeof rawData === 'object' && rawData !== null) {
+                    clients.value[idx] = normalizeClient(rawData)
+                } else {
+                    // 순수 ID만 온 경우 기존 낙관적 데이터에 ID만 업데이트
+                    clients.value[idx] = { ...optimistic, id: realId }
+                }
+            }
+            
+            // temp- 접두사가 없는 실제 ID 반환 우선
+            return (realId && !String(realId).startsWith('temp-')) ? realId : optimistic.id
         } catch (e) {
             error.value = getErrorMessage(e, '등록 실패')
             clients.value = clients.value.filter((item) => item.id !== optimistic.id)
