@@ -127,9 +127,9 @@ const displayLabel = computed(() => {
 }
 
 .status-draft {
-  --status-bg: #FEF3C7; /* 연한 노랑 */
-  --status-text: #92400E; /* 진한 갈색 */
-  --status-border: #6B5F50; /* 사용자 지정 갈색 */
+  --status-bg: #FEF3C7;
+  --status-text: #6B5F50;
+  --status-border: #6B5F50;
 }
 
 .status-approved,

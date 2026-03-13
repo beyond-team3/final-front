@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { CdrButton, IconListView, IconSort } from '@rei/cedar'
 import DataTable from '@/components/common/DataTable.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
@@ -10,6 +10,7 @@ import StatusBadge from '@/components/common/StatusBadge.vue'
 import { DOC_STATUS } from '@/utils/constants'
 
 const route = useRoute()
+const router = useRouter()
 
 const DOC_TYPE_META = {
   RFQ: { label: '견적요청서', tone: 'rfq' },
@@ -19,6 +20,15 @@ const DOC_TYPE_META = {
   STMT: { label: '명세서', tone: 'statement' },
   INV: { label: '청구서', tone: 'invoice' },
   PAY: { label: '입금확인서', tone: 'payment' },
+}
+
+const TARGET_DOC_TYPE_MAP = {
+  QUOTATION_REQUEST: 'RFQ',
+  QUOTATION: 'QUO',
+  CONTRACT: 'CNT',
+  ORDER: 'ORD',
+  STATEMENT: 'STMT',
+  INVOICE: 'INV',
 }
 
 const STATUS_META = {
@@ -53,6 +63,8 @@ const selectedStatus = ref('ALL')
 const sortDirection = ref('desc')
 const page = ref(1)
 const pageSize = ref(10)
+const notificationTargetType = ref('')
+const notificationTargetId = ref('')
 const selectedDocument = ref(null)
 const isHistoryModalOpen = ref(false)
 const showSortMenu = ref(false)
@@ -87,6 +99,36 @@ const decorateDocument = (doc) => ({
   ownerEmployeeName: doc.ownerEmployeeName || '-',
   clientName: doc.clientName || '-',
 })
+
+const matchesNotificationTarget = (doc, targetType, targetId) => {
+  if (!targetType || !targetId) {
+    return true
+  }
+
+  const normalizedTargetType = String(targetType).toUpperCase()
+  const normalizedTargetId = String(targetId)
+  const expectedDocType = TARGET_DOC_TYPE_MAP[normalizedTargetType]
+
+  if (expectedDocType && String(doc?.docType || '').toUpperCase() !== expectedDocType) {
+    return false
+  }
+
+  const candidateIds = [
+    doc?.id,
+    doc?.docId,
+    doc?.headerId,
+    doc?.requestId,
+    doc?.quotationId,
+    doc?.contractId,
+    doc?.orderId,
+    doc?.statementId,
+    doc?.invoiceId,
+  ]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map((value) => String(value))
+
+  return candidateIds.includes(normalizedTargetId)
+}
 
 const normalizePageResponse = (response) => {
   const payload = response?.data ?? response
@@ -136,8 +178,6 @@ const loadDocuments = async () => {
     documentPage.value = {
       ...normalized,
       content: filteredContent,
-      totalElements: filteredContent.length,
-      totalPages: Math.max(1, Math.ceil(filteredContent.length / Number(normalized.size || pageSize.value || 10))),
     }
   } catch (error) {
     documentPage.value = EMPTY_PAGE
@@ -147,22 +187,110 @@ const loadDocuments = async () => {
   }
 }
 
-onMounted(() => {
+const loadDocumentsWithSync = () => {
   loadDocuments()
+}
+
+// 1. URL -> UI (초기 진입 및 브라우저 뒤로가기/앞으로가기 대응)
+watch(() => route.query, (query) => {
+  if (query.keyword !== undefined && query.keyword !== keyword.value) {
+    keyword.value = query.keyword || ''
+    debouncedKeyword.value = query.keyword || ''
+  }
+  if (query.type && query.type !== selectedDocType.value) {
+    selectedDocType.value = query.type.toUpperCase()
+  }
+  if (query.status && query.status !== selectedStatus.value) {
+    selectedStatus.value = query.status.toUpperCase()
+  }
+  if (query.page && Number(query.page) !== page.value) {
+    page.value = Number(query.page)
+  }
+  if (query.size && Number(query.size) !== pageSize.value) {
+    pageSize.value = Number(query.size)
+  }
+  if (query.sort && query.sort !== sortDirection.value) {
+    sortDirection.value = query.sort
+  }
+  notificationTargetType.value = String(query.targetType || '')
+  notificationTargetId.value = String(query.targetId || '')
+  if (notificationTargetType.value) {
+    const mappedDocType = TARGET_DOC_TYPE_MAP[notificationTargetType.value]
+    if (mappedDocType) {
+      selectedDocType.value = mappedDocType
+    }
+  }
+  loadDocuments()
+}, { immediate: true })
+
+// 2. UI -> URL (사용자가 입력/필터 변경 시 주소창 업데이트)
+watch([debouncedKeyword, selectedDocType, selectedStatus, page, pageSize, sortDirection], ([newK, newT, newS, newP, newSize, newSort]) => {
+  const query = { ...route.query }
+  
+  if (newK) query.keyword = newK
+  else delete query.keyword
+  
+  if (newT !== 'ALL') query.type = newT
+  else delete query.type
+  
+  if (newS !== 'ALL') query.status = newS
+  else delete query.status
+
+  if (notificationTargetType.value) query.targetType = notificationTargetType.value
+  else delete query.targetType
+
+  if (notificationTargetId.value) query.targetId = notificationTargetId.value
+  else delete query.targetId
+  
+  if (newP > 1) query.page = newP
+  else delete query.page
+
+  if (pageSize.value !== 10) query.size = pageSize.value
+  else delete query.size
+
+  if (sortDirection.value !== 'desc') query.sort = sortDirection.value
+  else delete query.sort
+
+  // 현재 URL과 다를 때만 replace 실행 (무한 루프 방지)
+  const currentQuery = route.query
+  const isChanged = Object.keys(query).length !== Object.keys(currentQuery).length ||
+      Object.entries(query).some(([key, val]) => String(currentQuery[key]) !== String(val))
+  
+  if (isChanged) {
+    router.replace({ query })
+  }
+}, { deep: true })
+
+onMounted(() => {
+  // watch(immediate)에서 loadDocuments()가 호출되므로 여기서는 추가 호출 생략 가능
 })
 
 const allDocuments = computed(() =>
     documentPage.value.content
         .filter((doc) => !EXCLUDED_DOC_TYPES.has(String(doc?.docType || '').toUpperCase()))
+        .filter((doc) => matchesNotificationTarget(doc, notificationTargetType.value, notificationTargetId.value))
         .map(decorateDocument),
 )
 
-const docTypeOptions = computed(() => [
+const activeNotificationFilterLabel = computed(() => {
+  const mappedDocType = TARGET_DOC_TYPE_MAP[String(notificationTargetType.value || '').toUpperCase()]
+  if (!mappedDocType || !notificationTargetId.value) {
+    return ''
+  }
+
+  const label = DOC_TYPE_META[mappedDocType]?.label || mappedDocType
+  return `${label} #${notificationTargetId.value}`
+})
+
+const docTypeOptions = [
   { value: 'ALL', label: '전체 문서 유형' },
-  ...Array.from(new Set(allDocuments.value.map((doc) => doc.docType)))
-      .filter(Boolean)
-      .map((value) => ({ value, label: DOC_TYPE_META[value]?.label || value })),
-])
+  { value: 'RFQ', label: '견적요청서' },
+  { value: 'QUO', label: '견적서' },
+  { value: 'CNT', label: '계약서' },
+  { value: 'ORD', label: '주문서' },
+  { value: 'STMT', label: '명세서' },
+  { value: 'INV', label: '청구서' },
+]
 
 const statusOptions = computed(() => {
   const options = [{ value: 'ALL', label: '전체 상태' }]
@@ -229,13 +357,22 @@ watch(keyword, (value) => {
   }, 250)
 })
 
-watch([selectedDocType, selectedStatus, sortDirection, pageSize], () => {
-  resetPage()
-})
+const applySortDirection = (dir) => {
+  sortDirection.value = dir
+  showSortMenu.value = false
+}
 
-watch([debouncedKeyword, selectedDocType, selectedStatus, sortDirection, pageSize, page], () => {
-  loadDocuments()
-})
+const applyPageSize = (size) => {
+  pageSize.value = size
+  showPageSizeMenu.value = false
+  page.value = 1 // 페이지 크기 변경 시 1페이지로 리셋
+}
+
+const clearNotificationTargetFilter = () => {
+  notificationTargetType.value = ''
+  notificationTargetId.value = ''
+  page.value = 1
+}
 
 watch(() => route.query.documentId, (documentId) => {
   if (!documentId) return
@@ -286,15 +423,6 @@ const statusBadgeStyle = (tone) => ({
   default: { backgroundColor: 'var(--color-bg-section)', color: 'var(--color-text-body)' },
 }[tone] || { backgroundColor: 'var(--color-bg-section)', color: 'var(--color-text-body)' })
 
-const applySortDirection = (direction) => {
-  sortDirection.value = direction
-  showSortMenu.value = false
-}
-
-const applyPageSize = (size) => {
-  pageSize.value = size
-  showPageSizeMenu.value = false
-}
 </script>
 
 <template>
@@ -306,6 +434,22 @@ const applyPageSize = (size) => {
             총 {{ totalElements }}건
           </p>
         </div>
+      </div>
+
+      <div
+          v-if="activeNotificationFilterLabel"
+          class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm"
+          style="border-color: #DDD7CE; background-color: #F7F3EC; color: #6B5F50;"
+      >
+        <span>알림 대상 문서 필터 적용 중: {{ activeNotificationFilterLabel }}</span>
+        <button
+            type="button"
+            class="rounded border px-3 py-1.5 text-xs font-semibold"
+            style="border-color: #DDD7CE; background-color: #FAF7F3; color: #3D3529;"
+            @click="clearNotificationTargetFilter"
+        >
+          필터 해제
+        </button>
       </div>
 
       <div
