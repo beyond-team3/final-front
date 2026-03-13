@@ -564,7 +564,9 @@ const submitDoc = async () => {
                     <td class="p-3 font-bold">{{ req.client?.name || req.clientName }}</td>
                     <td class="p-3">{{ req.client?.contact || req.managerName || '-' }}</td>
                     <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date || req.createdAt }}</td>
-                    <td class="p-3 font-bold" style="color: #C8622A;">{{ req.status }}</td>
+                    <td class="p-3">
+                      <StatusBadge type="RFQ" :status="req.status" />
+                    </td>
                     <td class="p-3">
                       <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">선택</button>
                     </td>
@@ -590,7 +592,9 @@ const submitDoc = async () => {
                       <div>{{ quo.displayCode }}</div>
                     </td>
                     <td class="p-3 font-bold">{{ quo.client?.name || quo.clientName }}</td>
-                    <td class="p-3 font-bold" style="color: #C8622A;">{{ quo.status }}</td>
+                    <td class="p-3">
+                      <StatusBadge type="QUO" :status="quo.status" />
+                    </td>
                     <td class="p-3">
                       <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">복사</button>
                     </td>
