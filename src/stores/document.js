@@ -781,8 +781,6 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const createQuotationRequest = ({ client, items, requirements }) => {
-        const id = makeId('RQ')
     const createQuotationRequest = async ({ client, items, requirements }) => {
         const id = makeId('RFQ')
         const lineItems = (items || []).map(withAmount)
@@ -1353,5 +1351,4 @@ export const useDocumentStore = defineStore('document', () => {
         fetchOrderDetail,
         fetchPaymentDetail,
     }
-}
 })
