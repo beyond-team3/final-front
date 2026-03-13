@@ -43,4 +43,5 @@ mock-server/db.json
 
 # Agent context (worktree-local)
 AGENTS.md
-.env.development
+
+.env
