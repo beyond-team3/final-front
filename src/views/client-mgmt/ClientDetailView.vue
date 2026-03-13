@@ -114,7 +114,9 @@ const clientCrops = computed(() => {
 
 // 영업 브리핑 이동 함수
 const handleBriefing = () => {
-  window.location.href = 'http://localhost:5173/notes/briefing'
+  if (currentClient.value?.id) {
+    router.push({ name: 'note-briefing', query: { clientId: currentClient.value.id } })
+  }
 }
 
 const editForm = ref({
