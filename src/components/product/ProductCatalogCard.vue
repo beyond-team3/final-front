@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { PRODUCT_CATEGORY } from '@/utils/constants'
 
 const props = defineProps({
   item: {
@@ -91,7 +92,7 @@ const onKeyActivate = (event, id) => {
 
     <div class="block w-full p-4 text-left">
       <div class="flex items-center justify-between">
-        <p class="text-xs font-semibold text-[var(--color-olive)]">{{ item.category }}</p>
+        <p class="text-xs font-semibold text-[var(--color-olive)]">{{ PRODUCT_CATEGORY[item.category] || item.category }}</p>
         <!-- showPrice props가 true일 때만 노출 -->
         <p v-if="showPrice && item.price" class="text-xs font-bold text-[var(--color-text)]">
           ₩{{ item.price.toLocaleString() }} <span class="font-normal text-[var(--color-muted)]">/ {{ item.amount || '' }}{{ item.unit || '단위 미정' }}</span>
