@@ -22,6 +22,7 @@ const isViewMode = ref(false) // 상세 조회 모드 여부
 const showStartModal = ref(false)
 const showCorpModal = ref(false)
 const showProductModal = ref(false)
+const activeStartTab = ref('quotation') // 'quotation' | 'contract'
 
 // 원본 데이터 추적
 const contractId = ref(null)
@@ -167,6 +168,47 @@ const startContractFromPrefill = async (quotationId) => {
   }))
 }
 
+const copyRejectedContract = async (c) => {
+  try {
+    const response = await api.get('/contracts/prefill', { params: { contractId: c.id } })
+    const prefill = response?.data ?? response
+
+    if (!prefill) {
+      window.alert('계약서 정보를 불러오지 못했습니다.')
+      return
+    }
+
+    isNewMode.value = false
+    isProcessStarted.value = true
+    showStartModal.value = false
+
+    sourceQuotationId.value = prefill.quotationId || null
+    sourceHistoryId.value = prefill.historyId || null
+
+    conInCorpCode.value = prefill.clientId || prefill.client?.id || ''
+    conInCorp.value = prefill.clientName || prefill.client?.name || ''
+    conInName.value = prefill.managerName || prefill.client?.contact || ''
+    conInNo.value = prefill.quotationCode || prefill.quotationId || '반려 계약서 복사'
+    conStartDate.value = prefill.startDate || ''
+    conEndDate.value = prefill.endDate || ''
+    conBillingCycle.value = (prefill.billingCycle === 'MONTHLY' ? '월' : prefill.billingCycle === 'QUARTERLY' ? '분기' : prefill.billingCycle === 'HALF_YEARLY' ? '반기' : prefill.billingCycle) || '월'
+    conSpecialTerms.value = prefill.specialTerms || ''
+    conInternalMemo.value = prefill.memo || ''
+    selectedItems.value = (prefill.items || []).map(item => ({
+      uid: item.uid || `${Date.now()}-${Math.random()}`,
+      productId: item.productId || item.id,
+      variety: item.productCategory || item.variety || '-',
+      name: item.productName || item.name || '',
+      qty: Number(item.totalQuantity ?? item.quantity ?? 1),
+      unit: item.unit || '팩',
+      price: Number(item.unitPrice ?? item.price ?? 0),
+    }))
+  } catch (error) {
+    console.error("반려 계약서 로드 에러:", error)
+    window.alert("반려 계약서 정보를 불러오는 중 오류가 발생했습니다.")
+  }
+}
+
 onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
   try {
@@ -191,6 +233,8 @@ onMounted(async () => {
     // 마스터 데이터 병렬 로딩 (로딩 속도 최적화)
     await Promise.all([
       documentStore.fetchApprovedQuotations?.(),
+      documentStore.fetchRejectedQuotationsForContract?.(),
+      documentStore.fetchRejectedContracts?.(),
       documentStore.fetchClientMaster?.(),
       documentStore.fetchProductMaster?.(),
       historyStore.ensureLoaded?.()
@@ -330,6 +374,8 @@ const removeItem = (uid) => {
 }
 
 // --- 계산 속성 ---
+const isFieldLocked = computed(() => isViewMode.value || !isNewMode.value)
+
 const filteredClients = computed(() => {
   const master = documentStore.clientMaster || []
   return master.filter(c =>
@@ -463,15 +509,15 @@ const submitContract = async () => {
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="text-xs" style="color: #6B5F50;">계약 시작일</label>
-                <input v-model="conStartDate" :readonly="isViewMode" type="date" class="w-full p-2 border rounded text-sm mt-1 outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isViewMode ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', color: '#3D3529' }">
+                <input v-model="conStartDate" :readonly="isFieldLocked" type="date" class="w-full p-2 border rounded text-sm mt-1 outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isFieldLocked ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', color: '#3D3529' }">
               </div>
               <div>
                 <label class="text-xs" style="color: #6B5F50;">계약 종료일</label>
-                <input v-model="conEndDate" :readonly="isViewMode" type="date" class="w-full p-2 border rounded text-sm mt-1 outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isViewMode ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', color: '#3D3529' }">
+                <input v-model="conEndDate" :readonly="isFieldLocked" type="date" class="w-full p-2 border rounded text-sm mt-1 outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isFieldLocked ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', color: '#3D3529' }">
               </div>
               <div class="col-span-2">
                 <label class="text-xs" style="color: #6B5F50;">청구 주기</label>
-                <select v-if="!isViewMode" v-model="conBillingCycle" class="w-full p-2 border rounded text-sm mt-1 font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;">
+                <select v-if="!isFieldLocked" v-model="conBillingCycle" class="w-full p-2 border rounded text-sm mt-1 font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;">
                   <option value="월">월 단위 청구</option>
                   <option value="분기">분기 단위 청구</option>
                   <option value="반기">반기 단위 청구</option>
@@ -528,13 +574,14 @@ const submitContract = async () => {
                   <td class="px-3 py-2 text-left text-xs text-[#9A8C7E]">{{ item.variety }}</td>
                   <td class="px-3 py-2 text-left font-medium">{{ item.name }}</td>
                   <td class="px-3 py-2 text-center">
-                    <input v-if="!isViewMode" type="number" min="1" class="w-20 p-1 border rounded text-center font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.qty" @input="updateQty(item, $event.target.value)">
+                    <input v-if="!isFieldLocked" type="number" min="1" class="w-20 p-1 border rounded text-center font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.qty" @input="updateQty(item, $event.target.value)">
                     <span v-else class="font-bold">{{ item.qty }}</span>
                   </td>
                   <td class="px-3 py-2 text-center text-xs font-bold" style="color: #9A8C7E;">{{ item.unit }}</td>
                   <td class="px-3 py-2 text-right font-mono">{{ Number(item.price || 0).toLocaleString() }}</td>
                   <td v-if="!isViewMode" class="px-3 py-2 text-center">
                     <button
+                        v-if="!isFieldLocked"
                         type="button"
                         class="inline-flex items-center justify-center rounded-lg p-2 text-white transition-all hover:bg-[#A64D4D] active:scale-95 shadow-sm"
                         style="background-color: #B85C5C;"
@@ -647,35 +694,82 @@ const submitContract = async () => {
           <button @click="showStartModal = false" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
         </div>
         <div class="p-6">
-          <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적서 참조</p>
-          <div class="max-h-[300px] overflow-y-auto border rounded mb-5 shadow-inner" style="background-color: #FAF7F3; border-color: #DDD7CE;">
-            <table class="w-full text-sm text-center border-collapse">
-              <thead class="sticky top-0 z-10" style="background-color: #EFEADF;">
-              <tr>
-                <th class="p-3 border-b" style="border-color: #DDD7CE;">견적번호</th>
-                <th class="p-3 text-left border-b" style="border-color: #DDD7CE;">법인명</th>
-                <th class="p-3 border-b" style="border-color: #DDD7CE;">담당자</th>
-                <th class="p-3 border-b" style="border-color: #DDD7CE;">선택</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="q in availableQuotations" :key="q.id" class="border-b hover:bg-white/50 cursor-pointer" style="border-color: #E8E3D8;" @click="startContract(q)">
-                <td class="p-3 font-mono font-bold" style="color: #C8622A;">{{ q.displayCode || q.quotationCode || q.id }}</td>
-                <td class="p-3 text-left font-bold" style="color: #3D3529;">{{ q.client?.name }}</td>
-                <td class="p-3" style="color: #6B5F50;">{{ q.client?.contact }}</td>
-                <td class="p-3">
-                  <button type="button" class="bg-[#7A8C42] text-white px-3 py-1 rounded text-xs font-bold transition-all hover:opacity-80">참조 작성</button>
-                </td>
-              </tr>
-              <tr v-if="availableQuotations.length === 0">
-                <td colspan="4" class="p-10 italic" style="color: #BFB3A5;">참조 가능한 견적서가 없습니다.</td>
-              </tr>
-              </tbody>
-            </table>
+          <div class="flex border-b mb-4" style="border-color: #DDD7CE;">
+            <button 
+              @click="activeStartTab = 'quotation'" 
+              class="px-4 py-2 text-sm font-bold transition-all border-b-2"
+              :class="activeStartTab === 'quotation' ? 'border-[#C8622A] text-[#C8622A]' : 'border-transparent text-[#9A8C7E] hover:text-[#6B5F50]'"
+            >
+              승인 견적서 참조
+            </button>
+            <button 
+              @click="activeStartTab = 'contract'" 
+              class="px-4 py-2 text-sm font-bold transition-all border-b-2"
+              :class="activeStartTab === 'contract' ? 'border-[#C8622A] text-[#C8622A]' : 'border-transparent text-[#9A8C7E] hover:text-[#6B5F50]'"
+            >
+              반려 계약서 복사
+            </button>
           </div>
+
+          <div v-if="activeStartTab === 'quotation'">
+            <p class="mb-4 text-xs font-bold" style="color: #6B5F50;">진행 중인 견적서 참조</p>
+            <div class="max-h-[300px] overflow-y-auto border rounded mb-5 shadow-inner" style="background-color: #FAF7F3; border-color: #DDD7CE;">
+              <table class="w-full text-sm text-center border-collapse">
+                <thead class="sticky top-0 z-10" style="background-color: #EFEADF;">
+                <tr>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">견적번호</th>
+                  <th class="p-3 text-left border-b" style="border-color: #DDD7CE;">법인명</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">담당자</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">선택</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="q in availableQuotations" :key="q.id" class="border-b hover:bg-white/50 cursor-pointer" style="border-color: #E8E3D8;" @click="startContract(q)">
+                  <td class="p-3 font-mono font-bold" style="color: #C8622A;">{{ q.displayCode || q.docCode || q.id }}</td>
+                  <td class="p-3 text-left font-bold" style="color: #3D3529;">{{ q.client?.name }}</td>
+                  <td class="p-3" style="color: #6B5F50;">{{ q.client?.contact }}</td>
+                  <td class="p-3">
+                    <button type="button" class="bg-[#7A8C42] text-white px-3 py-1 rounded text-xs font-bold transition-all hover:opacity-80">참조 작성</button>
+                  </td>
+                </tr>
+                <tr v-if="availableQuotations.length === 0">
+                  <td colspan="4" class="p-10 italic" style="color: #BFB3A5;">참조 가능한 견적서가 없습니다.</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div v-if="activeStartTab === 'contract'">
+            <p class="mb-4 text-xs font-bold" style="color: #6B5F50;">반려된 계약서 내용 복제</p>
+            <div class="max-h-[300px] overflow-y-auto border rounded mb-5 shadow-inner" style="background-color: #FAF7F3; border-color: #DDD7CE;">
+              <table class="w-full text-sm text-center border-collapse">
+                <thead class="sticky top-0 z-10" style="background-color: #EFEADF;">
+                <tr>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">계약번호</th>
+                  <th class="p-3 text-left border-b" style="border-color: #DDD7CE;">법인명</th>
+                  <th class="p-3 border-b text-center" style="border-color: #DDD7CE;">선택</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="c in documentStore.rejectedContracts" :key="c.id" class="border-b hover:bg-white/50 cursor-pointer" style="border-color: #E8E3D8;" @click="copyRejectedContract(c)">
+                  <td class="p-3 font-mono font-bold" style="color: #C8622A;">{{ c.displayCode || c.docCode || c.id }}</td>
+                  <td class="p-3 text-left font-bold" style="color: #3D3529;">{{ c.client?.name }}</td>
+                  <td class="p-3 text-center">
+                    <button type="button" class="bg-[#7A8C42] text-white px-3 py-1 rounded text-xs font-bold transition-all hover:opacity-80">복사 작성</button>
+                  </td>
+                </tr>
+                <tr v-if="documentStore.rejectedContracts.length === 0">
+                  <td colspan="3" class="p-10 italic" style="color: #BFB3A5;">반려된 계약 기록이 없습니다.</td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <button
               type="button"
-              class="w-full py-4 rounded-lg font-bold text-white shadow-lg transition-all hover:opacity-90"
+              class="w-full py-4 rounded-lg font-bold text-white shadow-lg transition-all hover:opacity-90 mt-2"
               style="background-color: #7A8C42 !important;"
               @click="startNewContract"
           >

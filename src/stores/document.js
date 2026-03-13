@@ -31,6 +31,8 @@ import {
     getApprovedQuotations as getApprovedQuotationsApi,
     getRejectedQuotationRequests as getRejectedQuotationRequestsApi,
     getRejectedQuotations as getRejectedQuotationsApi,
+    getRejectedQuotationsForContract as getRejectedQuotationsForContractApi,
+    getRejectedContracts as getRejectedContractsApi,
     getDocumentSummaries,
 } from '@/api/document'
 import { getClients } from '@/api/client'
@@ -235,6 +237,8 @@ export const useDocumentStore = defineStore('document', () => {
     const rejectedQuotationRequests = ref([])
     const approvedQuotations = ref([])
     const rejectedQuotations = ref([])
+    const rejectedQuotationsForContract = ref([])
+    const rejectedContracts = ref([])
     const statements = ref([])
 
     const quotationRequests = computed(() => {
@@ -681,6 +685,38 @@ export const useDocumentStore = defineStore('document', () => {
             return normalizedList
         } catch (e) {
             console.error('반려된 견적서 로드 실패:', e)
+            return []
+        }
+    }
+
+    async function fetchRejectedQuotationsForContract() {
+        try {
+            const response = await getRejectedQuotationsForContractApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation'
+            }))
+            rejectedQuotationsForContract.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('계약용 반려 견적서 로드 실패:', e)
+            return []
+        }
+    }
+
+    async function fetchRejectedContracts() {
+        try {
+            const response = await getRejectedContractsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'contract'
+            }))
+            rejectedContracts.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('반려된 계약서 로드 실패:', e)
             return []
         }
     }
@@ -1319,8 +1355,11 @@ export const useDocumentStore = defineStore('document', () => {
         fetchRejectedQuotationRequests,
         approvedQuotations,
         fetchApprovedQuotations,
-        rejectedQuotations,
         fetchRejectedQuotations,
+        rejectedQuotationsForContract,
+        fetchRejectedQuotationsForContract,
+        rejectedContracts,
+        fetchRejectedContracts,
         fetchQuotationDetail,
         fetchContractDetail,
         fetchOrderDetail,
