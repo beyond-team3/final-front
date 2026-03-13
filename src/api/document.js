@@ -24,6 +24,14 @@ export function getRejectedQuotations() {
     return api.get('quotations/rejected')
 }
 
+export function getRejectedQuotationsForContract() {
+    return api.get('quotations/rejected-contracts')
+}
+
+export function getRejectedContracts() {
+    return api.get('contracts/rejected')
+}
+
 export function getQuotation(id) {
     return api.get(`quotations/${id}`)
 }

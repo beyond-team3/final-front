@@ -31,6 +31,8 @@ import {
     getApprovedQuotations as getApprovedQuotationsApi,
     getRejectedQuotationRequests as getRejectedQuotationRequestsApi,
     getRejectedQuotations as getRejectedQuotationsApi,
+    getRejectedQuotationsForContract as getRejectedQuotationsForContractApi,
+    getRejectedContracts as getRejectedContractsApi,
     getDocumentSummaries,
 } from '@/api/document'
 import { getClients } from '@/api/client'
@@ -40,11 +42,16 @@ import { useHistoryStore } from '@/stores/history'
 import { ROLES } from '@/utils/constants'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-    const backendMessage = error?.response?.data?.message
+    // 1. 백엔드 에러 메시지 (ErrorType.message)
+    const backendMessage = error?.response?.data?.error?.message || error?.response?.data?.message
+    // 2. 백엔드 상세 메시지 (ErrorType.data) - 400 에러 시 구체적 원인이 담김
+    const detailMessage = error?.response?.data?.error?.data || error?.response?.data?.data
+    
+    if (backendMessage && detailMessage) return `${backendMessage} (${detailMessage})`
     if (backendMessage) return backendMessage
     
     if (error?.response?.status === 400) {
-        return '필수 정보가 누락되었습니다. 입력 내용을 다시 확인해 주세요.'
+        return '필수 정보가 누락되었거나 데이터가 유효하지 않습니다. 입력 내용을 다시 확인해 주세요.'
     }
     return error?.message || fallback
 }
@@ -235,6 +242,8 @@ export const useDocumentStore = defineStore('document', () => {
     const rejectedQuotationRequests = ref([])
     const approvedQuotations = ref([])
     const rejectedQuotations = ref([])
+    const rejectedQuotationsForContract = ref([])
+    const rejectedContracts = ref([])
     const statements = ref([])
 
     const quotationRequests = computed(() => {
@@ -685,6 +694,38 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchRejectedQuotationsForContract() {
+        try {
+            const response = await getRejectedQuotationsForContractApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation'
+            }))
+            rejectedQuotationsForContract.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('계약용 반려 견적서 로드 실패:', e)
+            return []
+        }
+    }
+
+    async function fetchRejectedContracts() {
+        try {
+            const response = await getRejectedContractsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'contract'
+            }))
+            rejectedContracts.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('반려된 계약서 로드 실패:', e)
+            return []
+        }
+    }
+
     async function fetchStatements() {
         try {
             const data = await getStatements()
@@ -863,15 +904,15 @@ export const useDocumentStore = defineStore('document', () => {
 
         const payload = {
             requestId: requestId ? Number(requestId) : null,
-            clientId: Number(client.id),
+            clientId: Number(client?.id || 0),
             memo: memo || '',
             items: lineItems.map(item => ({
                 productId: item.productId,
                 productName: (item.productName || item.name || '상품명 없음').trim(),
                 productCategory: (item.productCategory || item.category || item.variety || '기타').trim(),
-                quantity: Math.max(1, Number(item.quantity || 1)),
+                quantity: Math.max(1, Number(item.quantity || item.count || 1)),
                 unit: item.unit || '-',
-                unitPrice: Number(item.unitPrice || 0)
+                unitPrice: Number(item.unitPrice || item.price || 0)
             }))
         }
 
@@ -1319,8 +1360,11 @@ export const useDocumentStore = defineStore('document', () => {
         fetchRejectedQuotationRequests,
         approvedQuotations,
         fetchApprovedQuotations,
-        rejectedQuotations,
         fetchRejectedQuotations,
+        rejectedQuotationsForContract,
+        fetchRejectedQuotationsForContract,
+        rejectedContracts,
+        fetchRejectedContracts,
         fetchQuotationDetail,
         fetchContractDetail,
         fetchOrderDetail,
