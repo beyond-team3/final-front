@@ -8,6 +8,8 @@ import {
   getFeedbacks as getFeedbacksApi,
   updateProduct as updateProductApi,
   deleteProduct as deleteProductApi,
+  updateFeedback as updateFeedbackApi,
+  deleteFeedback as deleteFeedbackApi,
   getFavorites as getFavoritesApi,
   toggleBookmark as toggleBookmarkApi,
   getCompareHistory as getCompareHistoryApi,
@@ -227,34 +229,49 @@ export const useProductStore = defineStore('product', () => {
     try {
       const res = await getFeedbacksApi(pid)
       feedbackByProduct.value[pid] = Array.isArray(res) ? res : []
-    } catch (e) { }
+    } catch (e) {
+      throw e
+    }
   }
 
   const getFeedbackMessages = (pid) => feedbackByProduct.value[pid] || []
 
   const addFeedbackMessage = async (pid, content, sender, parentId = null) => {
+    const payload = {
+      content,
+      ...(parentId != null ? { parentId } : {}),
+      ...(sender ? { sender } : {}),
+    }
+    await submitFeedbackApi(pid, payload)
+
+    // 리스트 갱신은 별도로 처리하여 실패해도 전송 성공 흐름을 방해하지 않음
     try {
-      const payload = {
-        content,
-        ...(parentId != null ? { parentId } : {}),
-        ...(sender ? { sender } : {}),
-      }
-      await submitFeedbackApi(pid, payload)
       await fetchFeedbackMessages(pid)
-    } catch (e) { }
+    } catch (e) {
+      console.error('피드백 목록 갱신 실패 (데이터는 서버에 저장됨):', e)
+    }
   }
 
-  const updateFeedbackMessage = (pid, mid, content) => {
-    // 로컬 상태 업데이트 (추후 백엔드 API 지원 시 연동 필요)
-    const msgs = getFeedbackMessages(pid)
-    const idx = msgs.findIndex(m => m.id === mid && m.isMine)
-    if (idx < 0) return false
-    msgs[idx].content = content
+  const updateFeedbackMessage = async (pid, mid, content) => {
+    await updateFeedbackApi(pid, mid, { content })
+
+    try {
+      await fetchFeedbackMessages(pid)
+    } catch (e) {
+      console.error('피드백 수정 후 목록 갱신 실패:', e)
+    }
     return true
   }
 
-  const deleteFeedbackMessage = (pid, mid) => {
-    feedbackByProduct.value[pid] = getFeedbackMessages(pid).filter(m => !(m.id === mid && m.isMine))
+  const deleteFeedbackMessage = async (pid, mid) => {
+    await deleteFeedbackApi(pid, mid)
+
+    try {
+      await fetchFeedbackMessages(pid)
+    } catch (e) {
+      console.error('피드백 삭제 후 목록 갱신 실패:', e)
+    }
+    return true
   }
 
   const getProductNote = (pid) => productNotes.value[pid] || ''

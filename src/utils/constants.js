@@ -40,9 +40,10 @@ export const MENU_CONFIG = [
             { key: 'order', label: '주문서', route: '/documents/order', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'statement', label: '청구서 관리', route: '/documents/invoices', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'invoice', label: '청구서 작성', route: '/documents/invoice/new', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'document-create', label: '문서 작성', route: '/documents/create', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
+
             { key: 'document-history', label: '문서 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
             { key: 'document-all', label: '모든 문서', route: '/documents/all', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'approval', label: '승인', route: '/approval', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
         ],
     },
     {
@@ -69,7 +70,53 @@ export const MENU_CONFIG = [
             { key: 'ragseed-analysis', label: 'RAGseed 분석', route: '/ragseed' },
         ],
     },
-    { key: 'approval', label: '승인', roles: [ROLES.ADMIN], route: '/approval' },
     { key: 'payment', label: '결제', roles: [ROLES.CLIENT], route: '/payment' },
     { key: 'statistics', label: '통계', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/statistics' },
 ]
+export const DOC_STATUS = {
+    QUOTATION_REQUEST: {
+        PENDING: { label: '접수 대기', variant: 'DRAFT' },
+        REVIEWING: { label: '검토 중', variant: 'info' },
+        COMPLETED: { label: '완료', variant: 'APPROVED' },
+        DELETED: { label: '취소', variant: 'CANCELED' },
+    },
+    QUOTATION: {
+        WAITING_ADMIN: { label: '관리자 승인 대기', variant: 'REQUESTED' },
+        REJECTED_ADMIN: { label: '관리자 반려', variant: 'REJECTED' },
+        WAITING_CLIENT: { label: '거래처 승인 대기', variant: 'info' },
+        REJECTED_CLIENT: { label: '거래처 반려', variant: 'REJECTED' },
+        FINAL_APPROVED: { label: '견적 체결', variant: 'APPROVED' },
+        WAITING_CONTRACT: { label: '계약 전환 대기', variant: 'info' },
+        COMPLETED: { label: '수주 확정', variant: 'APPROVED' },
+        EXPIRED: { label: '견적 기한 만료', variant: 'EXPIRED' },
+        DELETED: { label: '폐기', variant: 'CANCELED' },
+    },
+    CONTRACT: {
+        WAITING_ADMIN: { label: '관리자 승인 대기', variant: 'REQUESTED' },
+        REJECTED_ADMIN: { label: '관리자 반려', variant: 'REJECTED' },
+        WAITING_CLIENT: { label: '거래처 승인 대기', variant: 'info' },
+        REJECTED_CLIENT: { label: '거래처 반려', variant: 'REJECTED' },
+        COMPLETED: { label: '계약 체결', variant: 'APPROVED' },
+        ACTIVE_CONTRACT: { label: '계약 진행 중', variant: 'APPROVED' },
+        EXPIRED: { label: '계약 기간 만료', variant: 'EXPIRED' },
+        DELETED: { label: '계약 파기', variant: 'CANCELED' },
+    },
+    ORDER: {
+        PENDING: { label: '주문 대기', variant: 'REQUESTED' },
+        CONFIRMED: { label: '주문 확정', variant: 'APPROVED' },
+        CANCELED: { label: '주문 취소', variant: 'CANCELED' },
+    },
+    STATEMENT: {
+        ISSUED: { label: '명세서 발행', variant: 'info' },
+        CANCELED: { label: '발행 취소', variant: 'CANCELED' },
+        APPROVED: { label: '확정', variant: 'APPROVED' }, // 백엔드 '확정' 대응
+    },
+    INVOICE: {
+        DRAFT: { label: '청구 작성', variant: 'DRAFT' },
+        PUBLISHED: { label: '발행 완료', variant: 'ISSUED' },
+        ISSUED: { label: '발행 완료', variant: 'ISSUED' }, // 백엔드 ISSUED 대응
+        PAID: { label: '결제/입금 완료', variant: 'APPROVED' },
+        APPROVED: { label: '결제/입금 완료', variant: 'APPROVED' }, // 백엔드 APPROVED 대응
+        CANCELED: { label: '청구 취소', variant: 'CANCELED' },
+    }
+}

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { DOC_STATUS } from '@/utils/constants'
 
 const props = defineProps({
   label: {
@@ -7,8 +8,12 @@ const props = defineProps({
     default: '',
   },
   status: {
-    type: String,
+    type: String, // e.g., 'PENDING', 'COMPLETED'
     default: 'default',
+  },
+  type: {
+    type: String, // e.g., 'QUOTATION_REQUEST', 'QUOTATION', 'CONTRACT', 'ORDER', 'STATEMENT', 'INVOICE'
+    default: '',
   },
   variantMap: {
     type: Object,
@@ -16,13 +21,21 @@ const props = defineProps({
   },
 })
 
-const DOC_STATUS_LABELS = {
-  DRAFT: 'DRAFT',
-  REQUESTED: 'REQUESTED',
-  APPROVED: 'APPROVED',
-  REJECTED: 'REJECTED',
-  CANCELED: 'CANCELED',
+const TYPE_MAP = {
+  RFQ: 'QUOTATION_REQUEST',
+  QUO: 'QUOTATION',
+  CNT: 'CONTRACT',
+  ORD: 'ORDER',
+  STMT: 'STATEMENT',
+  INV: 'INVOICE',
 }
+
+// DOC_STATUS에서 해당 타입과 상태에 맞는 설정을 가져옴
+const docStatusConfig = computed(() => {
+  const typeKey = TYPE_MAP[props.type] || props.type
+  if (!typeKey || !DOC_STATUS[typeKey]) return null
+  return DOC_STATUS[typeKey][props.status] || null
+})
 
 const normalizeStatus = (status) => {
   const raw = String(status || '').trim().toUpperCase()
@@ -69,16 +82,26 @@ const baseVariants = {
 const normalizedStatus = computed(() => normalizeStatus(props.status))
 
 const badgeClass = computed(() => {
+  // 1. DOC_STATUS에 정의된 variant가 있으면 우선 사용
+  if (docStatusConfig.value?.variant) {
+    const variant = docStatusConfig.value.variant
+    return baseVariants[variant] || `status-${variant.toLowerCase()}`
+  }
+
+  // 2. 그 외 기존 로직 유지
   const merged = { ...baseVariants, ...props.variantMap }
   return merged[normalizedStatus.value] || merged[props.status] || merged.default
 })
 
 const displayLabel = computed(() => {
-  if (props.label) {
-    return props.label
-  }
+  // 1. 직접 전달된 label이 있으면 우선 사용
+  if (props.label) return props.label
 
-  return DOC_STATUS_LABELS[normalizedStatus.value] || String(props.status || '').toUpperCase() || 'DRAFT'
+  // 2. DOC_STATUS에 정의된 label이 있으면 사용
+  if (docStatusConfig.value?.label) return docStatusConfig.value.label
+
+  // 3. 기존 fallback
+  return String(props.status || '').toUpperCase() || 'DRAFT'
 })
 </script>
 
@@ -94,19 +117,19 @@ const displayLabel = computed(() => {
   background-color: var(--status-bg);
   color: var(--status-text);
   border: 1px solid var(--status-border);
-}
-
-.status-default,
-.status-draft {
-  --status-bg: var(--color-bg-section);
-  --status-text: var(--color-text-body);
-  --status-border: var(--color-border-card);
+  white-space: nowrap;
 }
 
 .status-requested {
   --status-bg: var(--color-orange-light);
   --status-text: var(--color-orange-dark);
   --status-border: var(--color-orange);
+}
+
+.status-draft {
+  --status-bg: #FEF3C7;
+  --status-text: #6B5F50;
+  --status-border: #6B5F50;
 }
 
 .status-approved,
@@ -125,9 +148,9 @@ const displayLabel = computed(() => {
 }
 
 .status-canceled {
-  --status-bg: var(--color-bg-base);
-  --status-text: var(--color-text-placeholder);
-  --status-border: var(--color-border-card);
+  --status-bg: #F5F5F5; /* 연한 회색 */
+  --status-text: #999999; /* 중간 회색 */
+  --status-border: #D1D1D1; /* 테두리 회색 */
 }
 
 .status-warning {

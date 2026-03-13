@@ -1,270 +1,509 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ROLES } from '@/utils/constants'
-import eventBus from '@/utils/eventBus'
+import { useAuthStore } from '@/stores/auth'
 import {
+  createNotificationSseClient,
+  deleteAllNotifications as deleteAllNotificationsApi,
+  deleteNotification as deleteNotificationApi,
   getNotifications,
+  getUnreadCount,
   markAllAsRead as markAllAsReadApi,
   markAsRead as markAsReadApi,
 } from '@/api/notification'
 
-const DEFAULT_CATEGORY_MAP = {
-  [ROLES.SALES_REP]: ['전체', '계정', '영업', '재고', '일정', '재배적기'],
-  [ROLES.ADMIN]: ['전체', '영업', '일정', '관리', '상품'],
-  [ROLES.CLIENT]: ['전체', '견적요청', '계약', '명세', '청구'],
+const DEFAULT_PAGE_SIZE = 20
+
+const CATEGORY_LABELS = {
+  ALL: '전체',
+  APPROVAL: '승인',
+  QUOTATION_REQUEST: '견적요청',
+  CONTRACT: '계약',
+  BILLING: '정산/청구',
+  ACCOUNT: '계정',
+  PRODUCT: '상품',
+  CULTIVATION: '재배',
+  STATUS: '상태 변경',
 }
 
-function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-  return error?.response?.data?.message || error?.message || fallback
+const FIXED_CATEGORY_ORDER = [
+  'ALL',
+  'APPROVAL',
+  'QUOTATION_REQUEST',
+  'CONTRACT',
+  'BILLING',
+  'ACCOUNT',
+  'PRODUCT',
+  'CULTIVATION',
+  'STATUS',
+]
+
+function getErrorMessage(error, fallback = '알림 요청 처리 중 오류가 발생했습니다.') {
+  return error?.response?.data?.error?.message || error?.message || fallback
 }
 
-function normalizeList(data) {
-  if (Array.isArray(data)) {
-    return data
-  }
-
-  if (Array.isArray(data?.items)) {
-    return data.items
-  }
-
-  return []
+function nowIsoString() {
+  return new Date().toISOString()
 }
 
-function toEpoch(dateString) {
-  const [datePart, timePart] = String(dateString || '').split(' ')
-  if (!datePart || !timePart) {
-    return 0
+function normalizeNotificationItem(item) {
+  if (!item) {
+    return null
   }
 
-  const [year, month, day] = datePart.split('-').map(Number)
-  const [hour, minute] = timePart.split(':').map(Number)
+  return {
+    id: Number(item.id),
+    type: item.type || 'UNKNOWN',
+    title: item.title || '',
+    content: item.content || '',
+    targetType: item.targetType || null,
+    targetId: item.targetId != null ? Number(item.targetId) : null,
+    readAt: item.readAt || null,
+    createdAt: item.createdAt || nowIsoString(),
+  }
+}
 
-  return new Date(year, month - 1, day, hour, minute).getTime()
+function getCategoryKeyByType(type) {
+  if (!type) {
+    return 'OTHER'
+  }
+
+  if (type.startsWith('APPROVAL_')) {
+    return 'APPROVAL'
+  }
+
+  if (type === 'QUOTATION_REQUEST_CREATED') {
+    return 'QUOTATION_REQUEST'
+  }
+
+  if (type.startsWith('CONTRACT_')) {
+    return 'CONTRACT'
+  }
+
+  if (type === 'STATEMENT_ISSUED' || type === 'INVOICE_ISSUED') {
+    return 'BILLING'
+  }
+
+  if (type === 'ACCOUNT_ACTIVATED') {
+    return 'ACCOUNT'
+  }
+
+  if (type === 'PRODUCT_CREATED') {
+    return 'PRODUCT'
+  }
+
+  if (type.startsWith('CULTIVATION_')) {
+    return 'CULTIVATION'
+  }
+
+  if (type === 'DEAL_STATUS_CHANGED') {
+    return 'STATUS'
+  }
+
+  return 'OTHER'
+}
+
+function buildEmptyPageMeta(page = 0, size = DEFAULT_PAGE_SIZE) {
+  return {
+    number: page,
+    size,
+    totalPages: 1,
+    totalElements: 0,
+    numberOfElements: 0,
+    first: page === 0,
+    last: true,
+    empty: true,
+  }
 }
 
 export const useNotificationStore = defineStore('notification', () => {
-  const notificationsByRole = ref({
-    [ROLES.SALES_REP]: [],
-    [ROLES.ADMIN]: [],
-    [ROLES.CLIENT]: [],
-  })
-  const loadedByRole = ref({
-    [ROLES.SALES_REP]: false,
-    [ROLES.ADMIN]: false,
-    [ROLES.CLIENT]: false,
-  })
+  const notifications = ref([])
+  const pageMeta = ref(buildEmptyPageMeta())
+  const unreadCount = ref(0)
   const loading = ref(false)
+  const refreshingUnreadCount = ref(false)
+  const actionLoading = ref({
+    readAll: false,
+    deleteAll: false,
+    byId: {},
+  })
   const error = ref(null)
-  let listenersBound = false
+  const sseConnected = ref(false)
+  const sseStatus = ref('idle')
+  const initialized = ref(false)
 
-  const nowDateTime = () => {
-    const date = new Date()
-    const pad = (n) => String(n).padStart(2, '0')
+  let sseClient = null
 
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-  }
+  const unreadCountByRole = computed(() => {
+    const role = useAuthStore().currentRole
+    return role ? { [role]: unreadCount.value } : {}
+  })
 
-  const appendSystemNotification = ({ role, category, message }) => {
-    if (!role || !message) {
-      return
-    }
+  const categories = computed(() => {
+    return FIXED_CATEGORY_ORDER.map((key) => CATEGORY_LABELS[key])
+  })
 
-    const next = {
-      id: `local-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      title: '시스템 알림',
-      category: category || '전체',
-      message,
-      read: false,
-      createdAt: nowDateTime(),
-    }
+  const getAll = () => notifications.value
 
-    notificationsByRole.value = {
-      ...notificationsByRole.value,
-      [role]: [next, ...getAllByRole(role)],
-    }
-  }
+  const getById = (_role, id) => notifications.value.find((item) => item.id === Number(id)) || null
 
-  const mergeNotifications = (role, incoming = []) => {
-    if (!role || !Array.isArray(incoming) || incoming.length === 0) {
-      return
-    }
+  const getFiltered = (_role, category = CATEGORY_LABELS.ALL, unreadOnly = false) => notifications.value.filter((item) => {
+    const matchesCategory = category === CATEGORY_LABELS.ALL
+      || CATEGORY_LABELS[getCategoryKeyByType(item.type)] === category
+    const matchesUnread = unreadOnly ? item.readAt === null : true
 
-    const existing = getAllByRole(role)
-    const deduped = incoming.filter((item) => {
-      if (!item) {
-        return false
-      }
-      return !existing.some((current) => current.id === item.id || (item.sourceKey && current.sourceKey === item.sourceKey))
-    })
+    return matchesCategory && matchesUnread
+  })
 
-    if (deduped.length === 0) {
-      return
-    }
+  const getCategories = () => categories.value
 
-    notificationsByRole.value = {
-      ...notificationsByRole.value,
-      [role]: [...deduped, ...existing],
+  const setActionLoading = (id, value) => {
+    actionLoading.value = {
+      ...actionLoading.value,
+      byId: {
+        ...actionLoading.value.byId,
+        [id]: value,
+      },
     }
   }
 
-  const bindEventListeners = () => {
-    if (listenersBound) {
-      return
-    }
-
-    listenersBound = true
-
-    eventBus.on('document:created', ({ type, id }) => {
-      appendSystemNotification({
-        role: ROLES.ADMIN,
-        category: '관리',
-        message: `문서가 생성되었습니다. (${type} / ${id})`,
-      })
-      appendSystemNotification({
-        role: ROLES.SALES_REP,
-        category: '영업',
-        message: `신규 문서가 등록되었습니다. (${type})`,
-      })
-    })
-
-    eventBus.on('approval:processed', ({ id, status }) => {
-      appendSystemNotification({
-        role: ROLES.SALES_REP,
-        category: '영업',
-        message: `승인 요청 #${id}이(가) ${status} 처리되었습니다.`,
-      })
-      appendSystemNotification({
-        role: ROLES.CLIENT,
-        category: '계약',
-        message: `문서 승인 상태가 ${status}로 변경되었습니다.`,
-      })
-    })
+  const updateUnreadCount = (value) => {
+    unreadCount.value = Math.max(0, Number(value) || 0)
   }
 
-  async function fetchNotifications(role, params = {}) {
-    if (!role) {
-      return []
+  const syncPageMeta = (pageData, fallbackPage = 0, fallbackSize = DEFAULT_PAGE_SIZE) => {
+    pageMeta.value = {
+      ...buildEmptyPageMeta(fallbackPage, fallbackSize),
+      ...(pageData || {}),
+      number: Number(pageData?.number ?? fallbackPage),
+      size: Number(pageData?.size ?? fallbackSize),
+      totalPages: Math.max(1, Number(pageData?.totalPages ?? 1)),
+      totalElements: Number(pageData?.totalElements ?? 0),
+      numberOfElements: Number(pageData?.numberOfElements ?? ((pageData?.content || []).length || 0)),
+      first: Boolean(pageData?.first ?? fallbackPage === 0),
+      last: Boolean(pageData?.last ?? true),
+      empty: Boolean(pageData?.empty ?? !(pageData?.content || []).length),
     }
+  }
+
+  async function fetchUnreadCount() {
+    refreshingUnreadCount.value = true
+
+    try {
+      const data = await getUnreadCount()
+      updateUnreadCount(data?.unreadCount)
+      return unreadCount.value
+    } catch (e) {
+      error.value = getErrorMessage(e, '미읽음 개수를 불러오지 못했습니다.')
+      return unreadCount.value
+    } finally {
+      refreshingUnreadCount.value = false
+    }
+  }
+
+  async function fetchNotifications(_role, params = {}) {
+    const nextPage = Number(params.page ?? pageMeta.value.number ?? 0)
+    const nextSize = Number(params.size ?? pageMeta.value.size ?? DEFAULT_PAGE_SIZE)
 
     loading.value = true
     error.value = null
 
     try {
-      const list = normalizeList(await getNotifications({ role, ...params }))
-      notificationsByRole.value = {
-        ...notificationsByRole.value,
-        [role]: list,
-      }
-      loadedByRole.value = {
-        ...loadedByRole.value,
-        [role]: true,
-      }
-      return list
+      const pageData = await getNotifications({ page: nextPage, size: nextSize })
+      notifications.value = Array.isArray(pageData?.content)
+        ? pageData.content.map(normalizeNotificationItem).filter(Boolean)
+        : []
+      syncPageMeta(pageData, nextPage, nextSize)
+      initialized.value = true
+      return notifications.value
     } catch (e) {
       error.value = getErrorMessage(e, '알림 목록을 불러오지 못했습니다.')
-      return notificationsByRole.value[role] || []
+      notifications.value = []
+      syncPageMeta(null, nextPage, nextSize)
+      return []
     } finally {
       loading.value = false
     }
   }
 
-  const ensureLoaded = (role) => {
-    if (!role || loadedByRole.value[role]) {
-      return
-    }
-
-    void fetchNotifications(role)
+  async function initialize(role, params = {}) {
+    await Promise.all([
+      fetchNotifications(role, params),
+      fetchUnreadCount(),
+    ])
   }
 
-  const getAllByRole = (role) => notificationsByRole.value[role] || []
-
-  const getCategories = (role) => {
-    ensureLoaded(role)
-
-    const defaultCategories = DEFAULT_CATEGORY_MAP[role] || ['전체']
-    const dynamic = [...new Set(getAllByRole(role).map((item) => item.category).filter(Boolean))]
-    const merged = ['전체', ...defaultCategories.filter((item) => item !== '전체'), ...dynamic]
-
-    return [...new Set(merged)]
-  }
-
-  const getFiltered = (role, category = '전체', unreadOnly = false) => {
-    ensureLoaded(role)
-
-    const sorted = [...getAllByRole(role)].sort((a, b) => toEpoch(b.createdAt) - toEpoch(a.createdAt))
-
-    return sorted.filter((item) => {
-      const passCategory = category === '전체' || item.category === category
-      const passUnread = unreadOnly ? !item.read : true
-      return passCategory && passUnread
+  async function refreshCurrentPage() {
+    return initialize(null, {
+      page: pageMeta.value.number,
+      size: pageMeta.value.size,
     })
   }
 
-  const getById = (role, id) => {
-    ensureLoaded(role)
-    return getAllByRole(role).find((item) => item.id === id) || null
-  }
+  function mergeNotifications(_role, incoming = []) {
+    const normalized = incoming
+      .map(normalizeNotificationItem)
+      .filter(Boolean)
+      .filter((item) => !notifications.value.some((current) => current.id === item.id))
 
-  const markRead = (role, id, read = true) => {
-    const list = getAllByRole(role)
-    const target = list.find((item) => item.id === id)
-    if (!target) {
+    if (normalized.length === 0) {
       return
     }
 
-    target.read = read
+    notifications.value = [...normalized, ...notifications.value]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, pageMeta.value.size || DEFAULT_PAGE_SIZE)
 
-    if (read) {
-      markAsReadApi(id).catch((e) => {
-        error.value = getErrorMessage(e, '읽음 처리에 실패했습니다.')
-      })
-    }
-  }
-
-  const toggleRead = (role, id) => {
-    const target = getById(role, id)
-    if (!target) {
-      return
-    }
-
-    target.read = !target.read
-
-    if (target.read) {
-      markAsReadApi(id).catch((e) => {
-        error.value = getErrorMessage(e, '읽음 처리에 실패했습니다.')
-      })
-    }
-  }
-
-  const markAllRead = (role) => {
-    const list = getAllByRole(role)
-    list.forEach((item) => {
-      item.read = true
+    syncPageMeta({
+      ...pageMeta.value,
+      totalElements: pageMeta.value.totalElements + normalized.length,
+      numberOfElements: Math.min(
+        (pageMeta.value.size || DEFAULT_PAGE_SIZE),
+        notifications.value.length,
+      ),
+      empty: false,
     })
 
-    markAllAsReadApi().catch((e) => {
+    const unreadDelta = normalized.filter((item) => item.readAt === null).length
+    if (unreadDelta > 0) {
+      updateUnreadCount(unreadCount.value + unreadDelta)
+    }
+  }
+
+  function applyIncomingNotification(payload) {
+    const incoming = normalizeNotificationItem(payload)
+    if (!incoming || notifications.value.some((item) => item.id === incoming.id)) {
+      return
+    }
+
+    notifications.value = [incoming, ...notifications.value]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, pageMeta.value.size || DEFAULT_PAGE_SIZE)
+
+    syncPageMeta({
+      ...pageMeta.value,
+      totalElements: pageMeta.value.totalElements + 1,
+      numberOfElements: Math.min(pageMeta.value.size || DEFAULT_PAGE_SIZE, notifications.value.length),
+      empty: false,
+    })
+
+    if (incoming.readAt === null) {
+      updateUnreadCount(unreadCount.value + 1)
+    }
+  }
+
+  async function markRead(_role, id) {
+    const numericId = Number(id)
+    const target = notifications.value.find((item) => item.id === numericId)
+
+    if (!target || target.readAt) {
+      return true
+    }
+
+    const previousReadAt = target.readAt
+    target.readAt = nowIsoString()
+    updateUnreadCount(unreadCount.value - 1)
+    setActionLoading(numericId, true)
+
+    try {
+      await markAsReadApi(numericId)
+      return true
+    } catch (e) {
+      target.readAt = previousReadAt
+      updateUnreadCount(unreadCount.value + 1)
+      error.value = getErrorMessage(e, '읽음 처리에 실패했습니다.')
+      throw e
+    } finally {
+      setActionLoading(numericId, false)
+    }
+  }
+
+  async function markAllRead() {
+    const previousUnreadIds = notifications.value
+      .filter((item) => item.readAt === null)
+      .map((item) => item.id)
+
+    notifications.value = notifications.value.map((item) => ({
+      ...item,
+      readAt: item.readAt || nowIsoString(),
+    }))
+    updateUnreadCount(0)
+    actionLoading.value = {
+      ...actionLoading.value,
+      readAll: true,
+    }
+
+    try {
+      await markAllAsReadApi()
+      return true
+    } catch (e) {
+      notifications.value = notifications.value.map((item) => ({
+        ...item,
+        readAt: previousUnreadIds.includes(item.id) ? null : item.readAt,
+      }))
+      await fetchUnreadCount()
       error.value = getErrorMessage(e, '전체 읽음 처리에 실패했습니다.')
+      throw e
+    } finally {
+      actionLoading.value = {
+        ...actionLoading.value,
+        readAll: false,
+      }
+    }
+  }
+
+  async function removeNotification(id) {
+    const numericId = Number(id)
+    const index = notifications.value.findIndex((item) => item.id === numericId)
+
+    if (index < 0) {
+      return true
+    }
+
+    const removed = notifications.value[index]
+    const previousMeta = { ...pageMeta.value }
+    notifications.value = notifications.value.filter((item) => item.id !== numericId)
+    syncPageMeta({
+      ...pageMeta.value,
+      totalElements: Math.max(0, pageMeta.value.totalElements - 1),
+      numberOfElements: notifications.value.length,
+      empty: notifications.value.length === 0,
+    })
+
+    if (removed.readAt === null) {
+      updateUnreadCount(unreadCount.value - 1)
+    }
+
+    setActionLoading(numericId, true)
+
+    try {
+      await deleteNotificationApi(numericId)
+      return true
+    } catch (e) {
+      const restored = [...notifications.value]
+      restored.splice(index, 0, removed)
+      notifications.value = restored
+      pageMeta.value = previousMeta
+
+      if (removed.readAt === null) {
+        updateUnreadCount(unreadCount.value + 1)
+      }
+
+      error.value = getErrorMessage(e, '알림 삭제에 실패했습니다.')
+      throw e
+    } finally {
+      setActionLoading(numericId, false)
+    }
+  }
+
+  async function removeAllNotifications() {
+    const previous = [...notifications.value]
+    const previousMeta = { ...pageMeta.value }
+    notifications.value = []
+    syncPageMeta({
+      ...pageMeta.value,
+      totalElements: 0,
+      numberOfElements: 0,
+      totalPages: 1,
+      empty: true,
+      first: true,
+      last: true,
+    })
+    updateUnreadCount(0)
+    actionLoading.value = {
+      ...actionLoading.value,
+      deleteAll: true,
+    }
+
+    try {
+      await deleteAllNotificationsApi()
+      return true
+    } catch (e) {
+      notifications.value = previous
+      pageMeta.value = previousMeta
+      await fetchUnreadCount()
+      error.value = getErrorMessage(e, '전체 삭제에 실패했습니다.')
+      throw e
+    } finally {
+      actionLoading.value = {
+        ...actionLoading.value,
+        deleteAll: false,
+      }
+    }
+  }
+
+  async function startSse() {
+    const authStore = useAuthStore()
+    if (!authStore.token || sseClient) {
+      return
+    }
+
+    sseStatus.value = 'connecting'
+
+    sseClient = createNotificationSseClient({
+      token: authStore.token,
+      onOpen: () => {
+        sseConnected.value = true
+        sseStatus.value = 'connected'
+      },
+      onMessage: (payload) => {
+        applyIncomingNotification(payload)
+      },
+      onError: () => {
+        sseConnected.value = false
+        sseStatus.value = 'reconnecting'
+      },
+      onAuthError: async () => {
+        sseConnected.value = false
+        sseStatus.value = 'auth-error'
+        stopSse()
+        await authStore.logout()
+        const { default: router } = await import('@/router')
+        if (router.currentRoute.value.path !== '/login') {
+          await router.push('/login')
+        }
+      },
     })
   }
 
-  const unreadCountByRole = computed(() => Object.fromEntries(
-    Object.entries(notificationsByRole.value).map(([role, list]) => [role, list.filter((item) => !item.read).length]),
-  ))
+  function stopSse() {
+    sseClient?.close()
+    sseClient = null
+    sseConnected.value = false
+    sseStatus.value = 'idle'
+  }
 
-  bindEventListeners()
+  async function bootstrap() {
+    await fetchUnreadCount()
+    await startSse()
+  }
 
   return {
-    notificationsByRole,
+    notifications,
+    pageMeta,
+    unreadCount,
     unreadCountByRole,
     loading,
+    refreshingUnreadCount,
+    actionLoading,
     error,
+    initialized,
+    sseConnected,
+    sseStatus,
     fetchNotifications,
+    fetchUnreadCount,
+    initialize,
+    refreshCurrentPage,
     getCategories,
     getFiltered,
     getById,
+    getAll,
     markRead,
-    toggleRead,
     markAllRead,
+    removeNotification,
+    removeAllNotifications,
     mergeNotifications,
+    bootstrap,
+    startSse,
+    stopSse,
   }
 })

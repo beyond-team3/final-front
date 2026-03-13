@@ -171,7 +171,7 @@
 - `rejectRequest(id, reason)`
   - `PUT /approvals/:id/reject`
 
-## payment.js (결제)
+## paymentStore.js (결제)
 
 - `getPayments(params)`
   - `GET /payments`

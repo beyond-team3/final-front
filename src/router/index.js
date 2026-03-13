@@ -36,7 +36,7 @@ const SimilarityAnalysisView = () => import('@/views/product/SimilarityAnalysisV
 const QuotationRequestView = () => import('@/views/document/QuotationRequestView.vue')
 const QuotationView = () => import('@/views/document/QuotationView.vue')
 const ContractView = () => import('@/views/document/ContractView.vue')
-const DocumentCreateView = () => import('@/views/document/DocumentCreateView.vue')
+
 const DocumentAllView = () => import('@/views/document/DocumentAllView.vue')
 const OrderView = () => import('@/views/document/OrderView.vue')
 const InvoiceView = () => import('@/views/document/InvoiceView.vue')
@@ -223,7 +223,7 @@ const routes = [
             { path: 'products/feedback', name: 'product-feedback', component: ProductFeedbackView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '상품 피드백' } },
             { path: 'products/similarity', name: 'product-similarity', component: SimilarityAnalysisView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '유사도 분석' } },
 
-            { path: 'documents/create', name: 'document-create', component: DocumentCreateView, meta: { roles: [ROLES.SALES_REP, ROLES.CLIENT], title: '문서 작성' } },
+
             { path: 'documents/request', name: 'document-request', component: QuotationRequestView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '견적 요청서' } },
             { path: 'documents/quotation', name: 'document-quotation', component: QuotationView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '견적서' } },
             { path: 'documents/contract', name: 'document-contract', component: ContractView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '계약서' } },
@@ -246,7 +246,7 @@ const routes = [
             { path: 'statistics', name: 'statistics', component: StatisticsRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '통계' } },
             { path: 'schedule', name: 'schedule', component: CalendarView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '일정' } },
 
-            { path: 'approval', name: 'approval', component: ApprovalView, meta: { roles: [ROLES.ADMIN], title: '승인' } },
+            { path: 'approval', name: 'approval', component: ApprovalView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '승인' } },
             { path: 'payment', name: 'payment', component: PaymentView, meta: { roles: [ROLES.CLIENT], title: '결제' } },
             { path: 'notifications', name: 'notifications', component: NotificationRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '알림' } },
             { path: 'settings', name: 'settings', component: SettingsRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '설정' } },

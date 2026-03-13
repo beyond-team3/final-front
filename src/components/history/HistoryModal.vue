@@ -1,5 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { searchApprovals } from '@/api/approval'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployeeStore } from '@/stores/employee'
@@ -48,12 +50,14 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
+const router = useRouter()
 const documentStore = useDocumentStore()
 const authStore = useAuthStore()
 const employeeStore = useEmployeeStore()
 
 const docDetail = ref(null)
 const isLoading = ref(false)
+const approvalRejectReason = ref('')
 
 const showInfoPanel = computed(() => props.mode !== 'readonly')
 const showCancelConfirm = ref(false)
@@ -78,18 +82,20 @@ const isQuotationRequest = computed(() => {
 })
 
 const isQuotationDocument = computed(() => {
-  const type = String(docDetail.value?.type || props.docType || '').toLowerCase()
-  return type === 'quotation' || type.includes('견적서') || String(props.docId).startsWith('QT')
+  const type = String(docDetail.value?.type || props.docType || '').toLowerCase().replace(/[\s-]+/g, '')
+  const docId = String(props.docId || '').toUpperCase()
+  return type === 'quotation' || type === 'quo' || type.includes('견적서') || docId.startsWith('QT') || docId.startsWith('QUO')
 })
 
 const isContractDocument = computed(() => {
-  const type = String(docDetail.value?.type || props.docType || '').toLowerCase()
-  return type === 'contract' || type.includes('계약') || String(props.docId).startsWith('CNT')
+  const type = String(docDetail.value?.type || props.docType || '').toLowerCase().replace(/[\s-]+/g, '')
+  const docId = String(props.docId || '').toUpperCase()
+  return type === 'contract' || type === 'cnt' || type.includes('계약') || docId.startsWith('CNT')
 })
 
 const isOrderDocument = computed(() => {
-  const type = String(docDetail.value?.type || props.docType || '').toLowerCase()
-  return type === 'order' || type.includes('주문')
+  const type = String(docDetail.value?.type || props.docType || '').toLowerCase().replace(/[\s-]+/g, '')
+  return type === 'order' || type === 'ord' || type.includes('주문')
 })
 
 // 💡 작성자 본인 여부 확인
@@ -131,6 +137,28 @@ const resolvedMemberName = computed(() => {
 const showRFQCancelButton = computed(() => isQuotationRequest.value && authStore.currentRole === ROLES.CLIENT && isAuthor.value && authStore.currentRole !== ROLES.ADMIN)
 const showQuotationCancelButton = computed(() => isQuotationDocument.value && authStore.currentRole === ROLES.SALES_REP && isAuthor.value && authStore.currentRole !== ROLES.ADMIN)
 const showContractDeleteButton = computed(() => isContractDocument.value && authStore.currentRole === ROLES.SALES_REP && isAuthor.value && authStore.currentRole !== ROLES.ADMIN)
+const displayedRejectReason = computed(() => String(props.rejectReason || approvalRejectReason.value || '').trim())
+const rewriteSourceId = computed(() => {
+  if (isQuotationDocument.value) {
+    return docDetail.value?.requestId || docDetail.value?.quotationRequestId || null
+  }
+
+  if (isContractDocument.value) {
+    return docDetail.value?.quotationId || null
+  }
+
+  return null
+})
+const isRejectedDocument = computed(() => {
+  const rawStatus = String(docDetail.value?.status || '').trim().toUpperCase()
+  return rawStatus.includes('REJECT') || rawStatus.includes('반려') || Boolean(displayedRejectReason.value)
+})
+const showRewriteButton = computed(() => (
+  isRejectedDocument.value
+  && authStore.currentRole === ROLES.SALES_REP
+  && isAuthor.value
+  && (showQuotationCancelButton.value || showContractDeleteButton.value)
+))
 
 const orderStatus = computed(() => normalizeOrderStatus(docDetail.value?.status))
 const canOrderCancel = computed(() => isOrderDocument.value && authStore.currentRole === ROLES.CLIENT && orderStatus.value === 'REQUESTED' && authStore.currentRole !== ROLES.ADMIN)
@@ -140,6 +168,52 @@ const isDeleteAction = ref(false)
 const handleDelete = () => {
   isDeleteAction.value = true
   showCancelConfirm.value = true
+}
+
+const handleRewrite = async () => {
+  try {
+    if (isQuotationDocument.value) {
+      const latestDetail = await documentStore.fetchQuotationDetail(props.docId)
+      const sourceId = latestDetail?.requestId || latestDetail?.quotationRequestId || null
+
+      const deleted = await documentStore.deleteDocument(props.docId, props.docType)
+      if (!deleted) {
+        return
+      }
+
+      close()
+      await router.push({
+        path: '/documents/quotation',
+        query: {
+          rewrite: 'true',
+          ...(sourceId ? { requestId: String(sourceId) } : {}),
+        },
+      })
+      return
+    }
+
+    if (isContractDocument.value) {
+      const latestDetail = await documentStore.fetchContractDetail(props.docId)
+      const sourceId = latestDetail?.quotationId || null
+
+      const deleted = await documentStore.deleteContract(props.docId)
+      if (!deleted) {
+        return
+      }
+
+      close()
+      await router.push({
+        path: '/documents/contract',
+        query: {
+          rewrite: 'true',
+          ...(sourceId ? { quotationId: String(sourceId) } : {}),
+        },
+      })
+    }
+  } catch (error) {
+    console.error('[HistoryModal] 재작성 처리 중 오류 발생:', error)
+    window.alert('재작성 처리 중 오류가 발생했습니다.')
+  }
 }
 
 const formatKRDate = (dateStr) => {
@@ -169,14 +243,64 @@ const close = () => {
   cancelErrorMessage.value = ''
 }
 
+const getApprovalRejectReason = (approval) => {
+  const stepReason = Array.isArray(approval?.steps)
+    ? [...approval.steps]
+      .sort((left, right) => (right.stepOrder || 0) - (left.stepOrder || 0))
+      .find((step) => String(step?.status || '').toUpperCase().includes('REJECT'))?.reason
+    : ''
+
+  return String(
+    stepReason
+    || approval?.reason
+    || approval?.rejectReason
+    || approval?.rejectionReason
+    || '',
+  ).trim()
+}
+
+const loadRejectReason = async () => {
+  approvalRejectReason.value = ''
+
+  if (props.rejectReason) {
+    approvalRejectReason.value = String(props.rejectReason).trim()
+    return
+  }
+
+  if (!props.docId) return
+
+  const dealType = isQuotationDocument.value ? 'QUO' : (isContractDocument.value ? 'CNT' : '')
+  if (!dealType) return
+
+  try {
+    const result = await searchApprovals({
+      page: 0,
+      size: 20,
+      dealType,
+      targetId: Number(props.docId),
+    })
+
+    const approvals = Array.isArray(result?.content)
+      ? result.content
+      : (Array.isArray(result) ? result : [])
+    const rejectedApproval = approvals.find((approval) => getApprovalRejectReason(approval))
+
+    approvalRejectReason.value = rejectedApproval ? getApprovalRejectReason(rejectedApproval) : ''
+  } catch (error) {
+    console.error('[HistoryModal] 반려 사유 조회 중 오류 발생:', error)
+  }
+}
+
 const loadDetail = async () => {
   const currentId = props.docId
   if (!currentId) {
     docDetail.value = null
+    approvalRejectReason.value = ''
     return
   }
 
   docDetail.value = null
+  approvalRejectReason.value = ''
   isLoading.value = true
 
   try {
@@ -201,7 +325,9 @@ const loadDetail = async () => {
     else if (typeKey === 'invoice') detail = documentStore.getInvoiceById(currentId)
     else if (['quotation-request', 'rfq'].includes(typeKey)) detail = documentStore.getRequestById(currentId)
 
-    if (!detail || !detail.items || detail.items.length === 0) {
+    const requiresFreshDetail = isQuotationDocument.value || isContractDocument.value
+
+    if (requiresFreshDetail || !detail || !detail.items || detail.items.length === 0) {
       let fetched = null
       if (['quotation-request', 'rfq'].includes(typeKey)) fetched = await documentStore.fetchQuotationRequestDetail(currentId)
       else if (typeKey === 'quotation') fetched = await documentStore.fetchQuotationDetail(currentId)
@@ -214,6 +340,7 @@ const loadDetail = async () => {
 
     docDetail.value = detail
     if (docDetail.value && !docDetail.value.type) docDetail.value.type = typeKey
+    await loadRejectReason()
   } catch (e) {
     console.error('[HistoryModal] 상세 로드 중 오류 발생:', e)
   } finally {
@@ -326,6 +453,7 @@ const getValidityDate = (dateStr) => {
           </div>
           <div class="flex items-center gap-2">
             <button v-if="showRFQCancelButton" type="button" class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors" @click="handleDelete">취소 및 삭제</button>
+            <button v-if="showRewriteButton" type="button" class="rounded bg-[var(--color-orange)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--color-orange-dark)]" @click="handleRewrite">재작성</button>
             <button v-if="showQuotationCancelButton" type="button" class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors" @click="handleDelete">견적 취소</button>
             <button v-if="showContractDeleteButton" type="button" class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors" @click="handleDelete">계약 삭제</button>
             <button v-if="showOrderCancelButton" type="button" class="rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors bg-[var(--color-orange)] hover:bg-[var(--color-orange-dark)] disabled:cursor-not-allowed disabled:opacity-50" :disabled="!canOrderCancel" @click="showCancelConfirm = true">주문 취소</button>
@@ -456,11 +584,22 @@ const getValidityDate = (dateStr) => {
                 <div class="max-h-72 overflow-y-auto border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] p-2 space-y-2 shadow-inner custom-scrollbar mb-5"><div v-for="(item, idx) in docDetail.items" :key="'data-sum-'+idx" class="flex justify-between items-center p-3 rounded-lg border-b border-[var(--color-border-divider)] last:border-0 pb-3"><div class="flex flex-col gap-0.5"><span class="text-xs font-bold text-[var(--color-text-strong)]">{{ item.name }}</span><span class="text-[10px] text-[var(--color-text-sub)]">{{ item.variety || '기본 품종' }} | {{ item.unit }}</span></div><div class="text-right flex flex-col gap-0.5"><span class="text-xs font-black text-[var(--color-text-strong)]">{{ item.quantity || item.count }} {{ item.unit }}</span><span v-if="!isQuotationRequest" class="text-[10px] font-bold text-[var(--color-olive)]">₩{{ Number(item.amount || ((item.quantity||item.count)*(item.unitPrice||item.price))).toLocaleString() }}</span></div></div></div>
                 <div v-if="!isQuotationRequest" class="flex justify-between items-end bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]"><div class="flex flex-col"><span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">Final Quote</span><span class="text-xs font-medium text-[var(--color-text-sub)] line-through">₩{{ Number((docDetail.totalAmount || docDetail.amount || 0) * 1.1).toLocaleString() }}</span></div><div class="text-right"><span class="text-2xl font-black text-[var(--color-olive)]">₩{{ Number(docDetail.totalAmount || docDetail.amount || 0).toLocaleString() }}</span><p class="text-[9px] font-bold text-[var(--color-text-sub)] mt-1">VAT INCLUDED</p></div></div>
               </article>
-              <article v-if="rejectReason || (authStore.currentRole === ROLES.SALES_REP && isAuthor && docDetail.memo)" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+              <article v-if="authStore.currentRole === ROLES.SALES_REP && isAuthor && docDetail.memo" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
                 <div class="flex items-center gap-2 mb-5"><span class="w-1.5 h-4 bg-slate-400 rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">공지 및 내부 비고</h3></div>
                 <div class="space-y-5">
-                  <div v-if="rejectReason" class="space-y-2"><p class="text-[10px] font-black text-[var(--status-error)] uppercase flex items-center gap-1"><span class="w-1 h-1 bg-[var(--status-error)] rounded-full"></span> 반려 사유</p><div class="bg-[var(--status-error)]/5 border border-[var(--color-status-error)]/30 p-4 rounded-xl text-xs text-[var(--color-status-error)] font-bold shadow-sm whitespace-pre-wrap">{{ rejectReason }}</div></div>
                   <div v-if="!isQuotationRequest && authStore.currentRole === ROLES.SALES_REP && isAuthor && docDetail.memo" class="space-y-2"><p class="text-[10px] font-black text-[var(--color-text-sub)] uppercase flex items-center gap-1"><span class="w-1 h-1 bg-[var(--color-text-sub)] rounded-full"></span> 내부 비고</p><div class="bg-[var(--color-bg-section)] border border-[var(--color-border-divider)] p-4 rounded-xl text-xs text-[var(--color-text-strong)] shadow-inner italic whitespace-pre-wrap">"{{ docDetail.memo }}"</div></div>
+                </div>
+              </article>
+              <article v-if="displayedRejectReason" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+                <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-orange)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">반려 사유서</h3></div>
+                  <span class="text-[10px] font-bold text-[var(--color-text-sub)]">REJECT NOTE</span>
+                </div>
+                <div class="space-y-5">
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">반려 사유</label>
+                    <div class="bg-[var(--color-bg-input)] border border-[var(--color-border-card)] p-4 rounded-xl text-xs text-[var(--color-text-strong)] shadow-inner italic whitespace-pre-wrap">{{ displayedRejectReason }}</div>
+                  </div>
                 </div>
               </article>
             </div>
