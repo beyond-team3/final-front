@@ -25,6 +25,9 @@ const showProductModal = ref(false)
 const isVarietyDropdownOpen = ref(false)
 const varietyDropdownRef = ref(null)
 
+// 모달 설정
+const currentTab = ref('pending-rfq') // 'pending-rfq', 'rejected-quo'
+
 // 원본 데이터 추적
 const quotationId = ref(null)
 const sourceRequestId = ref(null)
@@ -38,6 +41,7 @@ const inCorp = ref('')
 const inName = ref('')
 const internalMemo = ref('')
 const customerRequirements = ref('')
+const currentRejectionReason = ref('')
 const selectedItems = ref([])
 const modalSearchInput = ref('')
 const clientSearchInput = ref('')
@@ -70,6 +74,7 @@ const loadQuotationDetail = async (id) => {
   inCorp.value = data.client?.name || data.clientName || ''
   inName.value = data.client?.contact || data.authorName || ''
   internalMemo.value = data.memo || ''
+  currentRejectionReason.value = data.rejectionReason || ''
   createdAt.value = data.createdAt
   status.value = data.status
 
@@ -92,6 +97,7 @@ onMounted(async () => {
     await Promise.all([
       documentStore.fetchDocumentsV2?.(),
       documentStore.fetchPendingQuotationRequests?.(),
+      documentStore.fetchRejectedQuotations?.(),
       documentStore.fetchClientMaster?.(),
       documentStore.fetchProductMaster?.(),
       historyStore.ensureLoaded?.()
@@ -114,6 +120,21 @@ onMounted(async () => {
     }
   } catch (e) {
     console.error("데이터 로딩 실패:", e)
+  }
+})
+
+// 모달이 열릴 때 최신 리스트로 갱신 (반려 건 재작성 시 목록 동기화)
+import { watch } from 'vue'
+watch(showStartModal, async (isOpen) => {
+  if (isOpen) {
+    try {
+      await Promise.all([
+        documentStore.fetchPendingQuotationRequests?.(),
+        documentStore.fetchRejectedQuotations?.()
+      ])
+    } catch (e) {
+      console.error("모달 데이터 갱신 실패:", e)
+    }
   }
 })
 
@@ -186,7 +207,37 @@ const startNewQuotation = () => {
   inCorp.value = ''
   inName.value = ''
   customerRequirements.value = ''
+  currentRejectionReason.value = ''
   selectedItems.value = []
+}
+
+const startFromRejectedQuotation = (quo) => {
+  isProcessStarted.value = true
+  isNewMode.value = false
+  showStartModal.value = false
+
+  // 원본이 견적 요청서 기반인지 확인
+  sourceRequestId.value = quo.requestId || null
+  sourceHistoryId.value = quo.historyId || null
+
+  selectedClientId.value = quo.clientId
+  inCorpCode.value = quo.client?.code || quo.clientId || ''
+  inCorp.value = quo.client?.name || quo.clientName || ''
+  inName.value = quo.client?.contact || quo.authorName || ''
+
+  internalMemo.value = quo.memo || ''
+  customerRequirements.value = quo.requirements || quo.memo || ''
+  currentRejectionReason.value = quo.rejectionReason || ''
+
+  selectedItems.value = (quo.items || []).map(i => ({
+    uid: Date.now() + Math.random(),
+    productId: i.productId,
+    variety: i.variety,
+    name: i.name,
+    count: i.quantity,
+    unit: i.unit,
+    price: i.unitPrice
+  }))
 }
 
 const setCorp = (corp) => {
@@ -409,6 +460,16 @@ const submitDoc = async () => {
             <p class="text-[11px] mt-2 font-medium" style="color: #9A8C7E;">* 위 내용은 참고용이며, 발행되는 PDF 견적서에는 포함되지 않습니다.</p>
           </div>
 
+          <div v-if="currentRejectionReason" class="card border p-5 rounded-lg shadow-sm" style="background-color: #FDF4F1; border-color: #F8D7CC;">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold text-white bg-[#B85C5C]">반려 사유</span>
+              <h3 class="text-base font-bold" style="color: #3D3529;">반려 사유 내용</h3>
+            </div>
+            <div class="border p-3 rounded text-sm leading-relaxed whitespace-pre-wrap min-h-[40px]" style="background-color: #FFF9F7; border-color: #F8D7CC; color: #B85C5C; font-weight: 500;">
+              {{ currentRejectionReason }}
+            </div>
+          </div>
+
           <article class="rounded-lg border p-5 shadow-sm" style="background-color: #F7F3EC; border-color: #DDD7CE;">
             <h3 class="text-lg font-bold" style="color: #3D3529;">내부 비고</h3>
             <textarea v-model="internalMemo" :readonly="isViewMode" rows="3" class="w-full p-2 border border-l-4 rounded text-sm mt-3 resize-none outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isViewMode ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', borderLeftColor: '#C8622A', color: '#3D3529' }" placeholder="내부 관리용 메모"></textarea>
@@ -474,27 +535,85 @@ const submitDoc = async () => {
             <button type="button" class="modal-close" style="filter: brightness(0) invert(1);" aria-label="닫기" @click="handleCloseModal" />
           </div>
           <div class="modal-body p-6">
-            <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적 요청서 참조</p>
-            <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
-              <table class="w-full text-sm text-center border-collapse">
-                <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
-                <tr><th class="p-3">법인명</th><th class="p-3">담당자</th><th class="p-3">요청 날짜</th><th class="p-3">상태</th><th class="p-3">선택</th></tr>
-                </thead>
-                <tbody>
-                <tr v-for="req in documentStore.pendingQuotationRequests" :key="req.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRequest(req)">
-                  <td class="p-3 font-bold">{{ req.client?.name || req.clientName }}</td>
-                  <td class="p-3">{{ req.client?.contact || req.managerName || '-' }}</td>
-                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date || req.createdAt }}</td>
-                  <td class="p-3 font-bold" style="color: #C8622A;">{{ req.status }}</td>
-                  <td class="p-3">
-                    <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">선택</button>
-                  </td>
-                </tr>
-                <tr v-if="!documentStore.pendingQuotationRequests || documentStore.pendingQuotationRequests.length === 0">
-                  <td colspan="5" class="p-10 italic" style="color: #9A8C7E;">참조 가능한 대기 중인 견적 요청서가 없습니다.</td>
-                </tr>
-                </tbody>
-              </table>
+            <!-- Tab UI -->
+            <div class="flex border-b mb-6" style="border-color: #DDD7CE;">
+              <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-bold transition-all"
+                  :style="{
+                    color: currentTab === 'pending-rfq' ? '#C8622A' : '#9A8C7E',
+                    borderBottom: currentTab === 'pending-rfq' ? '2px solid #C8622A' : 'none'
+                  }"
+                  @click="currentTab = 'pending-rfq'"
+              >
+                신규 요청서
+              </button>
+              <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-bold transition-all"
+                  :style="{
+                    color: currentTab === 'rejected-quo' ? '#C8622A' : '#9A8C7E',
+                    borderBottom: currentTab === 'rejected-quo' ? '2px solid #C8622A' : 'none'
+                  }"
+                  @click="currentTab = 'rejected-quo'"
+              >
+                반려된 견적서 복사
+              </button>
+            </div>
+
+            <div v-if="currentTab === 'pending-rfq'">
+              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적 요청서 참조</p>
+              <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
+                <table class="w-full text-sm text-center border-collapse">
+                  <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
+                  <tr><th class="p-3">법인명</th><th class="p-3">담당자</th><th class="p-3">요청 날짜</th><th class="p-3">상태</th><th class="p-3">선택</th></tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="req in documentStore.pendingQuotationRequests" :key="req.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRequest(req)">
+                    <td class="p-3 font-bold">{{ req.client?.name || req.clientName }}</td>
+                    <td class="p-3">{{ req.client?.contact || req.managerName || '-' }}</td>
+                    <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date || req.createdAt }}</td>
+                    <td class="p-3">
+                      <StatusBadge type="RFQ" :status="req.status" />
+                    </td>
+                    <td class="p-3">
+                      <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">선택</button>
+                    </td>
+                  </tr>
+                  <tr v-if="!documentStore.pendingQuotationRequests || documentStore.pendingQuotationRequests.length === 0">
+                    <td colspan="5" class="p-10 italic" style="color: #9A8C7E;">대기 중인 요청서가 없습니다.</td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div v-else-if="currentTab === 'rejected-quo'">
+              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">이전 반려/만료된 견적서의 내용을 가져옵니다.</p>
+              <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
+                <table class="w-full text-sm text-center border-collapse">
+                  <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
+                  <tr><th class="p-3">코드</th><th class="p-3">법인명</th><th class="p-3">상태</th><th class="p-3">선택</th></tr>
+                  </thead>
+                  <tbody>
+                  <tr v-for="quo in documentStore.rejectedQuotations" :key="quo.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRejectedQuotation(quo)">
+                    <td class="p-3 text-xs">
+                      <div>{{ quo.displayCode }}</div>
+                    </td>
+                    <td class="p-3 font-bold">{{ quo.client?.name || quo.clientName }}</td>
+                    <td class="p-3">
+                      <StatusBadge type="QUO" :status="quo.status" />
+                    </td>
+                    <td class="p-3">
+                      <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">복사</button>
+                    </td>
+                  </tr>
+                  <tr v-if="!documentStore.rejectedQuotations || documentStore.rejectedQuotations.length === 0">
+                    <td colspan="4" class="p-10 italic" style="color: #9A8C7E;">복사 가능한 견적서가 없습니다.</td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
             <button
                 class="w-full text-white py-4 rounded-lg font-bold shadow-lg transition-all hover:opacity-90"

@@ -29,6 +29,8 @@ import {
     getQuotationRequest as getQuotationRequestApi,
     getPendingQuotationRequests as getPendingQuotationRequestsApi,
     getApprovedQuotations as getApprovedQuotationsApi,
+    getRejectedQuotationRequests as getRejectedQuotationRequestsApi,
+    getRejectedQuotations as getRejectedQuotationsApi,
     getDocumentSummaries,
 } from '@/api/document'
 import { getClients } from '@/api/client'
@@ -38,10 +40,13 @@ import { useHistoryStore } from '@/stores/history'
 import { ROLES } from '@/utils/constants'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
+    const backendMessage = error?.response?.data?.message
+    if (backendMessage) return backendMessage
+    
     if (error?.response?.status === 400) {
         return '필수 정보가 누락되었습니다. 입력 내용을 다시 확인해 주세요.'
     }
-    return error?.response?.data?.message || error?.message || fallback
+    return error?.message || fallback
 }
 
 function normalizeList(data) {
@@ -177,7 +182,7 @@ const normalizeDocument = (doc = {}) => {
         // 원본 필드 보존
         salesRepName: doc.salesRepName || '',
         managerName: doc.managerName || doc.client?.managerName || doc.client?.contact || '',
-        authorName: doc.authorName || doc.writerName || doc.client?.managerName || '',
+        authorName: doc.authorName || doc.writerName || doc.managerName || doc.client?.managerName || '',
         createdAt: doc.createdAt || doc.date || (doc.createdAt ? doc.createdAt : new Date().toISOString().slice(0, 10)),
         historyId: doc.historyId || doc.pipelineId || doc.dealId || null,
         statusHistory: Array.isArray(doc.statusHistory) ? doc.statusHistory : [],
@@ -227,7 +232,9 @@ export const useDocumentStore = defineStore('document', () => {
 
     const allRawDocuments = ref([])
     const pendingQuotationRequests = ref([])
+    const rejectedQuotationRequests = ref([])
     const approvedQuotations = ref([])
+    const rejectedQuotations = ref([])
     const statements = ref([])
 
     const quotationRequests = computed(() => {
@@ -646,6 +653,38 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchRejectedQuotationRequests() {
+        try {
+            const response = await getRejectedQuotationRequestsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation-request'
+            }))
+            rejectedQuotationRequests.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('반려된 견적 요청 로드 실패:', e)
+            return []
+        }
+    }
+
+    async function fetchRejectedQuotations() {
+        try {
+            const response = await getRejectedQuotationsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation'
+            }))
+            rejectedQuotations.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('반려된 견적서 로드 실패:', e)
+            return []
+        }
+    }
+
     async function fetchStatements() {
         try {
             const data = await getStatements()
@@ -823,7 +862,7 @@ export const useDocumentStore = defineStore('document', () => {
         })
 
         const payload = {
-            requestId: Number(requestId),
+            requestId: requestId ? Number(requestId) : null,
             clientId: Number(client.id),
             memo: memo || '',
             items: lineItems.map(item => ({
@@ -883,6 +922,8 @@ export const useDocumentStore = defineStore('document', () => {
 
                 emitDocumentCreated('quotation', id)
                 historyStore.fetchPipelines()
+                fetchPendingQuotationRequests()
+                fetchRejectedQuotations()
             }
             return created || next
         } catch (e) {
@@ -1274,8 +1315,12 @@ export const useDocumentStore = defineStore('document', () => {
         fetchQuotationRequestDetail,
         pendingQuotationRequests,
         fetchPendingQuotationRequests,
+        rejectedQuotationRequests,
+        fetchRejectedQuotationRequests,
         approvedQuotations,
         fetchApprovedQuotations,
+        rejectedQuotations,
+        fetchRejectedQuotations,
         fetchQuotationDetail,
         fetchContractDetail,
         fetchOrderDetail,
