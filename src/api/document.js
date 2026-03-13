@@ -16,6 +16,14 @@ export function getApprovedQuotations() {
     return api.get('quotations/approved')
 }
 
+export function getRejectedQuotationRequests() {
+    return api.get('requests/rejected')
+}
+
+export function getRejectedQuotations() {
+    return api.get('quotations/rejected')
+}
+
 export function getQuotation(id) {
     return api.get(`quotations/${id}`)
 }
