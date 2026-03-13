@@ -1,13 +1,24 @@
 import api from './index'
 
-export function getApprovalList(params) {
-  return api.get('/approvals', { params })
+const unwrapApiResult = (result) => {
+  if (result?.result === 'SUCCESS') {
+    return result.data
+  }
+
+  return result?.data ?? result
 }
 
-export function approveRequest(id) {
-  return api.put(`/approvals/${id}/approve`)
+export async function searchApprovals(params) {
+  const result = await api.get('/approvals', { params })
+  return unwrapApiResult(result)
 }
 
-export function rejectRequest(id, reason) {
-  return api.put(`/approvals/${id}/reject`, { reason })
+export async function getApprovalDetail(approvalId) {
+  const result = await api.get(`/approvals/${approvalId}`)
+  return unwrapApiResult(result)
+}
+
+export async function decideApprovalStep(approvalId, stepId, payload) {
+  const result = await api.post(`/approvals/${approvalId}/steps/${stepId}/decision`, payload)
+  return unwrapApiResult(result)
 }

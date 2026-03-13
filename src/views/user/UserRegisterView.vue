@@ -30,6 +30,7 @@ const selectRole = (value) => {
 const selectTarget = (opt) => {
   form.targetId = opt.id
   form.targetPerson = opt.name
+  form.loginId = opt.code || '' // 대상자의 코드를 로그인 ID로 세팅
   activeDropdown.value = null
 }
 
@@ -75,8 +76,8 @@ const fetchData = async () => {
     const unregEmps = employeesRes.data || employeesRes
     const simpleEmps = simpleEmpsRes.data || simpleEmpsRes
 
-    unassignedData.value.CLIENT = unregClients.map(c => ({ id: c.clientId, name: c.clientName }))
-    unassignedData.value.SALES_REP = unregEmps.map(e => ({ id: e.employeeId, name: e.employeeName }))
+    unassignedData.value.CLIENT = unregClients.map(c => ({ id: c.clientId, name: c.clientName, code: c.clientCode }))
+    unassignedData.value.SALES_REP = unregEmps.map(e => ({ id: e.employeeId, name: e.employeeName, code: e.employeeCode }))
     unassignedData.value.ADMIN = [...unassignedData.value.SALES_REP]
 
     // 담당 사원 매칭용
@@ -134,7 +135,13 @@ const onSubmit = async () => {
     await userApi.createUser(payload)
 
     alert('계정 등록이 완료되었습니다!')
-    router.push(form.accountType === 'CLIENT' ? '/clients' : '/employees')
+    
+    // 연동된 대상의 상세 페이지로 즉시 이동
+    if (form.accountType === 'CLIENT') {
+      router.push(`/clients/${form.targetId}`)
+    } else {
+      router.push(`/employees/${form.targetId}`)
+    }
 
   } catch (error) {
     console.error('Registration failed:', error)
@@ -287,7 +294,7 @@ const onSubmit = async () => {
                 type="submit"
                 class="h-12 w-full rounded-lg bg-[var(--color-olive)] text-base font-bold text-white shadow-md transition-all hover:bg-[var(--color-olive-dark)] active:scale-[0.98]"
             >
-              계정 생성 및 활성화
+              계정 생성
             </button>
             <button
                 type="button"

@@ -51,6 +51,7 @@ const form = reactive({
   status: 'SALE',
   unit: '립',
   tags: { '재배환경': [], '내병성': [], '생육및숙기': [], '과실품질': [], '재배편의성': [] },
+  cultivationTimes: [],
 })
 
 watch(initialProduct, (product) => {
@@ -63,16 +64,25 @@ watch(initialProduct, (product) => {
     form.amount = product.amount ?? ''
     form.status = product.status || 'SALE'
     form.unit = product.unit || '립'
-    form.tags = {
+    const productTags = {
       '재배환경': [...(product.tags?.['재배환경'] || [])],
       '내병성': [...(product.tags?.['내병성'] || [])],
       '생육및숙기': [...(product.tags?.['생육및숙기'] || [])],
       '과실품질': [...(product.tags?.['과실품질'] || [])],
       '재배편의성': [...(product.tags?.['재배편의성'] || [])],
     }
+    // 기존 선택된 태그를 tagTemplates에 없으면 자동으로 추가 (표시 + 선택 보장)
+    for (const key of Object.keys(productTags)) {
+      for (const tag of productTags[key]) {
+        if (!tagTemplates[key].includes(tag)) {
+          tagTemplates[key].push(tag)
+        }
+      }
+    }
+    form.tags = productTags
+    form.cultivationTimes = (product.cultivationTimes || []).map(ct => ({ ...ct }))
   }
 }, { immediate: true })
-
 
 const addCustomTag = (key) => {
   const tagName = window.prompt('추가할 태그명을 입력하세요:')
@@ -88,6 +98,57 @@ const toggleTag = (key, tag) => {
   } else {
     form.tags[key].push(tag)
   }
+}
+
+// 태그 편집 모드 (삭제 선택)
+const editingTagKey = ref(null) // 현재 편집 중인 섹션 key
+const checkedForDelete = ref([]) // 삭제할 태그 목록
+
+const startTagEdit = (key) => {
+  editingTagKey.value = key
+  checkedForDelete.value = []
+}
+
+const cancelTagEdit = () => {
+  editingTagKey.value = null
+  checkedForDelete.value = []
+}
+
+const toggleDeleteCheck = (tag) => {
+  const idx = checkedForDelete.value.indexOf(tag)
+  if (idx >= 0) {
+    checkedForDelete.value.splice(idx, 1)
+  } else {
+    checkedForDelete.value.push(tag)
+  }
+}
+
+const confirmDeleteTags = (key) => {
+  if (checkedForDelete.value.length === 0) return
+  const names = checkedForDelete.value.join(', ')
+  if (!window.confirm(`선택한 태그(${names})를 삭제하시겠습니까?`)) return
+  // 타지 태그를 tagTemplates와 form.tags 모두에서 제거
+  tagTemplates[key] = tagTemplates[key].filter(t => !checkedForDelete.value.includes(t))
+  form.tags[key] = form.tags[key].filter(t => !checkedForDelete.value.includes(t))
+  cancelTagEdit()
+}
+
+// 재배적기 관련
+const addCultivationRow = () => {
+  form.cultivationTimes.push({
+    croppingSystem: '',
+    region: '',
+    sowingStart: '',
+    sowingEnd: '',
+    plantingStart: '',
+    plantingEnd: '',
+    harvestingStart: '',
+    harvestingEnd: '',
+  })
+}
+
+const removeCultivationRow = (index) => {
+  form.cultivationTimes.splice(index, 1)
 }
 
 // 이미지 핸들링 로직
@@ -154,11 +215,13 @@ const submitForm = async () => {
     if (isEdit.value) {
       await productStore.updateProduct(editId.value, formData)
       alert('수정되었습니다.')
+      router.push(`/products/${editId.value}`)
     } else {
-      await productStore.createProduct(formData)
+      const newId = await productStore.createProduct(formData)
       alert('등록되었습니다.')
+      // 등록 시 새 상품 ID가 반환되면 상세페이지로, 없으면 목록으로
+      router.push(newId ? `/products/${newId}` : '/products/catalog')
     }
-    router.push('/products/catalog')
   } catch (e) {
     alert('저장에 실패했습니다. 잠시 후 다시 시도해주세요.')
   }
@@ -193,7 +256,7 @@ const submitForm = async () => {
               <span class="text-sm font-semibold text-[var(--color-text-body)]">품목(카테고리) <span class="text-red-500">*</span></span>
               <select v-model="form.category" class="h-11 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none">
                 <option value="">선택하세요</option>
-                <option v-for="(name, code) in PRODUCT_CATEGORY" :key="code" :value="name">{{ name }}</option>
+                <option v-for="(name, code) in PRODUCT_CATEGORY" :key="code" :value="code">{{ name }}</option>
               </select>
             </label>
           </div>
@@ -240,21 +303,116 @@ const submitForm = async () => {
         <article class="space-y-4 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
           <h3 class="text-base font-bold text-[var(--color-text-strong)]">주요 특징 설정</h3>
           <div v-for="group in tagSchema" :key="group.key" class="space-y-3 border-b border-slate-100 pb-4 last:border-0">
+
+            <!-- 섹션 헤더 -->
             <div class="flex items-center justify-between">
               <span class="text-sm font-bold text-slate-600">{{ group.label }}</span>
-              <button type="button" class="text-xs font-bold text-blue-600 hover:underline" @click="addCustomTag(group.key)">+ 태그 추가</button>
+              <div class="flex items-center gap-2">
+                <template v-if="editingTagKey !== group.key">
+                  <button type="button" class="text-xs font-semibold text-slate-400 hover:text-red-500" @click="startTagEdit(group.key)">편집</button>
+                  <button type="button" class="text-xs font-bold text-blue-600 hover:underline" @click="addCustomTag(group.key)">+ 태그 추가</button>
+                </template>
+                <template v-else>
+                  <button
+                    type="button"
+                    class="text-xs font-semibold text-red-500 hover:underline"
+                    :class="checkedForDelete.length === 0 ? 'opacity-30 pointer-events-none' : ''"
+                    @click="confirmDeleteTags(group.key)"
+                  >삭제 ({{ checkedForDelete.length }})</button>
+                  <button type="button" class="text-xs font-semibold text-slate-400 hover:underline" @click="cancelTagEdit">취소</button>
+                </template>
+              </div>
             </div>
+
+            <!-- 태그 목록 -->
             <div class="flex flex-wrap gap-2">
-              <button
-                v-for="tag in tagTemplates[group.key]"
-                :key="tag"
-                type="button"
-                class="rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors"
-                :class="form.tags[group.key].includes(tag) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-[var(--color-border-card)] bg-[var(--color-bg-card)] text-slate-500 hover:border-[var(--color-border-card)]'"
-                @click="toggleTag(group.key, tag)"
-              >
-                {{ tag }}
-              </button>
+              <!-- 일반 모드: 클릭으로 선택/해제 -->
+              <template v-if="editingTagKey !== group.key">
+                <button
+                  v-for="tag in tagTemplates[group.key]"
+                  :key="tag"
+                  type="button"
+                  class="rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors"
+                  :class="form.tags[group.key].includes(tag)
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-[var(--color-border-card)] bg-[var(--color-bg-card)] text-slate-500'"
+                  @click="toggleTag(group.key, tag)"
+                >{{ tag }}</button>
+              </template>
+              <!-- 편집 모드: 체크박스 선택 후 삭제 -->
+              <template v-else>
+                <label
+                  v-for="tag in tagTemplates[group.key]"
+                  :key="tag"
+                  class="flex cursor-pointer items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors"
+                  :class="checkedForDelete.includes(tag)
+                    ? 'border-red-400 bg-red-50 text-red-600'
+                    : 'border-[var(--color-border-card)] bg-[var(--color-bg-card)] text-slate-500'"
+                >
+                  <input type="checkbox" class="h-3 w-3 accent-red-500" :checked="checkedForDelete.includes(tag)" @change="toggleDeleteCheck(tag)" />
+                  {{ tag }}
+                </label>
+              </template>
+            </div>
+
+          </div>
+        </article>
+
+        <!-- 재배적기 편집 -->
+        <article class="space-y-4 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-[var(--color-text-strong)]">재배적기 등록</h3>
+            <button type="button" class="text-xs font-bold text-blue-600 hover:underline" @click="addCultivationRow">+ 작형 추가</button>
+          </div>
+
+          <div v-if="form.cultivationTimes.length === 0" class="py-4 text-center text-sm text-[var(--color-text-sub)]">
+            아직 등록된 재배적기가 없습니다. '+ 작형 추가'를 눌러 추가하세요.
+          </div>
+
+          <div
+            v-for="(ct, idx) in form.cultivationTimes"
+            :key="idx"
+            class="space-y-2 rounded-lg border border-slate-100 bg-[var(--color-bg-section)] p-4"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-500">작형 {{ idx + 1 }}</span>
+              <button type="button" class="text-xs font-bold text-red-500 hover:underline" @click="removeCultivationRow(idx)">삭제</button>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="block space-y-1">
+                <span class="text-xs font-semibold text-[var(--color-text-sub)]">작형</span>
+                <input v-model="ct.croppingSystem" type="text" placeholder="예: 노지, 터널, 하우스" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none" />
+              </label>
+              <label class="block space-y-1">
+                <span class="text-xs font-semibold text-[var(--color-text-sub)]">지역</span>
+                <input v-model="ct.region" type="text" placeholder="예: 남부, 중부, 북부" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-3 text-sm focus:border-[var(--color-olive)] focus:outline-none" />
+              </label>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-3">
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-[var(--color-text-sub)]">파종 (월)</span>
+                <div class="flex items-center gap-1">
+                  <input v-model.number="ct.sowingStart" type="number" min="1" max="12" placeholder="시작" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-2 text-sm text-center focus:border-[var(--color-olive)] focus:outline-none" />
+                  <span class="text-xs text-slate-400">~</span>
+                  <input v-model.number="ct.sowingEnd" type="number" min="1" max="12" placeholder="종료" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-2 text-sm text-center focus:border-[var(--color-olive)] focus:outline-none" />
+                </div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-[var(--color-text-sub)]">정식 (월)</span>
+                <div class="flex items-center gap-1">
+                  <input v-model.number="ct.plantingStart" type="number" min="1" max="12" placeholder="시작" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-2 text-sm text-center focus:border-[var(--color-olive)] focus:outline-none" />
+                  <span class="text-xs text-slate-400">~</span>
+                  <input v-model.number="ct.plantingEnd" type="number" min="1" max="12" placeholder="종료" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-2 text-sm text-center focus:border-[var(--color-olive)] focus:outline-none" />
+                </div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-[var(--color-text-sub)]">수확 (월)</span>
+                <div class="flex items-center gap-1">
+                  <input v-model.number="ct.harvestingStart" type="number" min="1" max="12" placeholder="시작" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-2 text-sm text-center focus:border-[var(--color-olive)] focus:outline-none" />
+                  <span class="text-xs text-slate-400">~</span>
+                  <input v-model.number="ct.harvestingEnd" type="number" min="1" max="12" placeholder="종료" class="h-9 w-full rounded-lg border border-[var(--color-border-card)] px-2 text-sm text-center focus:border-[var(--color-olive)] focus:outline-none" />
+                </div>
+              </div>
             </div>
           </div>
         </article>

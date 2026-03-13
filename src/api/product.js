@@ -5,10 +5,10 @@ export function getProducts(params) {
 }
 
 export function getProductsForContract() {
-    return api.get('/products/doc/contract')
+  return api.get('/products/doc/contract')
 }
 export function getProductsForQuotationRequest() {
-    return api.get('/products/doc/estimate')
+  return api.get('/products/doc/estimate')
 }
 
 export function getProductDetail(id) {
@@ -65,6 +65,14 @@ export function getFeedbacks(productId) {
 
 export function submitFeedback(productId, data) {
   return api.post(`/products/${productId}/feedbacks`, data)
+}
+
+export function updateFeedback(productId, feedbackId, data) {
+  return api.put(`/products/${productId}/feedbacks/${feedbackId}`, data)
+}
+
+export function deleteFeedback(productId, feedbackId) {
+  return api.delete(`/products/${productId}/feedbacks/${feedbackId}`)
 }
 
 export async function getCategories() {

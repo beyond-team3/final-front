@@ -67,7 +67,7 @@ const filteredProducts = computed(() => {
 
   return allProducts.filter((item) => {
     if (!item) return false
-    const matchCategory = !filters.value.category?.length || filters.value.category.includes(item.category)
+    const matchCategory = !filters.value.category?.length || filters.value.category.includes(PRODUCT_CATEGORY[item.category] || item.category)
     const activeEnvs = filters.value.env || []
     const itemEnvs = item.tags?.['재배환경'] || item.tags?.env || []
     const matchEnv = activeEnvs.length === 0 || activeEnvs.some(e => itemEnvs.includes(e))

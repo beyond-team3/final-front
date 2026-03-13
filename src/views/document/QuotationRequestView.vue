@@ -4,6 +4,11 @@ import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES, PRODUCT_CATEGORY } from '@/utils/constants'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const requestStatus = ref('')
 
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -27,8 +32,18 @@ const clickOutsideHandler = (e) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
+
+  // 상세 조회 모드인 경우
+  const id = route.query.id
+  if (id) {
+    const data = await documentStore.fetchQuotationRequestDetail(id)
+    if (data) {
+      requestStatus.value = data.status
+      // ... 기타 필요한 데이터 세팅
+    }
+  }
 
   // 💡 상품 및 거래처 목록 미리 로드
   if (documentStore.productMaster.length === 0) {
@@ -102,7 +117,7 @@ const removeItem = (uid) => {
   selectedItems.value = selectedItems.value.filter((item) => item.uid !== uid)
 }
 
-const submit = () => {
+const submit = async () => {
   if (selectedItems.value.length === 0) {
     window.alert('상품을 1개 이상 선택해주세요.')
     return
@@ -119,18 +134,28 @@ const submit = () => {
     return
   }
 
-  const request = documentStore.createQuotationRequest({
-    client: defaultClient,
-    items: selectedItems.value,
-    requirements: requirements.value,
-  })
+  try {
+    const request = await documentStore.createQuotationRequest({
+      client: defaultClient,
+      items: selectedItems.value,
+      requirements: requirements.value,
+    })
 
-  if (isClient.value) {
-    router.push('/documents/create')
-    return
+    window.alert('견적 요청서가 정상적으로 제출되었습니다.')
+
+    // 발급된 실제 번호(docCode)가 있으면 검색어로 전달
+    router.push({
+      path: '/documents/all',
+      query: {
+        keyword: request?.docCode || undefined,
+        type: 'RFQ'
+      }
+    })
+  } catch (err) {
+    console.error("저장 에러:", err);
+    // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
+    window.alert(documentStore.error || "견적 요청서 저장 중 오류가 발생했습니다.");
   }
-
-  router.push(`/documents/quotation?requestId=${request.id}`)
 }
 </script>
 
@@ -139,14 +164,6 @@ const submit = () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적 요청서 작성</span></p>
-        <button
-            type="button"
-            class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
-            style="border: 1px solid #DDD7CE; background-color: transparent; color: #6B5F50;"
-            @click="router.push('/documents/create')"
-        >
-          뒤로가기
-        </button>
       </div>
 
       <div class="grid gap-5 xl:grid-cols-[1.2fr_480px] animate-in">

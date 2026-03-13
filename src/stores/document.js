@@ -14,6 +14,8 @@ import {
     getInvoices,
     getInvoice,
     getInvoice as getInvoiceApi,
+    getInvoiceDetail as getInvoiceDetailApi,
+    toggleInvoiceStatement as toggleInvoiceStatementApi,
     getOrder as getOrderApi,
     getQuotation as getQuotationApi,
     getContract as getContractApi,
@@ -27,6 +29,9 @@ import {
     getQuotationRequest as getQuotationRequestApi,
     getPendingQuotationRequests as getPendingQuotationRequestsApi,
     getApprovedQuotations as getApprovedQuotationsApi,
+    getRejectedQuotationRequests as getRejectedQuotationRequestsApi,
+    getRejectedQuotations as getRejectedQuotationsApi,
+    getDocumentSummaries,
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts, getProductsForContract, getProductsForQuotationRequest } from '@/api/product'
@@ -35,7 +40,13 @@ import { useHistoryStore } from '@/stores/history'
 import { ROLES } from '@/utils/constants'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-    return error?.response?.data?.message || error?.message || fallback
+    const backendMessage = error?.response?.data?.message
+    if (backendMessage) return backendMessage
+    
+    if (error?.response?.status === 400) {
+        return '필수 정보가 누락되었습니다. 입력 내용을 다시 확인해 주세요.'
+    }
+    return error?.message || fallback
 }
 
 function normalizeList(data) {
@@ -59,6 +70,20 @@ function unwrapData(data) {
     if (data.result === 'SUCCESS' && data.data !== undefined) return data.data
     if (data.data !== undefined) return data.data
     return data
+}
+
+function normalizePageResponse(response) {
+    const payload = response?.data ?? response
+    const pageData = payload?.content
+        ? payload
+        : payload?.result === 'SUCCESS' && payload?.data
+            ? payload.data
+            : null
+
+    if (!pageData || !Array.isArray(pageData.content)) {
+        return { content: [], totalElements: 0, totalPages: 1, size: 10, number: 0 }
+    }
+    return pageData
 }
 
 function normalizeText(value) {
@@ -92,18 +117,25 @@ const normalizeDocument = (doc = {}) => {
     let type = String(doc.type || doc.docType || '').trim().toLowerCase()
     const id = doc.id || doc.docId || null
 
-    // 타입 코드 정규화 (backend RFQ -> front quotation-request 등)
+    // 타입 코드 정규화 (backend RFQ -> front 표준 코드)
+    let docType = ''
     if (['rfq', 'quotation-request', 'quotationrequest'].includes(type) || String(doc.docCode || '').startsWith('RFQ')) {
+        docType = 'RFQ'
         type = 'quotation-request'
     } else if (['quo', 'quotation'].includes(type) || String(doc.docCode || '').startsWith('QUO')) {
+        docType = 'QUO'
         type = 'quotation'
     } else if (['cnt', 'contract'].includes(type) || String(doc.docCode || '').startsWith('CNT')) {
+        docType = 'CNT'
         type = 'contract'
     } else if (['ord', 'order'].includes(type) || String(doc.docCode || '').startsWith('ORD')) {
+        docType = 'ORD'
         type = 'order'
     } else if (['stmt', 'statement'].includes(type) || String(doc.docCode || '').startsWith('STMT')) {
+        docType = 'STMT'
         type = 'statement'
     } else if (['inv', 'invoice'].includes(type) || String(doc.docCode || '').startsWith('INV')) {
+        docType = 'INV'
         type = 'invoice'
     }
 
@@ -127,25 +159,30 @@ const normalizeDocument = (doc = {}) => {
     else if (billingCycle === 'QUARTERLY') billingCycle = '분기'
     else if (billingCycle === 'HALF_YEARLY') billingCycle = '반기'
 
+    const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || ''
+    const isTemp = String(docCode || id || '').includes('temp-')
+
     return {
         ...doc,
         id,
         type,
+        docType,
         billingCycle,
-        // 표시용 코드
+        // 표시용 코드 (docCode가 없으면 displayCode라도 id 기반으로 생성)
         displayCode: doc.displayCode || doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || String(id || ''),
+        docCode: isTemp ? '' : (docCode || String(id || '')),
         client: normalizeClient(doc),
         items,
         totalAmount,
         // 요구사항과 비고를 명확히 분리
         requirements: doc.requirements || doc.memo || '',
-        memo: (type === 'quotation-request') ? '' : (doc.memo || ''),
+        memo: (docType === 'RFQ') ? '' : (doc.memo || ''),
         // 작성자 고유 ID (본인 확인용) - 더 많은 필드 시도
         authorId: doc.authorId || doc.writerId || doc.userId || doc.clientId || doc.salesRepId || doc.client?.id || null,
         // 원본 필드 보존
         salesRepName: doc.salesRepName || '',
         managerName: doc.managerName || doc.client?.managerName || doc.client?.contact || '',
-        authorName: doc.authorName || doc.writerName || doc.client?.managerName || '',
+        authorName: doc.authorName || doc.writerName || doc.managerName || doc.client?.managerName || '',
         createdAt: doc.createdAt || doc.date || (doc.createdAt ? doc.createdAt : new Date().toISOString().slice(0, 10)),
         historyId: doc.historyId || doc.pipelineId || doc.dealId || null,
         statusHistory: Array.isArray(doc.statusHistory) ? doc.statusHistory : [],
@@ -195,6 +232,9 @@ export const useDocumentStore = defineStore('document', () => {
 
     const allRawDocuments = ref([])
     const pendingQuotationRequests = ref([])
+    const rejectedQuotationRequests = ref([])
+    const approvedQuotations = ref([])
+    const rejectedQuotations = ref([])
     const statements = ref([])
 
     const quotationRequests = computed(() => {
@@ -311,7 +351,8 @@ export const useDocumentStore = defineStore('document', () => {
     }
 
     const formatDate = (date = new Date()) => date.toISOString().slice(0, 10)
-    const makeId = (prefix) => `${prefix}-${Date.now()}`
+    const makeId = (prefix) => `${prefix}-temp-${Date.now()}`
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
     const emitDocumentCreated = (type, id) => {
         eventBus.emit('document:created', { type, id })
     }
@@ -337,6 +378,70 @@ export const useDocumentStore = defineStore('document', () => {
     const getContractById = (id) => contracts.value.find((item) => String(item.id) === String(id))
     const getOrderById = (id) => orders.value.find((item) => String(item.id) === String(id))
     const getInvoiceById = (id) => invoices.value.find((item) => String(item.id) === String(id))
+
+    /**
+     * contractId 기준으로 해당 계약에 속한 명세서 목록 반환
+     * GET /api/v1/statements 응답에 contractId가 없으므로
+     * orderId → orders → contractId 역참조로 필터링
+     *
+     * @param {string|number} contractId
+     * @param {Array} [statementPool] - 외부에서 fetch한 명세서 배열 (없으면 store.statements 사용)
+     */
+    const getStatementsByContract = (contractId, statementPool) => {
+        const pool = statementPool ?? statements.value
+        if (!contractId || !pool.length) return []
+
+        const cid = String(contractId)
+
+        // invoices 목록에 contractId가 있음 → 같은 contract의 invoice들 수집
+        // 그 invoice들에 연결된 statementId Set 구성 (store의 invoices는 목록 API라 statements 없음)
+        // 대신 orders 경유: orders[].contractId(headerId) → orderId → statements[].orderId
+        const matchingOrderIds = new Set(
+            orders.value
+                .filter(o => {
+                    const oCid = String(
+                        o.contractId || o.contract_id ||
+                        o.headerId || o.header_id ||
+                        o.contractHeaderId || ''
+                    )
+                    return oCid === cid
+                })
+                .map(o => String(o.id || o.orderId || ''))
+                .filter(Boolean)
+        )
+
+        // orders 매핑 성공 시 orderId 기반 필터
+        if (matchingOrderIds.size > 0) {
+            return pool.filter(s => matchingOrderIds.has(String(s.orderId || s.order_id || '')))
+        }
+
+        // orders 매핑 실패 시: invoices[contractId]와 같은 contract의 invoiceId 수집
+        // → 나중에 invoice detail에서 statementIds를 얻으므로 여기선 빈 배열
+        // (InvoiceView의 loadInvoice → /detail에서 statements를 직접 내려줌)
+        console.warn(`[getStatementsByContract] contractId=${cid} orders 매핑 실패. orders:`, orders.value.slice(0, 2))
+        return []
+    }
+
+    /**
+     * 현재 active(DRAFT/PUBLISHED/PAID) 청구서에 포함된 statementId Set
+     * → statements의 includedInActiveInvoice 대용으로 사용
+     */
+    const activeInvoiceStatementIds = computed(() => {
+        const set = new Set()
+        invoices.value
+            .filter(inv => {
+                const s = String(inv.status || '').toUpperCase()
+                return s === 'DRAFT' || s === 'PUBLISHED' || s === 'PAID'
+            })
+            .forEach(inv => {
+                const stmts = inv.statements || inv.items || inv.statementIds || []
+                stmts.forEach(s => {
+                    const sid = s?.statementId || s?.id || (typeof s === 'number' ? s : null)
+                    if (sid) set.add(String(sid))
+                })
+            })
+        return set
+    })
 
     async function fetchProductMaster(type = 'contract') {
         try {
@@ -411,10 +516,6 @@ export const useDocumentStore = defineStore('document', () => {
                 ...allRawDocuments.value.filter((doc) => matchesDocumentType(doc, ['statement'])),
                 ...nonStatementDocs,
             ]
-            pendingQuotationRequests.value = nonStatementDocs.filter((doc) => {
-                const status = String(doc.status || '').trim().toUpperCase()
-                return matchesDocumentType(doc, ['quotation-request', 'rfq']) && ['PENDING', 'REQUESTED', 'WAITING'].includes(status)
-            })
             return nonStatementDocs
         } catch (e) {
             error.value = getErrorMessage(e, '문서 목록을 불러오지 못했습니다.')
@@ -478,6 +579,10 @@ export const useDocumentStore = defineStore('document', () => {
                 ...doc,
                 type: 'quotation'
             }))
+
+            // 전용 상태에 저장 (권한 필터링 우회용)
+            approvedQuotations.value = normalized
+
             // allRawDocuments에도 병합하여 다른 곳에서 참조 가능하게 함
             allRawDocuments.value = [
                 ...allRawDocuments.value.filter(d => !normalized.some(n => n.id === d.id)),
@@ -548,6 +653,38 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchRejectedQuotationRequests() {
+        try {
+            const response = await getRejectedQuotationRequestsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation-request'
+            }))
+            rejectedQuotationRequests.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('반려된 견적 요청 로드 실패:', e)
+            return []
+        }
+    }
+
+    async function fetchRejectedQuotations() {
+        try {
+            const response = await getRejectedQuotationsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation'
+            }))
+            rejectedQuotations.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('반려된 견적서 로드 실패:', e)
+            return []
+        }
+    }
+
     async function fetchStatements() {
         try {
             const data = await getStatements()
@@ -577,6 +714,10 @@ export const useDocumentStore = defineStore('document', () => {
                 ...normalizeDocument(doc),
                 type: 'invoice',
                 id: doc.invoiceId,
+                invoiceId: doc.invoiceId,
+                contractId: doc.contractId,   // invoices 목록 API에 있음 - 반드시 보존
+                invoiceCode: doc.invoiceCode,
+                invoiceDate: doc.invoiceDate,
             }))
             allRawDocuments.value = [
                 ...allRawDocuments.value.filter(d => d.type?.toLowerCase() !== 'invoice'),
@@ -615,18 +756,18 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const createQuotationRequest = ({ client, items, requirements }) => {
-        const id = makeId('RQ')
+    const createQuotationRequest = async ({ client, items, requirements }) => {
+        const id = makeId('RFQ')
         const lineItems = (items || []).map(withAmount)
         const next = normalizeDocument({
             id,
-            type: 'quotation-request',
+            type: 'RFQ',
             clientId: client.id,
             client,
             authorId: authStore.me?.id || authStore.me?.refId,
-            authorName: authStore.me?.targetPerson || authStore.me?.loginId || '작성자',
+            authorName: authStore.me?.clientName || authStore.me?.name || '작성자',
             items: lineItems,
-            memo: requirements || '',
+            requirements: requirements || '',
             status: 'PENDING',
             date: formatDate(),
             createdAt: formatDate(),
@@ -648,15 +789,56 @@ export const useDocumentStore = defineStore('document', () => {
             }))
         }
 
-        createQuotationRequestApi(payload).then((created) => {
-            if (!created) return
-            const idx = allRawDocuments.value.findIndex((item) => item.id === id)
-            if (idx >= 0) {
-                // 백엔드 작업 후 데이터 동기화 (히스토리 자동 생성 반영 필요시 fetchHistory 호출 유도)
+        try {
+            const response = await createQuotationRequestApi(payload)
+            let raw = unwrapData(response)
+
+            // 💡 백엔드 응답 데이터가 null인 경우 목록에서 최신 문서 조회 (안전한 우회 경로)
+            if (!raw && response?.result === 'SUCCESS') {
+                await delay(1200)
+                const summaryResp = await getDocumentSummaries({
+                    docType: 'RFQ',
+                    size: 1,
+                    sort: 'createdAt,desc'
+                })
+                const summaryData = normalizePageResponse(summaryResp)
+                if (summaryData?.content?.length > 0) {
+                    raw = summaryData.content[0]
+                }
+            }
+
+            let created = null
+            if (raw && typeof raw === 'object') {
+                created = normalizeDocument(raw)
+            } else if (raw) {
+                created = await fetchQuotationRequestDetail(raw)
+            }
+
+            // 실제 번호 확인을 위한 리트라이
+            if (!created || !created.docCode || String(created.docCode).includes('temp-')) {
+                const targetId = created?.id || (typeof raw === 'number' || typeof raw === 'string' ? raw : raw?.id)
+                if (targetId) {
+                    for (let i = 0; i < 10; i++) {
+                        await delay(1200)
+                        const detailed = await fetchQuotationRequestDetail(targetId)
+                        if (detailed && detailed.docCode && !String(detailed.docCode).includes('temp-')) {
+                            created = detailed
+                            break
+                        }
+                    }
+                }
+            }
+
+            if (created) {
+                const idx = allRawDocuments.value.findIndex((item) => item.id === id)
+                if (idx >= 0) allRawDocuments.value[idx] = created
                 historyStore.fetchPipelines()
             }
-        }).catch((e) => { error.value = getErrorMessage(e, '견적 요청서 생성에 실패했습니다.') })
-        return next
+            return created || next
+        } catch (e) {
+            error.value = getErrorMessage(e, '견적 요청서 생성에 실패했습니다.')
+            throw e
+        }
     }
 
     const createQuotation = async ({ requestId, client, items, memo, historyId }) => {
@@ -680,8 +862,8 @@ export const useDocumentStore = defineStore('document', () => {
         })
 
         const payload = {
-            requestId,
-            clientId: client.id,
+            requestId: requestId ? Number(requestId) : null,
+            clientId: Number(client.id),
             memo: memo || '',
             items: lineItems.map(item => ({
                 productId: item.productId,
@@ -694,11 +876,56 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         try {
-            const created = await createQuotationApi(payload)
-            allRawDocuments.value.unshift(next)
-            emitDocumentCreated('quotation', id)
-            historyStore.fetchPipelines()
-            return next
+            const response = await createQuotationApi(payload)
+            let raw = unwrapData(response)
+
+            // 💡 백엔드 응답이 비어있을 경우 최신 목록에서 조회 (안전장치)
+            if (!raw && response?.result === 'SUCCESS') {
+                await delay(1200)
+                const summaryResp = await getDocumentSummaries({
+                    docType: 'QUO',
+                    size: 1,
+                    sort: 'createdAt,desc'
+                })
+                const summaryData = normalizePageResponse(summaryResp)
+                if (summaryData?.content?.length > 0) {
+                    raw = summaryData.content[0]
+                }
+            }
+
+            let created = null
+            if (raw && typeof raw === 'object') {
+                created = normalizeDocument(raw)
+            } else if (raw) {
+                created = await fetchQuotationDetail(raw)
+            }
+
+            // 실제 번호 확인을 위한 리트라이
+            if (!created || !created.docCode || String(created.docCode).includes('temp-')) {
+                const targetId = created?.id || (typeof raw === 'number' || typeof raw === 'string' ? raw : raw?.id)
+                if (targetId) {
+                    for (let i = 0; i < 10; i++) {
+                        await delay(1200)
+                        const detailed = await fetchQuotationDetail(targetId)
+                        if (detailed && detailed.docCode && !String(detailed.docCode).includes('temp-')) {
+                            created = detailed
+                            break
+                        }
+                    }
+                }
+            }
+
+            if (created) {
+                const idx = allRawDocuments.value.findIndex((item) => item.id === id)
+                if (idx >= 0) allRawDocuments.value[idx] = created
+                else allRawDocuments.value.unshift(created)
+
+                emitDocumentCreated('quotation', id)
+                historyStore.fetchPipelines()
+                fetchPendingQuotationRequests()
+                fetchRejectedQuotations()
+            }
+            return created || next
         } catch (e) {
             error.value = getErrorMessage(e, '견적서 생성에 실패했습니다.')
             throw e
@@ -730,8 +957,8 @@ export const useDocumentStore = defineStore('document', () => {
         })
 
         const payload = {
-            quotationId,
-            clientId: client.id,
+            quotationId: Number(quotationId),
+            clientId: Number(client.id),
             startDate,
             endDate,
             billingCycle: billingCycle === '월' ? 'MONTHLY' : (billingCycle === '분기' ? 'QUARTERLY' : (billingCycle === '반기' ? 'HALF_YEARLY' : billingCycle)),
@@ -748,11 +975,54 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         try {
-            const created = await createContractApi(payload)
-            allRawDocuments.value.unshift(next)
-            emitDocumentCreated('contract', id)
-            historyStore.fetchPipelines()
-            return created
+            const response = await createContractApi(payload)
+            let raw = unwrapData(response)
+
+            // 💡 백엔드 응답이 비어있을 경우 최신 목록에서 조회 (안전장치)
+            if (!raw && response?.result === 'SUCCESS') {
+                await delay(1200)
+                const summaryResp = await getDocumentSummaries({
+                    docType: 'CNT',
+                    size: 1,
+                    sort: 'createdAt,desc'
+                })
+                const summaryData = normalizePageResponse(summaryResp)
+                if (summaryData?.content?.length > 0) {
+                    raw = summaryData.content[0]
+                }
+            }
+
+            let created = null
+            if (raw && typeof raw === 'object') {
+                created = normalizeDocument(raw)
+            } else if (raw) {
+                created = await fetchContractDetail(raw)
+            }
+
+            // 실제 번호 확인을 위한 리트라이
+            if (!created || !created.docCode || String(created.docCode).includes('temp-')) {
+                const targetId = created?.id || (typeof raw === 'number' || typeof raw === 'string' ? raw : raw?.id)
+                if (targetId) {
+                    for (let i = 0; i < 10; i++) {
+                        await delay(1200)
+                        const detailed = await fetchContractDetail(targetId)
+                        if (detailed && detailed.docCode && !String(detailed.docCode).includes('temp-')) {
+                            created = detailed
+                            break
+                        }
+                    }
+                }
+            }
+
+            if (created) {
+                const idx = allRawDocuments.value.findIndex((item) => item.id === id)
+                if (idx >= 0) allRawDocuments.value[idx] = created
+                else allRawDocuments.value.unshift(created)
+
+                emitDocumentCreated('contract', id)
+                historyStore.fetchPipelines()
+            }
+            return created || next
         } catch (e) {
             error.value = getErrorMessage(e, '계약서 생성에 실패했습니다.')
             throw e
@@ -973,11 +1243,13 @@ export const useDocumentStore = defineStore('document', () => {
         error.value = null
         try {
             await fetchClientMaster()
+            // orders가 먼저 로드되어야 getStatementsByContract에서 orderId→contractId 매핑이 가능
             await Promise.all([
                 fetchProductMaster(),
                 fetchDocumentsV2(),
-                fetchStatements(),
+                fetchOrders(),
             ])
+            await fetchStatements()
         } finally {
             loading.value = false
         }
@@ -1020,6 +1292,8 @@ export const useDocumentStore = defineStore('document', () => {
         getContractById,
         getOrderById,
         getInvoiceById,
+        getStatementsByContract,
+        activeInvoiceStatementIds,
         createQuotationRequest,
         createQuotation,
         createContract,
@@ -1041,8 +1315,14 @@ export const useDocumentStore = defineStore('document', () => {
         fetchQuotationRequestDetail,
         pendingQuotationRequests,
         fetchPendingQuotationRequests,
+        rejectedQuotationRequests,
+        fetchRejectedQuotationRequests,
+        approvedQuotations,
         fetchApprovedQuotations,
+        rejectedQuotations,
+        fetchRejectedQuotations,
         fetchQuotationDetail,
         fetchContractDetail,
+        fetchOrderDetail,
     }
 })

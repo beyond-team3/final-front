@@ -16,6 +16,14 @@ export function getApprovedQuotations() {
     return api.get('quotations/approved')
 }
 
+export function getRejectedQuotationRequests() {
+    return api.get('requests/rejected')
+}
+
+export function getRejectedQuotations() {
+    return api.get('quotations/rejected')
+}
+
 export function getQuotation(id) {
     return api.get(`quotations/${id}`)
 }
@@ -92,12 +100,26 @@ export function getInvoice(invoiceId) {
     return api.get(`invoices/${invoiceId}`)
 }
 
+// 청구서 상세 조회 (영업사원용) - contractId + statements[included] 포함
+export function getInvoiceDetail(invoiceId) {
+    return api.get(`invoices/${invoiceId}/detail`)
+}
+
+// 명세서 포함/제외 토글 - DRAFT 상태에서만 가능
+export function toggleInvoiceStatement(invoiceId, statementId) {
+    return api.patch(`invoices/${invoiceId}/statements/${statementId}/toggle`)
+}
+
 export function getContractsByClient(clientId) {
-    return api.get('/contracts', { params: { clientId } })
+    return api.get('/contracts/active', { params: { clientId } })
 }
 
 export function publishInvoice(invoiceId) {
     return api.patch(`invoices/${invoiceId}/publish`)
+}
+
+export function cancelInvoice(invoiceId) {
+    return api.patch(`invoices/${invoiceId}/cancel`)
 }
 
 export function updateDocumentStatus(id, data) {

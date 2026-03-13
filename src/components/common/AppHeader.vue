@@ -30,7 +30,7 @@ const iconNameMap = {
 }
 const iconOnlyMenuKeys = ['schedule', 'notification', 'settings'] // UPDATED
 const iconHeaderMenus = computed(() => visibleHeaderMenus.value.filter((menu) => iconOnlyMenuKeys.includes(menu.key))) // UPDATED
-const unreadCount = computed(() => { // UPDATED
+const unreadCount = computed(() => {
   const role = authStore.currentRole
   if (!role) {
     return 0
@@ -53,6 +53,7 @@ const navigateTo = (path) => {
 }
 
 const logout = async () => {
+  notificationStore.stopSse()
   await authStore.logout()
   router.push('/login')
 }
@@ -63,10 +64,13 @@ const toggleSidebar = () => {
 
 watch(
     () => authStore.currentRole,
-    (role) => { // UPDATED
-      if (role && typeof notificationStore.fetchNotifications === 'function') {
-        notificationStore.fetchNotifications(role)
+    async (role) => {
+      if (role) {
+        await notificationStore.bootstrap()
+        return
       }
+
+      notificationStore.stopSse()
     },
     { immediate: true },
 )
@@ -107,7 +111,9 @@ watch(
               @click="navigateTo(menu.route)"
           >
             <Icon :name="iconNameMap[menu.key]" :size="20" /> <!-- UPDATED -->
-            <span v-if="menu.key === 'notification' && unreadCount > 0" class="header-icon-badge" aria-hidden="true" /> <!-- UPDATED -->
+            <span v-if="menu.key === 'notification' && unreadCount > 0" class="header-icon-badge" aria-hidden="true">
+              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            </span>
           </button>
         </nav>
         <div class="flex items-center gap-2 md:hidden">
@@ -122,7 +128,9 @@ watch(
               @click="navigateTo(menu.route)"
           >
             <Icon :name="iconNameMap[menu.key]" :size="20" /> <!-- UPDATED -->
-            <span v-if="menu.key === 'notification' && unreadCount > 0" class="header-icon-badge" aria-hidden="true" /> <!-- UPDATED -->
+            <span v-if="menu.key === 'notification' && unreadCount > 0" class="header-icon-badge" aria-hidden="true">
+              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            </span>
           </button>
         </div>
         <span class="hidden rounded px-2 py-1 text-xs font-bold sm:inline-flex" style="background: rgba(107, 124, 69, 0.14); color: var(--color-olive);">
@@ -174,13 +182,19 @@ watch(
 
 .header-icon-badge {
   position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  top: 3px;
+  right: 1px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
   background: var(--color-error);
   box-shadow: 0 0 0 2px var(--color-sidebar);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
 }
 
 :global(.dark) .header-icon-btn {

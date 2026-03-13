@@ -80,8 +80,8 @@ function normalizeEmployee(raw = {}) {
     const parsedAddr = parseAddress(data.address)
 
     return {
-        id: data.id || data.employeeId,
-        employeeCode: data.employeeCode || data.id || data.employeeId,
+        id: data.id || data.employeeId || data.employee_id || data.empId || data.emp_id,
+        employeeCode: data.employeeCode || data.id || data.employeeId || '-',
         name: data.name || data.employeeName || '이름 없음',
         role: data.role || data.position || 'SALES_REP',
         email: data.email || data.employeeEmail || '-',
@@ -92,7 +92,7 @@ function normalizeEmployee(raw = {}) {
         displayZonecode: parsedAddr.zonecode || data.addressZip,
         displayAddress: `${parsedAddr.sido || data.addressSido || ''} ${parsedAddr.address || data.addressDetail || ''}`.trim() || '-',
         createdAt: data.createdAt || data.joinedAt || '-',
-        isActive,
+        isActive: isActive,
         status: isActive ? 'ACTIVE' : 'INACTIVE',
         accountId: data.accountId || null,
         assignedClients: normalizeClientAssignments(data),
@@ -119,11 +119,56 @@ export const useEmployeeStore = defineStore('employee', () => {
                 address: formData.empAddress
             }
 
-            const result = await createEmployee(payload)
-            // 백엔드가 생성된 객체(id 포함)를 반환함을 가정 (normalizeEmployee에서 처리)
-            const finalResult = normalizeEmployee(result)
-            employees.value.push(finalResult)
-            return finalResult.id
+            const response = await createEmployee(payload)
+
+            // 1. 유연한 데이터 추출 (ApiResult.data 또는 전체 객체)
+            const rawData = response?.data ?? response
+
+            // 2. ID 추출 시도 (다양한 케이스 대응)
+            let realId = null
+            
+            // A. 숫지나 일반 문자열인 경우
+            if (typeof rawData === 'number' || (typeof rawData === 'string' && !rawData.startsWith('temp-'))) {
+                realId = rawData
+            } 
+            // B. 객체인 경우
+            else if (typeof rawData === 'object' && rawData !== null) {
+                const normalized = normalizeEmployee(rawData)
+                realId = normalized.id
+
+                // normalize 실패 시 data 필드나 다른 필드 직접 확인
+                if (!realId || String(realId).startsWith('temp-')) {
+                    realId = rawData.id || rawData.employeeId || rawData.employee_id || rawData.empId || rawData.emp_id || response.data
+                }
+            }
+
+            // [추가] 만약 백엔드에서 ID를 주지 않으면 (data: null), 목록을 다시 가져와서 이메일로 매칭 시도 (워크어라운드)
+            if (!realId || String(realId).startsWith('temp-')) {
+                try {
+                    // 목록 최신화
+                    await fetchEmployees();
+                    const matched = employees.value.find(e => e.email === formData.empEmail);
+                    if (matched) {
+                        realId = matched.id;
+                    }
+                } catch (fetchError) {
+                    // 무시
+                }
+            }
+
+            if (realId && !String(realId).startsWith('temp-')) {
+                // 목록에 추가 (성공 시에만)
+                const finalResult = (typeof rawData === 'object' && rawData !== null)
+                    ? normalizeEmployee(rawData)
+                    : { id: realId, name: formData.empName, email: formData.empEmail, phone: formData.empPhone, address: formData.empAddress }
+                
+                // 중복 방지 체크 후 추가
+                if (!employees.value.some(e => String(e.id) === String(realId))) {
+                    employees.value.push(finalResult)
+                }
+            }
+
+            return (realId && !String(realId).startsWith('temp-')) ? realId : null
         } catch (e) {
             error.value = getErrorMessage(e, '사원 등록 실패')
             throw e

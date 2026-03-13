@@ -67,12 +67,14 @@ const onSubmit = async () => {
   try {
     const newEmployeeId = await employeeStore.addEmployee(form)
 
-    showToast('등록이 완료되었습니다.', 'success')
+    alert('새 사원이 등록되었습니다.')
     resetForm(false)
 
-    window.setTimeout(() => {
-      router.push(`/employees/${newEmployeeId}`)
-    }, 300)
+    if (newEmployeeId) {
+      router.push({ name: 'employee-detail', params: { id: newEmployeeId } })
+    } else {
+      router.push('/employees')
+    }
   } catch (err) {
     const errorMsg = err.response?.data?.error?.message || err.message || '등록 중 오류가 발생했습니다.'
     showToast(errorMsg, 'error')
