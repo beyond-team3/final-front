@@ -240,9 +240,10 @@ const pestsByCrop = {
     { code: 'P05',  label: '바이러스/기타' },
   ],
   ONION:  [
+    { code: 'P01', label: '노균병'   },
     // { code: 'PP01', label: '탄저병' },
     { code: 'PP02', label: '역병'   },
-    // { code: 'P03',  label: '탄저병(공통)' },
+    // { code: 'P07',  label: '잎마름병' },
     { code: 'P05',  label: '바이러스/기타' },
   ],
   CABBAGE: [

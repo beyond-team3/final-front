@@ -41,4 +41,4 @@ __screenshots__/
 # Local mock data
 mock-server/db.json
 
-.env.development
+.env
