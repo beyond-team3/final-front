@@ -109,6 +109,15 @@ onMounted(async () => {
       await loadQuotationDetail(id)
       return
     }
+
+    if (route.query.rewrite === 'true') {
+      if (route.query.requestId) {
+        await startFromRequest({ id: route.query.requestId })
+      } else {
+        startNewQuotation()
+      }
+      return
+    }
   } catch (e) {
     console.error("데이터 로딩 실패:", e)
   }

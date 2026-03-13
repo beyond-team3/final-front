@@ -1323,5 +1323,6 @@ export const useDocumentStore = defineStore('document', () => {
         fetchRejectedQuotations,
         fetchQuotationDetail,
         fetchContractDetail,
+        fetchOrderDetail,
     }
 })

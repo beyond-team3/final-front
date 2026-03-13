@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import api from '@/api'
 import { useDocumentStore } from '@/stores/document'
 import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
@@ -129,6 +130,43 @@ const clickOutsideHandler = (e) => {
   }
 }
 
+const startContractFromPrefill = async (quotationId) => {
+  const response = await api.get('/contracts/prefill', { params: { quotationId } })
+  const prefill = response?.data ?? response
+
+  if (!prefill) {
+    window.alert('재작성에 필요한 계약 초기화 정보를 불러오지 못했습니다.')
+    router.push('/documents/all')
+    return
+  }
+
+  isNewMode.value = false
+  isProcessStarted.value = true
+  showStartModal.value = false
+
+  sourceQuotationId.value = quotationId
+  sourceHistoryId.value = prefill.historyId || null
+
+  conInCorpCode.value = prefill.clientId || prefill.client?.id || prefill.clientCode || ''
+  conInCorp.value = prefill.clientName || prefill.client?.name || ''
+  conInName.value = prefill.managerName || prefill.client?.contact || prefill.client?.managerName || ''
+  conInNo.value = prefill.displayCode || prefill.quotationCode || quotationId
+  conStartDate.value = prefill.startDate || ''
+  conEndDate.value = prefill.endDate || ''
+  conBillingCycle.value = prefill.billingCycle || '월'
+  conSpecialTerms.value = prefill.specialTerms || ''
+  conInternalMemo.value = prefill.memo || ''
+  selectedItems.value = (prefill.items || []).map(item => ({
+    uid: item.id || `${Date.now()}-${Math.random()}`,
+    productId: item.productId || item.id,
+    variety: item.productCategory || item.variety || '-',
+    name: item.productName || item.name || '',
+    qty: Number(item.totalQuantity ?? item.quantity ?? item.qty ?? 1),
+    unit: item.unit || '팩',
+    price: Number(item.unitPrice ?? item.price ?? 0),
+  }))
+}
+
 onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
   try {
@@ -136,6 +174,15 @@ onMounted(async () => {
     const id = route.query.id
     if (id) {
       await loadContractDetail(id)
+      return
+    }
+
+    if (route.query.rewrite === 'true') {
+      if (route.query.quotationId) {
+        await startContractFromPrefill(route.query.quotationId)
+      } else {
+        startNewContract()
+      }
       return
     }
 

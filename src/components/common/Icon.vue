@@ -47,6 +47,24 @@ const normalizedName = computed(() => {
   </svg>
 
   <svg
+    v-else-if="normalizedName === 'approval'"
+    class="icon-svg"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    :width="size"
+    :height="size"
+    :stroke="color"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M9 12.75 11.25 15 15 9.75" />
+    <path d="M12 3l7 4v5c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V7l7-4Z" />
+  </svg>
+
+  <svg
     v-else-if="normalizedName === 'bell'"
     class="icon-svg"
     xmlns="http://www.w3.org/2000/svg"

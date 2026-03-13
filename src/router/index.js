@@ -246,7 +246,7 @@ const routes = [
             { path: 'statistics', name: 'statistics', component: StatisticsRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '통계' } },
             { path: 'schedule', name: 'schedule', component: CalendarView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '일정' } },
 
-            { path: 'approval', name: 'approval', component: ApprovalView, meta: { roles: [ROLES.ADMIN], title: '승인' } },
+            { path: 'approval', name: 'approval', component: ApprovalView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '승인' } },
             { path: 'payment', name: 'payment', component: PaymentView, meta: { roles: [ROLES.CLIENT], title: '결제' } },
             { path: 'notifications', name: 'notifications', component: NotificationRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '알림' } },
             { path: 'settings', name: 'settings', component: SettingsRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '설정' } },
