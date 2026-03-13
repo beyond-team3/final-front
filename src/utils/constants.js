@@ -75,7 +75,7 @@ export const MENU_CONFIG = [
 ]
 export const DOC_STATUS = {
     QUOTATION_REQUEST: {
-        PENDING: { label: '접수 대기', variant: 'DRAFT' },
+        PENDING: { label: '접수 대기', variant: 'REQUESTED' },
         REVIEWING: { label: '검토 중', variant: 'info' },
         COMPLETED: { label: '완료', variant: 'APPROVED' },
         DELETED: { label: '취소', variant: 'CANCELED' },

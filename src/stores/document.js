@@ -42,11 +42,16 @@ import { useHistoryStore } from '@/stores/history'
 import { ROLES } from '@/utils/constants'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-    const backendMessage = error?.response?.data?.message
+    // 1. 백엔드 에러 메시지 (ErrorType.message)
+    const backendMessage = error?.response?.data?.error?.message || error?.response?.data?.message
+    // 2. 백엔드 상세 메시지 (ErrorType.data) - 400 에러 시 구체적 원인이 담김
+    const detailMessage = error?.response?.data?.error?.data || error?.response?.data?.data
+    
+    if (backendMessage && detailMessage) return `${backendMessage} (${detailMessage})`
     if (backendMessage) return backendMessage
     
     if (error?.response?.status === 400) {
-        return '필수 정보가 누락되었습니다. 입력 내용을 다시 확인해 주세요.'
+        return '필수 정보가 누락되었거나 데이터가 유효하지 않습니다. 입력 내용을 다시 확인해 주세요.'
     }
     return error?.message || fallback
 }
@@ -899,15 +904,15 @@ export const useDocumentStore = defineStore('document', () => {
 
         const payload = {
             requestId: requestId ? Number(requestId) : null,
-            clientId: Number(client.id),
+            clientId: Number(client?.id || 0),
             memo: memo || '',
             items: lineItems.map(item => ({
                 productId: item.productId,
                 productName: (item.productName || item.name || '상품명 없음').trim(),
                 productCategory: (item.productCategory || item.category || item.variety || '기타').trim(),
-                quantity: Math.max(1, Number(item.quantity || 1)),
+                quantity: Math.max(1, Number(item.quantity || item.count || 1)),
                 unit: item.unit || '-',
-                unitPrice: Number(item.unitPrice || 0)
+                unitPrice: Number(item.unitPrice || item.price || 0)
             }))
         }
 

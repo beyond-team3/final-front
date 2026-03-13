@@ -717,20 +717,20 @@ const submitContract = async () => {
               <table class="w-full text-sm text-center border-collapse">
                 <thead class="sticky top-0 z-10" style="background-color: #EFEADF;">
                 <tr>
-                  <th class="p-3 border-b" style="border-color: #DDD7CE;">견적번호</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">견적서 코드</th>
                   <th class="p-3 text-left border-b" style="border-color: #DDD7CE;">법인명</th>
-                  <th class="p-3 border-b" style="border-color: #DDD7CE;">담당자</th>
-                  <th class="p-3 border-b" style="border-color: #DDD7CE;">선택</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">상태</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">견적 날짜</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr v-for="q in availableQuotations" :key="q.id" class="border-b hover:bg-white/50 cursor-pointer" style="border-color: #E8E3D8;" @click="startContract(q)">
                   <td class="p-3 font-mono font-bold" style="color: #C8622A;">{{ q.displayCode || q.docCode || q.id }}</td>
                   <td class="p-3 text-left font-bold" style="color: #3D3529;">{{ q.client?.name }}</td>
-                  <td class="p-3" style="color: #6B5F50;">{{ q.client?.contact }}</td>
                   <td class="p-3">
-                    <button type="button" class="bg-[#7A8C42] text-white px-3 py-1 rounded text-xs font-bold transition-all hover:opacity-80">참조 작성</button>
+                    <StatusBadge type="QUO" :status="q.status" />
                   </td>
+                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ q.date || q.createdAt }}</td>
                 </tr>
                 <tr v-if="availableQuotations.length === 0">
                   <td colspan="4" class="p-10 italic" style="color: #BFB3A5;">참조 가능한 견적서가 없습니다.</td>
@@ -746,21 +746,23 @@ const submitContract = async () => {
               <table class="w-full text-sm text-center border-collapse">
                 <thead class="sticky top-0 z-10" style="background-color: #EFEADF;">
                 <tr>
-                  <th class="p-3 border-b" style="border-color: #DDD7CE;">계약번호</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">계약서 코드</th>
                   <th class="p-3 text-left border-b" style="border-color: #DDD7CE;">법인명</th>
-                  <th class="p-3 border-b text-center" style="border-color: #DDD7CE;">선택</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">상태</th>
+                  <th class="p-3 border-b" style="border-color: #DDD7CE;">계약 날짜</th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr v-for="c in documentStore.rejectedContracts" :key="c.id" class="border-b hover:bg-white/50 cursor-pointer" style="border-color: #E8E3D8;" @click="copyRejectedContract(c)">
                   <td class="p-3 font-mono font-bold" style="color: #C8622A;">{{ c.displayCode || c.docCode || c.id }}</td>
                   <td class="p-3 text-left font-bold" style="color: #3D3529;">{{ c.client?.name }}</td>
-                  <td class="p-3 text-center">
-                    <button type="button" class="bg-[#7A8C42] text-white px-3 py-1 rounded text-xs font-bold transition-all hover:opacity-80">복사 작성</button>
+                  <td class="p-3">
+                    <StatusBadge type="CNT" :status="c.status" />
                   </td>
+                  <td class="p-3 text-xs" style="color: #6B5F50;">{{ c.date || c.createdAt }}</td>
                 </tr>
                 <tr v-if="documentStore.rejectedContracts.length === 0">
-                  <td colspan="3" class="p-10 italic" style="color: #BFB3A5;">반려된 계약 기록이 없습니다.</td>
+                  <td colspan="4" class="p-10 italic" style="color: #BFB3A5;">반려된 계약 기록이 없습니다.</td>
                 </tr>
                 </tbody>
               </table>
