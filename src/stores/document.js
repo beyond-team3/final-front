@@ -681,6 +681,31 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchPaymentDetail(paymentId) {
+        loading.value = true
+        try {
+            const { getPayment } = await import('@/api/payment')  // payment API 파일 경로에 맞게 수정
+            const response = await getPayment(paymentId)
+            const detail = unwrapData(response)
+            if (!detail) return null
+            return {
+                ...detail,
+                type: 'payment',
+                id: detail.paymentId,
+                displayCode: detail.paymentCode,
+                clientName: detail.clientName || '',
+                amount: detail.paymentAmount,
+                totalAmount: detail.paymentAmount,
+                createdAt: detail.createdAt,
+            }
+        } catch (e) {
+            console.error('결제 상세 로드 실패:', e)
+            return null
+        } finally {
+            loading.value = false
+        }
+    }
+
     const createQuotationRequest = ({ client, items, requirements }) => {
         const id = makeId('RQ')
         const lineItems = (items || []).map(withAmount)
@@ -1114,5 +1139,7 @@ export const useDocumentStore = defineStore('document', () => {
         fetchApprovedQuotations,
         fetchQuotationDetail,
         fetchContractDetail,
+        fetchOrderDetail,
+        fetchPaymentDetail,
     }
 })
