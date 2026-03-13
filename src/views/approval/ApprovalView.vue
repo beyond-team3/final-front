@@ -431,6 +431,190 @@ const detailItems = computed(() => {
 const detailItemsTotal = computed(() => detailItems.value
   .reduce((sum, item) => sum + Number(item.amount || 0), 0))
 
+const detailDocumentTypeKey = computed(() => {
+  const dealType = String(selectedApproval.value?.dealType || '').toUpperCase()
+  if (dealType === 'QUO') return 'quotation'
+  if (dealType === 'CNT') return 'contract'
+  if (dealType === 'ORD') return 'order'
+  return ''
+})
+
+const previewSource = computed(() => detailDocumentSource.value || {})
+
+const previewPdfUrl = computed(() => firstFilledValue(
+  previewSource.value?.pdfUrl,
+  previewSource.value?.pdfURL,
+  previewSource.value?.fileUrl,
+  previewSource.value?.fileURL,
+  previewSource.value?.documentUrl,
+  previewSource.value?.documentURL,
+  previewSource.value?.previewUrl,
+  previewSource.value?.previewURL,
+  previewSource.value?.attachmentUrl,
+  previewSource.value?.attachmentURL,
+  selectedDocumentDetail.value?.pdfUrl,
+  selectedDocumentDetail.value?.fileUrl,
+  selectedDocumentDetail.value?.documentUrl,
+  null,
+))
+
+const previewMode = computed(() => {
+  if (previewPdfUrl.value) return 'pdf'
+  if (previewHasRenderableDocument.value) return 'generated'
+  return 'placeholder'
+})
+
+const previewHasRenderableDocument = computed(() => (
+  ['quotation', 'contract', 'order'].includes(detailDocumentTypeKey.value)
+  && (detailItems.value.length > 0 || Object.keys(previewSource.value).length > 0)
+))
+
+const previewDocumentCode = computed(() => firstFilledValue(
+  selectedDocumentDetail.value?.displayCode,
+  previewSource.value?.displayCode,
+  previewSource.value?.quotationCode,
+  previewSource.value?.contractCode,
+  previewSource.value?.orderCode,
+  selectedApproval.value?.displayCode,
+  '-',
+))
+
+const previewResolvedMemberName = computed(() => firstFilledValue(
+  selectedContractDetail.value?.salesRepName,
+  selectedContractDetail.value?.authorName,
+  previewSource.value?.salesRepName,
+  previewSource.value?.authorName,
+  previewSource.value?.managerName,
+  previewSource.value?.writerName,
+  detailEmployeeRecord.value?.name,
+  detailClientInfo.value?.managerName,
+  '-',
+))
+
+const detailDocumentFields = computed(() => {
+  const source = previewSource.value || {}
+  const approval = selectedApproval.value || {}
+  const commonFields = [
+    { label: '문서 코드', value: previewDocumentCode.value },
+    { label: '문서 유형', value: dealTypeLabel(approval.dealType) },
+    {
+      label: '문서 상태',
+      value: firstFilledValue(source.status, approvalStatusLabel(approval.status), '-'),
+    },
+    {
+      label: '작성/요청 일시',
+      value: formatDateTime(firstFilledValue(source.createdAt, source.date, approval.createdAt, null)),
+    },
+  ]
+
+  if (approval.dealType === 'CNT') {
+    commonFields.push(
+      { label: '계약 시작일', value: formatDateTime(firstFilledValue(source.startDate, null)) },
+      { label: '계약 종료일', value: formatDateTime(firstFilledValue(source.endDate, null)) },
+      { label: '청구 주기', value: firstFilledValue(source.billingCycle, '-') },
+    )
+  }
+
+  if (approval.dealType === 'ORD') {
+    commonFields.push(
+      { label: '계약서 코드', value: firstFilledValue(detailOrderFields.value.find((field) => field.label === '계약서 코드')?.value, '-') },
+      { label: '배송지', value: firstFilledValue(detailDeliveryFields.value.find((field) => field.label === '배송지')?.value, '-') },
+    )
+  }
+
+  return commonFields
+})
+
+const detailItemSummaryFields = computed(() => {
+  const totalQuantity = detailItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+
+  return [
+    { label: '품목 수', value: `${detailItems.value.length}건` },
+    { label: '총 수량', value: `${formatCurrency(totalQuantity)}` },
+    { label: '총 합계', value: `${formatCurrency(detailItemsTotal.value)}원` },
+  ]
+})
+
+const detailApprovalInfoFields = computed(() => {
+  const approval = selectedApproval.value || {}
+  const currentStep = approval.activeStep
+  const lastCompletedStep = [...(approval.steps || [])]
+    .filter((step) => step.status !== 'WAITING')
+    .sort((left, right) => (right.stepOrder || 0) - (left.stepOrder || 0))[0]
+  const rejectedStep = [...(approval.steps || [])]
+    .filter((step) => step.status === 'REJECTED')
+    .sort((left, right) => (right.stepOrder || 0) - (left.stepOrder || 0))[0]
+
+  return [
+    { label: '승인 ID', value: `#${approval.approvalId || '-'}` },
+    { label: '대상 문서 ID', value: firstFilledValue(approval.targetId, '-') },
+    { label: '현재 상태', value: approvalStatusLabel(approval.status) },
+    {
+      label: '승인 요청 시각',
+      value: formatDateTime(firstFilledValue(approval.createdAt, approval.requestedAt, approval.requestAt, null)),
+    },
+    {
+      label: '현재 승인 단계',
+      value: currentStep
+        ? `${currentStep.stepOrder}단계 · ${actorTypeLabel(currentStep.actorType)}`
+        : '처리 완료',
+    },
+    {
+      label: '마지막 처리',
+      value: lastCompletedStep
+        ? `${lastCompletedStep.stepOrder}단계 · ${stepStatusLabel(lastCompletedStep.status)}`
+        : '아직 처리 이력이 없습니다.',
+    },
+    {
+      label: '마지막 처리 시각',
+      value: formatDateTime(firstFilledValue(lastCompletedStep?.decidedAt, approval.updatedAt, null)),
+    },
+    {
+      label: '최근 반려 사유',
+      value: firstFilledValue(rejectedStep?.reason, approval.reason, approval.rejectReason, approval.rejectionReason, '없음'),
+    },
+  ]
+})
+
+const previewHeadline = computed(() => {
+  if (detailDocumentTypeKey.value === 'quotation') return '견 적 서'
+  if (detailDocumentTypeKey.value === 'contract') return '물 품 공 급 계 약 서'
+  if (detailDocumentTypeKey.value === 'order') return '주 문 서'
+  return '문 서 미 리 보 기'
+})
+
+const previewPlaceholderTitle = computed(() => {
+  if (detailError.value) return '문서 상세를 불러오지 못했습니다.'
+  if (selectedApproval.value?.dealType) return `${dealTypeLabel(selectedApproval.value.dealType)} 미리보기를 준비할 수 없습니다.`
+  return '문서 미리보기를 준비할 수 없습니다.'
+})
+
+const previewPlaceholderMessages = computed(() => {
+  if (detailError.value) {
+    return [
+      detailError.value,
+      '승인 정보와 승인 타임라인은 계속 확인할 수 있습니다.',
+    ]
+  }
+
+  if (!previewPdfUrl.value && !previewHasRenderableDocument.value) {
+    return [
+      '연결된 PDF URL 또는 문서 렌더링에 필요한 상세 데이터가 없습니다.',
+      '오른쪽 정보 패널에서 문서/승인 정보를 확인한 뒤 승인 여부를 판단할 수 있습니다.',
+    ]
+  }
+
+  return ['미리보기 소스를 준비하는 중입니다.']
+})
+
+const getValidityDate = (dateStr) => {
+  if (!dateStr) return ''
+  const baseDate = new Date(dateStr)
+  if (Number.isNaN(baseDate.getTime())) return dateStr
+  baseDate.setDate(baseDate.getDate() + 30)
+  return baseDate.toISOString().split('T')[0]
+}
+
 const approvalSortWeight = (approval) => {
   if (approval.status === 'PENDING') {
     if (approval.activeStep?.actorType === 'SALES_REP') return 0
@@ -803,10 +987,76 @@ const handlePageChange = async (nextPage) => {
   await loadApprovals()
 }
 
+const resolveApprovalIdFromNotification = async ({ approvalId, targetId, targetType, notificationType }) => {
+  const numericApprovalId = approvalId ? Number(approvalId) : null
+  const numericTargetId = targetId ? Number(targetId) : null
+
+  if (numericApprovalId) {
+    return numericApprovalId
+  }
+
+  if (!numericTargetId) {
+    return null
+  }
+
+  const normalizedTargetType = String(targetType || '').toUpperCase()
+  const normalizedNotificationType = String(notificationType || '').toUpperCase()
+  const looksLikeApprovalTarget = normalizedTargetType === 'APPROVAL' || normalizedNotificationType.startsWith('APPROVAL_')
+
+  if (looksLikeApprovalTarget) {
+    try {
+      const directApproval = await getApprovalDetail(numericTargetId)
+      if (directApproval?.approvalId) {
+        return Number(directApproval.approvalId)
+      }
+    } catch (error) {
+      // Fallback to target document lookup when targetId is not approvalId.
+    }
+  }
+
+  const searchParams = {
+    page: 0,
+    size: 100,
+    targetId: numericTargetId,
+    ...(TARGET_TYPE_TO_DEAL_TYPE[normalizedTargetType]
+      ? { dealType: TARGET_TYPE_TO_DEAL_TYPE[normalizedTargetType] }
+      : {}),
+  }
+
+  const approvals = await searchApprovals(searchParams)
+  const candidates = Array.isArray(approvals?.content) ? approvals.content.map(normalizeApproval) : []
+  const matchedApproval = candidates
+    .sort(compareApprovals)
+    .find((approval) => String(approval.targetId) === String(targetId))
+
+  if (matchedApproval?.approvalId) {
+    return Number(matchedApproval.approvalId)
+  }
+
+  if (!TARGET_TYPE_TO_DEAL_TYPE[normalizedTargetType]) {
+    return null
+  }
+
+  const fallbackApprovals = await searchApprovals({
+    page: 0,
+    size: 100,
+    targetId: numericTargetId,
+  })
+  const fallbackCandidates = Array.isArray(fallbackApprovals?.content)
+    ? fallbackApprovals.content.map(normalizeApproval)
+    : []
+  const fallbackMatchedApproval = fallbackCandidates
+    .sort(compareApprovals)
+    .find((approval) => String(approval.targetId) === String(targetId))
+
+  return fallbackMatchedApproval?.approvalId ? Number(fallbackMatchedApproval.approvalId) : null
+}
+
 const openApprovalFromRouteQuery = async () => {
   const approvalId = route.query.approvalId
   const targetId = route.query.targetId
   const targetType = route.query.targetType
+  const notificationType = route.query.notificationType
   const shouldOpen = route.query.openFromNotification === 'true'
 
   if ((!approvalId && !targetId) || !shouldOpen || notificationModalHandled.value) {
@@ -817,30 +1067,12 @@ const openApprovalFromRouteQuery = async () => {
   clearFeedback()
 
   try {
-    let resolvedApprovalId = approvalId ? Number(approvalId) : null
-
-    if (!resolvedApprovalId && targetId) {
-      const approvals = await searchApprovals({
-        page: 0,
-        size: 20,
-        targetId: Number(targetId),
-        ...(TARGET_TYPE_TO_DEAL_TYPE[String(targetType || '').toUpperCase()]
-          ? { dealType: TARGET_TYPE_TO_DEAL_TYPE[String(targetType || '').toUpperCase()] }
-          : {}),
-      })
-
-      const candidates = Array.isArray(approvals?.content) ? approvals.content.map(normalizeApproval) : []
-      const matchedApproval = candidates
-        .sort(compareApprovals)
-        .find((approval) => String(approval.targetId) === String(targetId))
-
-      if (!matchedApproval?.approvalId) {
-        showFeedback('error', '연결된 승인 요청을 찾을 수 없습니다.')
-        return
-      }
-
-      resolvedApprovalId = Number(matchedApproval.approvalId)
-    }
+    const resolvedApprovalId = await resolveApprovalIdFromNotification({
+      approvalId,
+      targetId,
+      targetType,
+      notificationType,
+    })
 
     if (!resolvedApprovalId) {
       showFeedback('error', '연결된 승인 요청을 찾을 수 없습니다.')
@@ -1159,142 +1391,408 @@ onBeforeUnmount(() => {
       </template>
     </section>
 
-    <ModalBase v-model="detailModalOpen" title="승인 상세" width-class="max-w-4xl">
-      <div v-if="detailLoading" class="loading-panel">승인 상세를 불러오는 중입니다.</div>
-
-      <template v-else-if="selectedApproval">
-        <div v-if="detailError" class="detail-inline-error">
-          {{ detailError }}
-        </div>
-
-        <div class="detail-summary">
-          <span class="badge">{{ dealTypeLabel(selectedApproval.dealType) }}</span>
-          <span class="badge" :class="statusToneClass(selectedApproval.status)">
-            {{ approvalStatusLabel(selectedApproval.status) }}
-          </span>
-          <span>승인 ID #{{ selectedApproval.approvalId }}</span>
-          <span>문서 코드 {{ selectedDocumentDetail?.displayCode || selectedApproval.displayCode }}</span>
-        </div>
-
-        <div class="detail-grid">
-          <div class="detail-card">
-            <h4>거래처 및 담당자</h4>
-            <div class="detail-info-grid">
-              <div v-for="field in detailPartyFields" :key="field.label">
-                <dt>{{ field.label }}</dt>
-                <dd>{{ field.value }}</dd>
-              </div>
+    <teleport to="body">
+      <div v-if="detailModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="detailModalOpen = false">
+        <section class="approval-history-modal">
+          <header class="approval-history-header">
+            <div class="approval-history-header-title">
+              <h3>{{ selectedDocumentDetail?.displayCode || selectedApproval?.displayCode || '승인 상세' }}</h3>
+              <span>
+                {{ selectedDocumentDetail?.displayCode || selectedApproval?.displayCode || '-' }}
+              </span>
             </div>
-          </div>
-
-          <div v-if="detailOrderFields.length > 0" class="detail-card">
-            <h4>주문 문서 정보</h4>
-            <div class="detail-info-grid">
-              <div v-for="field in detailOrderFields" :key="field.label">
-                <dt>{{ field.label }}</dt>
-                <dd>{{ field.value }}</dd>
-              </div>
+            <div class="approval-history-header-actions">
+              <a
+                v-if="previewPdfUrl"
+                :href="previewPdfUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rounded bg-[var(--color-olive)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-olive-dark)] transition-colors"
+              >
+                원본 PDF
+              </a>
+              <button type="button" class="rounded px-2 py-1 text-xl text-[var(--color-text-sub)] hover:bg-[var(--color-bg-section)]" @click="detailModalOpen = false">×</button>
             </div>
-          </div>
+          </header>
 
-          <div v-if="detailDeliveryFields.length > 0" class="detail-card">
-            <h4>배송 정보</h4>
-            <div class="detail-info-grid">
-              <div v-for="field in detailDeliveryFields" :key="field.label">
-                <dt>{{ field.label }}</dt>
-                <dd class="detail-multiline">{{ field.value }}</dd>
-              </div>
-            </div>
-          </div>
-
-          <div class="detail-card detail-card-wide">
-            <h4>세부 품목 내역</h4>
-            <div class="detail-table-wrap">
-              <table class="detail-items-table">
-                <thead>
-                  <tr>
-                    <th>단위</th>
-                    <th>품목명</th>
-                    <th>수량</th>
-                    <th>금액</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in detailItems" :key="item.key">
-                    <td>{{ item.unit }}</td>
-                    <td class="detail-item-name">{{ item.name }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td class="detail-item-price">{{ formatCurrency(item.amount) }}</td>
-                  </tr>
-                  <tr v-if="detailItems.length === 0">
-                    <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
-                  </tr>
-                </tbody>
-                <tfoot v-if="detailItems.length > 0">
-                  <tr>
-                    <td colspan="3">총 합계</td>
-                    <td class="detail-item-price">{{ formatCurrency(detailItemsTotal) }}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <section v-if="detailInternalMemo" class="timeline-card">
-          <div class="timeline-header">
-            <h4>내부 비고</h4>
-          </div>
-          <p class="detail-memo-copy">{{ detailInternalMemo }}</p>
-        </section>
-
-        <section class="timeline-card">
-          <div class="timeline-header">
-            <h4>승인 타임라인</h4>
-            <p>stepOrder 오름차순으로 표시됩니다.</p>
-          </div>
-
-          <ol class="timeline-list">
-            <li v-for="step in selectedApproval.steps" :key="step.stepId" class="timeline-item">
-              <div class="timeline-bullet" :class="stepToneClass(step.status)" />
-              <div class="timeline-body">
-                <div class="timeline-top">
-                  <strong>{{ step.stepOrder }}단계 · {{ actorTypeLabel(step.actorType) }}</strong>
-                  <span class="badge" :class="statusToneClass(step.status === 'WAITING' ? 'PENDING' : step.status)">
-                    {{ stepStatusLabel(step.status) }}
-                  </span>
+          <div class="approval-history-body">
+            <div class="approval-history-preview">
+              <div class="approval-history-preview-scroll custom-scrollbar">
+                <div v-if="detailLoading" class="approval-history-loading">
+                  <div class="w-12 h-12 border-4 border-[var(--color-olive)] border-t-transparent rounded-full animate-spin"></div>
+                  <p>문서를 준비하고 있습니다...</p>
                 </div>
-                <p class="timeline-meta">
-                  결정: {{ step.decision ? decisionLabel(step.decision) : '미결정' }} · 결정자 ID: {{ step.decidedByUserId ?? '-' }} · 결정 시각: {{ formatDateTime(step.decidedAt) }}
-                </p>
-                <p v-if="step.reason" class="timeline-reason">사유: {{ step.reason }}</p>
+
+                <template v-else-if="selectedApproval">
+                  <div v-if="previewMode === 'pdf'" class="preview-canvas preview-pdf-canvas">
+                    <iframe
+                      :src="previewPdfUrl"
+                      title="승인 상세 PDF 미리보기"
+                      class="preview-pdf-frame"
+                    />
+                  </div>
+
+                  <div v-else-if="previewMode === 'generated'" class="origin-top scale-[0.7] 2xl:scale-[0.8] transition-transform duration-500">
+                    <div class="current-pdf-template transform-gpu shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
+                      <div v-if="detailDocumentTypeKey === 'quotation'" class="preview-page preview-page-legacy">
+                        <div class="preview-page-header">
+                          <p class="preview-page-kicker">{{ previewDocumentCode }}</p>
+                          <h3>{{ previewHeadline }}</h3>
+                        </div>
+                        <div class="preview-page-block preview-two-column">
+                          <div>
+                            <p class="preview-label">수신</p>
+                            <strong>{{ detailClientInfo.clientName }}</strong>
+                          </div>
+                          <div>
+                            <p class="preview-label">담당</p>
+                            <strong>{{ previewResolvedMemberName }}</strong>
+                          </div>
+                        </div>
+                        <div class="preview-page-block preview-three-column">
+                          <div>
+                            <p class="preview-label">작성일</p>
+                            <strong>{{ formatDateTime(firstFilledValue(previewSource.createdAt, previewSource.date, selectedApproval.createdAt, null)) }}</strong>
+                          </div>
+                          <div>
+                            <p class="preview-label">유효기간</p>
+                            <strong>{{ getValidityDate(firstFilledValue(previewSource.createdAt, previewSource.date, null)) || '-' }}</strong>
+                          </div>
+                          <div>
+                            <p class="preview-label">총 합계</p>
+                            <strong>{{ formatCurrency(detailItemsTotal) }}원</strong>
+                          </div>
+                        </div>
+                        <div class="preview-page-block">
+                          <table class="preview-table">
+                            <thead>
+                              <tr>
+                                <th>품목명</th>
+                                <th>수량</th>
+                                <th>단위</th>
+                                <th>금액</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="item in detailItems" :key="item.key">
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.unit }}</td>
+                                <td class="preview-number">{{ formatCurrency(item.amount) }}</td>
+                              </tr>
+                              <tr v-if="detailItems.length === 0">
+                                <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div v-else-if="detailDocumentTypeKey === 'contract'" class="preview-page preview-page-legacy">
+                        <div class="preview-page-header">
+                          <p class="preview-page-kicker">{{ previewDocumentCode }}</p>
+                          <h3>{{ previewHeadline }}</h3>
+                        </div>
+                        <div class="preview-page-block preview-three-column">
+                          <div>
+                            <p class="preview-label">계약상대자</p>
+                            <strong>{{ detailClientInfo.clientName }}</strong>
+                          </div>
+                          <div>
+                            <p class="preview-label">계약기간</p>
+                            <strong>{{ formatDateTime(firstFilledValue(previewSource.startDate, null)) }} ~ {{ formatDateTime(firstFilledValue(previewSource.endDate, null)) }}</strong>
+                          </div>
+                          <div>
+                            <p class="preview-label">청구 주기</p>
+                            <strong>{{ firstFilledValue(previewSource.billingCycle, '-') }}</strong>
+                          </div>
+                        </div>
+                        <div class="preview-page-block">
+                          <table class="preview-table">
+                            <thead>
+                              <tr>
+                                <th>품목명</th>
+                                <th>수량</th>
+                                <th>단위</th>
+                                <th>금액</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="item in detailItems" :key="item.key">
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.unit }}</td>
+                                <td class="preview-number">{{ formatCurrency(item.amount) }}</td>
+                              </tr>
+                              <tr v-if="detailItems.length === 0">
+                                <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                        <div v-if="previewSource.specialTerms" class="preview-page-block">
+                          <p class="preview-label">특약 사항</p>
+                          <p class="preview-copy">{{ previewSource.specialTerms }}</p>
+                        </div>
+                      </div>
+
+                      <div v-else-if="detailDocumentTypeKey === 'order'" class="preview-page preview-page-legacy">
+                        <div class="preview-page-header">
+                          <p class="preview-page-kicker">{{ previewDocumentCode }}</p>
+                          <h3>{{ previewHeadline }}</h3>
+                        </div>
+                        <div class="preview-page-block preview-three-column">
+                          <div>
+                            <p class="preview-label">거래처</p>
+                            <strong>{{ detailClientInfo.clientName }}</strong>
+                          </div>
+                          <div>
+                            <p class="preview-label">주문일</p>
+                            <strong>{{ formatDateTime(firstFilledValue(previewSource.createdAt, previewSource.orderDate, previewSource.date, null)) }}</strong>
+                          </div>
+                          <div>
+                            <p class="preview-label">주문 상태</p>
+                            <strong>{{ firstFilledValue(previewSource.status, '-') }}</strong>
+                          </div>
+                        </div>
+                        <div v-if="detailDeliveryFields.length > 0" class="preview-page-block preview-two-column">
+                          <div v-for="field in detailDeliveryFields" :key="field.label">
+                            <p class="preview-label">{{ field.label }}</p>
+                            <strong>{{ field.value }}</strong>
+                          </div>
+                        </div>
+                        <div class="preview-page-block">
+                          <table class="preview-table">
+                            <thead>
+                              <tr>
+                                <th>품목명</th>
+                                <th>수량</th>
+                                <th>단위</th>
+                                <th>금액</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="item in detailItems" :key="item.key">
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.unit }}</td>
+                                <td class="preview-number">{{ formatCurrency(item.amount) }}</td>
+                              </tr>
+                              <tr v-if="detailItems.length === 0">
+                                <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
+                              </tr>
+                            </tbody>
+                            <tfoot v-if="detailItems.length > 0">
+                              <tr>
+                                <td colspan="3">총 합계</td>
+                                <td class="preview-number">{{ formatCurrency(detailItemsTotal) }}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="preview-placeholder">
+                    <div class="preview-placeholder-badge">PREVIEW UNAVAILABLE</div>
+                    <h4>{{ previewPlaceholderTitle }}</h4>
+                    <p v-for="message in previewPlaceholderMessages" :key="message">{{ message }}</p>
+                  </div>
+                </template>
               </div>
-            </li>
-          </ol>
+            </div>
+
+            <div v-if="selectedApproval" class="approval-history-sidebar">
+              <div class="approval-history-sidebar-scroll custom-scrollbar">
+                <article class="card approval-history-card">
+                  <div class="approval-history-card-header">
+                    <div class="approval-history-card-title">
+                      <span class="approval-history-card-accent approval-history-card-accent-olive"></span>
+                      <h3>거래처 및 담당자</h3>
+                    </div>
+                    <span>PARTNER INFO</span>
+                  </div>
+                  <div class="approval-history-card-stack">
+                    <div class="approval-history-field">
+                      <label>상호명 / 법인명</label>
+                      <div>{{ detailPartyFields[0]?.value || '-' }}</div>
+                    </div>
+                    <div class="approval-history-field">
+                      <label>SeedFlow+ 담당 영업사원</label>
+                      <div class="approval-history-field-row">
+                        <div class="approval-history-avatar">{{ String(detailPartyFields[1]?.value || '-').slice(0, 1) }}</div>
+                        <span>{{ detailPartyFields[1]?.value || '-' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="card approval-history-card">
+                  <div class="approval-history-card-header">
+                    <div class="approval-history-card-title">
+                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
+                      <h3>문서 정보</h3>
+                    </div>
+                    <span>DOC INFO</span>
+                  </div>
+                  <dl class="approval-info-list">
+                    <div v-for="field in detailDocumentFields" :key="field.label">
+                      <dt>{{ field.label }}</dt>
+                      <dd>{{ field.value }}</dd>
+                    </div>
+                    <div v-for="field in detailOrderFields" :key="field.label">
+                      <dt>{{ field.label }}</dt>
+                      <dd>{{ field.value }}</dd>
+                    </div>
+                    <div v-for="field in detailDeliveryFields" :key="field.label">
+                      <dt>{{ field.label }}</dt>
+                      <dd>{{ field.value }}</dd>
+                    </div>
+                  </dl>
+                </article>
+
+                <article class="card approval-history-card">
+                  <div class="approval-history-card-header">
+                    <div class="approval-history-card-title">
+                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
+                      <h3>세부 품목 내역</h3>
+                    </div>
+                    <span>{{ detailItems.length }} ITEMS</span>
+                  </div>
+                  <div class="approval-history-items">
+                    <div v-for="item in detailItems" :key="item.key" class="approval-history-item-row">
+                      <div>
+                        <span class="approval-history-item-name">{{ item.name }}</span>
+                        <span class="approval-history-item-meta">{{ item.unit }}</span>
+                      </div>
+                      <div class="approval-history-item-value">
+                        <span>{{ item.quantity }} {{ item.unit }}</span>
+                        <span>₩{{ formatCurrency(item.amount) }}</span>
+                      </div>
+                    </div>
+                    <div v-if="detailItems.length === 0" class="approval-history-empty">표시할 품목 정보가 없습니다.</div>
+                  </div>
+                  <div v-if="detailItems.length > 0" class="approval-history-total">
+                    <div>
+                      <span>Final Quote</span>
+                      <span>₩{{ formatCurrency(Math.round(detailItemsTotal * 1.1)) }}</span>
+                    </div>
+                    <div>
+                      <strong>₩{{ formatCurrency(detailItemsTotal) }}</strong>
+                      <p>VAT INCLUDED</p>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="card approval-history-card">
+                  <div class="approval-history-card-header">
+                    <div class="approval-history-card-title">
+                      <span class="approval-history-card-accent approval-history-card-accent-olive"></span>
+                      <h3>승인 정보</h3>
+                    </div>
+                    <span>APPROVAL INFO</span>
+                  </div>
+                  <dl class="approval-info-list">
+                    <div v-for="field in detailApprovalInfoFields" :key="field.label">
+                      <dt>{{ field.label }}</dt>
+                      <dd>{{ field.value }}</dd>
+                    </div>
+                  </dl>
+                </article>
+
+                <article v-if="detailInternalMemo" class="card approval-history-card">
+                  <div class="approval-history-card-header">
+                    <div class="approval-history-card-title">
+                      <span class="approval-history-card-accent"></span>
+                      <h3>공지 및 내부 비고</h3>
+                    </div>
+                  </div>
+                  <div class="approval-history-note">{{ detailInternalMemo }}</div>
+                </article>
+
+                <article v-if="selectedApproval.steps.some((step) => step.reason)" class="card approval-history-card">
+                  <div class="approval-history-card-header">
+                    <div class="approval-history-card-title">
+                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
+                      <h3>반려 사유서</h3>
+                    </div>
+                    <span>REJECT NOTE</span>
+                  </div>
+                  <div class="approval-history-note">
+                    {{ [...selectedApproval.steps].reverse().find((step) => step.reason)?.reason || '반려 사유 없음' }}
+                  </div>
+                </article>
+
+                <article class="card approval-history-card">
+                  <div class="approval-history-card-header">
+                    <div class="approval-history-card-title">
+                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
+                      <h3>승인 타임라인</h3>
+                    </div>
+                    <span>TIMELINE</span>
+                  </div>
+                  <ol class="timeline-list">
+                    <li v-for="step in selectedApproval.steps" :key="step.stepId" class="timeline-item">
+                      <div class="timeline-bullet" :class="stepToneClass(step.status)" />
+                      <div class="timeline-body">
+                        <div class="timeline-top">
+                          <strong>{{ step.stepOrder }}단계 · {{ actorTypeLabel(step.actorType) }}</strong>
+                          <span class="badge" :class="statusToneClass(step.status === 'WAITING' ? 'PENDING' : step.status)">
+                            {{ stepStatusLabel(step.status) }}
+                          </span>
+                        </div>
+                        <dl class="timeline-detail-grid">
+                          <div>
+                            <dt>결정 상태</dt>
+                            <dd>{{ step.decision ? decisionLabel(step.decision) : '미결정' }}</dd>
+                          </div>
+                          <div>
+                            <dt>결정자 ID</dt>
+                            <dd>{{ step.decidedByUserId ?? '-' }}</dd>
+                          </div>
+                          <div>
+                            <dt>요청 시각</dt>
+                            <dd>{{ formatDateTime(firstFilledValue(step.createdAt, step.requestedAt, selectedApproval.createdAt, null)) }}</dd>
+                          </div>
+                          <div>
+                            <dt>처리 시각</dt>
+                            <dd>{{ formatDateTime(step.decidedAt) }}</dd>
+                          </div>
+                        </dl>
+                        <p v-if="step.reason" class="timeline-reason">반려 사유: {{ step.reason }}</p>
+                      </div>
+                    </li>
+                  </ol>
+                </article>
+              </div>
+
+              <div v-if="canDecideApproval(selectedApproval)" class="approval-history-sidebar-footer">
+                <button
+                  type="button"
+                  class="btn approve-btn"
+                  @click="openDecisionModal(selectedApproval, 'APPROVE')"
+                >
+                  {{ decisionButtonText(selectedApproval) }}
+                </button>
+                <button
+                  type="button"
+                  class="btn reject-btn"
+                  @click="openDecisionModal(selectedApproval, 'REJECT')"
+                >
+                  반려
+                </button>
+              </div>
+
+              <div class="approval-history-footer-meta">
+                <span>SeedFlow+ Digital Asset</span>
+                <span>Proprietary & Confidential</span>
+              </div>
+            </div>
+          </div>
         </section>
-
-        <div v-if="canDecideApproval(selectedApproval)" class="detail-sticky-actions">
-          <button
-            type="button"
-            class="btn approve-btn"
-            @click="openDecisionModal(selectedApproval, 'APPROVE')"
-          >
-            {{ decisionButtonText(selectedApproval) }}
-          </button>
-          <button
-            type="button"
-            class="btn reject-btn"
-            @click="openDecisionModal(selectedApproval, 'REJECT')"
-          >
-            반려
-          </button>
-        </div>
-      </template>
-
-      <div v-else-if="detailError" class="loading-panel">
-        {{ detailError }}
       </div>
-    </ModalBase>
+    </teleport>
 
     <ModalBase
       v-model="decisionModalOpen"
@@ -1487,6 +1985,14 @@ onBeforeUnmount(() => {
 .detail-sticky-actions .btn {
   min-width: 96px;
   white-space: nowrap;
+}
+
+.detail-sidebar-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(247, 243, 236, 0) 0%, rgba(247, 243, 236, 0.94) 24%, rgba(247, 243, 236, 1) 100%);
+  backdrop-filter: blur(8px);
 }
 
 .filter-reset-btn {
@@ -1795,6 +2301,650 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr;
 }
 
+.approval-history-modal {
+  display: flex;
+  height: 85vh;
+  width: 100%;
+  max-width: 72rem;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-card);
+  background: var(--color-bg-base);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.24);
+}
+
+.approval-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-sidebar);
+  padding: 12px 20px;
+}
+
+.approval-history-header-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.approval-history-header-title h3 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.approval-history-header-title span {
+  border: 1px solid var(--color-border-card);
+  border-radius: 6px;
+  background: var(--color-bg-section);
+  padding: 2px 8px;
+  color: var(--color-text-sub);
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.approval-history-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approval-history-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-bg-base);
+}
+
+.approval-history-preview {
+  flex: 1.2 1 0%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border-card);
+  background: #525659;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.approval-history-preview-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.approval-history-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 100%;
+  color: var(--color-text-body);
+}
+
+.approval-history-sidebar {
+  width: 480px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--color-border-card);
+  background: var(--color-bg-base);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.approval-history-sidebar-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.approval-history-card {
+  border: 1px solid var(--color-border-card);
+  border-radius: 1rem;
+  background: var(--color-bg-card);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.approval-history-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.approval-history-card-header span {
+  color: var(--color-text-sub);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.approval-history-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approval-history-card-title h3 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.approval-history-card-accent {
+  width: 6px;
+  height: 16px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.approval-history-card-accent-olive {
+  background: var(--color-olive);
+}
+
+.approval-history-card-accent-orange {
+  background: var(--color-orange);
+}
+
+.approval-history-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.approval-history-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.approval-history-field label {
+  color: var(--color-text-sub);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.approval-history-field > div {
+  border: 1px solid var(--color-border-card);
+  border-radius: 12px;
+  background: var(--color-bg-input);
+  padding: 12px;
+  color: var(--color-text-strong);
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.approval-history-field-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.approval-history-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(122, 140, 66, 0.2);
+  background: rgba(122, 140, 66, 0.08);
+  color: var(--color-olive);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.approval-info-list {
+  display: grid;
+  gap: 14px;
+}
+
+.approval-info-list dt {
+  margin-bottom: 4px;
+  color: var(--color-text-sub);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.approval-info-list dd {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.approval-history-items {
+  max-height: 18rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-card);
+  border-radius: 12px;
+  background: var(--color-bg-input);
+  padding: 8px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.approval-history-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.approval-history-item-row:last-child {
+  border-bottom: 0;
+}
+
+.approval-history-item-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.approval-history-item-name {
+  color: var(--color-text-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.approval-history-item-meta {
+  color: var(--color-text-sub);
+  font-size: 10px;
+}
+
+.approval-history-item-value {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.approval-history-item-value span:first-child {
+  color: var(--color-text-strong);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.approval-history-item-value span:last-child {
+  color: var(--color-olive);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.approval-history-empty {
+  padding: 20px 12px;
+  color: var(--color-text-sub);
+  text-align: center;
+}
+
+.approval-history-total {
+  margin-top: 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: rgba(239, 234, 223, 0.6);
+  padding: 16px;
+}
+
+.approval-history-total > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.approval-history-total span:first-child {
+  color: var(--color-text-sub);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.approval-history-total strong {
+  color: var(--color-olive);
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.approval-history-total p,
+.approval-history-total span:last-child {
+  margin: 0;
+  color: var(--color-text-sub);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.approval-history-note {
+  border: 1px solid var(--color-border-card);
+  border-radius: 12px;
+  background: var(--color-bg-input);
+  padding: 16px;
+  color: var(--color-text-strong);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.approval-history-sidebar-footer {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border-divider);
+  background: var(--color-bg-sidebar);
+}
+
+.approval-history-sidebar-footer .btn {
+  flex: 1 1 0;
+}
+
+.approval-history-footer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border-divider);
+  background: var(--color-bg-sidebar);
+  color: var(--color-text-sub);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.approval-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+  gap: 18px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.preview-panel {
+  min-width: 0;
+}
+
+.preview-stage {
+  min-height: 640px;
+  border: 1px solid var(--color-border-card);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #5b5f64 0%, #43474d 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 24px;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.preview-toolbar-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.preview-toolbar h4 {
+  margin: 0;
+  font-size: 18px;
+  color: #fff;
+}
+
+.preview-link-btn {
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.preview-link-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.preview-canvas {
+  height: 100%;
+  min-height: 592px;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.preview-pdf-canvas {
+  min-height: 720px;
+  overflow: hidden;
+}
+
+.preview-pdf-frame {
+  width: 100%;
+  min-height: 720px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.preview-sheet {
+  width: min(100%, 780px);
+  display: flex;
+  justify-content: center;
+}
+
+.preview-page {
+  width: 100%;
+  min-height: 1040px;
+  border-radius: 0;
+  background: #fff;
+  color: #111827;
+  padding: 44px 42px;
+  box-shadow: 0 28px 70px -24px rgba(15, 23, 42, 0.55);
+  display: grid;
+  align-content: start;
+  gap: 22px;
+}
+
+.preview-page-header {
+  padding-bottom: 18px;
+  border-bottom: 2px solid #111827;
+}
+
+.preview-page-header h3 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-align: center;
+}
+
+.preview-page-kicker {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.preview-page-block {
+  display: grid;
+  gap: 14px;
+}
+
+.preview-two-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preview-three-column {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.preview-label {
+  margin: 0 0 6px;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.preview-page strong {
+  font-size: 15px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.preview-copy {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #f8fafc;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.65;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #d1d5db;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  font-size: 13px;
+  text-align: left;
+}
+
+.preview-table th {
+  background: #f8fafc;
+  font-weight: 800;
+}
+
+.preview-number {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-placeholder {
+  min-height: 592px;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  padding: 24px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.preview-placeholder h4,
+.preview-placeholder p {
+  margin: 0;
+}
+
+.preview-placeholder-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.preview-placeholder-meta {
+  margin: 10px 0 0;
+  display: grid;
+  gap: 10px;
+}
+
+.preview-placeholder-meta div {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.preview-placeholder-meta dt {
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.preview-placeholder-meta dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.detail-sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-sidebar-scroll {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.detail-panel-section,
+.timeline-panel-section {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-panel-header p {
+  margin: 0;
+  color: var(--color-text-sub);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.detail-panel-header h4 {
+  margin: 0;
+  color: var(--color-text-strong);
+}
+
 .detail-card {
   padding: 18px;
 }
@@ -1820,6 +2970,10 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-border-divider);
   border-radius: 14px;
   background: var(--color-bg-input);
+}
+
+.detail-table-wrap-compact {
+  margin-top: 14px;
 }
 
 .detail-items-table {
@@ -1925,6 +3079,28 @@ onBeforeUnmount(() => {
   background: var(--color-bg-input);
 }
 
+.timeline-detail-grid {
+  margin: 10px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.timeline-detail-grid dt {
+  margin-bottom: 4px;
+  color: var(--color-text-sub);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.timeline-detail-grid dd {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
 .timeline-reason,
 .decision-error {
   margin-top: 8px;
@@ -1959,6 +3135,10 @@ onBeforeUnmount(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .approval-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
   .filter-field-wide {
     grid-column: span 2;
   }
@@ -1988,6 +3168,40 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .preview-stage,
+  .preview-page {
+    padding: 16px;
+  }
+
+  .preview-toolbar {
+    flex-direction: column;
+  }
+
+  .preview-pdf-canvas,
+  .preview-pdf-frame {
+    min-height: 420px;
+  }
+
+  .preview-two-column,
+  .preview-three-column {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-sticky-actions,
+  .detail-sidebar-actions {
+    justify-content: stretch;
+    flex-direction: column;
+  }
+
+  .detail-sticky-actions .btn,
+  .detail-sidebar-actions .btn {
+    width: 100%;
+  }
+
   .filter-field-wide {
     grid-column: span 1;
   }
@@ -1997,6 +3211,19 @@ onBeforeUnmount(() => {
   .card-top {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .approval-history-header,
+  .approval-history-header-title,
+  .approval-history-body,
+  .approval-history-sidebar-footer,
+  .approval-history-footer-meta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .approval-history-sidebar {
+    width: 100%;
   }
 
   .badge-row {
