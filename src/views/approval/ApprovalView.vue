@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { CdrButton, IconRefresh } from '@rei/cedar'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
@@ -13,6 +14,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useEmployeeStore } from '@/stores/employee'
 import { ROLES } from '@/utils/constants'
 
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const documentStore = useDocumentStore()
 const employeeStore = useEmployeeStore()
@@ -23,6 +26,12 @@ const DECISION_ROLE_MAP = {
   [ROLES.SALES_REP]: 'SALES_REP',
   [ROLES.ADMIN]: 'ADMIN',
   [ROLES.CLIENT]: 'CLIENT',
+}
+
+const TARGET_TYPE_TO_DEAL_TYPE = {
+  QUOTATION: 'QUO',
+  CONTRACT: 'CNT',
+  ORDER: 'ORD',
 }
 
 const filterForm = reactive({
@@ -66,6 +75,7 @@ const decisionReason = ref('')
 const decisionContext = ref(null)
 const decisionError = ref('')
 let filterApplyTimer = null
+const notificationModalHandled = ref(false)
 
 const currentRole = computed(() => authStore.currentRole)
 const currentActorType = computed(() => DECISION_ROLE_MAP[currentRole.value] || null)
@@ -793,6 +803,64 @@ const handlePageChange = async (nextPage) => {
   await loadApprovals()
 }
 
+const openApprovalFromRouteQuery = async () => {
+  const approvalId = route.query.approvalId
+  const targetId = route.query.targetId
+  const targetType = route.query.targetType
+  const shouldOpen = route.query.openFromNotification === 'true'
+
+  if ((!approvalId && !targetId) || !shouldOpen || notificationModalHandled.value) {
+    return
+  }
+
+  notificationModalHandled.value = true
+  clearFeedback()
+
+  try {
+    let resolvedApprovalId = approvalId ? Number(approvalId) : null
+
+    if (!resolvedApprovalId && targetId) {
+      const approvals = await searchApprovals({
+        page: 0,
+        size: 20,
+        targetId: Number(targetId),
+        ...(TARGET_TYPE_TO_DEAL_TYPE[String(targetType || '').toUpperCase()]
+          ? { dealType: TARGET_TYPE_TO_DEAL_TYPE[String(targetType || '').toUpperCase()] }
+          : {}),
+      })
+
+      const candidates = Array.isArray(approvals?.content) ? approvals.content.map(normalizeApproval) : []
+      const matchedApproval = candidates
+        .sort(compareApprovals)
+        .find((approval) => String(approval.targetId) === String(targetId))
+
+      if (!matchedApproval?.approvalId) {
+        showFeedback('error', '연결된 승인 요청을 찾을 수 없습니다.')
+        return
+      }
+
+      resolvedApprovalId = Number(matchedApproval.approvalId)
+    }
+
+    if (!resolvedApprovalId) {
+      showFeedback('error', '연결된 승인 요청을 찾을 수 없습니다.')
+      return
+    }
+
+    await loadApprovalDetail(resolvedApprovalId, true)
+  } catch (error) {
+    showFeedback('error', parseApprovalError(error, '승인 상세 정보를 불러오지 못했습니다.'))
+  } finally {
+    const nextQuery = { ...route.query }
+    delete nextQuery.approvalId
+    delete nextQuery.targetId
+    delete nextQuery.targetType
+    delete nextQuery.notificationType
+    delete nextQuery.openFromNotification
+    router.replace({ query: nextQuery })
+  }
+}
+
 const submitDecision = async () => {
   if (!decisionContext.value?.activeStep?.stepId) {
     decisionError.value = '현재 처리 가능한 승인 단계가 없습니다.'
@@ -919,6 +987,14 @@ watch(
       applyFilters()
     }, 250)
   },
+)
+
+watch(
+  () => [route.query.approvalId, route.query.targetId, route.query.targetType, route.query.openFromNotification, serverApprovals.value.length],
+  async () => {
+    await openApprovalFromRouteQuery()
+  },
+  { immediate: true },
 )
 
 onBeforeUnmount(() => {

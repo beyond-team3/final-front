@@ -22,6 +22,15 @@ const DOC_TYPE_META = {
   PAY: { label: '입금확인서', tone: 'payment' },
 }
 
+const TARGET_DOC_TYPE_MAP = {
+  QUOTATION_REQUEST: 'RFQ',
+  QUOTATION: 'QUO',
+  CONTRACT: 'CNT',
+  ORDER: 'ORD',
+  STATEMENT: 'STMT',
+  INVOICE: 'INV',
+}
+
 const STATUS_META = {
   REQUESTED: { label: '요청됨', tone: 'pending' },
   QUOTED: { label: '견적 발행', tone: 'active' },
@@ -54,6 +63,8 @@ const selectedStatus = ref('ALL')
 const sortDirection = ref('desc')
 const page = ref(1)
 const pageSize = ref(10)
+const notificationTargetType = ref('')
+const notificationTargetId = ref('')
 const selectedDocument = ref(null)
 const isHistoryModalOpen = ref(false)
 const showSortMenu = ref(false)
@@ -88,6 +99,36 @@ const decorateDocument = (doc) => ({
   ownerEmployeeName: doc.ownerEmployeeName || '-',
   clientName: doc.clientName || '-',
 })
+
+const matchesNotificationTarget = (doc, targetType, targetId) => {
+  if (!targetType || !targetId) {
+    return true
+  }
+
+  const normalizedTargetType = String(targetType).toUpperCase()
+  const normalizedTargetId = String(targetId)
+  const expectedDocType = TARGET_DOC_TYPE_MAP[normalizedTargetType]
+
+  if (expectedDocType && String(doc?.docType || '').toUpperCase() !== expectedDocType) {
+    return false
+  }
+
+  const candidateIds = [
+    doc?.id,
+    doc?.docId,
+    doc?.headerId,
+    doc?.requestId,
+    doc?.quotationId,
+    doc?.contractId,
+    doc?.orderId,
+    doc?.statementId,
+    doc?.invoiceId,
+  ]
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map((value) => String(value))
+
+  return candidateIds.includes(normalizedTargetId)
+}
 
 const normalizePageResponse = (response) => {
   const payload = response?.data ?? response
@@ -171,6 +212,14 @@ watch(() => route.query, (query) => {
   if (query.sort && query.sort !== sortDirection.value) {
     sortDirection.value = query.sort
   }
+  notificationTargetType.value = String(query.targetType || '')
+  notificationTargetId.value = String(query.targetId || '')
+  if (notificationTargetType.value) {
+    const mappedDocType = TARGET_DOC_TYPE_MAP[notificationTargetType.value]
+    if (mappedDocType) {
+      selectedDocType.value = mappedDocType
+    }
+  }
   loadDocuments()
 }, { immediate: true })
 
@@ -186,6 +235,12 @@ watch([debouncedKeyword, selectedDocType, selectedStatus, page, pageSize, sortDi
   
   if (newS !== 'ALL') query.status = newS
   else delete query.status
+
+  if (notificationTargetType.value) query.targetType = notificationTargetType.value
+  else delete query.targetType
+
+  if (notificationTargetId.value) query.targetId = notificationTargetId.value
+  else delete query.targetId
   
   if (newP > 1) query.page = newP
   else delete query.page
@@ -213,8 +268,19 @@ onMounted(() => {
 const allDocuments = computed(() =>
     documentPage.value.content
         .filter((doc) => !EXCLUDED_DOC_TYPES.has(String(doc?.docType || '').toUpperCase()))
+        .filter((doc) => matchesNotificationTarget(doc, notificationTargetType.value, notificationTargetId.value))
         .map(decorateDocument),
 )
+
+const activeNotificationFilterLabel = computed(() => {
+  const mappedDocType = TARGET_DOC_TYPE_MAP[String(notificationTargetType.value || '').toUpperCase()]
+  if (!mappedDocType || !notificationTargetId.value) {
+    return ''
+  }
+
+  const label = DOC_TYPE_META[mappedDocType]?.label || mappedDocType
+  return `${label} #${notificationTargetId.value}`
+})
 
 const docTypeOptions = [
   { value: 'ALL', label: '전체 문서 유형' },
@@ -302,6 +368,12 @@ const applyPageSize = (size) => {
   page.value = 1 // 페이지 크기 변경 시 1페이지로 리셋
 }
 
+const clearNotificationTargetFilter = () => {
+  notificationTargetType.value = ''
+  notificationTargetId.value = ''
+  page.value = 1
+}
+
 watch(() => route.query.documentId, (documentId) => {
   if (!documentId) return
   const matched = allDocuments.value.find((doc) => String(doc.docId) === String(documentId) || doc.surrogateId === String(documentId))
@@ -362,6 +434,22 @@ const statusBadgeStyle = (tone) => ({
             총 {{ totalElements }}건
           </p>
         </div>
+      </div>
+
+      <div
+          v-if="activeNotificationFilterLabel"
+          class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm"
+          style="border-color: #DDD7CE; background-color: #F7F3EC; color: #6B5F50;"
+      >
+        <span>알림 대상 문서 필터 적용 중: {{ activeNotificationFilterLabel }}</span>
+        <button
+            type="button"
+            class="rounded border px-3 py-1.5 text-xs font-semibold"
+            style="border-color: #DDD7CE; background-color: #FAF7F3; color: #3D3529;"
+            @click="clearNotificationTargetFilter"
+        >
+          필터 해제
+        </button>
       </div>
 
       <div
