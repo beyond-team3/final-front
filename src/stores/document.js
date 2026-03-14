@@ -31,6 +31,8 @@ import {
     getApprovedQuotations as getApprovedQuotationsApi,
     getRejectedQuotationRequests as getRejectedQuotationRequestsApi,
     getRejectedQuotations as getRejectedQuotationsApi,
+    getRejectedQuotationsForContract as getRejectedQuotationsForContractApi,
+    getRejectedContracts as getRejectedContractsApi,
     getDocumentSummaries,
 } from '@/api/document'
 import { getClients } from '@/api/client'
@@ -40,23 +42,27 @@ import { useHistoryStore } from '@/stores/history'
 import { ROLES } from '@/utils/constants'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
-    const backendMessage = error?.response?.data?.message
+    // 1. 백엔드 에러 메시지 (ErrorType.message)
+    const backendMessage = error?.response?.data?.error?.message || error?.response?.data?.message
+    // 2. 백엔드 상세 메시지 (ErrorType.data) - 400 에러 시 구체적 원인이 담김
+    const detailMessage = error?.response?.data?.error?.data || error?.response?.data?.data
+    
+    if (backendMessage && detailMessage) return `${backendMessage} (${detailMessage})`
     if (backendMessage) return backendMessage
 
     if (error?.response?.status === 400) {
-        return '필수 정보가 누락되었습니다. 입력 내용을 다시 확인해 주세요.'
+        return '필수 정보가 누락되었거나 데이터가 유효하지 않습니다. 입력 내용을 다시 확인해 주세요.'
     }
     return error?.message || fallback
 }
 
 function normalizeList(data) {
-    if (!data) return []
-    if (Array.isArray(data)) return data
-    if (data.result === 'SUCCESS' && Array.isArray(data.data)) return data.data
-    const actualData = data.data !== undefined ? data.data : data
-    if (Array.isArray(actualData)) return actualData
-    if (Array.isArray(actualData?.documents)) return actualData.documents
-    if (Array.isArray(actualData?.items)) return actualData.items
+    const unwrapped = unwrapData(data)
+    if (!unwrapped) return []
+    if (Array.isArray(unwrapped)) return unwrapped
+    if (unwrapped.content && Array.isArray(unwrapped.content)) return unwrapped.content
+    if (unwrapped.documents && Array.isArray(unwrapped.documents)) return unwrapped.documents
+    if (unwrapped.items && Array.isArray(unwrapped.items)) return unwrapped.items
     return []
 }
 
@@ -113,31 +119,36 @@ const normalizeClient = (doc = {}) => {
 const normalizeDocument = (doc = {}) => {
     if (!doc) return null
 
-    // 💡 백엔드 필드(docType, docId) -> 프론트엔드 표준 필드(type, id) 매핑 및 정규화
-    let type = String(doc.type || doc.docType || '').trim().toLowerCase()
+    // 1. 문서 코드 통합 추출 (백엔드 필드명 다양성 대응)
     const id = doc.id || doc.docId || null
+    const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || ''
 
-    // 타입 코드 정규화 (backend RFQ -> front 표준 코드)
+    // 2. 타입 식별 및 정규화
+    let type = String(doc.type || doc.docType || '').trim().toLowerCase()
     let docType = ''
-    if (['rfq', 'quotation-request', 'quotationrequest'].includes(type) || String(doc.docCode || '').startsWith('RFQ')) {
+
+    if (['rfq', 'quotation-request', 'quotationrequest'].includes(type) || String(docCode).startsWith('RFQ')) {
         docType = 'RFQ'
         type = 'quotation-request'
-    } else if (['quo', 'quotation'].includes(type) || String(doc.docCode || '').startsWith('QUO')) {
+    } else if (['quo', 'quotation'].includes(type) || String(docCode).startsWith('QUO')) {
         docType = 'QUO'
         type = 'quotation'
-    } else if (['cnt', 'contract'].includes(type) || String(doc.docCode || '').startsWith('CNT')) {
+    } else if (['cnt', 'contract'].includes(type) || String(docCode).startsWith('CNT')) {
         docType = 'CNT'
         type = 'contract'
-    } else if (['ord', 'order'].includes(type) || String(doc.docCode || '').startsWith('ORD')) {
+    } else if (['ord', 'order'].includes(type) || String(docCode).startsWith('ORD')) {
         docType = 'ORD'
         type = 'order'
-    } else if (['stmt', 'statement'].includes(type) || String(doc.docCode || '').startsWith('STMT')) {
+    } else if (['stmt', 'statement'].includes(type) || String(docCode).startsWith('STMT')) {
         docType = 'STMT'
         type = 'statement'
-    } else if (['inv', 'invoice'].includes(type) || String(doc.docCode || '').startsWith('INV')) {
+    } else if (['inv', 'invoice'].includes(type) || String(docCode).startsWith('INV')) {
         docType = 'INV'
         type = 'invoice'
     }
+
+    // 임시 코드 여부 확인
+    const isTemp = String(docCode || id || '').includes('temp-')
 
     // 품목(items) 표준화: productName -> name, productCategory -> variety 등
     const items = (Array.isArray(doc.items) ? doc.items : []).map(item => ({
@@ -159,9 +170,6 @@ const normalizeDocument = (doc = {}) => {
     else if (billingCycle === 'QUARTERLY') billingCycle = '분기'
     else if (billingCycle === 'HALF_YEARLY') billingCycle = '반기'
 
-    const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || ''
-    const isTemp = String(docCode || id || '').includes('temp-')
-
     return {
         ...doc,
         id,
@@ -169,7 +177,7 @@ const normalizeDocument = (doc = {}) => {
         docType,
         billingCycle,
         // 표시용 코드 (docCode가 없으면 displayCode라도 id 기반으로 생성)
-        displayCode: doc.displayCode || doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || String(id || ''),
+        displayCode: doc.displayCode || docCode || String(id || ''),
         docCode: isTemp ? '' : (docCode || String(id || '')),
         client: normalizeClient(doc),
         items,
@@ -235,6 +243,8 @@ export const useDocumentStore = defineStore('document', () => {
     const rejectedQuotationRequests = ref([])
     const approvedQuotations = ref([])
     const rejectedQuotations = ref([])
+    const rejectedQuotationsForContract = ref([])
+    const rejectedContracts = ref([])
     const statements = ref([])
 
     const quotationRequests = computed(() => {
@@ -685,6 +695,38 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchRejectedQuotationsForContract() {
+        try {
+            const response = await getRejectedQuotationsForContractApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'quotation'
+            }))
+            rejectedQuotationsForContract.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('계약용 반려 견적서 로드 실패:', e)
+            return []
+        }
+    }
+
+    async function fetchRejectedContracts() {
+        try {
+            const response = await getRejectedContractsApi()
+            const data = normalizeList(response)
+            const normalizedList = data.map(doc => normalizeDocument({
+                ...doc,
+                type: 'contract'
+            }))
+            rejectedContracts.value = normalizedList
+            return normalizedList
+        } catch (e) {
+            console.error('반려된 계약서 로드 실패:', e)
+            return []
+        }
+    }
+
     async function fetchStatements() {
         try {
             const data = await getStatements()
@@ -888,15 +930,15 @@ export const useDocumentStore = defineStore('document', () => {
 
         const payload = {
             requestId: requestId ? Number(requestId) : null,
-            clientId: Number(client.id),
+            clientId: Number(client?.id || 0),
             memo: memo || '',
             items: lineItems.map(item => ({
                 productId: item.productId,
                 productName: (item.productName || item.name || '상품명 없음').trim(),
                 productCategory: (item.productCategory || item.category || item.variety || '기타').trim(),
-                quantity: Math.max(1, Number(item.quantity || 1)),
+                quantity: Math.max(1, Number(item.quantity || item.count || 1)),
                 unit: item.unit || '-',
-                unitPrice: Number(item.unitPrice || 0)
+                unitPrice: Number(item.unitPrice || item.price || 0)
             }))
         }
 
@@ -1346,6 +1388,10 @@ export const useDocumentStore = defineStore('document', () => {
         fetchApprovedQuotations,
         rejectedQuotations,
         fetchRejectedQuotations,
+        rejectedQuotationsForContract,
+        fetchRejectedQuotationsForContract,
+        rejectedContracts,
+        fetchRejectedContracts,
         fetchQuotationDetail,
         fetchContractDetail,
         fetchOrderDetail,
