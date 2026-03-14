@@ -150,3 +150,7 @@ export function deleteQuotation(id) {
 export function deleteContract(id) {
     return api.delete(`contracts/${id}`)
 }
+
+export function getMyInvoices() {
+    return api.get('invoices/my')
+}
