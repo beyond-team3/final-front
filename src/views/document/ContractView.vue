@@ -374,7 +374,7 @@ const removeItem = (uid) => {
 }
 
 // --- 계산 속성 ---
-const isFieldLocked = computed(() => isViewMode.value || !isNewMode.value)
+const isFieldLocked = computed(() => isViewMode.value)
 
 const filteredClients = computed(() => {
   const master = documentStore.clientMaster || []
@@ -485,7 +485,7 @@ const submitContract = async () => {
                   style="background-color: #C8622A !important;"
                   @click="showCorpModal = true"
               >
-                거래처 선택
+                거래처 변경
               </button>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
