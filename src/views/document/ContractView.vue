@@ -20,6 +20,7 @@ const authStore = useAuthStore()
 const isProcessStarted = ref(false)
 const isNewMode = ref(false)
 const isViewMode = ref(false) // 상세 조회 모드 여부
+const isSubmitting = ref(false)
 const showStartModal = ref(false)
 const showCorpModal = ref(false)
 const showProductModal = ref(false)
@@ -171,9 +172,15 @@ const startContractFromPrefill = async (quotationId) => {
   }))
 }
 
-const copyRejectedContract = async (c) => {
+const startFromRejectedContract = async (rawContractId) => {
+  const sourceContractId = rawContractId ? Number(rawContractId) : null
+  if (!sourceContractId || Number.isNaN(sourceContractId)) {
+    window.alert('재작성할 계약서 ID가 유효하지 않습니다.')
+    return
+  }
+
   try {
-    const response = await api.get('/contracts/prefill', { params: { contractId: c.id } })
+    const response = await api.get('/contracts/prefill', { params: { contractId: sourceContractId } })
     const prefill = response?.data ?? response
 
     if (!prefill) {
@@ -187,7 +194,7 @@ const copyRejectedContract = async (c) => {
 
     sourceQuotationId.value = prefill.quotationId || null
     sourceHistoryId.value = prefill.historyId || null
-    reviseSourceContractId.value = c.id || null
+    reviseSourceContractId.value = sourceContractId
 
     conInCorpCode.value = prefill.clientId || prefill.client?.id || ''
     conInCorp.value = prefill.clientName || prefill.client?.name || ''
@@ -213,6 +220,10 @@ const copyRejectedContract = async (c) => {
   }
 }
 
+const copyRejectedContract = async (c) => {
+  await startFromRejectedContract(c.id || c.contractId || null)
+}
+
 onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
   try {
@@ -224,7 +235,9 @@ onMounted(async () => {
     }
 
     if (route.query.rewrite === 'true') {
-      if (route.query.quotationId) {
+      if (route.query.contractId) {
+        await startFromRejectedContract(route.query.contractId)
+      } else if (route.query.quotationId) {
         await startContractFromPrefill(route.query.quotationId)
       } else {
         startNewContract()
@@ -247,10 +260,6 @@ onMounted(async () => {
     console.error("데이터 로딩 중 에러 발생:", e)
   }
 
-  if (route.query.quotationId) {
-    const q = documentStore.quotations?.find(item => item.id === route.query.quotationId)
-    if (q) startContract(q)
-  }
 })
 
 onUnmounted(() => {
@@ -426,14 +435,27 @@ const todayFormatted = computed(() => {
   return `${now.getFullYear()}년 ${String(now.getMonth() + 1).padStart(2, '0')}월 ${String(now.getDate()).padStart(2, '0')}일`
 })
 
+const normalizedSourceQuotationId = computed(() => {
+  const raw = sourceQuotationId.value
+  if (raw === null || raw === undefined || raw === '') {
+    return null
+  }
+
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+})
+
+const isQuotationBasedMode = computed(() => !isNewMode.value && !!normalizedSourceQuotationId.value)
+
 const submitContract = async () => {
-  if (isViewMode.value) return
+  if (isViewMode.value || isSubmitting.value) return
   if (!conInCorp.value) return window.alert("거래처 정보가 빠져있습니다.")
   if (selectedItems.value.length === 0) return window.alert("계약할 상품을 하나라도 추가해주세요")
 
+  isSubmitting.value = true
   try {
     const result = await documentStore.createContract({
-      quotationId: isNewMode.value ? null : sourceQuotationId.value,
+      quotationId: isQuotationBasedMode.value ? normalizedSourceQuotationId.value : null,
       client: {
         id: conInCorpCode.value,
         name: conInCorp.value,
@@ -469,6 +491,8 @@ const submitContract = async () => {
     console.error("서버 저장 에러:", error);
     // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
     window.alert(documentStore.error || "계약서 저장 중 오류가 발생했습니다.");
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -623,11 +647,12 @@ const submitContract = async () => {
           <button
               v-if="!isViewMode"
               type="button"
-              class="w-full py-4 rounded-lg font-bold text-lg text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
+              class="w-full py-4 rounded-lg font-bold text-lg text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               style="background-color: #7A8C42 !important;"
+              :disabled="isSubmitting"
               @click="submitContract"
           >
-            계약 체결 및 승인 요청
+            {{ isSubmitting ? '계약 저장 중...' : '계약 체결 및 승인 요청' }}
           </button>
         </div>
 

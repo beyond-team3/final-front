@@ -248,15 +248,31 @@ const rewriteSourceId = computed(() => {
 
   return null
 })
-const isRejectedDocument = computed(() => {
+const isRewritableQuotation = computed(() => {
+  if (!isQuotationDocument.value) {
+    return false
+  }
+
+  const rawStatus = String(docDetail.value?.status || '').trim().toUpperCase()
+  return ['REJECTED_ADMIN', 'REJECTED_CLIENT', 'EXPIRED'].includes(rawStatus)
+})
+
+const isRewritableContract = computed(() => {
+  if (!isContractDocument.value) {
+    return false
+  }
+
   const rawStatus = String(docDetail.value?.status || '').trim().toUpperCase()
   return rawStatus.includes('REJECT') || rawStatus.includes('반려') || Boolean(displayedRejectReason.value)
 })
+
 const showRewriteButton = computed(() => (
-  isRejectedDocument.value
-  && authStore.currentRole === ROLES.SALES_REP
+  authStore.currentRole === ROLES.SALES_REP
   && isAuthor.value
-  && (showQuotationCancelButton.value || showContractDeleteButton.value)
+  && (
+    (isRewritableQuotation.value && showQuotationCancelButton.value)
+    || (isRewritableContract.value && showContractDeleteButton.value)
+  )
 ))
 
 const orderStatus = computed(() => normalizeOrderStatus(docDetail.value?.status))
@@ -272,40 +288,24 @@ const handleDelete = () => {
 const handleRewrite = async () => {
   try {
     if (isQuotationDocument.value) {
-      const latestDetail = await documentStore.fetchQuotationDetail(props.docId)
-      const sourceId = latestDetail?.requestId || latestDetail?.quotationRequestId || null
-
-      const deleted = await documentStore.deleteDocument(props.docId, props.docType)
-      if (!deleted) {
-        return
-      }
-
       close()
       await router.push({
         path: '/documents/quotation',
         query: {
           rewrite: 'true',
-          ...(sourceId ? { requestId: String(sourceId) } : {}),
+          quotationId: String(props.docId),
         },
       })
       return
     }
 
     if (isContractDocument.value) {
-      const latestDetail = await documentStore.fetchContractDetail(props.docId)
-      const sourceId = latestDetail?.quotationId || null
-
-      const deleted = await documentStore.deleteContract(props.docId)
-      if (!deleted) {
-        return
-      }
-
       close()
       await router.push({
         path: '/documents/contract',
         query: {
           rewrite: 'true',
-          ...(sourceId ? { quotationId: String(sourceId) } : {}),
+          contractId: String(props.docId),
         },
       })
     }

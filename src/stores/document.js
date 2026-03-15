@@ -124,7 +124,16 @@ const normalizeDocument = (doc = {}) => {
     if (!doc) return null
 
     // 1. 문서 코드 통합 추출 (백엔드 필드명 다양성 대응)
-    const id = doc.id || doc.docId || doc.statementId || doc.invoiceId || doc.orderId || null
+    const id = doc.id
+        || doc.docId
+        || doc.requestId
+        || doc.quotationId
+        || doc.contractId
+        || doc.orderId
+        || doc.statementId
+        || doc.invoiceId
+        || doc.paymentId
+        || null
     const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.statementCode || doc.invoiceCode || ''
 
     // 2. 타입 식별 및 정규화
@@ -1005,8 +1014,8 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         try {
-            const shouldUseV2Revise = useQuotationV2() && reviseFromQuotationId
-            const response = shouldUseV2Revise
+            const shouldUseQuotationRevise = Boolean(reviseFromQuotationId)
+            const response = shouldUseQuotationRevise
                 ? await reviseQuotationApi(reviseFromQuotationId, {
                     clientId: Number(client?.id || 0),
                     memo: memo || '',
@@ -1081,10 +1090,27 @@ export const useDocumentStore = defineStore('document', () => {
     const createContract = async ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, memo, historyId, reviseFromContractId = null }) => {
         const id = makeId('CT')
         const lineItems = (items || []).map(withAmount)
+        const normalizedQuotationId = (() => {
+            if (quotationId === null || quotationId === undefined || quotationId === '') {
+                return null
+            }
+
+            const parsed = Number(quotationId)
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+        })()
+        const normalizedSourceContractId = (() => {
+            if (reviseFromContractId === null || reviseFromContractId === undefined || reviseFromContractId === '') {
+                return null
+            }
+
+            const parsed = Number(reviseFromContractId)
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+        })()
         const next = normalizeDocument({
             id,
             type: 'contract',
-            quotationId,
+            quotationId: normalizedSourceContractId ? null : normalizedQuotationId,
+            contractId: normalizedSourceContractId,
             clientId: client.id,
             client,
             authorId: authStore.me?.id || authStore.me?.refId,
@@ -1103,8 +1129,6 @@ export const useDocumentStore = defineStore('document', () => {
         })
 
         const payload = {
-            quotationId: Number(quotationId),
-            dealId: historyId ? Number(historyId) : null,
             clientId: Number(client.id),
             startDate,
             endDate,
@@ -1121,11 +1145,16 @@ export const useDocumentStore = defineStore('document', () => {
             }))
         }
 
+        if (normalizedQuotationId) {
+            payload.quotationId = normalizedQuotationId
+        } else if (historyId) {
+            payload.dealId = Number(historyId)
+        }
+
         try {
-            const shouldUseV2Revise = useContractV2() && reviseFromContractId
-            const response = shouldUseV2Revise
-                ? await reviseContractApi(reviseFromContractId, {
-                    clientId: Number(client.id),
+            const shouldUseContractRewrite = Boolean(normalizedSourceContractId)
+            const response = shouldUseContractRewrite
+                ? await reviseContractApi(normalizedSourceContractId, {
                     startDate,
                     endDate,
                     billingCycle: payload.billingCycle,

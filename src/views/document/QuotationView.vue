@@ -113,7 +113,15 @@ onMounted(async () => {
     }
 
     if (route.query.rewrite === 'true') {
-      if (route.query.requestId) {
+      if (route.query.quotationId) {
+        const rejectedQuotation = await documentStore.fetchQuotationDetail(route.query.quotationId)
+        if (rejectedQuotation) {
+          startFromRejectedQuotation(rejectedQuotation)
+        } else {
+          window.alert('재작성할 견적서 정보를 불러오지 못했습니다.')
+          router.push('/documents/all')
+        }
+      } else if (route.query.requestId) {
         await startFromRequest({ id: route.query.requestId })
       } else {
         startNewQuotation()
@@ -224,10 +232,12 @@ const startFromRejectedQuotation = (quo) => {
   isNewMode.value = false
   showStartModal.value = false
 
+  const sourceQuotationId = quo.id || quo.quotationId || null
+
   // 원본이 견적 요청서 기반인지 확인
   sourceRequestId.value = quo.requestId || null
   sourceHistoryId.value = quo.historyId || null
-  reviseSourceQuotationId.value = quo.id || null
+  reviseSourceQuotationId.value = sourceQuotationId
 
   selectedClientId.value = quo.clientId
   inCorpCode.value = quo.client?.code || quo.clientId || ''
@@ -241,11 +251,11 @@ const startFromRejectedQuotation = (quo) => {
   selectedItems.value = (quo.items || []).map(i => ({
     uid: Date.now() + Math.random(),
     productId: i.productId,
-    variety: i.variety,
-    name: i.name,
-    count: i.quantity,
+    variety: PRODUCT_CATEGORY[i.variety || i.productCategory] || (i.variety || i.productCategory || '-'),
+    name: i.name || i.productName,
+    count: i.quantity || i.count,
     unit: i.unit,
-    price: i.unitPrice
+    price: i.unitPrice || i.price
   }))
 }
 
