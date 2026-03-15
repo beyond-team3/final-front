@@ -38,19 +38,19 @@ const props = defineProps({
 const emit = defineEmits(['retry', 'select-client'])
 
 const failedImageMap = ref({})
+const rawClients = computed(() => (Array.isArray(props.clients) ? props.clients : []))
 
 const visibleClients = computed(() => (
-  Array.isArray(props.clients)
-    ? props.clients
-      .map((client) => ({
-        ...client,
-        crops: Array.isArray(client?.crops)
-          ? client.crops.filter((crop) => Array.isArray(crop?.matchedProducts) && crop.matchedProducts.length > 0)
-          : [],
-      }))
-      .filter((client) => client.crops.length > 0)
-    : []
+  rawClients.value
+    .map((client) => ({
+      ...client,
+      crops: Array.isArray(client?.crops)
+        ? client.crops.filter((crop) => Array.isArray(crop?.matchedProducts) && crop.matchedProducts.length > 0)
+        : [],
+    }))
+    .filter((client) => client.crops.length > 0)
 ))
+const hasFilteredOutContent = computed(() => rawClients.value.length > 0 && visibleClients.value.length === 0)
 
 const markImageFailed = (productId) => {
   if (productId == null) {
@@ -97,6 +97,10 @@ watch(
         retry-label="수확 임박 다시 시도"
         @retry="emit('retry')"
       />
+
+      <div v-else-if="hasFilteredOutContent" class="section-feedback is-muted">
+        수확 임박 대상 거래처는 조회됐지만, 표시할 매칭 품종이 없어 목록이 비어 있습니다.
+      </div>
 
       <EmptyState
         v-else-if="visibleClients.length === 0"

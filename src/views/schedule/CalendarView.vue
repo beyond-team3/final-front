@@ -7,8 +7,6 @@ import { getCalendarRecommendations, getHarvestImminentProducts } from '@/api/pr
 import HarvestImminentSection from '@/components/schedule/HarvestImminentSection.vue'
 import RecommendedVarietiesCarousel from '@/components/schedule/RecommendedVarietiesCarousel.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useNotificationStore } from '@/stores/notification'
-import { syncHarvestSchedulesForSalesRep } from '@/services/GrowingSeasonService'
 import { ROLES } from '@/utils/constants'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -22,7 +20,6 @@ const getErrorMessage = (error, fallback) => error?.response?.data?.error?.messa
   || fallback
 
 const authStore = useAuthStore()
-const notificationStore = useNotificationStore()
 const router = useRouter()
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
@@ -707,7 +704,6 @@ const prevMonth = async () => {
   await Promise.all([
     loadSchedules(),
     loadCalendarSections(),
-    loadHarvestSchedules(),
   ])
 }
 
@@ -716,34 +712,7 @@ const nextMonth = async () => {
   await Promise.all([
     loadSchedules(),
     loadCalendarSections(),
-    loadHarvestSchedules(),
   ])
-}
-
-const loadHarvestSchedules = async () => {
-  if (!isSalesRep.value) {
-    return
-  }
-
-  const salesRepUserId = authStore.me?.id
-  const salesRepEmployeeId = authStore.me?.refId
-
-  if (!salesRepUserId || !salesRepEmployeeId) {
-    return
-  }
-
-  try {
-    const result = await syncHarvestSchedulesForSalesRep({
-      salesRepUserId,
-      salesRepEmployeeId,
-      salesRepName: authStore.me?.name || '',
-      currentDate: viewDate.value,
-    })
-
-    notificationStore.mergeNotifications(ROLES.SALES_REP, result.notifications || [])
-  } catch (error) {
-    // Keep calendar sections isolated from schedule sync failures.
-  }
 }
 
 watch(
@@ -758,7 +727,6 @@ onMounted(async () => {
   await Promise.all([
     loadSchedules(),
     loadCalendarSections(),
-    loadHarvestSchedules(),
   ])
 })
 
