@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
-import { getInvoices, getContractsByClient } from '@/api/document'
+import { getInvoices, getContractsByClient, createInvoice } from '@/api/document'
 
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -83,6 +83,7 @@ function goToInvoiceDetail(invoice) {
 
 // ─── 신규 청구서 모달 ────────────────────────────────────────────
 const showModal                  = ref(false)
+const isCreatingInvoice          = ref(false)  // 계약 선택 후 DRAFT 생성 중
 const modalStep                  = ref(1)
 const clientSearch               = ref('')
 const selectedClient             = ref(null)
@@ -122,7 +123,18 @@ async function selectClient(client) {
   try {
     const res = await getContractsByClient(client.id)
     const raw = res?.data?.data ?? res?.data ?? []
-    contractsForSelectedClient.value = Array.isArray(raw) ? raw : []
+    const list = Array.isArray(raw) ? raw : []
+
+    // ✅ 계약 목록 로드 시점에 발행 가능 여부 미리 계산
+    // contract.id / contract.cntId / contract.contractId 모두 대응
+    contractsForSelectedClient.value = list.map(c => {
+      const cid = String(c.cntId ?? c.id ?? c.contractId ?? '')
+      const hasActive = invoices.value.some(inv =>
+          String(inv.contractId) === cid &&
+          (inv.status === 'DRAFT' || inv.status === 'PUBLISHED')
+      )
+      return { ...c, _cid: cid, _hasActive: hasActive }
+    })
   } catch (e) {
     console.error('[InvoiceListView] getContractsByClient error:', e)
     contractsForSelectedClient.value = []
@@ -131,15 +143,47 @@ async function selectClient(client) {
   }
 }
 
-function selectContract(contract) {
-  const hasActive = invoices.value.some(inv =>
-      String(inv.contractId) === String(contract.id) &&
-      (inv.status === 'DRAFT' || inv.status === 'PUBLISHED')
-  )
-  if (hasActive) { alreadyIssuedContractId.value = contract.id; return }
+async function selectContract(contract) {
+  if (contract._hasActive) {
+    alreadyIssuedContractId.value = contract._cid
+    return
+  }
   alreadyIssuedContractId.value = null
-  closeModal()
-  router.push(`/documents/invoice/new?contractId=${contract.id}&clientId=${selectedClient.value.id}`)
+
+  // ✅ 계약 선택 즉시 DRAFT 청구서 생성 → 생성된 invoiceId로 이동
+  isCreatingInvoice.value = true
+  try {
+    // startDate/endDate: 이번달 1일~말일 (백엔드 @NotNull 검증 통과)
+    const today = new Date()
+    const yyyy  = today.getFullYear()
+    const mm    = String(today.getMonth() + 1).padStart(2, '0')
+    const lastDay = new Date(yyyy, today.getMonth() + 1, 0).getDate()
+    const startDate = `${yyyy}-${mm}-01`
+    const endDate   = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`
+
+    const res = await createInvoice({
+      contractId: Number(contract._cid),
+      startDate,
+      endDate,
+      memo: null,
+    })
+    const created = res?.data?.data ?? res?.data ?? null
+    const newId   = created?.invoiceId ?? created?.id
+    if (!newId) throw new Error('invoiceId 없음')
+
+    closeModal()
+    router.push(
+        `/documents/invoice/new?mode=pending&id=${newId}` +
+        `&contractId=${contract._cid}` +
+        (selectedClient.value?.id ? `&clientId=${selectedClient.value.id}` : '')
+    )
+  } catch (e) {
+    console.error('[InvoiceListView] createInvoice error:', e)
+    const msg = e?.response?.data?.error?.message ?? '청구서 생성 중 오류가 발생했습니다.'
+    alert(msg)
+  } finally {
+    isCreatingInvoice.value = false
+  }
 }
 
 function nextIssueDateLabel(contract) {
@@ -332,38 +376,50 @@ function nextIssueDateLabel(contract) {
               </div>
 
               <div v-else class="flex flex-col gap-3">
-                <div v-for="contract in contractsForSelectedClient" :key="contract.id"
-                     class="cursor-pointer rounded border p-4 transition-all"
-                     :style="alreadyIssuedContractId === contract.id
-                       ? 'border-color:#B85C5C;background-color:#FAE8C8;cursor:not-allowed;'
+
+                <!-- 생성 중 로딩 -->
+                <div v-if="isCreatingInvoice"
+                     class="py-8 text-center text-sm font-semibold"
+                     style="color:#C8622A;">
+                  청구서를 생성하는 중입니다...
+                </div>
+
+                <template v-else>
+                  <div v-for="contract in contractsForSelectedClient" :key="contract._cid"
+                       class="rounded border p-4 transition-all"
+                       :class="contract._hasActive ? 'cursor-not-allowed' : 'cursor-pointer'"
+                       :style="contract._hasActive
+                       ? 'border-color:#B85C5C;background-color:#FAE8C8;'
                        : 'border-color:#DDD7CE;background-color:#FAF7F3;'"
-                     @mouseenter="alreadyIssuedContractId !== contract.id && ($event.currentTarget.style.backgroundColor='#EFEADF')"
-                     @mouseleave="alreadyIssuedContractId !== contract.id && ($event.currentTarget.style.backgroundColor='#FAF7F3')"
-                     @click="selectContract(contract)">
-                  <div class="flex items-start justify-between gap-2">
-                    <p class="text-sm font-bold" style="color:#3D3529;">
-                      {{ contract.contractCode || contract.code || `계약 #${contract.id}` }}
+                       @mouseenter="!contract._hasActive && ($event.currentTarget.style.backgroundColor='#EFEADF')"
+                       @mouseleave="!contract._hasActive && ($event.currentTarget.style.backgroundColor='#FAF7F3')"
+                       @click="selectContract(contract)">
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-sm font-bold" style="color:#3D3529;">
+                        {{ contract.contractCode || contract.code || `계약 #${contract._cid}` }}
+                      </p>
+                      <!-- ✅ 클릭 전에도 _hasActive 기반으로 즉시 표시 -->
+                      <span v-if="contract._hasActive"
+                            class="rounded-full px-2 py-0.5 text-xs font-bold"
+                            style="background-color:#B85C5C;color:white;">발행 불가</span>
+                      <span v-else class="rounded-full px-2 py-0.5 text-xs font-bold"
+                            style="background-color:#C8D4A0;color:#3D3529;">발행 가능</span>
+                    </div>
+                    <p v-if="contract._hasActive"
+                       class="mt-2 text-xs font-semibold" style="color:#B85C5C;">
+                      이미 발행 대기 또는 발행 완료된 청구서가 있어 신규 발행이 불가합니다.
                     </p>
-                    <span v-if="alreadyIssuedContractId === contract.id"
-                          class="rounded-full px-2 py-0.5 text-xs font-bold"
-                          style="background-color:#B85C5C;color:white;">이미 발행됨</span>
-                    <span v-else class="rounded-full px-2 py-0.5 text-xs font-bold"
-                          style="background-color:#C8D4A0;color:#3D3529;">발행 가능</span>
+                    <div v-else class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs" style="color:#9A8C7E;">
+                      <span>기간 {{ contract.startDate }} ~ {{ contract.endDate }}</span>
+                      <span>청구 주기 {{ contract.billingCycle }}</span>
+                      <span>다음 발행일 {{ nextIssueDateLabel(contract) }}</span>
+                    </div>
                   </div>
-                  <p v-if="alreadyIssuedContractId === contract.id"
-                     class="mt-2 text-xs font-semibold" style="color:#B85C5C;">
-                    이 계약에는 이미 발행 대기 또는 발행 완료된 청구서가 있어 신규 발행이 불가합니다.
-                  </p>
-                  <div v-else class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs" style="color:#9A8C7E;">
-                    <span>기간 {{ contract.startDate }} ~ {{ contract.endDate }}</span>
-                    <span>청구 주기 {{ contract.billingCycle }}</span>
-                    <span>다음 발행일 {{ nextIssueDateLabel(contract) }}</span>
+                  <div v-if="contractsForSelectedClient.length === 0"
+                       class="py-8 text-center text-sm" style="color:#BFB3A5;">
+                    이 거래처에 연결된 활성 계약이 없습니다.
                   </div>
-                </div>
-                <div v-if="contractsForSelectedClient.length === 0"
-                     class="py-8 text-center text-sm" style="color:#BFB3A5;">
-                  이 거래처에 연결된 활성 계약이 없습니다.
-                </div>
+                </template>
               </div>
             </template>
           </div>

@@ -1,16 +1,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
-import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
 import {
   getInvoiceDetail,
   getInvoice,
   toggleInvoiceStatement,
-  createInvoice as apiCreateInvoice,
   publishInvoice as apiPublishInvoice,
   cancelInvoice as apiCancelInvoice,
 } from '@/api/document'
@@ -26,6 +24,7 @@ const clientId   = ref(route.query.clientId   || null)
 const isLoadingInvoice      = ref(false)
 const isSubmitting          = ref(false)
 const showSuccess           = ref(false)
+const successMessage        = ref('')
 const showCancelModal       = ref(false)
 const cancelErrorMsg        = ref('')
 const remarks               = ref('')
@@ -123,7 +122,7 @@ onMounted(async () => {
   if (invoiceId.value) await loadInvoice(invoiceId.value)
 })
 
-// ─── 상태 ────────────────────────────────────────────────────────
+
 const invoiceStatus = computed(() => {
   const raw = String(invoice.value?.status ?? '').trim().toUpperCase()
   if (raw === 'PUBLISHED') return 'PUBLISHED'
@@ -144,8 +143,7 @@ const modeLabel = computed(() => {
 
 const canCreate = computed(() => {
   if (isSubmitting.value) return false
-  if (invoiceId.value)    return invoiceStatus.value === 'DRAFT'
-  return !!contractId.value
+  return !!invoiceId.value && invoiceStatus.value === 'DRAFT'
 })
 
 const canCancelInvoice = computed(() =>
@@ -169,10 +167,8 @@ const displayInvoiceDate = computed(() => {
   return new Date(d).toLocaleDateString('ko-KR')
 })
 
-// ─── 체크박스 ────────────────────────────────────────────────────
-// ✅ togglingIds를 ref(Set)로 관리할 때 Vue 반응성 주의
-//    → Set을 직접 변경하면 감지 안 됨. ref(new Set()) 재할당으로 처리
-const togglingIds = ref(new Set())
+// togglingIds: API 호출 중인 statementId 목록 — 배열로 관리 (Set은 Vue 반응성 추적 불안정)
+const togglingIds = ref([])
 
 const selectedStatements = computed(() => statements.value.filter(s => s._checked))
 const allSelected = computed(() =>
@@ -185,30 +181,30 @@ const isIndeterminate = computed(() => {
 
 async function toggleStatement(stmtId, checked) {
   const numId = Number(stmtId)
-  if (togglingIds.value.has(numId)) return
+  if (togglingIds.value.includes(numId)) return
 
-  const stmt = statements.value.find(s => s.id === numId)
-  if (!stmt) return
+  const idx = statements.value.findIndex(s => s.id === numId)
+  if (idx === -1) return
 
-  // Optimistic update
-  stmt._checked = checked
+  // Optimistic update — 배열 통째 교체로 Vue 반응성 보장
+  statements.value = statements.value.map(s =>
+      s.id === numId ? { ...s, _checked: checked } : s
+  )
 
   if (!invoiceId.value) return   // 신규 발행 중 → API 불필요
 
-  // ✅ Set 재할당으로 반응성 트리거
-  togglingIds.value = new Set([...togglingIds.value, numId])
+  togglingIds.value = [...togglingIds.value, numId]
   try {
-    // PATCH /invoices/{invoiceId}/statements/{statementId}/toggle
     const res = await toggleInvoiceStatement(invoiceId.value, numId)
-
-    // ✅ 응답(InvoiceDetailResponse)으로 statements 재동기화
     const responseData = res?.data?.data ?? res?.data ?? null
     if (responseData?.statements) {
       statements.value = parseStatements(responseData)
     }
   } catch (e) {
     // 롤백
-    stmt._checked = !checked
+    statements.value = statements.value.map(s =>
+        s.id === numId ? { ...s, _checked: !checked } : s
+    )
     console.error('[InvoiceView] toggle error:', e)
     if (e?.response?.status === 403 || e?.response?.status === 401) {
       showAccessDeniedModal.value = true
@@ -216,17 +212,59 @@ async function toggleStatement(stmtId, checked) {
       alert('명세서 포함/제외 처리 중 오류가 발생했습니다.')
     }
   } finally {
-    const next = new Set(togglingIds.value)
-    next.delete(numId)
-    togglingIds.value = next
+    togglingIds.value = togglingIds.value.filter(id => id !== numId)
   }
 }
 
 async function toggleAll(checked) {
-  for (const s of statements.value) {
-    await toggleStatement(s.id, checked)
+  const targets = statements.value.filter(s => s._checked !== checked)
+  if (targets.length === 0) return
+
+  // 1. UI 먼저 일괄 업데이트
+  statements.value = statements.value.map(s =>
+      targets.some(t => t.id === s.id) ? { ...s, _checked: checked } : s
+  )
+
+  if (!invoiceId.value) return  // 신규 발행 중 → API 불필요
+
+  // 2. API 병렬 호출
+  const results = await Promise.allSettled(
+      targets.map(s => toggleInvoiceStatement(invoiceId.value, s.id))
+  )
+
+  // 3. 실패한 것만 롤백
+  const failedIds = targets
+      .filter((_, i) => results[i].status === 'rejected')
+      .map(s => s.id)
+
+  if (failedIds.length > 0) {
+    statements.value = statements.value.map(s =>
+        failedIds.includes(s.id) ? { ...s, _checked: !checked } : s
+    )
+    alert(`${failedIds.length}건 처리 중 오류가 발생했습니다.`)
+    return
+  }
+
+  // 4. 마지막 성공 응답으로 서버 기준 재동기화
+  const lastSuccess = results.findLast(r => r.status === 'fulfilled')
+  const responseData = lastSuccess?.value?.data?.data ?? lastSuccess?.value?.data ?? null
+  if (responseData?.statements) {
+    statements.value = parseStatements(responseData)
   }
 }
+
+// ─── 뒤로가기/이탈 시 DRAFT 자동 취소 ──────────────────────────
+onBeforeRouteLeave(async (to, from, next) => {
+  // 발행 성공 후 이탈이면 취소 안 함
+  if (invoiceId.value && invoiceStatus.value === 'DRAFT' && !showSuccess.value) {
+    try {
+      await apiCancelInvoice(invoiceId.value)
+    } catch (e) {
+      console.error('[InvoiceView] auto cancel on leave error:', e)
+    }
+  }
+  next()
+})
 
 // ─── 금액 계산 ────────────────────────────────────────────────
 const supplyAmount = computed(() => selectedStatements.value.reduce((sum, s) => sum + s.supply, 0))
@@ -258,31 +296,6 @@ const invNo = computed(() =>
     `CINV-${today.toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*9000)+1000}`
 )
 
-// ─── 청구서 생성 ─────────────────────────────────────────────
-async function handleCreateInvoice() {
-  if (!contractId.value) { alert('계약 정보를 확인할 수 없습니다.'); return }
-  isSubmitting.value = true
-  try {
-    const res     = await apiCreateInvoice({ contractId: Number(contractId.value), startDate: null, endDate: null, memo: remarks.value || null })
-    const created = res?.data?.data ?? res?.data ?? res
-    const newId   = created?.invoiceId ?? created?.id
-    if (newId) {
-      invoiceId.value = String(newId)
-      await loadInvoice(newId)
-    }
-    showSuccess.value = true
-  } catch (e) {
-    console.error('[InvoiceView] createInvoice error:', e)
-    if (e?.response?.status === 403 || e?.response?.status === 401) {
-      showAccessDeniedModal.value = true
-    } else {
-      alert(e?.response?.data?.message || '청구서 생성 중 오류가 발생했습니다.')
-    }
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
 // ─── 발행 확정 ───────────────────────────────────────────────
 async function handlePublishInvoice() {
   if (!invoiceId.value) return
@@ -290,6 +303,7 @@ async function handlePublishInvoice() {
   try {
     await apiPublishInvoice(invoiceId.value)
     await loadInvoice(invoiceId.value)
+    successMessage.value = '청구서가 발행 완료되었습니다'
     showSuccess.value = true
   } catch (e) {
     console.error('[InvoiceView] publishInvoice error:', e)
@@ -304,15 +318,12 @@ async function handlePublishInvoice() {
 }
 
 function onActionButton() {
-  if (invoiceId.value && invoiceStatus.value === 'DRAFT') handlePublishInvoice()
-  else handleCreateInvoice()
+  handlePublishInvoice()
 }
 
-const actionButtonLabel = computed(() => {
-  if (isSubmitting.value) return '처리 중...'
-  if (invoiceId.value && invoiceStatus.value === 'DRAFT') return '청구서 발행 확정'
-  return '청구서 생성 (발행 대기)'
-})
+const actionButtonLabel = computed(() =>
+    isSubmitting.value ? '처리 중...' : '청구서 발행 확정'
+)
 
 // ─── 청구서 취소 ─────────────────────────────────────────────
 async function confirmInvoiceCancel() {
@@ -412,12 +423,14 @@ function onAccessDeniedConfirm() {
                          style="background-color:#EFEADF;color:#6B5F50;">
                   <tr>
                     <th class="w-10 px-4 py-2.5">
-                      <CedarCheckbox
+                      <input
+                          type="checkbox"
                           aria-label="명세서 전체 선택"
                           :disabled="isReadOnly || statements.length === 0"
-                          :model-value="allSelected"
-                          :indeterminate="isIndeterminate"
-                          @update:model-value="toggleAll"
+                          :checked="allSelected"
+                          :ref="el => { if (el) el.indeterminate = isIndeterminate }"
+                          style="width:16px;height:16px;cursor:pointer;accent-color:#C8622A;"
+                          @change="toggleAll($event.target.checked)"
                       />
                     </th>
                     <th class="px-4 py-2.5">명세서 번호</th>
@@ -431,12 +444,14 @@ function onAccessDeniedConfirm() {
                   <tr v-for="stmt in statements" :key="stmt.id"
                       class="border-t" style="border-color:#E8E3D8;">
                     <td class="px-4 py-3">
-                      <!-- ✅ togglingIds.has() 반응성: Set 재할당으로 처리 -->
-                      <CedarCheckbox
+                      <input
+                          type="checkbox"
                           :aria-label="`${stmt.statementCode} 선택`"
-                          :disabled="isReadOnly || togglingIds.has(stmt.id)"
-                          :model-value="stmt._checked"
-                          @update:model-value="(checked) => toggleStatement(stmt.id, checked)"
+                          :disabled="isReadOnly || togglingIds.includes(stmt.id)"
+                          :checked="stmt._checked"
+                          style="width:16px;height:16px;cursor:pointer;accent-color:#C8622A;"
+                          :style="(isReadOnly || togglingIds.includes(stmt.id)) ? 'cursor:not-allowed;opacity:0.5;' : ''"
+                          @change="toggleStatement(stmt.id, $event.target.checked)"
                       />
                     </td>
                     <td class="px-4 py-3">
@@ -700,7 +715,7 @@ function onAccessDeniedConfirm() {
         <div class="rounded-lg border px-12 py-10 text-center shadow-2xl"
              style="background-color:#F7F3EC;border-color:#DDD7CE;">
           <p class="text-xl font-extrabold" style="color:#3D3529;">
-            {{ invoiceId && invoiceStatus==='PUBLISHED' ? '청구서가 발행 완료되었습니다' : '청구서가 발행 대기로 저장되었습니다' }}
+            {{ successMessage }}
           </p>
           <p class="mt-2 text-sm" style="color:#9A8C7E;">
             {{ selectedStatements.length }}건의 명세서가 처리되었습니다.<br>
