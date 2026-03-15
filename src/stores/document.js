@@ -34,9 +34,12 @@ import {
     getRejectedQuotationsForContract as getRejectedQuotationsForContractApi,
     getRejectedContracts as getRejectedContractsApi,
     getDocumentSummaries,
+    reviseContract as reviseContractApi,
+    reviseQuotation as reviseQuotationApi,
 } from '@/api/document'
 import { getClients } from '@/api/client'
 import { getProducts, getProductsForContract, getProductsForQuotationRequest } from '@/api/product'
+import { useContractV2, useQuotationV2 } from '@/config/featureFlags'
 import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
 import { ROLES } from '@/utils/constants'
@@ -908,7 +911,7 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const createQuotation = async ({ requestId, client, items, memo, historyId }) => {
+    const createQuotation = async ({ requestId, client, items, memo, historyId, reviseFromQuotationId = null }) => {
         const id = makeId('QT')
         const lineItems = (items || []).map(withAmount)
         const next = normalizeDocument({
@@ -930,6 +933,7 @@ export const useDocumentStore = defineStore('document', () => {
 
         const payload = {
             requestId: requestId ? Number(requestId) : null,
+            dealId: historyId ? Number(historyId) : null,
             clientId: Number(client?.id || 0),
             memo: memo || '',
             items: lineItems.map(item => ({
@@ -943,7 +947,14 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         try {
-            const response = await createQuotationApi(payload)
+            const shouldUseV2Revise = useQuotationV2() && reviseFromQuotationId
+            const response = shouldUseV2Revise
+                ? await reviseQuotationApi(reviseFromQuotationId, {
+                    clientId: Number(client?.id || 0),
+                    memo: memo || '',
+                    items: payload.items,
+                })
+                : await createQuotationApi(payload)
             let raw = unwrapData(response)
 
             // 💡 백엔드 응답이 비어있을 경우 최신 목록에서 조회 (안전장치)
@@ -962,7 +973,17 @@ export const useDocumentStore = defineStore('document', () => {
 
             let created = null
             if (raw && typeof raw === 'object') {
-                created = normalizeDocument(raw)
+                const commandId = raw.documentId || raw.id
+                const commandCode = raw.documentCode || raw.docCode
+                if (commandId && useQuotationV2()) {
+                    created = await fetchQuotationDetail(commandId)
+                    if (created && !created.docCode && commandCode) {
+                        created.docCode = commandCode
+                        created.displayCode = commandCode
+                    }
+                } else {
+                    created = normalizeDocument(raw)
+                }
             } else if (raw) {
                 created = await fetchQuotationDetail(raw)
             }
@@ -999,7 +1020,7 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
-    const createContract = async ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, memo, historyId }) => {
+    const createContract = async ({ quotationId, client, items, startDate, endDate, billingCycle, specialTerms, memo, historyId, reviseFromContractId = null }) => {
         const id = makeId('CT')
         const lineItems = (items || []).map(withAmount)
         const next = normalizeDocument({
@@ -1025,6 +1046,7 @@ export const useDocumentStore = defineStore('document', () => {
 
         const payload = {
             quotationId: Number(quotationId),
+            dealId: historyId ? Number(historyId) : null,
             clientId: Number(client.id),
             startDate,
             endDate,
@@ -1042,7 +1064,18 @@ export const useDocumentStore = defineStore('document', () => {
         }
 
         try {
-            const response = await createContractApi(payload)
+            const shouldUseV2Revise = useContractV2() && reviseFromContractId
+            const response = shouldUseV2Revise
+                ? await reviseContractApi(reviseFromContractId, {
+                    clientId: Number(client.id),
+                    startDate,
+                    endDate,
+                    billingCycle: payload.billingCycle,
+                    specialTerms,
+                    memo: memo || '',
+                    items: payload.items,
+                })
+                : await createContractApi(payload)
             let raw = unwrapData(response)
 
             // 💡 백엔드 응답이 비어있을 경우 최신 목록에서 조회 (안전장치)
@@ -1061,7 +1094,17 @@ export const useDocumentStore = defineStore('document', () => {
 
             let created = null
             if (raw && typeof raw === 'object') {
-                created = normalizeDocument(raw)
+                const commandId = raw.documentId || raw.id
+                const commandCode = raw.documentCode || raw.docCode
+                if (commandId && useContractV2()) {
+                    created = await fetchContractDetail(commandId)
+                    if (created && !created.docCode && commandCode) {
+                        created.docCode = commandCode
+                        created.displayCode = commandCode
+                    }
+                } else {
+                    created = normalizeDocument(raw)
+                }
             } else if (raw) {
                 created = await fetchContractDetail(raw)
             }

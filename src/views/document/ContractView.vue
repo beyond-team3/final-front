@@ -7,6 +7,7 @@ import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useContractV2 } from '@/config/featureFlags'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +30,7 @@ const contractId = ref(null)
 const contractCode = ref('')
 const sourceQuotationId = ref(null)
 const sourceHistoryId = ref(null)
+const reviseSourceContractId = ref(null)
 const status = ref('')
 const createdAt = ref('')
 
@@ -147,6 +149,7 @@ const startContractFromPrefill = async (quotationId) => {
 
   sourceQuotationId.value = quotationId
   sourceHistoryId.value = prefill.historyId || null
+  reviseSourceContractId.value = null
 
   conInCorpCode.value = prefill.clientId || prefill.client?.id || prefill.clientCode || ''
   conInCorp.value = prefill.clientName || prefill.client?.name || ''
@@ -184,6 +187,7 @@ const copyRejectedContract = async (c) => {
 
     sourceQuotationId.value = prefill.quotationId || null
     sourceHistoryId.value = prefill.historyId || null
+    reviseSourceContractId.value = c.id || null
 
     conInCorpCode.value = prefill.clientId || prefill.client?.id || ''
     conInCorp.value = prefill.clientName || prefill.client?.name || ''
@@ -300,6 +304,7 @@ const startContract = (q) => {
   showStartModal.value = false
 
   sourceQuotationId.value = q.id
+  reviseSourceContractId.value = null
 
   const existingPipeline = historyStore.pipelines?.find(h =>
       h.documents?.some(d => String(d.id) === String(q.id))
@@ -328,6 +333,7 @@ const startNewContract = () => {
 
   sourceQuotationId.value = null
   sourceHistoryId.value = null
+  reviseSourceContractId.value = null
 
   conInCorpCode.value = ""
   conInCorp.value = ""
@@ -445,7 +451,8 @@ const submitContract = async () => {
       billingCycle: conBillingCycle.value,
       specialTerms: conSpecialTerms.value,
       memo: conInternalMemo.value,
-      historyId: sourceHistoryId.value
+      historyId: sourceHistoryId.value,
+      reviseFromContractId: reviseSourceContractId.value
     })
 
     if (result) {
@@ -471,6 +478,7 @@ const submitContract = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 관리 &gt; <span class="font-semibold" style="color: #3D3529;">계약서 {{ isViewMode ? '상세' : '작성' }}</span></p>
+        <span v-if="useContractV2() && !isViewMode" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
       </div>
 
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 animate-in">

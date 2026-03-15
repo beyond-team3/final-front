@@ -7,6 +7,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import DealActivityPanel from '@/components/history/DealActivityPanel.vue'
 import DealDocumentCard from '@/components/history/DealDocumentCard.vue'
 import DealStageNavigator from '@/components/history/DealStageNavigator.vue'
+import { useDealV2 } from '@/config/featureFlags'
 import { useHistoryStore } from '@/stores/history'
 
 const route = useRoute()
@@ -96,6 +97,7 @@ onMounted(async () => {
                                 </div>
 
                                 <div class="flex gap-2">
+                                    <span v-if="useDealV2()" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
                                     <button type="button" class="btn" style="background: var(--color-orange); color: #fff;">딜 종료</button>
                                 </div>
                             </div>

@@ -7,6 +7,7 @@ import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { PRODUCT_CATEGORY } from '@/utils/constants'
+import { useQuotationV2 } from '@/config/featureFlags'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +44,7 @@ const internalMemo = ref('')
 const customerRequirements = ref('')
 const currentRejectionReason = ref('')
 const selectedItems = ref([])
+const reviseSourceQuotationId = ref(null)
 const modalSearchInput = ref('')
 const clientSearchInput = ref('')
 const varietyFilter = ref('전체')
@@ -168,6 +170,7 @@ const startFromRequest = async (reqSummary) => {
 
   sourceRequestId.value = req.id
   sourceHistoryId.value = req.historyId || null
+  reviseSourceQuotationId.value = null
 
   selectedClientId.value = req.clientId
   inCorpCode.value = req.clientCode || req.clientId || ''
@@ -206,6 +209,7 @@ const startNewQuotation = () => {
 
   sourceRequestId.value = null
   sourceHistoryId.value = null
+  reviseSourceQuotationId.value = null
 
   inCorpCode.value = ''
   inCorp.value = ''
@@ -223,6 +227,7 @@ const startFromRejectedQuotation = (quo) => {
   // 원본이 견적 요청서 기반인지 확인
   sourceRequestId.value = quo.requestId || null
   sourceHistoryId.value = quo.historyId || null
+  reviseSourceQuotationId.value = quo.id || null
 
   selectedClientId.value = quo.clientId
   inCorpCode.value = quo.client?.code || quo.clientId || ''
@@ -355,7 +360,8 @@ const submitDoc = async () => {
         unit: item.unit,
         unitPrice: item.price
       })),
-      memo: internalMemo.value
+      memo: internalMemo.value,
+      reviseFromQuotationId: reviseSourceQuotationId.value
     }
 
     const result = await documentStore.createQuotation(payload)
@@ -385,6 +391,7 @@ const submitDoc = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
+        <span v-if="useQuotationV2() && !isViewMode" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
       </div>
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in">
         <div class="flex-1 space-y-5 w-full">

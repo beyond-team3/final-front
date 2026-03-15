@@ -7,6 +7,7 @@ import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import DealHistoryRow from '@/components/history/DealHistoryRow.vue'
 import DealSummaryPanel from '@/components/history/DealSummaryPanel.vue'
+import { useDealV2 } from '@/config/featureFlags'
 import { useHistoryStore } from '@/stores/history'
 
 const router = useRouter()
@@ -29,6 +30,17 @@ const selectedSortLabel = computed(() => {
     if (sortType.value === 'stage') return '단계 높은순'
     if (sortType.value === 'client') return '거래처명순'
     return '최신순'
+})
+const showDealV2 = computed(() => useDealV2())
+const dealKpiCards = computed(() => {
+    const kpis = historyStore.dealKpis || {}
+
+    return [
+        { key: 'dealCount', label: '전체 Deal', value: Number(kpis.dealCount ?? 0) },
+        { key: 'openDealCount', label: '진행중', value: Number(kpis.openDealCount ?? 0) },
+        { key: 'closedDealCount', label: '종결', value: Number(kpis.closedDealCount ?? 0) },
+        { key: 'successRate', label: '성공률', value: `${Number(kpis.successRate ?? 0).toFixed(1)}%` },
+    ]
 })
 
 const filteredDeals = computed(() => {
@@ -92,6 +104,9 @@ const closeSortMenu = () => {
 onMounted(() => {
     document.addEventListener('click', closeSortMenu)
     void historyStore.fetchPipelines()
+    if (useDealV2()) {
+        void historyStore.fetchDealKpis()
+    }
 })
 
 onBeforeUnmount(() => {
@@ -112,11 +127,29 @@ onBeforeUnmount(() => {
 
             <template v-else>
                 <header class="mb-6 border-b border-[var(--color-border-divider)] pb-4">
-                    <div>
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
                         <h1 class="text-2xl font-semibold text-[var(--color-text-strong)]">영업 히스토리</h1>
                         <p class="mt-1 text-xs text-[var(--color-text-sub)]">총 {{ totalDeals }}건</p>
+                        </div>
+                        <span v-if="showDealV2" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
                     </div>
                 </header>
+
+                <section
+                    v-if="showDealV2"
+                    class="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+                >
+                    <article
+                        v-for="card in dealKpiCards"
+                        :key="card.key"
+                        class="rounded-[18px] border px-5 py-4"
+                        :style="{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border-card)' }"
+                    >
+                        <p class="text-[12px] text-[var(--color-text-sub)]">{{ card.label }}</p>
+                        <p class="mt-2 text-[28px] font-bold text-[var(--color-text-strong)]">{{ card.value }}</p>
+                    </article>
+                </section>
 
                 <section
                     class="mb-5 rounded-[20px] border px-5 py-4"

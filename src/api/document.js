@@ -1,4 +1,6 @@
 import api from './index'
+import { useContractV2, useQuotationV2 } from '@/config/featureFlags'
+import { patchV2, postV2 } from './v2'
 
 export function getQuotationRequest(id) {
     return api.get(`requests/${id}`)
@@ -38,7 +40,18 @@ export function getQuotation(id) {
 }
 
 export function createQuotation(data) {
+    if (useQuotationV2()) {
+        return postV2('/api/v2/quotations', data)
+    }
     return api.post('quotations', data)
+}
+
+export function reviseQuotation(id, data) {
+    return postV2(`/api/v2/quotations/${id}/revise`, data)
+}
+
+export function cancelQuotation(id) {
+    return patchV2(`/api/v2/quotations/${id}/cancel`)
 }
 
 export function getContract(id) {
@@ -46,7 +59,18 @@ export function getContract(id) {
 }
 
 export function createContract(data) {
+    if (useContractV2()) {
+        return postV2('/api/v2/contracts', data)
+    }
     return api.post('contracts', data)
+}
+
+export function reviseContract(id, data) {
+    return postV2(`/api/v2/contracts/${id}/revise`, data)
+}
+
+export function cancelContract(id) {
+    return patchV2(`/api/v2/contracts/${id}/cancel`)
 }
 
 export function createOrder(data) {
@@ -144,10 +168,16 @@ export function deleteQuotationRequest(id) {
 }
 
 export function deleteQuotation(id) {
+    if (useQuotationV2()) {
+        return cancelQuotation(id)
+    }
     return api.delete(`quotations/${id}`)
 }
 
 export function deleteContract(id) {
+    if (useContractV2()) {
+        return cancelContract(id)
+    }
     return api.delete(`contracts/${id}`)
 }
 

@@ -21,6 +21,7 @@ import {
   mapRankingToChartData,
   mapTrendSeriesToChartData,
 } from '@/api/statistics'
+import { useBillingStatsV2 } from '@/config/featureFlags'
 import { useLayoutState } from '@/composables/layoutState'
 import { useAuthStore } from '@/stores/auth'
 import { useStatisticsStore } from '@/stores/statisticsStore'
@@ -169,6 +170,12 @@ const activeRankingItems = computed(() => {
 })
 
 const showRankingTable = computed(() => isRankingView.value && activeRankingItems.value.length > 0)
+const showBillingRevenueSection = computed(() => useBillingStatsV2())
+const billingRevenue = computed(() => statisticsStore.billingRevenue)
+const billingRevenueDateRange = computed(() => ({
+  from: `${personalStartYear.value}-${String(personalStartMonth.value).padStart(2, '0')}-01`,
+  to: `${personalEndYear.value}-${String(personalEndMonth.value).padStart(2, '0')}-31`,
+}))
 
 const selectedClientText = computed(() => {
   if (selectedClients.value.length === 0) {
@@ -615,6 +622,14 @@ const loadCurrentViewData = async () => {
   renderCurrentChart()
 }
 
+const loadBillingRevenue = async () => {
+  if (!useBillingStatsV2()) {
+    return
+  }
+
+  await statisticsStore.loadBillingRevenue(billingRevenueDateRange.value)
+}
+
 enforceMonthOrder(personalStartYear, personalStartMonth, personalEndYear, personalEndMonth)
 enforceMonthOrder(clientStartYear, clientStartMonth, clientEndYear, clientEndMonth)
 enforceMonthOrder(varietyStartYear, varietyStartMonth, varietyEndYear, varietyEndMonth)
@@ -662,6 +677,15 @@ watch([
   void loadCurrentViewData()
 }, { deep: true })
 
+watch([
+  personalStartYear,
+  personalStartMonth,
+  personalEndYear,
+  personalEndMonth,
+], () => {
+  void loadBillingRevenue()
+})
+
 watch(() => layoutState?.resizeTick?.value, async () => {
   await nextTick()
   renderCurrentChart()
@@ -675,6 +699,7 @@ onMounted(async () => {
   }
 
   await loadCurrentViewData()
+  await loadBillingRevenue()
 })
 
 onBeforeUnmount(() => {
@@ -888,6 +913,79 @@ onBeforeUnmount(() => {
         </tbody>
       </table>
     </div>
+
+    <section
+      v-if="showBillingRevenueSection"
+      class="mt-6 rounded-[18px] border border-seed-border-card bg-seed-bg-section p-5"
+    >
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-bold text-seed-text-strong">청구 매출 통계</h3>
+          <p class="mt-1 text-xs text-seed-text-sub">billing revenue 전용 `v2` 테스트 섹션</p>
+        </div>
+        <span class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
+      </div>
+
+      <div v-if="billingRevenue.loading" class="rounded-lg border border-seed-border-card bg-seed-bg-input px-4 py-3 text-sm text-seed-text-sub">
+        청구 매출 데이터를 불러오는 중입니다.
+      </div>
+      <div v-else-if="billingRevenue.error" class="rounded-lg border border-[#e8d3d3] bg-[#fff7f7] px-4 py-3 text-sm text-[#9b3d3d]">
+        {{ billingRevenue.error }}
+      </div>
+      <div v-else class="grid gap-4 xl:grid-cols-3">
+        <article class="overflow-hidden rounded-xl border border-seed-border-card bg-seed-bg-input">
+          <header class="border-b border-seed-border-card px-4 py-3 text-sm font-semibold text-seed-text-body">월별</header>
+          <div class="max-h-[260px] overflow-y-auto">
+            <table class="min-w-full text-sm">
+              <tbody>
+                <tr v-for="row in billingRevenue.monthly" :key="row.month" class="border-b border-seed-border-card">
+                  <td class="px-4 py-3 text-seed-text-sub">{{ row.month }}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-seed-text-strong">{{ Number(row.billedRevenue || 0).toLocaleString() }}원</td>
+                </tr>
+                <tr v-if="billingRevenue.monthly.length === 0">
+                  <td colspan="2" class="px-4 py-8 text-center text-seed-text-sub">데이터가 없습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="overflow-hidden rounded-xl border border-seed-border-card bg-seed-bg-input">
+          <header class="border-b border-seed-border-card px-4 py-3 text-sm font-semibold text-seed-text-body">품종별</header>
+          <div class="max-h-[260px] overflow-y-auto">
+            <table class="min-w-full text-sm">
+              <tbody>
+                <tr v-for="row in billingRevenue.byCategory" :key="row.category" class="border-b border-seed-border-card">
+                  <td class="px-4 py-3 text-seed-text-sub">{{ row.category }}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-seed-text-strong">{{ Number(row.billedRevenue || 0).toLocaleString() }}원</td>
+                </tr>
+                <tr v-if="billingRevenue.byCategory.length === 0">
+                  <td colspan="2" class="px-4 py-8 text-center text-seed-text-sub">데이터가 없습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="overflow-hidden rounded-xl border border-seed-border-card bg-seed-bg-input">
+          <header class="border-b border-seed-border-card px-4 py-3 text-sm font-semibold text-seed-text-body">월별/품종별</header>
+          <div class="max-h-[260px] overflow-y-auto">
+            <table class="min-w-full text-sm">
+              <tbody>
+                <tr v-for="row in billingRevenue.monthlyByCategory" :key="`${row.month}-${row.category}`" class="border-b border-seed-border-card">
+                  <td class="px-4 py-3 text-seed-text-sub">{{ row.month }}</td>
+                  <td class="px-4 py-3 text-seed-text-sub">{{ row.category }}</td>
+                  <td class="px-4 py-3 text-right font-semibold text-seed-text-strong">{{ Number(row.billedRevenue || 0).toLocaleString() }}원</td>
+                </tr>
+                <tr v-if="billingRevenue.monthlyByCategory.length === 0">
+                  <td colspan="3" class="px-4 py-8 text-center text-seed-text-sub">데이터가 없습니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
   </section>
 </template>
 
