@@ -8,6 +8,7 @@ export function createQuotationRequest(data) {
     return api.post('requests', data)
 }
 
+
 export function getPendingQuotationRequests() {
     return api.get('requests/pending')
 }
@@ -17,19 +18,19 @@ export function getApprovedQuotations() {
 }
 
 export function getRejectedQuotationRequests() {
-    return api.get('requests/rejected')
+    return api.get('requests/rejected', { disableCache: true })
 }
 
 export function getRejectedQuotations() {
-    return api.get('quotations/rejected')
+    return api.get('quotations/rejected', { disableCache: true })
 }
 
 export function getRejectedQuotationsForContract() {
-    return api.get('quotations/rejected-contracts')
+    return api.get('quotations/rejected-contracts', { disableCache: true })
 }
 
 export function getRejectedContracts() {
-    return api.get('contracts/rejected')
+    return api.get('contracts/rejected', { disableCache: true })
 }
 
 export function getQuotation(id) {
@@ -148,4 +149,8 @@ export function deleteQuotation(id) {
 
 export function deleteContract(id) {
     return api.delete(`contracts/${id}`)
+}
+
+export function getMyInvoices() {
+    return api.get('invoices/my')
 }

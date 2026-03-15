@@ -18,13 +18,13 @@ const isLoading = ref(true)
 
 const methodLabels = {
   TRANSFER: '계좌이체',
-  VBANK: '가상계좌',
-  CARD: '신용카드',
+  CASH: '현금',
+  CREDIT_CARD: '신용카드',
 }
 
 const methodMap = {
-  'vbank': 'VBANK',
-  'card': 'CARD',
+  'cash': 'CASH',
+  'card': 'CREDIT_CARD',
   'transfer': 'TRANSFER',
 }
 
@@ -78,11 +78,13 @@ const resetSelection = () => {
 }
 
 const handlePay = async () => {
-  if (!canPay.value || !selectedInvoice.value) {
-    return
-  }
+  if (!canPay.value || !selectedInvoice.value) return
 
   isProcessing.value = true
+
+  // 결제 전에 미리 저장
+  const invoiceSnapshot = { ...selectedInvoice.value }
+  const methodSnapshot = selectedMethod.value
 
   try {
     const result = await paymentStore.executePayment({
@@ -92,7 +94,7 @@ const handlePay = async () => {
 
     if (result) {
       const now = new Date().toLocaleString('ko-KR')
-      successMessage.value = `${selectedInvoice.value.id} / ${methodLabels[methodMap[selectedMethod.value]]} / ₩${totals.value.total.toLocaleString()} (${now})`
+      successMessage.value = `${invoiceSnapshot.id} / ${methodLabels[methodMap[methodSnapshot]]} / ₩${totals.value.total.toLocaleString()} (${now})`
       successOpen.value = true
       await loadInvoices()
     } else {
@@ -102,7 +104,6 @@ const handlePay = async () => {
   } catch (err) {
     errorMessage.value = err.message || '결제 처리 중 오류가 발생했습니다.'
     errorOpen.value = true
-    console.error('Payment error:', err)
   } finally {
     isProcessing.value = false
   }
@@ -192,11 +193,11 @@ onMounted(() => {
           <button
               type="button"
               class="method"
-              :class="{ active: selectedMethod === 'vbank' }"
-              @click="selectedMethod = 'vbank'"
+              :class="{ active: selectedMethod === 'cash' }"
+              @click="selectedMethod = 'cash'"
               :disabled="!selectedInvoice"
           >
-            가상계좌
+            현금
           </button>
           <button
               type="button"

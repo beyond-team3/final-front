@@ -49,7 +49,7 @@ function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생�
     
     if (backendMessage && detailMessage) return `${backendMessage} (${detailMessage})`
     if (backendMessage) return backendMessage
-    
+
     if (error?.response?.status === 400) {
         return '필수 정보가 누락되었거나 데이터가 유효하지 않습니다. 입력 내용을 다시 확인해 주세요.'
     }
@@ -57,13 +57,12 @@ function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생�
 }
 
 function normalizeList(data) {
-    if (!data) return []
-    if (Array.isArray(data)) return data
-    if (data.result === 'SUCCESS' && Array.isArray(data.data)) return data.data
-    const actualData = data.data !== undefined ? data.data : data
-    if (Array.isArray(actualData)) return actualData
-    if (Array.isArray(actualData?.documents)) return actualData.documents
-    if (Array.isArray(actualData?.items)) return actualData.items
+    const unwrapped = unwrapData(data)
+    if (!unwrapped) return []
+    if (Array.isArray(unwrapped)) return unwrapped
+    if (unwrapped.content && Array.isArray(unwrapped.content)) return unwrapped.content
+    if (unwrapped.documents && Array.isArray(unwrapped.documents)) return unwrapped.documents
+    if (unwrapped.items && Array.isArray(unwrapped.items)) return unwrapped.items
     return []
 }
 
@@ -120,31 +119,36 @@ const normalizeClient = (doc = {}) => {
 const normalizeDocument = (doc = {}) => {
     if (!doc) return null
 
-    // 💡 백엔드 필드(docType, docId) -> 프론트엔드 표준 필드(type, id) 매핑 및 정규화
-    let type = String(doc.type || doc.docType || '').trim().toLowerCase()
+    // 1. 문서 코드 통합 추출 (백엔드 필드명 다양성 대응)
     const id = doc.id || doc.docId || null
+    const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || ''
 
-    // 타입 코드 정규화 (backend RFQ -> front 표준 코드)
+    // 2. 타입 식별 및 정규화
+    let type = String(doc.type || doc.docType || '').trim().toLowerCase()
     let docType = ''
-    if (['rfq', 'quotation-request', 'quotationrequest'].includes(type) || String(doc.docCode || '').startsWith('RFQ')) {
+
+    if (['rfq', 'quotation-request', 'quotationrequest'].includes(type) || String(docCode).startsWith('RFQ')) {
         docType = 'RFQ'
         type = 'quotation-request'
-    } else if (['quo', 'quotation'].includes(type) || String(doc.docCode || '').startsWith('QUO')) {
+    } else if (['quo', 'quotation'].includes(type) || String(docCode).startsWith('QUO')) {
         docType = 'QUO'
         type = 'quotation'
-    } else if (['cnt', 'contract'].includes(type) || String(doc.docCode || '').startsWith('CNT')) {
+    } else if (['cnt', 'contract'].includes(type) || String(docCode).startsWith('CNT')) {
         docType = 'CNT'
         type = 'contract'
-    } else if (['ord', 'order'].includes(type) || String(doc.docCode || '').startsWith('ORD')) {
+    } else if (['ord', 'order'].includes(type) || String(docCode).startsWith('ORD')) {
         docType = 'ORD'
         type = 'order'
-    } else if (['stmt', 'statement'].includes(type) || String(doc.docCode || '').startsWith('STMT')) {
+    } else if (['stmt', 'statement'].includes(type) || String(docCode).startsWith('STMT')) {
         docType = 'STMT'
         type = 'statement'
-    } else if (['inv', 'invoice'].includes(type) || String(doc.docCode || '').startsWith('INV')) {
+    } else if (['inv', 'invoice'].includes(type) || String(docCode).startsWith('INV')) {
         docType = 'INV'
         type = 'invoice'
     }
+
+    // 임시 코드 여부 확인
+    const isTemp = String(docCode || id || '').includes('temp-')
 
     // 품목(items) 표준화: productName -> name, productCategory -> variety 등
     const items = (Array.isArray(doc.items) ? doc.items : []).map(item => ({
@@ -166,9 +170,6 @@ const normalizeDocument = (doc = {}) => {
     else if (billingCycle === 'QUARTERLY') billingCycle = '분기'
     else if (billingCycle === 'HALF_YEARLY') billingCycle = '반기'
 
-    const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || ''
-    const isTemp = String(docCode || id || '').includes('temp-')
-
     return {
         ...doc,
         id,
@@ -176,7 +177,7 @@ const normalizeDocument = (doc = {}) => {
         docType,
         billingCycle,
         // 표시용 코드 (docCode가 없으면 displayCode라도 id 기반으로 생성)
-        displayCode: doc.displayCode || doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || String(id || ''),
+        displayCode: doc.displayCode || docCode || String(id || ''),
         docCode: isTemp ? '' : (docCode || String(id || '')),
         client: normalizeClient(doc),
         items,
@@ -797,6 +798,31 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchPaymentDetail(paymentId) {
+        loading.value = true
+        try {
+            const { getPayment } = await import('@/api/payment')  // payment API 파일 경로에 맞게 수정
+            const response = await getPayment(paymentId)
+            const detail = unwrapData(response)
+            if (!detail) return null
+            return {
+                ...detail,
+                type: 'payment',
+                id: detail.paymentId,
+                displayCode: detail.paymentCode,
+                clientName: detail.clientName || '',
+                amount: detail.paymentAmount,
+                totalAmount: detail.paymentAmount,
+                createdAt: detail.createdAt,
+            }
+        } catch (e) {
+            console.error('결제 상세 로드 실패:', e)
+            return null
+        } finally {
+            loading.value = false
+        }
+    }
+
     const createQuotationRequest = async ({ client, items, requirements }) => {
         const id = makeId('RFQ')
         const lineItems = (items || []).map(withAmount)
@@ -1360,6 +1386,7 @@ export const useDocumentStore = defineStore('document', () => {
         fetchRejectedQuotationRequests,
         approvedQuotations,
         fetchApprovedQuotations,
+        rejectedQuotations,
         fetchRejectedQuotations,
         rejectedQuotationsForContract,
         fetchRejectedQuotationsForContract,
@@ -1368,5 +1395,6 @@ export const useDocumentStore = defineStore('document', () => {
         fetchQuotationDetail,
         fetchContractDetail,
         fetchOrderDetail,
+        fetchPaymentDetail,
     }
 })
