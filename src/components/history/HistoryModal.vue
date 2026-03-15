@@ -46,9 +46,29 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  approvalInfoFields: {
+    type: Array,
+    default: () => [],
+  },
+  approvalTimeline: {
+    type: Array,
+    default: () => [],
+  },
+  showApprovalActions: {
+    type: Boolean,
+    default: false,
+  },
+  approvalActionLabel: {
+    type: String,
+    default: '승인',
+  },
+  showApprovalReject: {
+    type: Boolean,
+    default: true,
+  },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'approve', 'reject'])
 
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -60,6 +80,8 @@ const isLoading = ref(false)
 const approvalRejectReason = ref('')
 
 const showInfoPanel = computed(() => props.mode !== 'readonly')
+const showApprovalInfoPanel = computed(() => props.approvalInfoFields.length > 0)
+const showApprovalTimelinePanel = computed(() => props.approvalTimeline.length > 0)
 const showCancelConfirm = ref(false)
 const cancelErrorMessage = ref('')
 
@@ -550,6 +572,8 @@ const getValidityDate = (dateStr) => {
               <span v-if="isDownloading" class="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
               {{ isDownloading ? 'PDF 생성 중...' : '다운로드' }}
             </button>
+            <button v-if="showApprovalActions" type="button" class="rounded bg-[var(--color-olive)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-olive-dark)] transition-colors" @click="emit('approve')">{{ approvalActionLabel }}</button>
+            <button v-if="showApprovalActions && showApprovalReject" type="button" class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors" @click="emit('reject')">반려</button>
             <button type="button" class="rounded px-2 py-1 text-xl text-[var(--color-text-sub)] hover:bg-[var(--color-bg-section)]" @click="close">×</button>
           </div>
         </header>
@@ -1003,6 +1027,54 @@ const getValidityDate = (dateStr) => {
                     <div class="bg-[var(--color-bg-input)] border border-[var(--color-border-card)] p-4 rounded-xl text-xs text-[var(--color-text-strong)] shadow-inner italic whitespace-pre-wrap">{{ displayedRejectReason }}</div>
                   </div>
                 </div>
+              </article>
+              <article v-if="showApprovalInfoPanel" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+                <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-olive)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">승인 정보</h3></div>
+                  <span class="text-[10px] font-bold text-[var(--color-text-sub)]">APPROVAL INFO</span>
+                </div>
+                <dl class="space-y-3">
+                  <div v-for="field in approvalInfoFields" :key="field.label" class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-3">
+                    <dt class="text-[10px] font-bold text-[var(--color-text-sub)]">{{ field.label }}</dt>
+                    <dd class="mt-1 text-sm font-semibold text-[var(--color-text-strong)]">{{ field.value }}</dd>
+                  </div>
+                </dl>
+              </article>
+              <article v-if="showApprovalTimelinePanel" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+                <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-orange)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">승인 타임라인</h3></div>
+                  <span class="text-[10px] font-bold text-[var(--color-text-sub)]">TIMELINE</span>
+                </div>
+                <ol class="space-y-4">
+                  <li v-for="step in approvalTimeline" :key="step.id" class="flex gap-3">
+                    <div class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" :class="step.toneClass" />
+                    <div class="min-w-0 flex-1 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-3">
+                      <div class="flex items-start justify-between gap-3">
+                        <strong class="text-sm text-[var(--color-text-strong)]">{{ step.title }}</strong>
+                        <span class="rounded-full px-2 py-1 text-[10px] font-bold" :class="step.badgeClass">{{ step.statusLabel }}</span>
+                      </div>
+                      <dl class="mt-3 grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <dt class="text-[var(--color-text-sub)]">결정 상태</dt>
+                          <dd class="mt-1 font-semibold text-[var(--color-text-strong)]">{{ step.decisionLabel }}</dd>
+                        </div>
+                        <div>
+                          <dt class="text-[var(--color-text-sub)]">결정자 ID</dt>
+                          <dd class="mt-1 font-semibold text-[var(--color-text-strong)]">{{ step.decidedBy }}</dd>
+                        </div>
+                        <div>
+                          <dt class="text-[var(--color-text-sub)]">요청 시각</dt>
+                          <dd class="mt-1 font-semibold text-[var(--color-text-strong)]">{{ step.requestedAt }}</dd>
+                        </div>
+                        <div>
+                          <dt class="text-[var(--color-text-sub)]">처리 시각</dt>
+                          <dd class="mt-1 font-semibold text-[var(--color-text-strong)]">{{ step.decidedAt }}</dd>
+                        </div>
+                      </dl>
+                      <p v-if="step.reason" class="mt-3 text-xs text-[var(--color-orange-dark)]">반려 사유: {{ step.reason }}</p>
+                    </div>
+                  </li>
+                </ol>
               </article>
             </div>
             <div class="px-6 py-4 bg-[var(--color-bg-sidebar)] border-t border-[var(--color-border-divider)] flex justify-between items-center text-[9px] font-bold text-[var(--color-text-sub)] uppercase tracking-widest"><span>SeedFlow+ Digital Asset</span><span>Proprietary & Confidential</span></div>
