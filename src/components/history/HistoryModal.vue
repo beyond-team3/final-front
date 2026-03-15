@@ -98,6 +98,25 @@ const isOrderDocument = computed(() => {
   return type === 'order' || type === 'ord' || type.includes('주문')
 })
 
+const isInvoiceDocument = computed(() => {
+  const type = String(docDetail.value?.type || props.docType || '').toLowerCase()
+  return type === 'invoice' || type.includes('청구') || String(props.docId).startsWith('INV')
+})
+
+const isPaymentDocument = computed(() => {
+  const type = String(docDetail.value?.type || props.docType || '').toLowerCase()
+  return type === 'payment' || type.includes('결제') || String(props.docId).toUpperCase().startsWith('PAY')
+})
+
+const paymentMethodLabel = computed(() => {
+  const map = {
+    TRANSFER: '계좌이체',
+    CASH: '현금',
+    CREDIT_CARD: '신용카드',
+  }
+  return map[docDetail.value?.paymentMethod] || docDetail.value?.paymentMethod || '-'
+})
+
 // 💡 작성자 본인 여부 확인
 const isAuthor = computed(() => {
   const doc = docDetail.value
@@ -314,6 +333,7 @@ const loadDetail = async () => {
       '주문': 'order', '주문서': 'order', 'order': 'order', 'ord': 'order',
       '계약': 'contract', '계약서': 'contract', 'contract': 'contract', 'cnt': 'contract',
       '청구': 'invoice', '청구서': 'invoice', 'invoice': 'invoice', 'inv': 'invoice',
+      '결제': 'payment', '결제확인서': 'payment', 'payment': 'payment', 'pay': 'payment',
       '견적요청': 'quotation-request', '견적요청서': 'quotation-request', 'quotation-request': 'quotation-request', 'rfq': 'quotation-request'
     }
     const typeKey = typeMap[normalizedType] || normalizedType
@@ -334,6 +354,7 @@ const loadDetail = async () => {
       else if (typeKey === 'contract') fetched = await documentStore.fetchContractDetail(currentId)
       else if (typeKey === 'order') fetched = await documentStore.fetchOrderDetail(currentId)
       else if (typeKey === 'invoice') fetched = await documentStore.fetchInvoiceDetail(currentId)
+      else if (typeKey === 'payment') fetched = await documentStore.fetchPaymentDetail?.(currentId) ?? await documentStore.fetchDocumentDetail(currentId)
       else fetched = await documentStore.fetchDocumentDetail(currentId)
       if (fetched) detail = fetched
     }
@@ -541,6 +562,195 @@ const getValidityDate = (dateStr) => {
                     </div>
                   </div>
 
+                  <!-- 주문서 -->
+                  <div v-else-if="isOrderDocument"
+                       class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
+                       style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                    <div class="text-center border-b-2 border-black pb-3 mb-8">
+                      <h1 class="text-3xl font-bold tracking-[10px]">주 문 서</h1>
+                    </div>
+                    <div class="flex justify-between items-start mb-8 text-[13px]">
+                      <div class="space-y-2">
+                        <p>공급자: <span class="border-b border-black font-bold px-2 text-[15px]">(주) 몬순</span></p>
+                        <p>주문자: <span class="border-b border-black font-bold px-2 text-[15px]">{{ docDetail.clientName || docDetail.client?.name || '(빈값)' }}</span> 귀하</p>
+                        <p>담당자: <span class="px-2">{{ resolvedMemberName }}</span></p>
+                        <p>주문일: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</span></p>
+                      </div>
+                      <div class="w-16 h-16 border-2 border-black flex items-center justify-center font-bold text-sm">인</div>
+                    </div>
+                    <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[11px]">
+                      <thead class="bg-[#F7F3EC]">
+                      <tr class="border-b-2 border-black">
+                        <th class="border-r border-black p-2">상품명</th>
+                        <th class="border-r border-black p-2 w-16">수량</th>
+                        <th class="border-r border-black p-2">단위</th>
+                        <th class="border-r border-black p-2">단가</th>
+                        <th class="p-2">금액</th>
+                      </tr>
+                      </thead>
+                      <tbody>
+                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-o-'+idx" class="border-b border-black">
+                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
+                        <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
+                        <td class="border-r border-black p-2">{{ item.unit }}</td>
+                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
+                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
+                      </tr>
+                      </tbody>
+                      <tfoot class="bg-[#FAF7F3] font-bold">
+                      <tr>
+                        <td colspan="4" class="border-r border-black p-2 text-sm text-right px-3">합 계</td>
+                        <td class="p-2 text-right font-mono px-3 text-lg">{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</td>
+                      </tr>
+                      </tfoot>
+                    </table>
+                    <div v-if="docDetail.memo" class="mb-6">
+                      <strong class="text-xs">[비고]</strong>
+                      <p class="mt-2 min-h-[60px] border border-black p-4 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[12px]">{{ docDetail.memo }}</p>
+                    </div>
+                    <div class="absolute bottom-20 left-0 right-0 text-center space-y-4">
+                      <p class="text-sm font-bold">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p>
+                      <p class="text-lg font-black tracking-[5px] border-t-2 border-black pt-5 mx-16">위와 같이 주문함 ( (주) 몬순 )</p>
+                    </div>
+                  </div>
+
+                  <!-- 청구서 -->
+                  <div v-else-if="isInvoiceDocument"
+                       class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
+                       style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                    <div class="text-center border-b-2 border-black pb-3 mb-8">
+                      <h1 class="text-3xl font-bold tracking-[10px]">청 구 서</h1>
+                    </div>
+                    <div class="flex justify-between items-start mb-8 text-[13px]">
+                      <div class="space-y-2">
+                        <p>청구처: <span class="border-b border-black font-bold px-2 text-[15px]">{{ docDetail.clientName || docDetail.client?.name || '(빈값)' }}</span> 귀하</p>
+                        <p>담당: <span class="px-2">{{ resolvedMemberName }}</span></p>
+                        <p>청구일: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.date || docDetail.billingDate || docDetail.createdAt) }}</span></p>
+                        <p>납부기한: <span class="font-bold border-b border-black px-1 text-red-700">{{ formatKRDate(docDetail.dueDate || docDetail.paymentDueDate) }}</span></p>
+                      </div>
+                      <div class="w-16 h-16 border-2 border-black flex items-center justify-center font-bold text-sm">인</div>
+                    </div>
+                    <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[11px]">
+                      <thead class="bg-[#F7F3EC]">
+                      <tr class="border-b-2 border-black">
+                        <th class="border-r border-black p-2">품목</th>
+                        <th class="border-r border-black p-2 w-16">수량</th>
+                        <th class="border-r border-black p-2">단위</th>
+                        <th class="border-r border-black p-2">단가</th>
+                        <th class="p-2">금액</th>
+                      </tr>
+                      </thead>
+                      <tbody>
+                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-i-'+idx" class="border-b border-black">
+                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
+                        <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
+                        <td class="border-r border-black p-2">{{ item.unit }}</td>
+                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
+                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
+                      </tr>
+                      </tbody>
+                      <tfoot class="bg-[#FAF7F3] font-bold">
+                      <tr>
+                        <td colspan="4" class="border-r border-black p-2 text-sm text-right px-3">합 계</td>
+                        <td class="p-2 text-right font-mono px-3 text-lg">{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</td>
+                      </tr>
+                      </tfoot>
+                    </table>
+                    <div class="border-2 border-black p-4 bg-[#FAF7F3] mb-6 text-[13px]">
+                      <div class="flex justify-between font-bold text-base">
+                        <span>청구 금액 합계</span>
+                        <span class="text-blue-700 text-xl font-extrabold">₩{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</span>
+                      </div>
+                      <p class="text-[10px] text-gray-500 mt-1">VAT 포함 금액입니다.</p>
+                    </div>
+                    <div v-if="docDetail.bankAccount || docDetail.accountInfo" class="mb-6 text-[12px]">
+                      <strong class="text-xs">[입금 계좌 안내]</strong>
+                      <p class="mt-2 border border-black p-3 bg-white">{{ docDetail.bankAccount || docDetail.accountInfo }}</p>
+                    </div>
+                    <div class="absolute bottom-20 left-0 right-0 text-center space-y-4">
+                      <p class="text-sm font-bold">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p>
+                      <p class="text-lg font-black tracking-[5px] border-t-2 border-black pt-5 mx-16">위와 같이 청구함 ( (주) 몬순 )</p>
+                    </div>
+                  </div>
+
+                  <!-- 결제 확인서 -->
+                  <div v-else-if="isPaymentDocument"
+                       class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
+                       style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+
+                    <!-- 헤더 -->
+                    <div class="text-center border-b-2 border-black pb-3 mb-10">
+                      <h1 class="text-3xl font-bold tracking-[10px]">결 제 확 인 서</h1>
+                    </div>
+
+                    <!-- 상태 스탬프 -->
+                    <div class="absolute top-16 right-12 w-24 h-24 border-4 border-green-600 rounded-full flex items-center justify-center rotate-[-15deg] opacity-80">
+                      <span class="text-green-600 font-black text-lg tracking-widest">완 납</span>
+                    </div>
+
+                    <!-- 수신/발신 -->
+                    <div class="mb-10 space-y-3 text-[13px]">
+                      <p>수신: <span class="border-b border-black font-bold px-2 text-[15px]">{{ docDetail.clientName || '-' }}</span> 귀하</p>
+                      <p>발신: <span class="font-bold">(주) 몬순</span></p>
+                      <p>담당: <span class="px-2">{{ resolvedMemberName }}</span></p>
+                    </div>
+
+                    <!-- 결제 정보 테이블 -->
+                    <table class="w-full border-collapse border-2 border-black text-[13px] mb-8">
+                      <tbody>
+                      <tr class="border-b border-black">
+                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left w-40">결제 번호</th>
+                        <td class="p-3 font-mono font-bold">{{ docDetail.paymentCode || docDetail.displayCode || '-' }}</td>
+                      </tr>
+                      <tr class="border-b border-black">
+                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left">연결 청구서</th>
+                        <td class="p-3 font-mono">{{ docDetail.invoiceCode || '-' }}</td>
+                      </tr>
+                      <tr class="border-b border-black">
+                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left">결제 수단</th>
+                        <td class="p-3 font-bold">{{ paymentMethodLabel }}</td>
+                      </tr>
+                      <tr class="border-b border-black">
+                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left">결제 일시</th>
+                        <td class="p-3">{{ formatKRDate(docDetail.paidAt || docDetail.createdAt) }}</td>
+                      </tr>
+                      <tr class="border-b border-black">
+                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left">결제 상태</th>
+                        <td class="p-3">
+          <span class="bg-green-100 text-green-700 font-black px-3 py-1 rounded-full text-xs">
+            {{ docDetail.status === 'COMPLETED' ? '결제 완료' : docDetail.status === 'PENDING' ? '처리 중' : docDetail.status }}
+          </span>
+                        </td>
+                      </tr>
+                      </tbody>
+                    </table>
+
+                    <!-- 금액 강조 박스 -->
+                    <div class="border-2 border-black p-6 bg-[#FAF7F3] mb-8">
+                      <div v-if="docDetail.invoiceTotalAmount && docDetail.invoiceTotalAmount !== docDetail.paymentAmount"
+                           class="flex justify-between text-[12px] text-gray-500 mb-2">
+                        <span>청구 원금</span>
+                        <span class="line-through">₩{{ Number(docDetail.invoiceTotalAmount ?? 0).toLocaleString() }}</span>
+                      </div>
+                      <div class="flex justify-between items-end">
+                        <span class="text-base font-black">실 결제 금액</span>
+                        <span class="text-3xl font-black text-blue-700">
+        ₩{{ Number(docDetail.paymentAmount ?? docDetail.amount ?? 0).toLocaleString() }}
+      </span>
+                      </div>
+                      <p class="text-[10px] text-gray-400 mt-2 text-right">VAT 포함 금액입니다.</p>
+                    </div>
+
+                    <!-- 하단 -->
+                    <div class="absolute bottom-20 left-0 right-0 text-center space-y-4">
+                      <p class="text-sm font-bold">{{ formatKRDate(docDetail.paidAt || docDetail.createdAt) }}</p>
+                      <p class="text-lg font-black tracking-[5px] border-t-2 border-black pt-5 mx-16">
+                        위와 같이 결제 완료되었음을 확인합니다. ( (주) 몬순 )
+                      </p>
+                    </div>
+                  </div>
+
+
                   <!-- 견적 요청서 -->
                   <div v-else-if="isQuotationRequest" class="bg-white p-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
                     <div class="mb-8 border-b-2 border-black pb-4 text-center"><h1 class="text-2xl font-bold tracking-widest">견 적 요 청 서</h1></div>
@@ -559,6 +769,7 @@ const getValidityDate = (dateStr) => {
                     <div class="mt-8"><strong class="text-xs">[요구사항]</strong><p class="mt-2 min-h-[100px] border border-black p-4 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[12px]">{{ docDetail.requirements || docDetail.memo || '별도 요구사항 없음' }}</p></div>
                     <div class="absolute bottom-20 left-0 right-0 text-right px-16 space-y-4"><p class="text-sm font-bold">작성일: {{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p><p class="mt-6 font-black text-lg">요청자: (주) 몬순 (인)</p></div>
                   </div>
+
                 </div>
               </div>
             </div>

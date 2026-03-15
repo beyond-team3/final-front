@@ -177,15 +177,19 @@ const startFromRequest = async (reqSummary) => {
   customerRequirements.value = req.requirements || req.memo || '별도 요구사항이 없습니다.'
 
   selectedItems.value = (req.items || []).map(i => {
+    // 상품 마스터에서 정보 보강
     const masterProduct = documentStore.productMaster?.find(p =>
         (i.productId && Number(p.id) === Number(i.productId)) ||
-        (p.name === (i.productName || i.name))
+        (!i.productId && p.name === (i.productName || i.name))
     )
+    
     const finalPrice = i.unitPrice || masterProduct?.unitPrice || masterProduct?.price || 0
 
     return {
       uid: Date.now() + Math.random(),
-      productId: i.productId || masterProduct?.id,
+      // 💡 핵심: RFQ의 원본 productId가 null이면 null로 유지해야 백엔드 제품 불일치(Q006)를 피할 수 있음
+      // 단, i.productId가 없고 마스터에서 찾은 경우에는 마스터 ID를 사용 (수동 입력 매칭)
+      productId: i.productId || (i.productId === null ? null : masterProduct?.id),
       variety: PRODUCT_CATEGORY[masterProduct?.variety || masterProduct?.category || i.productCategory] || (masterProduct?.variety || masterProduct?.category || i.productCategory || '일반'),
       name: i.productName || i.name,
       count: i.quantity || 1,
@@ -318,10 +322,21 @@ const displayDate = computed(() => {
   return `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`
 })
 
+const isSubmitting = ref(false)
+
 const submitDoc = async () => {
-  if (isViewMode.value) return
-  if (!inCorp.value) return window.alert("거래처 정보가 누락되었습니다.")
+  if (isViewMode.value || isSubmitting.value) return
+  if (!inCorp.value || !selectedClientId.value) return window.alert("거래처 정보가 누락되었습니다.")
   if (selectedItems.value.length === 0) return window.alert("품목을 하나라도 추가해주세요")
+
+  // [유효성 검증] 단가 0원 또는 수량 0 이하 방지
+  const invalidItem = selectedItems.value.find(item => Number(item.price || 0) <= 0 || Number(item.count || 0) <= 0)
+  if (invalidItem) {
+    return window.alert(`[${invalidItem.name}] 상품의 단가와 수량을 확인해 주세요. (0보다 커야 합니다)`)
+  }
+
+  isSubmitting.value = true
+  documentStore.error = null // 기존 에러 초기화
 
   try {
     const payload = {
@@ -359,6 +374,8 @@ const submitDoc = async () => {
     console.error("서버 저장 에러:", error);
     // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
     window.alert(documentStore.error || "견적서 저장 중 오류가 발생했습니다.");
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -557,7 +574,7 @@ const submitDoc = async () => {
                   }"
                   @click="currentTab = 'rejected-quo'"
               >
-                반려된 견적서 복사
+                반려된 견적서
               </button>
             </div>
 
@@ -566,22 +583,21 @@ const submitDoc = async () => {
               <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
                 <table class="w-full text-sm text-center border-collapse">
                   <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
-                  <tr><th class="p-3">법인명</th><th class="p-3">담당자</th><th class="p-3">요청 날짜</th><th class="p-3">상태</th><th class="p-3">선택</th></tr>
+                  <tr><th class="p-3">요청서 코드</th><th class="p-3">법인명</th><th class="p-3">상태</th><th class="p-3">요청 날짜</th></tr>
                   </thead>
                   <tbody>
-                  <tr v-for="req in documentStore.pendingQuotationRequests" :key="req.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRequest(req)">
+                  <tr v-for="req in documentStore.pendingQuotationRequests" :key="req.id" class="border-b transition-colors hover:bg-[#EFEADF] cursor-pointer" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRequest(req)">
+                    <td class="p-3 text-xs font-mono font-bold" style="color: #C8622A;">
+                      {{ req.requestCode || req.displayCode || req.id }}
+                    </td>
                     <td class="p-3 font-bold">{{ req.client?.name || req.clientName }}</td>
-                    <td class="p-3">{{ req.client?.contact || req.managerName || '-' }}</td>
-                    <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date || req.createdAt }}</td>
                     <td class="p-3">
                       <StatusBadge type="RFQ" :status="req.status" />
                     </td>
-                    <td class="p-3">
-                      <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">선택</button>
-                    </td>
+                    <td class="p-3 text-xs" style="color: #6B5F50;">{{ req.date || req.createdAt }}</td>
                   </tr>
                   <tr v-if="!documentStore.pendingQuotationRequests || documentStore.pendingQuotationRequests.length === 0">
-                    <td colspan="5" class="p-10 italic" style="color: #9A8C7E;">대기 중인 요청서가 없습니다.</td>
+                    <td colspan="4" class="p-10 italic" style="color: #9A8C7E;">대기 중인 요청서가 없습니다.</td>
                   </tr>
                   </tbody>
                 </table>
@@ -593,23 +609,20 @@ const submitDoc = async () => {
               <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
                 <table class="w-full text-sm text-center border-collapse">
                   <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
-                  <tr><th class="p-3">코드</th><th class="p-3">법인명</th><th class="p-3">상태</th><th class="p-3">선택</th></tr>
+                  <tr><th class="p-3">견적서 코드</th><th class="p-3">법인명</th><th class="p-3">상태</th></tr>
                   </thead>
                   <tbody>
-                  <tr v-for="quo in documentStore.rejectedQuotations" :key="quo.id" class="border-b transition-colors hover:bg-[#EFEADF]" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRejectedQuotation(quo)">
-                    <td class="p-3 text-xs">
-                      <div>{{ quo.displayCode }}</div>
+                  <tr v-for="quo in documentStore.rejectedQuotations" :key="quo.id" class="border-b transition-colors hover:bg-[#EFEADF] cursor-pointer" style="border-color: #E8E3D8; color: #3D3529;" @click="startFromRejectedQuotation(quo)">
+                    <td class="p-3 text-xs font-mono font-bold" style="color: #C8622A;">
+                      {{ quo.displayCode }}
                     </td>
                     <td class="p-3 font-bold">{{ quo.client?.name || quo.clientName }}</td>
                     <td class="p-3">
                       <StatusBadge type="QUO" :status="quo.status" />
                     </td>
-                    <td class="p-3">
-                      <button class="text-white px-3 py-1 rounded text-xs shadow-sm" style="background-color: #7A8C42;">복사</button>
-                    </td>
                   </tr>
                   <tr v-if="!documentStore.rejectedQuotations || documentStore.rejectedQuotations.length === 0">
-                    <td colspan="4" class="p-10 italic" style="color: #9A8C7E;">복사 가능한 견적서가 없습니다.</td>
+                    <td colspan="3" class="p-10 italic" style="color: #9A8C7E;">복사 가능한 견적서가 없습니다.</td>
                   </tr>
                   </tbody>
                 </table>

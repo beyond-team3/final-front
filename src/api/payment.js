@@ -16,6 +16,12 @@ export function getPaymentDetail(paymentId) {
     return api.get(`/payments/${paymentId}`)
 }
 
+// payment.js에 추가
+export function getPayment(paymentId) {
+    return api.get(`/payments/${paymentId}`)
+}
+
+
 /**
  * 현재 거래처의 결제 목록 조회
  */
