@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { PRODUCT_CATEGORY } from '@/utils/constants'
 import { useQuotationV2 } from '@/config/featureFlags'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 
 const route = useRoute()
 const router = useRouter()
@@ -378,12 +379,15 @@ const submitDoc = async () => {
     if (result) {
       // 작성 후 참조 목록 최신화 (이미 사용한 요청서 제거)
       await documentStore.fetchPendingQuotationRequests()
-      window.alert(`견적서 발행 완료`);
       // 실제 번호(docCode)가 있으면 검색어로 전달, 없으면 ID라도 전달
       const keyword = result.docCode || result.id
-      router.push({
-        path: '/documents/all',
-        query: { keyword, type: 'QUO' }
+      await navigateToDocumentLoading(router, {
+        to: {
+          path: '/documents/all',
+          query: { keyword, type: 'QUO' }
+        },
+        title: '견적서를 발행했습니다',
+        description: '최신 견적서 목록을 불러오고 있습니다.',
       });
     }
   } catch (error) {
@@ -511,11 +515,12 @@ const submitDoc = async () => {
 
           <button
               v-if="!isViewMode"
-              class="w-full text-white py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:opacity-90"
+              class="w-full text-white py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               style="background-color: #7A8C42 !important;"
+              :disabled="isSubmitting"
               @click="submitDoc"
           >
-            견적서 발행 완료
+            {{ isSubmitting ? '견적서 저장 중...' : '견적서 발행 완료' }}
           </button>
         </div>
 

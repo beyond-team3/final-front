@@ -36,6 +36,7 @@ const SimilarityAnalysisView = () => import('@/views/product/SimilarityAnalysisV
 const QuotationRequestView = () => import('@/views/document/QuotationRequestView.vue')
 const QuotationView = () => import('@/views/document/QuotationView.vue')
 const ContractView = () => import('@/views/document/ContractView.vue')
+const DocumentLoadingView = () => import('@/views/document/DocumentLoadingView.vue')
 
 const DocumentAllView = () => import('@/views/document/DocumentAllView.vue')
 const OrderView = () => import('@/views/document/OrderView.vue')
@@ -227,6 +228,7 @@ const routes = [
             { path: 'documents/request', name: 'document-request', component: QuotationRequestView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '견적 요청서' } },
             { path: 'documents/quotation', name: 'document-quotation', component: QuotationView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '견적서' } },
             { path: 'documents/contract', name: 'document-contract', component: ContractView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '계약서' } },
+            { path: 'documents/loading', name: 'document-loading', component: DocumentLoadingView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '문서 로딩' } },
             { path: 'documents/order', name: 'document-order', component: OrderView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '주문서' } },
             { path: 'documents/invoices', name: 'invoice-list', component: InvoiceListView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '청구서' } },
             { path: 'documents/invoice/new', name: 'document-invoice', component: InvoiceView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '청구서 작성' } },

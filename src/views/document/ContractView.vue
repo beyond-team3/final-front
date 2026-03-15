@@ -8,6 +8,7 @@ import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useContractV2 } from '@/config/featureFlags'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 
 const route = useRoute()
 const router = useRouter()
@@ -480,11 +481,14 @@ const submitContract = async () => {
     if (result) {
       // 작성 후 참조 목록 최신화 (이미 사용한 견적 제거)
       await documentStore.fetchApprovedQuotations()
-      window.alert(`계약서 생성 완료`);
       const keyword = result.docCode || result.id
-      router.push({
-        path: '/documents/all',
-        query: { keyword, type: 'CNT' }
+      await navigateToDocumentLoading(router, {
+        to: {
+          path: '/documents/all',
+          query: { keyword, type: 'CNT' }
+        },
+        title: '계약서를 생성했습니다',
+        description: '최신 계약서 목록을 불러오고 있습니다.',
       });
     }
   } catch (error) {

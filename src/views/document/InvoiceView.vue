@@ -7,6 +7,7 @@ import { ROLES } from '@/utils/constants'
 import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 import {
   getInvoiceDetail,
   getInvoice,
@@ -27,7 +28,6 @@ const clientId   = ref(route.query.clientId   || null)
 
 const isLoadingInvoice      = ref(false)
 const isSubmitting          = ref(false)
-const showSuccess           = ref(false)
 const showCancelModal       = ref(false)
 const cancelErrorMsg        = ref('')
 const remarks               = ref('')
@@ -311,7 +311,17 @@ async function handleCreateInvoice() {
       await loadInvoice(newId)
       await documentStore.fetchInvoices()
     }
-    showSuccess.value = true
+    await navigateToDocumentLoading(router, {
+      to: {
+        name: 'document-all',
+        query: {
+          keyword: invoice.value?.invoiceCode || created?.invoiceCode || newId || undefined,
+          type: 'INV',
+        },
+      },
+      title: '청구서를 생성했습니다',
+      description: '최신 청구서 목록을 불러오고 있습니다.',
+    })
   } catch (e) {
     console.error('[InvoiceView] createInvoice error:', e)
     if (e?.response?.status === 403 || e?.response?.status === 401) {
@@ -332,7 +342,17 @@ async function handlePublishInvoice() {
     await apiPublishInvoice(invoiceId.value)
     await loadInvoice(invoiceId.value)
     await documentStore.fetchInvoices()
-    showSuccess.value = true
+    await navigateToDocumentLoading(router, {
+      to: {
+        name: 'document-all',
+        query: {
+          keyword: invoice.value?.invoiceCode || invoiceId.value,
+          type: 'INV',
+        },
+      },
+      title: '청구서를 발행했습니다',
+      description: '최신 청구서 목록을 불러오고 있습니다.',
+    })
   } catch (e) {
     console.error('[InvoiceView] publishInvoice error:', e)
     if (e?.response?.status === 403 || e?.response?.status === 401) {
@@ -369,10 +389,6 @@ async function confirmInvoiceCancel() {
   }
 }
 
-function onSuccessConfirm() {
-  showSuccess.value = false
-  router.push('/documents/invoices')
-}
 function onAccessDeniedConfirm() {
   showAccessDeniedModal.value = false
   router.push('/documents/invoices')
@@ -731,27 +747,6 @@ function onAccessDeniedConfirm() {
                   class="mt-6 rounded px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90"
                   style="background-color:#C8622A;"
                   @click="onAccessDeniedConfirm">청구서 목록으로</button>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- 성공 오버레이 -->
-    <Teleport to="body">
-      <div v-if="showSuccess"
-           class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div class="rounded-lg border px-12 py-10 text-center shadow-2xl"
-             style="background-color:#F7F3EC;border-color:#DDD7CE;">
-          <p class="text-xl font-extrabold" style="color:#3D3529;">
-            {{ invoiceId && invoiceStatus==='PUBLISHED' ? '청구서가 발행 완료되었습니다' : '청구서가 발행 대기로 저장되었습니다' }}
-          </p>
-          <p class="mt-2 text-sm" style="color:#9A8C7E;">
-            {{ selectedStatements.length }}건의 명세서가 처리되었습니다.<br>
-            총 청구 금액: <strong style="color:#3D3529;">₩{{ totalAmount.toLocaleString() }}</strong>
-          </p>
-          <button type="button"
-                  class="mt-6 rounded px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90"
-                  style="background-color:#7A8C42;"
-                  @click="onSuccessConfirm">확인</button>
         </div>
       </div>
     </Teleport>
