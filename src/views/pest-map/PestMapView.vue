@@ -14,6 +14,11 @@
         <p class="sidebar-subtitle">SeedFlow+ Pest Matching MAP</p>
       </div>
 
+      <!-- 데이터 출처 공지 -->
+      <div class="data-source-notice">
+        농촌진흥청 국가농작물병해충관리시스템(NCPMS)의 실시간 병해충 예찰 데이터를 연동하여 분석된 정보입니다.
+      </div>
+
       <!-- 필터 섹션 -->
       <div class="filter-section">
         <h2 class="section-label">작물 · 병해충 선택</h2>
@@ -82,6 +87,32 @@
 <!--          </div>-->
 <!--        </div>-->
 <!--      </div>-->
+
+      <!-- 점수 설명 섹션 -->
+      <div class="score-guide-section">
+        <h2 class="section-label">고객 관리 우선순위 점수란?</h2>
+        <div class="guide-content">
+          <p class="guide-main">데이터를 기반으로 지금 바로 챙겨야 할 고객을 알려드리는 지표입니다. 점수가 높을수록 관리가 시급하며, 아래 세 가지 항목을 종합하여 산출됩니다.</p>
+
+          <ul class="guide-list">
+            <li>
+              <span class="guide-item-title">계약 만료 (50%)</span>
+              <p class="guide-item-desc">계약 종료가 30일 이내로 다가오거나 이미 지난 경우 점수가 급격히 올라갑니다. (재계약 준비 필요)</p>
+            </li>
+            <li>
+              <span class="guide-item-title">주문 공백 (30%)</span>
+              <p class="guide-item-desc">현재 진행 중인 주문서가 확인되지 않는 고객에게 점수를 부여합니다. (신규 주문 제안 필요)</p>
+            </li>
+            <li>
+              <span class="guide-item-title">장기 미방문 (20%)</span>
+              <p class="guide-item-desc">마지막 방문 이후 시간이 오래 흐를수록 점수가 서서히 높아집니다. (관계 유지 방문 필요)</p>
+            </li>
+          </ul>
+<!--          <div class="guide-tip">-->
+<!--            <strong>활용 팁:</strong> 리스트 상단의 점수가 높은 고객부터 우선적으로 연락하거나 방문 계획을 세워보세요!-->
+<!--          </div>-->
+        </div>
+      </div>
 
       <!-- 추천 품종 섹션 -->
       <div class="products-section">
@@ -210,6 +241,7 @@ const selectedCrop = ref('')
 const selectedPest = ref('')
 const forecasts = ref([])
 const recommendedProducts = ref([])
+const showScoreGuide = ref(false)
 
 let kakaoMap = null
 let officeMarkers = []
@@ -378,7 +410,7 @@ function renderOfficeMarkers(offices) {
       <button class="info-close-btn" id="${closeBtnId}">✕</button>
       <div class="info-name">${office.name}</div>
       <div class="info-score-row">
-        <span class="info-score-label">방문 점수</span>
+        <span class="info-score-label">고객관리 점수</span>
         <div class="info-score-track">
           <div class="info-score-fill" style="width:${Math.min(office.score || 0, 100)}%"></div>
         </div>
@@ -581,32 +613,93 @@ const DUMMY_PRODUCTS = [
 
 // 주요 시군구 좌표 (실제 행정구역 폴리곤 전 더미 매핑)
 const AREA_COORDS = {
-  '청양군': { lat: 36.46, lng: 126.80 },
-  '홍성군': { lat: 36.60, lng: 126.66 },
-  '공주시': { lat: 36.45, lng: 127.12 },
-  '예산군': { lat: 36.68, lng: 126.85 },
-  '천안시': { lat: 36.81, lng: 127.15 },
-  '아산시': { lat: 36.79, lng: 126.99 },
-  '부여군': { lat: 36.27, lng: 126.91 },
-  '서천군': { lat: 36.08, lng: 126.69 },
-  '안동시': { lat: 36.57, lng: 128.73 },
-  '나주시': { lat: 35.02, lng: 126.71 },
-  '춘천시': { lat: 37.88, lng: 127.73 },
-  '제주시': { lat: 33.50, lng: 126.52 },
-  '서귀포시': { lat: 33.25, lng: 126.56 },
-  '여주시': { lat: 37.30, lng: 127.63 },
-  '광주시': { lat: 37.41, lng: 127.25 },
-  '이천시': { lat: 37.27, lng: 127.44 },
-  '화성시': { lat: 37.20, lng: 126.83 },
-  '평택시': { lat: 36.99, lng: 127.11 },
-  '고창군': { lat: 35.43, lng: 126.70 },
-  '영광군': { lat: 35.27, lng: 126.51 },
-  '태안군': { lat: 36.75, lng: 126.30 },
-  '강진군': { lat: 34.64, lng: 126.77 },
-  '괴산군': { lat: 36.81, lng: 127.79 },
-  '김제시': { lat: 35.80, lng: 126.88 },
-  '당진시': { lat: 36.89, lng: 126.63 },
-  '서산시': { lat: 36.78, lng: 126.45 },
+// --- 대규모 추가 지역 (광역 지자체 제외, 가나다순 정렬) ---
+  '강진군': {lat: 34.64, lng: 126.77},
+  '거제시': {lat: 34.88, lng: 128.62},
+  '거창군': {lat: 35.69, lng: 127.91},
+  '경주시': {lat: 35.84, lng: 129.21},
+  '고령군': {lat: 35.73, lng: 128.26},
+  '고창군': {lat: 35.43, lng: 126.70},
+  '고흥군': {lat: 34.61, lng: 127.28},
+  '공주시': {lat: 36.45, lng: 127.12},
+  '괴산군': {lat: 36.81, lng: 127.79},
+  '구미시': {lat: 36.12, lng: 128.33},
+  '군위군': {lat: 36.24, lng: 128.57},
+  '김제시': {lat: 35.80, lng: 126.88},
+  '김천시': {lat: 36.12, lng: 128.12},
+  '나주시': {lat: 35.02, lng: 126.71},
+  '남해군': {lat: 34.84, lng: 127.89},
+  '단양군': {lat: 36.98, lng: 128.36},
+  '달성군': {lat: 35.77, lng: 128.43},
+  '당진시': {lat: 36.89, lng: 126.63},
+  '무안군': {lat: 34.99, lng: 126.48},
+  '무주군': {lat: 36.01, lng: 127.66},
+  '문경시': {lat: 36.59, lng: 128.18},
+  '보령시': {lat: 36.33, lng: 126.60},
+  '보은군': {lat: 36.49, lng: 127.72},
+  '봉화군': {lat: 36.89, lng: 128.73},
+  '부안군': {lat: 35.73, lng: 126.73},
+  '사천시': {lat: 35.08, lng: 128.08},
+  '산청군': {lat: 35.42, lng: 127.87},
+  '삼척시': {lat: 37.45, lng: 129.16},
+  '상주시': {lat: 36.41, lng: 128.16},
+  '서산시': {lat: 36.78, lng: 126.45},
+  '순창군': {lat: 35.37, lng: 127.14},
+  '순천시': {lat: 34.95, lng: 127.48},
+  '신안군': {lat: 34.83, lng: 126.11},
+  '아산시': {lat: 36.79, lng: 126.99},
+  '안동시': {lat: 36.57, lng: 128.73},
+  '안성시': {lat: 37.01, lng: 127.27},
+  '양평군': {lat: 37.49, lng: 127.49},
+  '여수시': {lat: 34.76, lng: 127.66},
+  '여주시': {lat: 37.30, lng: 127.63},
+  '영광군': {lat: 35.27, lng: 126.51},
+  '영덕군': {lat: 36.41, lng: 129.37},
+  '영동군': {lat: 36.17, lng: 127.78},
+  '영양군': {lat: 36.66, lng: 129.11},
+  '영월군': {lat: 37.18, lng: 128.46},
+  '영주시': {lat: 36.81, lng: 128.63},
+  '영천시': {lat: 35.97, lng: 128.94},
+  '예산군': {lat: 36.68, lng: 126.85},
+  '예천군': {lat: 36.64, lng: 128.44},
+  '옥천군': {lat: 36.30, lng: 127.57},
+  '완도군': {lat: 34.31, lng: 126.75},
+  '완주군': {lat: 35.90, lng: 127.16},
+  '울진군': {lat: 36.99, lng: 129.40},
+  '원주시': {lat: 37.34, lng: 127.92},
+  '음성군': {lat: 36.94, lng: 127.69},
+  '의령군': {lat: 35.32, lng: 128.26},
+  '의성군': {lat: 36.35, lng: 128.70},
+  '이천시': {lat: 37.27, lng: 127.44},
+  '임실군': {lat: 35.61, lng: 127.28},
+  '장수군': {lat: 35.65, lng: 127.52},
+  '정선군': {lat: 37.38, lng: 128.66},
+  '제천시': {lat: 37.13, lng: 128.21},
+  '증평군': {lat: 36.78, lng: 127.58},
+  '진도군': {lat: 34.48, lng: 126.26},
+  '진안군': {lat: 35.79, lng: 127.43},
+  '진천군': {lat: 36.85, lng: 127.44},
+  '창녕군': {lat: 35.54, lng: 128.49},
+  '천안시': {lat: 36.81, lng: 127.15},
+  '청도군': {lat: 35.65, lng: 128.73},
+  '청송군': {lat: 36.43, lng: 129.06},
+  '청양군': {lat: 36.46, lng: 126.80},
+  '청주시': {lat: 36.64, lng: 127.49},
+  '충주시': {lat: 36.99, lng: 127.93},
+  '태안군': {lat: 36.75, lng: 126.30},
+  '통영시': {lat: 34.85, lng: 128.43},
+  '평창군': {lat: 37.37, lng: 128.39},
+  '포항시': {lat: 36.02, lng: 129.36},
+  '하동군': {lat: 35.06, lng: 127.75},
+  '함안군': {lat: 35.27, lng: 128.40},
+  '함양군': {lat: 35.52, lng: 127.73},
+  '함평군': {lat: 35.07, lng: 126.52},
+  '합천군': {lat: 35.57, lng: 128.17},
+  '해남군': {lat: 34.57, lng: 126.60},
+  '홍천군': {lat: 37.69, lng: 127.88},
+  '화성시': {lat: 37.20, lng: 126.83},
+  '화순군': {lat: 35.06, lng: 126.98},
+  '횡성군': {lat: 37.49, lng: 127.98},
 }
 </script>
 
@@ -695,6 +788,15 @@ const AREA_COORDS = {
   margin: 0;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+/* 데이터 출처 공지 */
+.data-source-notice {
+  padding: 12px 20px 0;
+  font-size: 9px;
+  color: var(--color-text-placeholder);
+  line-height: 1.4;
+  word-break: keep-all;
 }
 
 /* 필터 섹션 */
@@ -810,6 +912,120 @@ const AREA_COORDS = {
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+/* 점수 설명 팝업 스타일 */
+.section-label-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-guide-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.score-guide-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  margin-top: -14px; /* section-label 마진 보정 */
+}
+
+.score-guide-trigger:hover {
+  color: var(--color-olive);
+}
+
+.score-guide-trigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.score-guide-popup {
+  position: absolute;
+  top: 10px;
+  left: -10px;
+  width: 280px;
+  background: #fff;
+  border: 1px solid var(--color-border-card);
+  border-radius: 12px;
+  padding: 18px 16px;
+  box-shadow: 0 10px 25px rgba(61, 53, 41, 0.2);
+  z-index: 100;
+  text-align: left;
+}
+
+.popup-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-strong);
+  margin: 0 0 10px;
+  padding-right: 15px;
+}
+
+.popup-main {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-body);
+  margin: 0 0 12px;
+}
+
+.popup-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.popup-list li {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--color-text-sub);
+}
+
+.popup-list strong {
+  color: var(--color-text-strong);
+}
+
+.popup-tip {
+  font-size: 10px;
+  background: var(--color-olive-light);
+  color: var(--color-olive-dark);
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* 팝업 트랜지션 */
+.pop-enter-active {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pop-leave-active {
+  transition: all 0.15s cubic-bezier(0.4, 0, 1, 1);
+}
+.pop-enter-from, .pop-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(5px);
 }
 
 /* 범례 */
