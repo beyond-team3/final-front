@@ -13,7 +13,6 @@ const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDat
 const ym = (d) => `${d.getFullYear()}.${pad2(d.getMonth() + 1)}`
 const toLocalDateTime = (d) => `${ymd(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 const DAY_MS = 24 * 60 * 60 * 1000
-const MAX_VISIBLE_MULTIDAY_LANES = 10
 const getErrorMessage = (error, fallback) => error?.response?.data?.error?.message
   || error?.response?.data?.message
   || error?.message
@@ -343,63 +342,10 @@ const calendarCells = computed(() => {
 
 const calendarWeeks = computed(() => Array.from({ length: 6 }, (_, index) => {
   const cells = calendarCells.value.slice(index * 7, index * 7 + 7)
-  const weekStart = toStartOfDay(cells[0]?.date)
-  const weekEnd = toStartOfDay(cells[6]?.date)
-  const lanes = []
-  const multiDaySegments = []
-
-  visibleEvents.value
-    .filter((eventItem) => {
-      if (!isMultiDayEvent(eventItem)) {
-        return false
-      }
-      const range = getEventDayRange(eventItem)
-      if (!range || !weekStart || !weekEnd) {
-        return false
-      }
-      return range.startDay.getTime() <= weekEnd.getTime() && range.endDay.getTime() >= weekStart.getTime()
-    })
-    .sort((left, right) => {
-      const startCompare = String(right.startAt || right.date || '').localeCompare(String(left.startAt || left.date || ''))
-      if (startCompare !== 0) {
-        return startCompare
-      }
-      return String(right.title || '').localeCompare(String(left.title || ''))
-    })
-    .forEach((eventItem) => {
-      const range = getEventDayRange(eventItem)
-      const segmentStart = range.startDay.getTime() < weekStart.getTime() ? weekStart : range.startDay
-      const segmentEnd = range.endDay.getTime() > weekEnd.getTime() ? weekEnd : range.endDay
-      const startCol = compareDay(segmentStart, weekStart) + 1
-      const endCol = compareDay(segmentEnd, weekStart) + 2
-      let laneIndex = 0
-
-      while (lanes[laneIndex] && lanes[laneIndex] >= startCol) {
-        laneIndex += 1
-      }
-
-      if (laneIndex >= MAX_VISIBLE_MULTIDAY_LANES) {
-        return
-      }
-
-      lanes[laneIndex] = endCol - 1
-      multiDaySegments.push({
-        key: `${eventItem.id}-${cells[0]?.date}`,
-        event: eventItem,
-        lane: laneIndex + 1,
-        startCol,
-        endCol,
-        startsBeforeWeek: range.startDay.getTime() < weekStart.getTime(),
-        endsAfterWeek: range.endDay.getTime() > weekEnd.getTime(),
-      })
-    })
 
   return {
     key: cells[0]?.date || `week-${index}`,
     cells,
-    multiDaySegments,
-    laneCount: lanes.length,
-    barAreaHeight: lanes.length > 0 ? (lanes.length * 2) + ((lanes.length - 1) * 2) + 5 : 0,
   }
 }))
 
@@ -921,24 +867,7 @@ onBeforeUnmount(() => {
                   v-for="week in calendarWeeks"
                   :key="week.key"
                   class="calendar-week"
-                  :style="{ '--week-lane-count': String(week.laneCount), '--week-event-area': `${week.barAreaHeight}px` }"
                 >
-                  <div v-if="week.multiDaySegments.length > 0" class="week-multiday-layer">
-                    <button
-                      v-for="segment in week.multiDaySegments"
-                      :key="segment.key"
-                      type="button"
-                      class="multiday-badge"
-                      :class="[
-                        segment.event.type,
-                        { 'has-start-cap': !segment.startsBeforeWeek, 'has-end-cap': !segment.endsAfterWeek },
-                      ]"
-                      :style="{ gridColumn: `${segment.startCol} / ${segment.endCol}`, gridRow: String(segment.lane) }"
-                      :aria-label="`${segment.event.title} (${formatDateTimeText(segment.event.startAt)} ~ ${formatDateTimeText(segment.event.endAt)})`"
-                      @click.stop="openDetail(segment.event)"
-                    />
-                  </div>
-
                   <div class="week-day-grid">
                     <div
                       v-for="cell in week.cells"
@@ -1457,11 +1386,6 @@ onBeforeUnmount(() => {
 
 .calendar-week {
   position: relative;
-  --week-lane-count: 0;
-  --week-lane-height: 2px;
-  --week-lane-gap: 2px;
-  --week-event-top: 34px;
-  --week-event-area: 0px;
 }
 
 .week-day-grid {
@@ -1523,64 +1447,13 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 10px;
   right: 10px;
-  top: calc(38px + var(--week-event-area));
+  top: 38px;
   bottom: 10px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
   overflow: hidden;
-}
-
-.week-multiday-layer {
-  position: absolute;
-  top: var(--week-event-top);
-  left: 0;
-  right: 0;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: var(--week-lane-height);
-  gap: var(--week-lane-gap) 0;
-  padding: 0 6px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.multiday-badge {
-  min-width: 0;
-  height: var(--week-lane-height);
-  border: none;
-  border-radius: 999px;
-  background: rgba(122, 140, 66, 0.52);
-  display: block;
-  padding: 0;
-  overflow: hidden;
-  pointer-events: auto;
-  cursor: pointer;
-  box-shadow: none;
-  position: relative;
-}
-
-.multiday-badge::before,
-.multiday-badge::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 1px;
-  height: 6px;
-  background: rgba(88, 104, 48, 0.75);
-  transform: translateY(-50%);
-  opacity: 0;
-}
-
-.multiday-badge.has-start-cap::before {
-  left: 0;
-  opacity: 1;
-}
-
-.multiday-badge.has-end-cap::after {
-  right: 0;
-  opacity: 1;
 }
 
 .badge {
@@ -1590,37 +1463,25 @@ onBeforeUnmount(() => {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 999px;
-  border: 1px solid var(--color-olive-light, #C8D4A0);
-  background: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
+  border: 1px solid var(--color-border-card, #DDD7CE);
+  background: var(--color-bg-input, #FAF7F3);
+  color: var(--color-text-body, #6B5F50);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.badge.history {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-}
-
 .badge.personal {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
+  background: #dff3d8;
+  border-color: #b8dfae;
   color: var(--color-olive-dark, #586830);
 }
 
-.badge.growing-season {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-}
-
-.badge.harvest {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
+.badge.deal {
+  background: var(--color-orange-light, #F0C9A8);
+  border-color: #e6aa76;
+  color: var(--color-orange-dark, #A34E20);
 }
 
 .harvest-card {
@@ -1926,27 +1787,15 @@ onBeforeUnmount(() => {
   color: var(--color-text-body, #6B5F50);
 }
 
-.pill.history {
-  background: var(--color-orange-light, #F0C9A8);
-  border-color: var(--color-orange-light, #F0C9A8);
-  color: var(--color-orange-dark, #A34E20);
-}
-
 .pill.personal {
-  background: var(--color-bg-section, #EFEADF);
-  border-color: var(--color-border-card, #DDD7CE);
-  color: var(--color-text-body, #6B5F50);
-}
-
-.pill.growing-season {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
+  background: #dff3d8;
+  border-color: #b8dfae;
   color: var(--color-olive-dark, #586830);
 }
 
-.pill.harvest {
+.pill.deal {
   background: var(--color-orange-light, #F0C9A8);
-  border-color: var(--color-orange-light, #F0C9A8);
+  border-color: #e6aa76;
   color: var(--color-orange-dark, #A34E20);
 }
 
