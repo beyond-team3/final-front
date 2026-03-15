@@ -1,87 +1,144 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { getAdminDashboard, getClientDashboard, getSalesRepDashboard } from '@/api/dashboard'
+import api from './index'
 
-// ── 영업사원 대시보드 ────────────────────────────────────────────────────────
-export const useSalesRepDashboardStore = defineStore('salesRepDashboard', () => {
-    const data    = ref(null)
-    const loading = ref(false)
-    const error   = ref('')
-
-    async function fetch() {
-        if (loading.value) return
-        loading.value = true
-        error.value   = ''
-        try {
-            data.value = await getSalesRepDashboard()
-        } catch (e) {
-            error.value = e?.response?.data?.message || e?.message || '영업 대시보드를 불러오지 못했습니다.'
-        } finally {
-            loading.value = false
-        }
+function pickRecord(payload) {
+    if (Array.isArray(payload)) {
+        return payload[0] || {}
     }
 
-    function reset() {
-        data.value    = null
-        error.value   = ''
-        loading.value = false
+    if (Array.isArray(payload?.items)) {
+        return payload.items[0] || {}
     }
 
-    return { data, loading, error, fetch, reset }
-})
+    return payload || {}
+}
 
-// ── 관리자 대시보드 ─────────────────────────────────────────────────────────
-export const useAdminDashboardStore = defineStore('adminDashboard', () => {
-    const data    = ref(null)
-    const loading = ref(false)
-    const error   = ref('')
+// ────────────────────────────────────────────────
+// 영업사원 대시보드  GET /api/dashboard/sales
+// ────────────────────────────────────────────────
+function normalizeSalesRepDashboard(payload) {
+    const raw = pickRecord(payload)
 
-    async function fetch() {
-        if (loading.value) return
-        loading.value = true
-        error.value   = ''
-        try {
-            data.value = await getAdminDashboard()
-        } catch (e) {
-            error.value = e?.response?.data?.message || e?.message || '관리자 대시보드를 불러오지 못했습니다.'
-        } finally {
-            loading.value = false
-        }
+    return {
+        header: raw.header || { title: '내 영업 현황', subtitle: '' },
+
+        monthlySales: raw.monthlySales || {
+            periodLabel: '이번 달',
+            amount: '-',
+            change: '-',
+            diff: '-',
+            completedCount: '-',
+        },
+
+        monthlyBars: Array.isArray(raw.monthlyBars) ? raw.monthlyBars : [],
+
+        billings: Array.isArray(raw.billings) ? raw.billings : [],
+
+        timeline: Array.isArray(raw.timeline) ? raw.timeline : [],
+
+        // 백엔드 응답 필드명 그대로 유지
+        priorityAccounts: Array.isArray(raw.priorityAccounts) ? raw.priorityAccounts : [],
+
+        timelineFilters: Array.isArray(raw.timelineFilters)
+            ? raw.timelineFilters
+            : ['전체', '견적', '계약', '주문'],
     }
+}
 
-    function reset() {
-        data.value    = null
-        error.value   = ''
-        loading.value = false
+// ────────────────────────────────────────────────
+// 관리자 대시보드  GET /api/dashboard/admin
+// ────────────────────────────────────────────────
+function normalizeAdminDashboard(payload) {
+    const raw = pickRecord(payload)
+
+    // 백엔드 kpis는 배열이 아닌 객체 형태로 내려옴
+    // { totalMonthlySales, salesGrowthRate, pendingDocumentCount, pendingDetail }
+    const kpisRaw = raw.kpis || {}
+    const kpis = [
+        {
+            label: '이번 달 매출',
+            icon: 'KRW',
+            iconClass: 'blue',
+            value: kpisRaw.totalMonthlySales || '-',
+            change: kpisRaw.salesGrowthRate || '-',
+            positive: true,
+        },
+        {
+            label: '대기 문서',
+            icon: '!',
+            iconClass: 'orange',
+            value: kpisRaw.pendingDocumentCount || '-',
+            change: kpisRaw.pendingDetail || '처리 필요',
+            positive: false,
+        },
+    ]
+
+    // dashboard.js normalizeAdminDashboard 수정
+    return {
+        title: raw.title || '관리자 대시보드',
+        trendPeriod: raw.trendPeriod || '이번 달',
+        kpis: raw.kpis || {},          // ← 배열 변환 없이 객체 그대로
+        salesTrend: raw.salesTrend || { lastYear: [], thisYear: [] },
+        rankings: Array.isArray(raw.rankings) ? raw.rankings : [],
+        approvalCount: Number(raw.approvalCount || 0),
+        approvals: Array.isArray(raw.approvals) ? raw.approvals : [],
     }
+}
 
-    return { data, loading, error, fetch, reset }
-})
+// ────────────────────────────────────────────────
+// 거래처 대시보드  GET /api/dashboard/client
+// ────────────────────────────────────────────────
+function normalizeClientDashboard(payload) {
+    const raw = pickRecord(payload)
 
-// ── 거래처 대시보드 ─────────────────────────────────────────────────────────
-export const useClientDashboardStore = defineStore('clientDashboard', () => {
-    const data    = ref(null)
-    const loading = ref(false)
-    const error   = ref('')
+    return {
+        title: raw.title || '내 거래 현황',
+        subtitle: raw.subtitle || '',
 
-    async function fetch() {
-        if (loading.value) return
-        loading.value = true
-        error.value   = ''
-        try {
-            data.value = await getClientDashboard()
-        } catch (e) {
-            error.value = e?.response?.data?.message || e?.message || '거래처 대시보드를 불러오지 못했습니다.'
-        } finally {
-            loading.value = false
-        }
+        billingCycle: raw.billingCycle || { value: '-', next: '-' },
+
+        orders: Array.isArray(raw.orders) ? raw.orders : [],
+
+        billings: Array.isArray(raw.billings) ? raw.billings : [],
+
+        // 백엔드 필드명은 `new`, 프론트 컴포넌트는 `isNew` 로 사용하므로 여기서 변환
+        notifications: Array.isArray(raw.notifications)
+            ? raw.notifications.map((n) => ({
+                time: n.time,
+                title: n.title,
+                detail: n.detail,
+                isNew: n.new ?? false,   // `new` → `isNew`
+            }))
+            : [],
     }
+}
 
-    function reset() {
-        data.value    = null
-        error.value   = ''
-        loading.value = false
-    }
+// ────────────────────────────────────────────────
+// Public API
+// ────────────────────────────────────────────────
+export function getSalesRepDashboard() {
+    return api.get('/dashboard/sales').then(normalizeSalesRepDashboard)
+}
 
-    return { data, loading, error, fetch, reset }
-})
+export function getAdminDashboard() {
+    return api.get('/dashboard/admin').then(normalizeAdminDashboard)
+}
+
+export function getClientDashboard() {
+    return api.get('/dashboard/client').then(normalizeClientDashboard)
+}
+
+export function getPriorityContacts() {
+    return api.get('/v1/scoring/priority-list').then(normalizePriorityContacts)
+}
+
+function normalizePriorityContacts(payload) {
+    if (!Array.isArray(payload)) return []
+    return payload.map((item) => ({
+        accountId: item.accountId || 0,
+        accountName: item.accountName || '-',
+        totalScore: item.totalScore || 0,
+        primaryReason: item.primaryReason || '',
+        detailDescription: item.detailDescription || '',
+        breakdown: item.breakdown || { ... },
+    }))
+}

@@ -179,14 +179,18 @@ const renderFallbackChart = (canvas) => {
   })
 }
 
-// ── 영업사원별 매출 랭킹 — API 응답 사용 ──────────────────────────────
-const rankings = computed(() => dashboard.value?.rankings ?? [])
+// ── 영업사원별 매출 랭킹 — 최대 5개만 노출 ──────────────────────────────
+const allRankings = computed(() => dashboard.value?.rankings ?? [])
+const rankings = computed(() => allRankings.value.slice(0, 5))
+const rankingsTotalCount = computed(() => allRankings.value.length)
 
 // ── Dashboard 데이터 fetch ─────────────────────────────────────────────────
 const title         = computed(() => dashboard.value?.title       || '관리자 대시보드')
-const approvals     = computed(() => dashboard.value?.approvals   ?? [])
+const allApprovals  = computed(() => dashboard.value?.approvals   ?? [])
+// 최근 승인 요청 최대 5개만 노출
+const approvals     = computed(() => allApprovals.value.slice(0, 5))
+const approvalsTotalCount = computed(() => allApprovals.value.length)
 const trendPeriod   = computed(() => dashboard.value?.trendPeriod || '월별 매출 추이')
-const approvalCount = computed(() => dashboard.value?.approvalCount ?? approvals.value.length)
 const hasData       = computed(() => kpiCards.value.length || rankings.value.length || approvals.value.length)
 
 const fetchDashboard = async () => {
@@ -259,7 +263,7 @@ onMounted(fetchDashboard)
         <div class="operation-card">
           <div class="operation-header">
             <h3 class="operation-title">영업사원별 매출 랭킹</h3>
-            <span class="chart-period">이번 달</span>
+            <span class="operation-badge">{{ rankings.length }}<template v-if="rankingsTotalCount > 5"><span class="text-xs"> / {{ rankingsTotalCount }}</span></template></span>
           </div>
           <div class="ranking-list">
             <div v-for="item in rankings" :key="item.rank" class="ranking-item">
@@ -273,12 +277,13 @@ onMounted(fetchDashboard)
               </div>
             </div>
           </div>
+          <div v-if="rankingsTotalCount > 5" class="list-more-indicator">{{ rankingsTotalCount - 5 }}개 더보기</div>
         </div>
 
         <div class="operation-card">
           <div class="operation-header">
             <h3 class="operation-title">최근 승인 요청</h3>
-            <span class="operation-badge">{{ approvalCount }}</span>
+            <span class="operation-badge">{{ approvals.length }}<template v-if="approvalsTotalCount > 5"><span class="text-xs"> / {{ approvalsTotalCount }}</span></template></span>
           </div>
           <div class="operation-list">
             <div v-for="item in approvals" :key="item.title + item.time" class="operation-item">
@@ -348,27 +353,31 @@ onMounted(fetchDashboard)
 
 /* 하단 3열 */
 .three-column-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.operation-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
+.operation-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; }
 .operation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .operation-title  { font-size: 15px; font-weight: 600; color: var(--c-text); }
 .operation-badge  { background: var(--c-accent); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
 
+.text-xs { font-size: 9px; }
+
 /* 승인 목록 */
-.operation-list { display: flex; flex-direction: column; gap: 10px; }
-.operation-item { padding: 12px; background: var(--c-warm); border-radius: 8px; border-left: 3px solid var(--c-accent); }
+.operation-list { display: flex; flex-direction: column; gap: 10px; max-height: none; overflow: visible; }
+.operation-item { padding: 12px; background: var(--c-warm); border-radius: 8px; border-left: 3px solid var(--c-accent); flex-shrink: 0; }
 .operation-item-title { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 4px; }
 .operation-item-meta  { display: flex; justify-content: space-between; font-size: 12px; color: var(--c-muted); }
 .operation-item-time  { color: var(--c-faint); }
 
+.list-more-indicator { padding: 10px; text-align: center; color: var(--c-muted); font-size: 11px; background: var(--c-warm); border-radius: 8px; margin-top: 8px; }
+
 /* 랭킹 */
-.ranking-list { display: flex; flex-direction: column; gap: 10px; }
-.ranking-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--c-warm); border-radius: 8px; }
-.rank-number { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; background: var(--c-warm-md); color: var(--c-muted); }
+.ranking-list { display: flex; flex-direction: column; gap: 10px; max-height: none; overflow: visible; }
+.ranking-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--c-warm); border-radius: 8px; flex-shrink: 0; }
+.rank-number { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; background: var(--c-warm-md); color: var(--c-muted); flex-shrink: 0; }
 .rank-number.top { background: #FEF3E8; color: var(--c-accent); }
 .rank-info   { flex: 1; }
 .rank-name   { font-size: 14px; font-weight: 600; color: var(--c-text); margin-bottom: 2px; }
 .rank-amount { font-size: 13px; color: var(--c-muted); }
-.rank-bar    { width: 100px; height: 6px; background: var(--c-warm-md); border-radius: 3px; overflow: hidden; }
+.rank-bar    { width: 100px; height: 6px; background: var(--c-warm-md); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
 .rank-bar-fill { height: 100%; background: var(--c-accent); border-radius: 3px; }
 
 @media (max-width: 1200px) {
