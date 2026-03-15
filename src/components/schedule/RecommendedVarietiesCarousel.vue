@@ -9,6 +9,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  compact: {
+    type: Boolean,
+    default: false,
+  },
   items: {
     type: Array,
     default: () => [],
@@ -115,7 +119,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="calendar-section-card">
+  <section class="calendar-section-card" :class="{ compact }">
     <div class="calendar-section-header">
       <div>
         <h3 class="calendar-section-title">이번달 추천 품종</h3>
@@ -228,6 +232,18 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.calendar-section-card.compact .calendar-section-header {
+  padding: 14px 16px;
+}
+
+.calendar-section-card.compact .calendar-section-title {
+  font-size: 15px;
+}
+
+.calendar-section-card.compact .calendar-section-body {
+  padding: 14px 16px 16px;
+}
+
 .calendar-section-header {
   display: flex;
   justify-content: space-between;
@@ -296,6 +312,13 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 
+.calendar-section-card.compact .recommendation-card {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+}
+
 .recommendation-image-wrap {
   min-width: 0;
 }
@@ -307,6 +330,11 @@ onBeforeUnmount(() => {
   border-radius: 14px;
   object-fit: cover;
   background: var(--color-bg-section, #EFEADF);
+}
+
+.calendar-section-card.compact .recommendation-image {
+  height: 168px;
+  border-radius: 12px;
 }
 
 .recommendation-image.placeholder {
@@ -343,6 +371,10 @@ onBeforeUnmount(() => {
   color: var(--color-text-strong, #3D3529);
 }
 
+.calendar-section-card.compact .recommendation-name {
+  font-size: 18px;
+}
+
 .recommendation-description {
   margin: 0;
   color: var(--color-text-body, #6B5F50);
@@ -354,6 +386,10 @@ onBeforeUnmount(() => {
   -webkit-box-orient: vertical;
 }
 
+.calendar-section-card.compact .recommendation-description {
+  font-size: 13px;
+}
+
 .recommendation-description.is-empty {
   color: var(--color-text-sub, #9A8C7E);
 }
@@ -363,6 +399,10 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 700;
   color: var(--color-orange-dark, #A34E20);
+}
+
+.calendar-section-card.compact .recommendation-period {
+  font-size: 12px;
 }
 
 .recommendation-meta {
@@ -424,6 +464,20 @@ onBeforeUnmount(() => {
 .carousel-dot.active {
   width: 22px;
   background: var(--color-olive, #7A8C42);
+}
+
+.calendar-section-card.compact .carousel-arrow {
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+}
+
+.calendar-section-card.compact .carousel-arrow.left {
+  left: 10px;
+}
+
+.calendar-section-card.compact .carousel-arrow.right {
+  right: 10px;
 }
 
 @media (max-width: 820px) {

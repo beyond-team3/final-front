@@ -883,17 +883,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <RecommendedVarietiesCarousel
-          class="calendar-section-block"
-          :month="calendarMonth"
-          :items="recommendationItems"
-          :loading="recommendationLoading"
-          :error-message="recommendationError"
-          :error-status="recommendationErrorStatus"
-          @retry="loadRecommendationSection()"
-          @select-product="goToRecommendationDetail"
-        />
-
         <div class="calendar-shell">
           <p v-if="scheduleError" class="schedule-feedback error">{{ scheduleError }}</p>
           <p v-else-if="scheduleLoading" class="schedule-feedback">일정을 불러오는 중입니다.</p>
@@ -938,17 +927,32 @@ onBeforeUnmount(() => {
 	        </div>
 	      </div>
 
-        <HarvestImminentSection
-          class="calendar-section-block"
-          :month="harvestSectionMonth || calendarMonth"
-          :next-month="harvestSectionNextMonth"
-          :clients="harvestSectionClients"
-          :loading="harvestSectionLoading"
-          :error-message="harvestSectionError"
-          :error-status="harvestSectionErrorStatus"
-          @retry="loadHarvestImminentSection()"
-          @select-client="goToClientDetail"
-        />
+        <aside class="calendar-right">
+          <RecommendedVarietiesCarousel
+            class="calendar-section-block"
+            :month="calendarMonth"
+            :items="recommendationItems"
+            :loading="recommendationLoading"
+            :error-message="recommendationError"
+            :error-status="recommendationErrorStatus"
+            :compact="true"
+            @retry="loadRecommendationSection()"
+            @select-product="goToRecommendationDetail"
+          />
+
+          <HarvestImminentSection
+            class="calendar-section-block"
+            :month="harvestSectionMonth || calendarMonth"
+            :next-month="harvestSectionNextMonth"
+            :clients="harvestSectionClients"
+            :loading="harvestSectionLoading"
+            :error-message="harvestSectionError"
+            :error-status="harvestSectionErrorStatus"
+            :compact="true"
+            @retry="loadHarvestImminentSection()"
+            @select-client="goToClientDetail"
+          />
+        </aside>
     </section>
 
     <div v-if="dayModalOpen" class="modal-backdrop" @click.self="dayModalOpen = false">
@@ -1093,9 +1097,10 @@ onBeforeUnmount(() => {
   border-bottom: 2px solid var(--color-border-divider, #E8E3D8);
 }
 
-.calendar-page { display: block; }
-.calendar-left { min-width: 0; }
-.calendar-section-block { margin-bottom: 16px; }
+.calendar-page { display: flex; gap: 20px; align-items: stretch; }
+.calendar-left { flex: 1 1 auto; min-width: 640px; }
+.calendar-right { width: 360px; flex: 0 0 360px; }
+.calendar-section-block { margin-bottom: 14px; }
 
 .toolbar {
   display: flex;
@@ -1696,7 +1701,9 @@ onBeforeUnmount(() => {
 .dark .icon-btn:hover { background: #2C2C2C; }
 
 @media (max-width: 1120px) {
+  .calendar-page { flex-direction: column; }
   .calendar-left { min-width: 0; }
+  .calendar-right { width: 100%; flex: 1 1 auto; }
 }
 
 @media (max-width: 640px) {

@@ -9,6 +9,10 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  compact: {
+    type: Boolean,
+    default: false,
+  },
   nextMonth: {
     type: Number,
     default: null,
@@ -70,7 +74,7 @@ watch(
 </script>
 
 <template>
-  <section class="calendar-section-card">
+  <section class="calendar-section-card" :class="{ compact }">
     <div class="calendar-section-header">
       <div>
         <h3 class="calendar-section-title">담당 거래처 취급 품종의 수확 임박</h3>
@@ -177,6 +181,18 @@ watch(
   overflow: hidden;
 }
 
+.calendar-section-card.compact .calendar-section-header {
+  padding: 14px 16px;
+}
+
+.calendar-section-card.compact .calendar-section-title {
+  font-size: 15px;
+}
+
+.calendar-section-card.compact .calendar-section-body {
+  padding: 14px 16px 16px;
+}
+
 .calendar-section-header {
   padding: 16px 18px 14px;
   border-bottom: 1px solid var(--color-border-divider, #E8E3D8);
@@ -225,6 +241,11 @@ watch(
   padding: 18px;
 }
 
+.calendar-section-card.compact .client-group {
+  padding: 12px;
+  border-radius: 12px;
+}
+
 .client-group-header {
   display: flex;
   justify-content: space-between;
@@ -239,6 +260,10 @@ watch(
   font-size: 18px;
   font-weight: 800;
   color: var(--color-text-strong, #3D3529);
+}
+
+.calendar-section-card.compact .client-name {
+  font-size: 15px;
 }
 
 .client-caption {
@@ -256,6 +281,10 @@ watch(
   font-weight: 800;
   padding: 10px 12px;
   cursor: pointer;
+}
+
+.calendar-section-card.compact .client-link-btn {
+  padding: 8px 10px;
 }
 
 .crop-list {
@@ -282,6 +311,11 @@ watch(
   gap: 12px;
 }
 
+.calendar-section-card.compact .product-list {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
 .product-card {
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr);
@@ -293,6 +327,13 @@ watch(
   background: rgba(255, 255, 255, 0.64);
 }
 
+.calendar-section-card.compact .product-card {
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+}
+
 .product-image {
   width: 92px;
   height: 92px;
@@ -300,6 +341,12 @@ watch(
   border-radius: 12px;
   object-fit: cover;
   background: var(--color-bg-section, #EFEADF);
+}
+
+.calendar-section-card.compact .product-image {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
 }
 
 .product-image.placeholder {
@@ -337,11 +384,19 @@ watch(
   color: var(--color-text-strong, #3D3529);
 }
 
+.calendar-section-card.compact .product-name {
+  font-size: 14px;
+}
+
 .product-period {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
   color: var(--color-orange-dark, #A34E20);
+}
+
+.calendar-section-card.compact .product-period {
+  font-size: 12px;
 }
 
 .product-meta {
