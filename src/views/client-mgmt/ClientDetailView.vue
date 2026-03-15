@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -9,9 +9,10 @@ import ModalBase from '@/components/common/ModalBase.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TabNav from '@/components/common/TabNav.vue'
-import PipelineTimelineCard from '@/components/history/PipelineTimelineCard.vue'
+import DealHistoryListPanel from '@/components/history/DealHistoryListPanel.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClientStore } from '@/stores/client'
+import { useHistoryStore } from '@/stores/history'
 import { ROLES } from '@/utils/constants'
 import { formatWithCommas, stripCommas } from '@/utils/format'
 
@@ -19,6 +20,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const clientStore = useClientStore()
+const historyStore = useHistoryStore()
 
 const activeTab = ref('info')
 const isEditModalOpen = ref(false)
@@ -105,6 +107,7 @@ const currentClientId = computed(() => route.params.id)
 const { currentClient, loading, error } = storeToRefs(clientStore)
 
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
+const currentEmployeeId = computed(() => String(authStore.me?.employeeId || authStore.me?.refId || authStore.me?.id || ''))
 const employees = ref([])
 const selectedCrop = ref('')
 
@@ -165,7 +168,7 @@ const execDaumPostcode = () => {
 
 const tabOptions = computed(() => [
   { key: 'info', label: '거래처 정보' },
-  { key: 'history', label: '영업 히스토리', badge: currentClient.value?.pipelines?.length || 0 },
+  { key: 'history', label: '영업 히스토리', badge: scopedHistoryDeals.value.length },
 ])
 
 const cropOptions = ['가지', '갓', '고추', '무', '배추', '상추', '수박', '시금치', '양파', '오이', '옥수수', '참외', '토마토', '파', '파프리카', '호박', '양배추']
@@ -174,6 +177,16 @@ const toCurrency = (value) => clientStore.toCurrency(value)
 const isClientActive = computed(() => Boolean(currentClient.value?.isActive))
 const clientStatusText = computed(() => (isClientActive.value ? '활성' : '비활성'))
 const clientStatusSubtitle = computed(() => (isClientActive.value ? '사용중' : '비활성'))
+const scopedHistoryDeals = computed(() => {
+  const clientId = String(currentClient.value?.id || '')
+  if (!clientId) return []
+
+  return historyStore.pipelinesForView.filter((deal) => {
+    if (String(deal.clientId) !== clientId) return false
+    if (isAdmin.value) return true
+    return String(deal.ownerEmpId || '') === currentEmployeeId.value
+  })
+})
 
 const fetchEmployees = async () => {
   try {
@@ -281,6 +294,11 @@ const openPipelineDetail = (pipelineId) => {
   router.push({ name: 'pipeline-detail', params: { id: pipelineId } })
 }
 
+const fetchScopedHistory = async () => {
+  if (!currentClient.value?.id) return
+  await historyStore.fetchPipelines()
+}
+
 const fetchClientDetail = async () => {
   const idValue = currentClientId.value
   if (!idValue || String(idValue) === 'undefined' || String(idValue) === 'null') {
@@ -299,6 +317,16 @@ onMounted(() => {
   fetchClientDetail()
   window.addEventListener('click', handleClickOutsideDropdown)
 })
+
+watch(
+  () => [activeTab.value, currentClient.value?.id],
+  ([tab, clientId]) => {
+    if (tab === 'history' && clientId) {
+      void fetchScopedHistory()
+    }
+  },
+  { immediate: true },
+)
 
 onUnmounted(() => {
   window.removeEventListener('click', handleClickOutsideDropdown)
@@ -524,11 +552,19 @@ onUnmounted(() => {
       </div>
 
       <div v-else class="space-y-4">
-        <PipelineTimelineCard v-for="pipeline in (currentClient?.pipelines || [])" :key="pipeline.id" :pipeline="pipeline" :amount-formatter="toCurrency" @detail="openPipelineDetail" class="!bg-[var(--color-bg-card)] !border-[var(--color-border-card)]" />
-        <article v-if="currentClient?.pipelines?.length === 0" class="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] text-sm text-[var(--color-text-placeholder)]">
-          <span class="mb-2 text-3xl">📋</span>
-          영업 히스토리가 없습니다.
-        </article>
+        <DealHistoryListPanel
+          :title="`${currentClient.name} 영업 히스토리`"
+          :deals="scopedHistoryDeals"
+          :loading="historyStore.loading"
+          :error="historyStore.error"
+          :show-client-filter="false"
+          search-placeholder="담당자명, deal 번호, 문서코드 검색"
+          empty-title="영업 히스토리가 없습니다."
+          :empty-description="isAdmin ? '해당 거래처에 연결된 히스토리가 없습니다.' : '본인이 담당한 거래 히스토리가 없습니다.'"
+          @retry="fetchScopedHistory"
+          @deal-focus="historyStore.ensureDealLogs"
+          @open-detail="openPipelineDetail"
+        />
       </div>
 
       <!-- 모달 디자인 업데이트 -->
