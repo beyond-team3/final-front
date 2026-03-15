@@ -77,7 +77,7 @@ watch(
   <section class="calendar-section-card" :class="{ compact }">
     <div class="calendar-section-header">
       <div>
-        <h3 class="calendar-section-title">담당 거래처 취급 품종의 수확 임박</h3>
+        <h3 class="calendar-section-title">수확 임박 품종</h3>
         <p class="calendar-section-subtitle">
           {{ month }}월 기준{{ nextMonth ? `, ${nextMonth}월까지 수확 일정` : '' }}을 확인하세요.
         </p>

@@ -150,16 +150,6 @@ onBeforeUnmount(() => {
 
       <div v-else class="recommendation-carousel">
         <div class="recommendation-frame">
-          <button
-            v-if="hasMultipleItems"
-            type="button"
-            class="carousel-arrow left"
-            aria-label="이전 추천 품종"
-            @click="prevItem"
-          >
-            ‹
-          </button>
-
           <article
             class="recommendation-card"
             role="button"
@@ -169,6 +159,16 @@ onBeforeUnmount(() => {
             @keydown.space.prevent="emit('select-product', currentItem)"
           >
             <div class="recommendation-image-wrap">
+              <button
+                v-if="hasMultipleItems"
+                type="button"
+                class="carousel-arrow left"
+                aria-label="이전 추천 품종"
+                @click.stop="prevItem"
+              >
+                ‹
+              </button>
+
               <img
                 v-if="hasValidImage(currentItem)"
                 :src="currentItem.imageUrl"
@@ -179,6 +179,16 @@ onBeforeUnmount(() => {
               <div v-else class="recommendation-image placeholder">
                 <span>{{ currentItem.productCategoryLabel || '품종' }}</span>
               </div>
+
+              <button
+                v-if="hasMultipleItems"
+                type="button"
+                class="carousel-arrow right"
+                aria-label="다음 추천 품종"
+                @click.stop="nextItem"
+              >
+                ›
+              </button>
             </div>
 
             <div class="recommendation-content">
@@ -196,15 +206,6 @@ onBeforeUnmount(() => {
             </div>
           </article>
 
-          <button
-            v-if="hasMultipleItems"
-            type="button"
-            class="carousel-arrow right"
-            aria-label="다음 추천 품종"
-            @click="nextItem"
-          >
-            ›
-          </button>
         </div>
 
         <div v-if="hasMultipleItems" class="carousel-dots" role="group" aria-label="추천 품종 슬라이드 선택">
@@ -321,6 +322,9 @@ onBeforeUnmount(() => {
 
 .recommendation-image-wrap {
   min-width: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
 }
 
 .recommendation-image {
