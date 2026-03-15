@@ -56,7 +56,7 @@ const typeMetaMap = {
   PRODUCT_CREATED: { icon: '상', label: '상품 등록', tone: 'tone-product' },
   CULTIVATION_SOWING_PROMOTION: { icon: '재', label: '파종 알림', tone: 'tone-cultivation' },
   CULTIVATION_HARVEST_FEEDBACK: { icon: '재', label: '수확 피드백', tone: 'tone-cultivation' },
-  DEAL_STATUS_CHANGED: { icon: '상', label: '상태 변경', tone: 'tone-neutral' },
+  DEAL_STATUS_CHANGED: { icon: '상', label: '거래 실황', tone: 'tone-neutral' },
 }
 
 const roleNotifications = computed(() => store.getAll())
