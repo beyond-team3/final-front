@@ -84,6 +84,7 @@ const onSubmit = async () => {
                   id="loginId"
                   v-model="loginId"
                   type="text"
+                  autocomplete="username"
                   class="h-12 w-full rounded-xl border border-[var(--color-border)] bg-[#FAF9F6] px-4 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-border-focus)] focus:bg-white focus:ring-2 focus:ring-[var(--color-olive-light)] transition-all placeholder-[var(--color-faint)]"
                   placeholder="아이디를 입력하세요"
                   required
@@ -96,6 +97,7 @@ const onSubmit = async () => {
                   id="loginPw"
                   v-model="loginPw"
                   type="password"
+                  autocomplete="current-password"
                   class="h-12 w-full rounded-xl border border-[var(--color-border)] bg-[#FAF9F6] px-4 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-border-focus)] focus:bg-white focus:ring-2 focus:ring-[var(--color-olive-light)] transition-all placeholder-[var(--color-faint)]"
                   placeholder="비밀번호를 입력하세요"
                   required
