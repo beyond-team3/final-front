@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .compare-btn {
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #1f2937;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .compare-btn:hover {
+            border-color: #9ca3af;
+            background: #f9fafb;
+        }
+
+        .compare-btn.active {
+            border-color: #2563eb;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        /* 필터 영역 */
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        /* 라디오 버튼 그룹 */
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            background-color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .radio-option label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+        }
+
+        /* 멀티셀렉트 */
+        .multi-select {
+            position: relative;
+            min-width: 250px;
+        }
+
+        .multi-select-trigger {
+            padding: 10px 35px 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: white;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .multi-select-trigger::after {
+            content: '\u25BC';
+            font-size: 10px;
+            color: #666;
+        }
+
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 4px;
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .multi-select-dropdown.show {
+            display: block;
+        }
+
+        .multi-select-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .multi-select-option:hover {
+            background-color: #f8f9fa;
+        }
+
+        .multi-select-option input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        /* 그래프 전환 버튼 */
+        .chart-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .chart-toggle-btn {
+            padding: 10px 20px;
+            background-color: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chart-toggle-btn.active {
+            background-color: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+
+        .chart-toggle-btn:hover:not(.active) {
+            border-color: #3498db;
+            background-color: #fff;
+        }
+
+        /* 범례 영역 */
+        .legend-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        .legend-item:hover {
+            background-color: #e9ecef;
+        }
+
+        .legend-item.disabled {
+            opacity: 0.4;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .legend-color.dashed {
+            background: repeating-linear-gradient(
+                90deg,
+                currentColor 0px,
+                currentColor 6px,
+                transparent 6px,
+                transparent 10px
+            );
+            height: 4px;
+            width: 24px;
+            border-radius: 0;
+            align-self: center;
+        }
+
+        .legend-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .legend-value {
+            font-size: 13px;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        /* 차트 컨테이너 */
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .chart-toggle {
+                flex-direction: column;
+            }
+
+            .radio-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">&#9776;</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+                <h2 class="screen-title">매출 통계(영업사원)</h2>
+
+                <!-- 조회 타입 선택 -->
+                <div class="filter-section">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label">조회 타입</label>
+                            <div class="radio-group">
+                                <div class="radio-option">
+                                    <input type="radio" id="typePersonal" name="viewType" value="personal" checked>
+                                    <label for="typePersonal">개인 매출</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="typeClient" name="viewType" value="client">
+                                    <label for="typeClient">거래처별</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="typeVariety" name="viewType" value="variety">
+                                    <label for="typeVariety">품종별</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 거래처 멀티셀렉트 (거래처별 선택 시만 표시) -->
+                        <div class="filter-group" id="clientSelectGroup" style="display: none;">
+                            <label class="filter-label">거래처 선택</label>
+                            <div class="multi-select" id="clientMultiSelect">
+                                <div class="multi-select-trigger" id="clientSelectTrigger">
+                                    <span id="clientSelectText">선택하세요</span>
+                                </div>
+                                <div class="multi-select-dropdown" id="clientSelectDropdown">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 품종 멀티셀렉트 (품종별 선택 시만 표시) -->
+                        <div class="filter-group" id="varietySelectGroup" style="display: none;">
+                            <label class="filter-label">품종 선택</label>
+                            <div class="multi-select" id="varietyMultiSelect">
+                                <div class="multi-select-trigger" id="varietySelectTrigger">
+                                    <span id="varietySelectText">선택하세요</span>
+                                </div>
+                                <div class="multi-select-dropdown" id="varietySelectDropdown">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====== 개인 매출 섹션 ====== -->
+                <div id="personalSection">
+                    <!-- 상단: 기간 단위 드롭다운 + 기간 범위 입력 -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+                      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <label for="salesUnit" style="font-weight:600; color:#2c3e50;">기간 단위</label>
+                        <select id="salesUnit" style="padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; min-width:140px;">
+                          <option value="month" selected>월별</option>
+                          <option value="quarter">분기별</option>
+                        </select>
+
+                        <div style="display:flex; align-items:center; gap:8px; color:#6b7280;">
+                          <input id="salesRangeStart" type="date"
+                                 style="padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+                          <span>~</span>
+                          <input id="salesRangeEnd" type="date"
+                                 style="padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 중앙: 꺾은선 그래프 -->
+                    <div style="border:1px solid #eef2f7; border-radius:12px; padding:16px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                        <div style="font-weight:700; color:#2c3e50;">개인 매출 추이</div>
+
+                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                          <!-- 범례 -->
+                          <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; color:#6b7280; font-size:13px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                              <span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#3498db;"></span>
+                              <span>조회 구간</span>
+                            </div>
+                            <div id="prevYearLegend" style="display:none; align-items:center; gap:6px;">
+                              <span style="display:inline-block; width:16px; height:0; border-top:2px dashed #9ca3af;"></span>
+                              <span>전년도</span>
+                            </div>
+                          </div>
+
+                          <button id="prevYearToggle" class="compare-btn" type="button" aria-pressed="false">전년도 대비</button>
+                        </div>
+                      </div>
+
+                      <div id="salesChartWrap" style="position:relative; width:100%; height:360px;">
+                        <canvas id="salesChart" style="width:100%; height:100%;"></canvas>
+
+                        <!-- 간단 툴팁 -->
+                        <div id="chartTooltip"
+                             style="position:absolute; display:none; pointer-events:none; padding:10px 12px; background:#111827; color:#fff; border-radius:10px; font-size:12px; line-height:1.4; box-shadow:0 10px 25px rgba(0,0,0,0.18);">
+                        </div>
+                      </div>
+
+                      <div style="margin-top:10px; color:#9ca3af; font-size:12px;">
+                        * 프로토타입용 더미 데이터입니다. API 연동 시 데이터만 교체하면 됩니다.
+                      </div>
+                    </div>
+                </div>
+
+                <!-- ====== 거래처별 매출 섹션 ====== -->
+                <div id="clientSection" style="display:none;">
+                    <!-- 상단 필터 -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+                      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <label for="clientPeriodType" style="font-weight:600; color:#2c3e50;">기간 단위</label>
+                        <select id="clientPeriodType" style="padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; min-width:140px;">
+                          <option value="monthly" selected>월별</option>
+                          <option value="quarterly">분기별</option>
+                        </select>
+
+                        <div style="display:flex; align-items:center; gap:8px; color:#6b7280;">
+                          <input id="clientStartDate" type="date" value="2025-01-01"
+                                 style="padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+                          <span>~</span>
+                          <input id="clientEndDate" type="date" value="2025-12-31"
+                                 style="padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+                        </div>
+                      </div>
+
+                      <button id="clientCompareToggle" class="compare-btn" type="button">전년도 대비</button>
+                    </div>
+
+                    <!-- 그래프 전환 버튼 -->
+                    <div class="chart-toggle">
+                        <button class="chart-toggle-btn active" data-chart="line">
+                            <span>추이 보기</span>
+                        </button>
+                        <button class="chart-toggle-btn" data-chart="bar">
+                            <span>순위 비교</span>
+                        </button>
+                    </div>
+
+                    <!-- 차트 영역 -->
+                    <div class="chart-container">
+                        <canvas id="clientChart"></canvas>
+                    </div>
+
+                    <!-- 범례 -->
+                    <div class="legend-container" id="clientLegendContainer">
+                    </div>
+
+                    <div style="margin-top:10px; color:#9ca3af; font-size:12px;">
+                      * 프로토타입용 더미 데이터입니다. API 연동 시 데이터만 교체하면 됩니다.
+                    </div>
+                </div>
+
+                <!-- ====== 품종별 매출 섹션 ====== -->
+                <div id="varietySection" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+                      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <label for="varietyPeriodType" style="font-weight:600; color:#2c3e50;">기간 단위</label>
+                        <select id="varietyPeriodType" style="padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; min-width:140px;">
+                          <option value="monthly" selected>월별</option>
+                          <option value="quarterly">분기별</option>
+                        </select>
+                        <div style="display:flex; align-items:center; gap:8px; color:#6b7280;">
+                          <input id="varietyStartDate" type="date" value="2025-01-01" style="padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+                          <span>~</span>
+                          <input id="varietyEndDate" type="date" value="2025-12-31" style="padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+                        </div>
+                      </div>
+                      <button id="varietyCompareToggle" class="compare-btn" type="button">전년도 대비</button>
+                    </div>
+                    <div class="chart-toggle">
+                        <button class="chart-toggle-btn active" data-chart="line"><span>추이 보기</span></button>
+                        <button class="chart-toggle-btn" data-chart="bar"><span>순위 비교</span></button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="varietyChart"></canvas>
+                    </div>
+                    <div class="legend-container" id="varietyLegendContainer"></div>
+                    <div style="margin-top:10px; color:#9ca3af; font-size:12px;">
+                      * 프로토타입용 더미 데이터입니다. API 연동 시 데이터만 교체하면 됩니다.
+                    </div>
+                </div>
+
+                <!-- ====== 개인 매출 스크립트 ====== -->
+                <script>
+                  (function () {
+                    const unitSelect = document.getElementById('salesUnit');
+                    const rangeStartInput = document.getElementById('salesRangeStart');
+                    const rangeEndInput = document.getElementById('salesRangeEnd');
+                    const canvas = document.getElementById('salesChart');
+                    const chartWrap = document.getElementById('salesChartWrap');
+                    const tooltip = document.getElementById('chartTooltip');
+                    const prevYearToggle = document.getElementById('prevYearToggle');
+                    const prevYearLegend = document.getElementById('prevYearLegend');
+                    let showPrevYear = false;
+
+                    // ====== 더미 데이터 (연도 확장) ======
+                    const years = [2021, 2022, 2023, 2024, 2025, 2026];
+
+                    const monthLabels = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+                    const quarterLabels = ['1Q','2Q','3Q','4Q'];
+                    const monthIndexMap = monthLabels.reduce((acc, label, idx) => {
+                      acc[label] = idx;
+                      return acc;
+                    }, {});
+                    const quarterIndexMap = quarterLabels.reduce((acc, label, idx) => {
+                      acc[label] = idx;
+                      return acc;
+                    }, {});
+
+                    function toQuarter(months) {
+                      return [
+                        months[0] + months[1] + months[2],
+                        months[3] + months[4] + months[5],
+                        months[6] + months[7] + months[8],
+                        months[9] + months[10] + months[11]
+                      ];
+                    }
+
+                    // (단위: 만원) - 예시용
+                    const baseMonth = [120, 140, 135, 160, 175, 190, 210, 205, 230, 250, 240, 270];
+                    const dataByYear = years.reduce((acc, y) => {
+                      const gap = years[years.length - 1] - y;
+                      const month = baseMonth.map((v, i) => Math.max(60, v - gap * (6 + (i % 4))));
+                      acc[y] = {
+                        month: { labels: monthLabels, values: month },
+                        quarter: { labels: quarterLabels, values: toQuarter(month) }
+                      };
+                      return acc;
+                    }, {});
+
+                    const timeline = { month: [], quarter: [] };
+
+                    years.forEach((y) => {
+                      const monthValues = dataByYear[y].month.values;
+                      monthLabels.forEach((label, i) => {
+                        const startDate = dateString(y, i + 1, 1);
+                        const endDate = dateString(y, i + 1, lastDayOfMonth(y, i + 1));
+                        const item = { year: y, label, value: monthValues[i], startDate, endDate };
+                        timeline.month.push(item);
+                      });
+
+                      const quarterValues = dataByYear[y].quarter.values;
+                      quarterLabels.forEach((label, i) => {
+                        const startMonth = i * 3 + 1;
+                        const endMonth = startMonth + 2;
+                        const startDate = dateString(y, startMonth, 1);
+                        const endDate = dateString(y, endMonth, lastDayOfMonth(y, endMonth));
+                        const item = { year: y, label, value: quarterValues[i], startDate, endDate };
+                        timeline.quarter.push(item);
+                      });
+                    });
+
+                    let viewIndex = 0;
+                    let isSyncingRangeInput = false;
+
+                    function getWindowSize(unit) {
+                      return unit === 'month' ? 12 : 4;
+                    }
+
+                    function getMaxIndex(unit) {
+                      const total = timeline[unit].length;
+                      const windowSize = getWindowSize(unit);
+                      return Math.max(0, total - windowSize);
+                    }
+
+                    function clampViewIndex(unit, idx) {
+                      const max = getMaxIndex(unit);
+                      return Math.min(max, Math.max(0, idx));
+                    }
+
+                    // ====== 캔버스 HiDPI 스케일 ======
+                    function resizeCanvas() {
+                      const rect = canvas.getBoundingClientRect();
+                      const dpr = window.devicePixelRatio || 1;
+                      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+                      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+                      const ctx = canvas.getContext('2d');
+                      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                      return ctx;
+                    }
+
+                    function formatMoney(v) {
+                      return `${v.toLocaleString()}만원`;
+                    }
+
+                    function pad2(v) {
+                      return String(v).padStart(2, '0');
+                    }
+
+                    function dateString(y, m, d) {
+                      return `${y}-${pad2(m)}-${pad2(d)}`;
+                    }
+
+                    function lastDayOfMonth(y, m) {
+                      return new Date(y, m, 0).getDate();
+                    }
+
+                    function dateToNum(dateStr) {
+                      if (!dateStr) return NaN;
+                      return Number(dateStr.replaceAll('-', ''));
+                    }
+
+                    function findIndexByDate(unit, dateStr) {
+                      const target = dateToNum(dateStr);
+                      if (!target) return null;
+                      const items = timeline[unit];
+                      for (let i = 0; i < items.length; i++) {
+                        const start = dateToNum(items[i].startDate);
+                        const end = dateToNum(items[i].endDate);
+                        if (target >= start && target <= end) return i;
+                      }
+                      return null;
+                    }
+
+                    function draw() {
+                      const ctx = resizeCanvas();
+                      const unit = unitSelect.value;
+                      const labelIndexMap = unit === 'month' ? monthIndexMap : quarterIndexMap;
+                      const windowSize = getWindowSize(unit);
+                      viewIndex = clampViewIndex(unit, viewIndex);
+
+                      const windowItems = timeline[unit].slice(viewIndex, viewIndex + windowSize);
+                      const labels = windowItems.map(item => item.label);
+                      const thisYear = windowItems.map(item => item.value);
+                      const prevYear = showPrevYear ? windowItems.map((item) => {
+                        const prevYearData = dataByYear[item.year - 1];
+                        if (!prevYearData) return null;
+                        const idx = labelIndexMap[item.label];
+                        const value = prevYearData[unit].values[idx];
+                        return Number.isFinite(value) ? value : null;
+                      }) : [];
+
+                      if (windowItems.length && !isSyncingRangeInput) {
+                        isSyncingRangeInput = true;
+                        rangeStartInput.value = windowItems[0].startDate;
+                        rangeEndInput.value = windowItems[windowItems.length - 1].endDate;
+                        requestAnimationFrame(() => {
+                          isSyncingRangeInput = false;
+                        });
+                      }
+
+                      const w = canvas.getBoundingClientRect().width;
+                      const h = canvas.getBoundingClientRect().height;
+
+                      // 패딩
+                      const pad = { left: 52, right: 18, top: 18, bottom: 42 };
+                      const chartW = w - pad.left - pad.right;
+                      const chartH = h - pad.top - pad.bottom;
+
+                      // 범위 계산
+                      const series = thisYear.slice();
+                      if (showPrevYear) {
+                        prevYear.forEach((v) => {
+                          if (Number.isFinite(v)) series.push(v);
+                        });
+                      }
+                      const minV = Math.min(...series);
+                      const maxV = Math.max(...series);
+                      const paddingV = (maxV - minV) * 0.12 || 10;
+                      const yMin = Math.max(0, Math.floor((minV - paddingV) / 10) * 10);
+                      const yMax = Math.ceil((maxV + paddingV) / 10) * 10;
+
+                      // 맵핑 함수
+                      const xStep = labels.length > 1 ? chartW / (labels.length - 1) : chartW;
+                      const xAt = (i) => pad.left + i * xStep;
+                      const yAt = (v) => pad.top + (yMax - v) * (chartH / (yMax - yMin || 1));
+
+                      // 배경 클리어
+                      ctx.clearRect(0, 0, w, h);
+
+                      // 그리드 + Y축 라벨
+                      ctx.lineWidth = 1;
+                      ctx.font = '12px -apple-system, BlinkMacSystemFont, Segoe UI, Noto Sans KR, sans-serif';
+                      ctx.fillStyle = '#6b7280';
+                      ctx.strokeStyle = '#eef2f7';
+
+                      const gridLines = 5;
+                      for (let g = 0; g <= gridLines; g++) {
+                        const y = pad.top + (chartH * g) / gridLines;
+                        ctx.beginPath();
+                        ctx.moveTo(pad.left, y);
+                        ctx.lineTo(pad.left + chartW, y);
+                        ctx.stroke();
+
+                        const value = Math.round(yMax - ((yMax - yMin) * g) / gridLines);
+                        ctx.fillText(formatMoney(value), 6, y + 4);
+                      }
+
+                      // X축 라벨
+                      ctx.fillStyle = '#6b7280';
+                      labels.forEach((lab, i) => {
+                        const x = xAt(i);
+                        ctx.fillText(lab, x - 10, pad.top + chartH + 28);
+                      });
+
+                      // 축 테두리
+                      ctx.strokeStyle = '#e5e7eb';
+                      ctx.beginPath();
+                      ctx.rect(pad.left, pad.top, chartW, chartH);
+                      ctx.stroke();
+
+                      // 선/점 그리기 유틸
+                      function drawLine(points, color, options = {}) {
+                        const { dashed = false } = options;
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash(dashed ? [6, 6] : []);
+                        ctx.beginPath();
+                        let started = false;
+                        points.forEach((p) => {
+                          if (!p) {
+                            started = false;
+                            return;
+                          }
+                          if (!started) {
+                            ctx.moveTo(p.x, p.y);
+                            started = true;
+                          } else {
+                            ctx.lineTo(p.x, p.y);
+                          }
+                        });
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // 점
+                        ctx.fillStyle = color;
+                        points.forEach(p => {
+                          if (!p) return;
+                          ctx.beginPath();
+                          ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+                          ctx.fill();
+                        });
+                      }
+
+                      const ptsThis = thisYear.map((v, i) => ({
+                        x: xAt(i),
+                        y: yAt(v),
+                        v,
+                        label: labels[i],
+                        year: windowItems[i].year
+                      }));
+                      drawLine(ptsThis, '#3498db');
+
+                      if (showPrevYear) {
+                        const ptsPrev = prevYear.map((v, i) => {
+                          if (!Number.isFinite(v)) return null;
+                          return {
+                            x: xAt(i),
+                            y: yAt(v),
+                            v,
+                            label: labels[i],
+                            year: windowItems[i].year - 1
+                          };
+                        });
+                        drawLine(ptsPrev, '#9ca3af', { dashed: true });
+                      }
+
+                      // 히트 포인트(툴팁)
+                      const hitRadius = 10;
+                      const hits = ptsThis.filter(Boolean).map(p => ({...p, r: hitRadius}));
+
+                      // 마우스 이벤트(툴팁)
+                      function onMove(e) {
+                        const rect = canvas.getBoundingClientRect();
+                        const mx = e.clientX - rect.left;
+                        const my = e.clientY - rect.top;
+
+                        let found = null;
+                        for (const p of hits) {
+                          const dx = mx - p.x;
+                          const dy = my - p.y;
+                          if ((dx*dx + dy*dy) <= (p.r*p.r)) { found = p; break; }
+                        }
+
+                        if (!found) {
+                          tooltip.style.display = 'none';
+                          canvas.style.cursor = 'default';
+                          return;
+                        }
+
+                        canvas.style.cursor = 'pointer';
+                        tooltip.style.display = 'block';
+                        tooltip.innerHTML = `<div style="font-weight:700; margin-bottom:4px;">${found.year} &middot; ${found.label}</div>
+                                             <div>매출: <span style="font-weight:700;">${formatMoney(found.v)}</span></div>`;
+
+                        // 툴팁 위치
+                        const tw = tooltip.offsetWidth || 140;
+                        const th = tooltip.offsetHeight || 50;
+                        let left = found.x + 12;
+                        let top = found.y - th - 10;
+                        if (left + tw > rect.width) left = found.x - tw - 12;
+                        if (top < 0) top = found.y + 12;
+                        tooltip.style.left = left + 'px';
+                        tooltip.style.top = top + 'px';
+                      }
+
+                      // 이벤트 중복 방지: 기존 핸들러 제거 후 재등록
+                      canvas.onmousemove = onMove;
+                      canvas.onmouseleave = () => { tooltip.style.display = 'none'; canvas.style.cursor = 'default'; };
+
+                    }
+
+                    // ====== 인터랙션 ======
+                    unitSelect.addEventListener('change', () => {
+                      viewIndex = getMaxIndex(unitSelect.value);
+                      draw();
+                    });
+
+                    prevYearToggle.addEventListener('click', () => {
+                      showPrevYear = !showPrevYear;
+                      prevYearToggle.classList.toggle('active', showPrevYear);
+                      prevYearToggle.setAttribute('aria-pressed', String(showPrevYear));
+                      prevYearLegend.style.display = showPrevYear ? 'flex' : 'none';
+                      draw();
+                    });
+
+                    window.addEventListener('resize', () => draw());
+
+                    rangeStartInput.addEventListener('change', () => {
+                      if (isSyncingRangeInput) return;
+                      const unit = unitSelect.value;
+                      const idx = findIndexByDate(unit, rangeStartInput.value);
+                      if (idx !== null) {
+                        viewIndex = clampViewIndex(unit, idx);
+                        draw();
+                      }
+                    });
+
+                    rangeEndInput.addEventListener('change', () => {
+                      if (isSyncingRangeInput) return;
+                      const unit = unitSelect.value;
+                      const idx = findIndexByDate(unit, rangeEndInput.value);
+                      if (idx !== null) {
+                        const windowSize = getWindowSize(unit);
+                        viewIndex = clampViewIndex(unit, idx - windowSize + 1);
+                        draw();
+                      }
+                    });
+
+                    // 초기 렌더
+                    viewIndex = getMaxIndex(unitSelect.value);
+                    draw();
+                  })();
+                </script>
+
+                <!-- ====== 거래처별 매출 스크립트 ====== -->
+                <script>
+                (function () {
+                    // 거래처 더미 데이터
+                    const clients = [
+                        { id: 1, name: '(주)대한종묘' },
+                        { id: 2, name: '농협종묘센터' },
+                        { id: 3, name: '그린팜' },
+                        { id: 4, name: '바이오시드' },
+                        { id: 5, name: '한국농산' }
+                    ];
+
+                    const chartColors = [
+                        '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+                        '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+                    ];
+
+                    // 월별 거래처 매출 데이터 (영업사원 본인 기준)
+                    const clientMonthlySales = {
+                        2024: {
+                            1: [9500000, 10200000, 10800000, 11500000, 12200000, 12900000, 12500000, 13300000, 14000000, 14700000, 15300000, 15800000],
+                            2: [8200000, 8800000, 9300000, 9900000, 10500000, 11100000, 10700000, 11400000, 12000000, 12600000, 13100000, 13500000],
+                            3: [6500000, 7000000, 7400000, 7900000, 8400000, 8800000, 8500000, 9100000, 9600000, 10000000, 10400000, 10800000],
+                            4: [7800000, 8400000, 8900000, 9500000, 10000000, 10600000, 10200000, 10900000, 11400000, 12000000, 12400000, 12900000],
+                            5: [6000000, 6500000, 6800000, 7300000, 7700000, 8200000, 7900000, 8400000, 8900000, 9300000, 9700000, 10000000]
+                        },
+                        2025: {
+                            1: [11200000, 13000000, 12000000, 13800000, 14500000, 15500000, 14700000, 16000000, 16800000, 17500000, 18000000, 18700000],
+                            2: [9700000, 11200000, 10300000, 11900000, 12500000, 13400000, 12700000, 13800000, 14500000, 15100000, 15600000, 16200000],
+                            3: [7700000, 8900000, 8200000, 9500000, 10000000, 10700000, 10100000, 11000000, 11500000, 12100000, 12400000, 12900000],
+                            4: [9200000, 10700000, 9800000, 11300000, 11900000, 12700000, 12100000, 13100000, 13700000, 14400000, 14800000, 15400000],
+                            5: [7200000, 8300000, 7700000, 8900000, 9300000, 10000000, 9500000, 10300000, 10800000, 11300000, 11700000, 12100000]
+                        }
+                    };
+
+                    // 상태
+                    let selectedClients = [];
+                    let compareYear = false;
+                    let chartType = 'line';
+                    let clientChart = null;
+                    let hiddenDatasets = new Set();
+
+                    // DOM
+                    const clientSelectGroup = document.getElementById('clientSelectGroup');
+                    const clientSelectTrigger = document.getElementById('clientSelectTrigger');
+                    const clientSelectDropdown = document.getElementById('clientSelectDropdown');
+                    const clientSelectText = document.getElementById('clientSelectText');
+                    const periodTypeSelect = document.getElementById('clientPeriodType');
+                    const startDateInput = document.getElementById('clientStartDate');
+                    const endDateInput = document.getElementById('clientEndDate');
+                    const compareToggleBtn = document.getElementById('clientCompareToggle');
+                    const legendContainer = document.getElementById('clientLegendContainer');
+
+                    // 멀티셀렉트 초기화
+                    function initClientMultiSelect() {
+                        clientSelectDropdown.innerHTML = clients.map(c => `
+                            <div class="multi-select-option" data-id="${c.id}">
+                                <input type="checkbox" id="client-${c.id}" value="${c.id}">
+                                <label for="client-${c.id}">${c.name}</label>
+                            </div>
+                        `).join('');
+
+                        clientSelectDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                            cb.addEventListener('change', function () {
+                                const id = parseInt(this.value);
+                                if (this.checked) {
+                                    if (!selectedClients.includes(id)) selectedClients.push(id);
+                                } else {
+                                    selectedClients = selectedClients.filter(v => v !== id);
+                                }
+                                updateSelectText();
+                                updateClientChart();
+                            });
+                        });
+                    }
+
+                    function updateSelectText() {
+                        if (selectedClients.length === 0) {
+                            clientSelectText.textContent = '선택하세요';
+                        } else {
+                            const names = selectedClients.map(id => {
+                                const c = clients.find(c => c.id === id);
+                                return c ? c.name : '';
+                            }).filter(Boolean);
+                            clientSelectText.textContent = names.length <= 2
+                                ? names.join(', ')
+                                : `${names[0]} 외 ${names.length - 1}개`;
+                        }
+                    }
+
+                    clientSelectTrigger.addEventListener('click', () => {
+                        clientSelectDropdown.classList.toggle('show');
+                    });
+
+                    document.addEventListener('click', (e) => {
+                        if (!document.getElementById('clientMultiSelect').contains(e.target)) {
+                            clientSelectDropdown.classList.remove('show');
+                        }
+                    });
+
+                    // 전년도 대비 토글
+                    compareToggleBtn.addEventListener('click', function () {
+                        compareYear = !compareYear;
+                        this.classList.toggle('active', compareYear);
+                        updateClientChart();
+                    });
+
+                    // 기간 단위 변경
+                    periodTypeSelect.addEventListener('change', () => updateClientChart());
+                    startDateInput.addEventListener('change', () => updateClientChart());
+                    endDateInput.addEventListener('change', () => updateClientChart());
+
+                    // 차트 타입 전환
+                    document.querySelectorAll('#clientSection .chart-toggle-btn').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            document.querySelectorAll('#clientSection .chart-toggle-btn').forEach(b => b.classList.remove('active'));
+                            this.classList.add('active');
+                            chartType = this.dataset.chart;
+                            updateClientChart();
+                        });
+                    });
+
+                    // 날짜 범위 계산
+                    function getMonthRange() {
+                        const start = new Date(startDateInput.value);
+                        const end = new Date(endDateInput.value);
+                        return {
+                            startMonth: start.getMonth(),
+                            endMonth: end.getMonth()
+                        };
+                    }
+
+                    function filterByDateRange(monthlyData) {
+                        const { startMonth, endMonth } = getMonthRange();
+                        return monthlyData.slice(startMonth, endMonth + 1);
+                    }
+
+                    function getFilteredLabels(isMonthly) {
+                        const allMonths = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+                        const { startMonth, endMonth } = getMonthRange();
+                        if (isMonthly) {
+                            return allMonths.slice(startMonth, endMonth + 1);
+                        } else {
+                            const startQ = Math.floor(startMonth / 3);
+                            const endQ = Math.floor(endMonth / 3);
+                            return ['Q1','Q2','Q3','Q4'].slice(startQ, endQ + 1);
+                        }
+                    }
+
+                    function toQuarterly(monthlyData) {
+                        const quarterly = [];
+                        for (let i = 0; i < 4; i++) {
+                            quarterly.push(monthlyData.slice(i*3, i*3+3).reduce((a,b) => a+b, 0));
+                        }
+                        const { startMonth, endMonth } = getMonthRange();
+                        const startQ = Math.floor(startMonth / 3);
+                        const endQ = Math.floor(endMonth / 3);
+                        return quarterly.slice(startQ, endQ + 1);
+                    }
+
+                    // 차트 데이터 생성
+                    function generateChartData() {
+                        const isMonthly = periodTypeSelect.value === 'monthly';
+                        const labels = getFilteredLabels(isMonthly);
+                        const datasets = [];
+                        const currentYear = 2025;
+                        const previousYear = 2024;
+
+                        const itemsToShow = selectedClients.length > 0
+                            ? clients.filter(c => selectedClients.includes(c.id))
+                            : [];
+
+                        if (itemsToShow.length === 0) {
+                            return {
+                                labels,
+                                datasets: [{
+                                    label: '거래처를 선택하세요',
+                                    data: labels.map(() => 0),
+                                    borderColor: '#ddd',
+                                    backgroundColor: '#f8f9fa',
+                                    tension: 0.4
+                                }]
+                            };
+                        }
+
+                        if (chartType === 'bar') {
+                            // 순위 비교 막대 그래프
+                            const currentTotals = itemsToShow.map(item => {
+                                const data = filterByDateRange(clientMonthlySales[currentYear][item.id]);
+                                return { id: item.id, name: item.name, amount: data.reduce((a,b) => a+b, 0) };
+                            }).sort((a,b) => b.amount - a.amount);
+
+                            if (compareYear) {
+                                const prevTotals = itemsToShow.map(item => {
+                                    const data = filterByDateRange(clientMonthlySales[previousYear][item.id]);
+                                    return { id: item.id, name: item.name, amount: data.reduce((a,b) => a+b, 0) };
+                                });
+
+                                const sortedLabels = currentTotals.map(t => t.name);
+                                datasets.push({
+                                    label: `${currentYear}년`,
+                                    data: currentTotals.map(t => t.amount),
+                                    backgroundColor: chartColors[0],
+                                    borderColor: chartColors[0],
+                                    borderWidth: 2
+                                });
+                                datasets.push({
+                                    label: `${previousYear}년 (전년도)`,
+                                    data: sortedLabels.map(name => {
+                                        const p = prevTotals.find(t => t.name === name);
+                                        return p ? p.amount : 0;
+                                    }),
+                                    backgroundColor: '#bdc3c7',
+                                    borderColor: '#95a5a6',
+                                    borderWidth: 2,
+                                    borderDash: [4, 4]
+                                });
+                                return { labels: sortedLabels, datasets };
+                            } else {
+                                datasets.push({
+                                    label: `${currentYear}년 누적 매출`,
+                                    data: currentTotals.map(t => t.amount),
+                                    backgroundColor: currentTotals.map((_, i) => chartColors[i % chartColors.length]),
+                                    borderColor: currentTotals.map((_, i) => chartColors[i % chartColors.length]),
+                                    borderWidth: 2
+                                });
+                                return { labels: currentTotals.map(t => t.name), datasets };
+                            }
+                        } else {
+                            // 추이 꺾은선 그래프
+                            itemsToShow.forEach((item, index) => {
+                                const monthlyData = clientMonthlySales[currentYear][item.id];
+                                const data = isMonthly ? filterByDateRange(monthlyData) : toQuarterly(monthlyData);
+                                const color = chartColors[index % chartColors.length];
+
+                                datasets.push({
+                                    label: `${item.name} (${currentYear})`,
+                                    data,
+                                    borderColor: color,
+                                    backgroundColor: color + '20',
+                                    tension: 0.4,
+                                    fill: false,
+                                    borderWidth: 3
+                                });
+
+                                if (compareYear) {
+                                    const prevData = clientMonthlySales[previousYear][item.id];
+                                    const filteredPrev = isMonthly ? filterByDateRange(prevData) : toQuarterly(prevData);
+                                    datasets.push({
+                                        label: `${item.name} (${previousYear})`,
+                                        data: filteredPrev,
+                                        borderColor: color,
+                                        backgroundColor: 'transparent',
+                                        borderDash: [8, 4],
+                                        tension: 0.4,
+                                        fill: false,
+                                        borderWidth: 2,
+                                        pointStyle: 'triangle',
+                                        pointRadius: 4
+                                    });
+                                }
+                            });
+                        }
+
+                        return { labels, datasets };
+                    }
+
+                    // 차트 업데이트
+                    function updateClientChart() {
+                        hiddenDatasets.clear();
+                        const data = generateChartData();
+
+                        if (clientChart) clientChart.destroy();
+
+                        const ctx = document.getElementById('clientChart').getContext('2d');
+                        const isBar = chartType === 'bar';
+                        const isEmpty = selectedClients.length === 0;
+
+                        clientChart = new Chart(ctx, {
+                            type: isBar ? 'bar' : 'line',
+                            data,
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                interaction: { mode: 'index', intersect: false },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        enabled: !isEmpty,
+                                        callbacks: {
+                                            label: function (context) {
+                                                let label = context.dataset.label || '';
+                                                if (label) label += ': ';
+                                                label += new Intl.NumberFormat('ko-KR', {
+                                                    style: 'currency', currency: 'KRW'
+                                                }).format(context.parsed.y || context.parsed.x);
+                                                return label;
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    x: { grid: { display: !isBar }, display: !isEmpty },
+                                    y: {
+                                        beginAtZero: true,
+                                        display: !isEmpty,
+                                        ticks: {
+                                            callback: function (value) {
+                                                return (value / 10000000).toFixed(0) + '천만원';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        updateClientLegend(data);
+                    }
+
+                    // 범례 업데이트
+                    function updateClientLegend(data) {
+                        legendContainer.innerHTML = '';
+                        data.datasets.forEach((dataset, index) => {
+                            if (dataset.label === '거래처를 선택하세요') return;
+
+                            const total = dataset.data.reduce((s, v) => s + v, 0);
+                            const avg = total / dataset.data.length;
+                            const isDashed = dataset.borderDash && dataset.borderDash.length > 0;
+                            const color = dataset.borderColor || (Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[0] : dataset.backgroundColor);
+
+                            const item = document.createElement('div');
+                            item.className = 'legend-item';
+                            if (hiddenDatasets.has(index)) item.classList.add('disabled');
+
+                            const colorHtml = isDashed
+                                ? `<div class="legend-color dashed" style="color: ${color}"></div>`
+                                : `<div class="legend-color" style="background-color: ${color}"></div>`;
+
+                            item.innerHTML = `
+                                ${colorHtml}
+                                <span class="legend-label">${dataset.label}</span>
+                                <span class="legend-value">${new Intl.NumberFormat('ko-KR', {
+                                    style: 'currency', currency: 'KRW', maximumFractionDigits: 0
+                                }).format(chartType === 'bar' ? total : avg)}</span>
+                            `;
+
+                            item.addEventListener('click', () => {
+                                const isHidden = clientChart.getDatasetMeta(index).hidden;
+                                clientChart.setDatasetVisibility(index, isHidden);
+                                clientChart.update();
+                                if (isHidden) {
+                                    hiddenDatasets.delete(index);
+                                    item.classList.remove('disabled');
+                                } else {
+                                    hiddenDatasets.add(index);
+                                    item.classList.add('disabled');
+                                }
+                            });
+
+                            legendContainer.appendChild(item);
+                        });
+                    }
+
+                    // 초기화
+                    initClientMultiSelect();
+                    window._updateClientChart = updateClientChart;
+                })();
+                </script>
+
+                <!-- ====== 품종별 매출 스크립트 ====== -->
+                <script>
+                (function () {
+                    const varieties = [
+                        { id: 1, name: '청양고추' },
+                        { id: 2, name: '대박토마토' },
+                        { id: 3, name: '금싸라기참외' },
+                        { id: 4, name: '흑토마토' },
+                        { id: 5, name: '천하장사배추' }
+                    ];
+
+                    const chartColors = [
+                        '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+                        '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+                    ];
+
+                    const varietyMonthlySales = {
+                        2024: {
+                            1: [7200000, 7800000, 8100000, 8600000, 9100000, 9700000, 9300000, 10000000, 10500000, 11000000, 11400000, 11800000],
+                            2: [8800000, 9500000, 10000000, 10600000, 11200000, 11800000, 11500000, 12200000, 12800000, 13400000, 13900000, 14400000],
+                            3: [5500000, 5900000, 6200000, 6600000, 7000000, 7400000, 7100000, 7600000, 8000000, 8400000, 8700000, 9000000],
+                            4: [6800000, 7300000, 7700000, 8200000, 8700000, 9200000, 8800000, 9400000, 9900000, 10400000, 10800000, 11200000],
+                            5: [9700000, 10500000, 11000000, 11700000, 12400000, 13100000, 12700000, 13500000, 14200000, 14900000, 15400000, 16000000]
+                        },
+                        2025: {
+                            1: [8500000, 9800000, 9100000, 10500000, 11000000, 11800000, 11200000, 12100000, 12700000, 13300000, 13700000, 14200000],
+                            2: [10500000, 12200000, 11200000, 12900000, 13500000, 14500000, 13700000, 14900000, 15600000, 16300000, 16800000, 17500000],
+                            3: [6500000, 7500000, 6900000, 8000000, 8400000, 9000000, 8500000, 9200000, 9700000, 10200000, 10500000, 10900000],
+                            4: [8000000, 9300000, 8600000, 9900000, 10400000, 11100000, 10500000, 11400000, 12000000, 12600000, 12900000, 13400000],
+                            5: [11500000, 13300000, 12300000, 14200000, 14900000, 15900000, 15100000, 16400000, 17200000, 18000000, 18500000, 19300000]
+                        }
+                    };
+
+                    let selectedVarieties = [];
+                    let compareYear = false;
+                    let chartType = 'line';
+                    let varietyChart = null;
+                    let hiddenDatasets = new Set();
+
+                    const varietySelectGroup = document.getElementById('varietySelectGroup');
+                    const varietySelectTrigger = document.getElementById('varietySelectTrigger');
+                    const varietySelectDropdown = document.getElementById('varietySelectDropdown');
+                    const varietySelectText = document.getElementById('varietySelectText');
+                    const periodTypeSelect = document.getElementById('varietyPeriodType');
+                    const startDateInput = document.getElementById('varietyStartDate');
+                    const endDateInput = document.getElementById('varietyEndDate');
+                    const compareToggleBtn = document.getElementById('varietyCompareToggle');
+                    const legendContainer = document.getElementById('varietyLegendContainer');
+
+                    function initVarietyMultiSelect() {
+                        varietySelectDropdown.innerHTML = varieties.map(v => `
+                            <div class="multi-select-option" data-id="${v.id}">
+                                <input type="checkbox" id="variety-${v.id}" value="${v.id}">
+                                <label for="variety-${v.id}">${v.name}</label>
+                            </div>
+                        `).join('');
+
+                        varietySelectDropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                            cb.addEventListener('change', function () {
+                                const id = parseInt(this.value);
+                                if (this.checked) {
+                                    if (!selectedVarieties.includes(id)) selectedVarieties.push(id);
+                                } else {
+                                    selectedVarieties = selectedVarieties.filter(v => v !== id);
+                                }
+                                updateVSelectText();
+                                updateVarietyChart();
+                            });
+                        });
+                    }
+
+                    function updateVSelectText() {
+                        if (selectedVarieties.length === 0) {
+                            varietySelectText.textContent = '선택하세요';
+                        } else {
+                            const names = selectedVarieties.map(id => {
+                                const v = varieties.find(v => v.id === id);
+                                return v ? v.name : '';
+                            }).filter(Boolean);
+                            varietySelectText.textContent = names.length <= 2
+                                ? names.join(', ')
+                                : `${names[0]} 외 ${names.length - 1}개`;
+                        }
+                    }
+
+                    varietySelectTrigger.addEventListener('click', () => {
+                        varietySelectDropdown.classList.toggle('show');
+                    });
+
+                    document.addEventListener('click', (e) => {
+                        if (!document.getElementById('varietyMultiSelect').contains(e.target)) {
+                            varietySelectDropdown.classList.remove('show');
+                        }
+                    });
+
+                    compareToggleBtn.addEventListener('click', function () {
+                        compareYear = !compareYear;
+                        this.classList.toggle('active', compareYear);
+                        updateVarietyChart();
+                    });
+
+                    periodTypeSelect.addEventListener('change', () => updateVarietyChart());
+                    startDateInput.addEventListener('change', () => updateVarietyChart());
+                    endDateInput.addEventListener('change', () => updateVarietyChart());
+
+                    document.querySelectorAll('#varietySection .chart-toggle-btn').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            document.querySelectorAll('#varietySection .chart-toggle-btn').forEach(b => b.classList.remove('active'));
+                            this.classList.add('active');
+                            chartType = this.dataset.chart;
+                            updateVarietyChart();
+                        });
+                    });
+
+                    function getMonthRange() {
+                        const start = new Date(startDateInput.value);
+                        const end = new Date(endDateInput.value);
+                        return { startMonth: start.getMonth(), endMonth: end.getMonth() };
+                    }
+
+                    function filterByDateRange(monthlyData) {
+                        const { startMonth, endMonth } = getMonthRange();
+                        return monthlyData.slice(startMonth, endMonth + 1);
+                    }
+
+                    function getFilteredLabels(isMonthly) {
+                        const allMonths = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+                        const { startMonth, endMonth } = getMonthRange();
+                        if (isMonthly) return allMonths.slice(startMonth, endMonth + 1);
+                        const startQ = Math.floor(startMonth / 3);
+                        const endQ = Math.floor(endMonth / 3);
+                        return ['Q1','Q2','Q3','Q4'].slice(startQ, endQ + 1);
+                    }
+
+                    function toQuarterly(monthlyData) {
+                        const quarterly = [];
+                        for (let i = 0; i < 4; i++) quarterly.push(monthlyData.slice(i*3, i*3+3).reduce((a,b) => a+b, 0));
+                        const { startMonth, endMonth } = getMonthRange();
+                        return quarterly.slice(Math.floor(startMonth / 3), Math.floor(endMonth / 3) + 1);
+                    }
+
+                    function generateChartData() {
+                        const isMonthly = periodTypeSelect.value === 'monthly';
+                        const labels = getFilteredLabels(isMonthly);
+                        const datasets = [];
+                        const currentYear = 2025, previousYear = 2024;
+                        const itemsToShow = selectedVarieties.length > 0 ? varieties.filter(v => selectedVarieties.includes(v.id)) : [];
+
+                        if (itemsToShow.length === 0) {
+                            return { labels, datasets: [{ label: '품종을 선택하세요', data: labels.map(() => 0), borderColor: '#ddd', backgroundColor: '#f8f9fa', tension: 0.4 }] };
+                        }
+
+                        if (chartType === 'bar') {
+                            const currentTotals = itemsToShow.map(item => {
+                                const data = filterByDateRange(varietyMonthlySales[currentYear][item.id]);
+                                return { id: item.id, name: item.name, amount: data.reduce((a,b) => a+b, 0) };
+                            }).sort((a,b) => b.amount - a.amount);
+
+                            if (compareYear) {
+                                const prevTotals = itemsToShow.map(item => {
+                                    const data = filterByDateRange(varietyMonthlySales[previousYear][item.id]);
+                                    return { id: item.id, name: item.name, amount: data.reduce((a,b) => a+b, 0) };
+                                });
+                                const sortedLabels = currentTotals.map(t => t.name);
+                                datasets.push({ label: `${currentYear}년`, data: currentTotals.map(t => t.amount), backgroundColor: chartColors[0], borderColor: chartColors[0], borderWidth: 2 });
+                                datasets.push({ label: `${previousYear}년 (전년도)`, data: sortedLabels.map(name => { const p = prevTotals.find(t => t.name === name); return p ? p.amount : 0; }), backgroundColor: '#bdc3c7', borderColor: '#95a5a6', borderWidth: 2, borderDash: [4, 4] });
+                                return { labels: sortedLabels, datasets };
+                            } else {
+                                datasets.push({ label: `${currentYear}년 누적 매출`, data: currentTotals.map(t => t.amount), backgroundColor: currentTotals.map((_, i) => chartColors[i % chartColors.length]), borderColor: currentTotals.map((_, i) => chartColors[i % chartColors.length]), borderWidth: 2 });
+                                return { labels: currentTotals.map(t => t.name), datasets };
+                            }
+                        } else {
+                            itemsToShow.forEach((item, index) => {
+                                const monthlyData = varietyMonthlySales[currentYear][item.id];
+                                const data = isMonthly ? filterByDateRange(monthlyData) : toQuarterly(monthlyData);
+                                const color = chartColors[index % chartColors.length];
+                                datasets.push({ label: `${item.name} (${currentYear})`, data, borderColor: color, backgroundColor: color + '20', tension: 0.4, fill: false, borderWidth: 3 });
+                                if (compareYear) {
+                                    const prevData = varietyMonthlySales[previousYear][item.id];
+                                    const filteredPrev = isMonthly ? filterByDateRange(prevData) : toQuarterly(prevData);
+                                    datasets.push({ label: `${item.name} (${previousYear})`, data: filteredPrev, borderColor: color, backgroundColor: 'transparent', borderDash: [8, 4], tension: 0.4, fill: false, borderWidth: 2, pointStyle: 'triangle', pointRadius: 4 });
+                                }
+                            });
+                        }
+                        return { labels, datasets };
+                    }
+
+                    function updateVarietyChart() {
+                        hiddenDatasets.clear();
+                        const data = generateChartData();
+                        if (varietyChart) varietyChart.destroy();
+                        const ctx = document.getElementById('varietyChart').getContext('2d');
+                        const isBar = chartType === 'bar';
+                        const isEmpty = selectedVarieties.length === 0;
+
+                        varietyChart = new Chart(ctx, {
+                            type: isBar ? 'bar' : 'line', data,
+                            options: {
+                                responsive: true, maintainAspectRatio: false,
+                                interaction: { mode: 'index', intersect: false },
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: { enabled: !isEmpty, callbacks: { label: function (context) { let label = context.dataset.label || ''; if (label) label += ': '; label += new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(context.parsed.y || context.parsed.x); return label; } } }
+                                },
+                                scales: {
+                                    x: { grid: { display: !isBar }, display: !isEmpty },
+                                    y: { beginAtZero: true, display: !isEmpty, ticks: { callback: function (value) { return (value / 10000000).toFixed(0) + '천만원'; } } }
+                                }
+                            }
+                        });
+                        updateVarietyLegend(data);
+                    }
+
+                    function updateVarietyLegend(data) {
+                        legendContainer.innerHTML = '';
+                        data.datasets.forEach((dataset, index) => {
+                            if (dataset.label === '품종을 선택하세요') return;
+                            const total = dataset.data.reduce((s, v) => s + v, 0);
+                            const avg = total / dataset.data.length;
+                            const isDashed = dataset.borderDash && dataset.borderDash.length > 0;
+                            const color = dataset.borderColor || (Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[0] : dataset.backgroundColor);
+                            const item = document.createElement('div');
+                            item.className = 'legend-item';
+                            if (hiddenDatasets.has(index)) item.classList.add('disabled');
+                            const colorHtml = isDashed ? `<div class="legend-color dashed" style="color: ${color}"></div>` : `<div class="legend-color" style="background-color: ${color}"></div>`;
+                            item.innerHTML = `${colorHtml}<span class="legend-label">${dataset.label}</span><span class="legend-value">${new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(chartType === 'bar' ? total : avg)}</span>`;
+                            item.addEventListener('click', () => {
+                                const isHidden = varietyChart.getDatasetMeta(index).hidden;
+                                varietyChart.setDatasetVisibility(index, isHidden);
+                                varietyChart.update();
+                                if (isHidden) { hiddenDatasets.delete(index); item.classList.remove('disabled'); }
+                                else { hiddenDatasets.add(index); item.classList.add('disabled'); }
+                            });
+                            legendContainer.appendChild(item);
+                        });
+                    }
+
+                    initVarietyMultiSelect();
+                    window._updateVarietyChart = updateVarietyChart;
+                })();
+                </script>
+
+                <!-- ====== 조회 타입 전환 스크립트 ====== -->
+                <script>
+                (function () {
+                    document.querySelectorAll('input[name="viewType"]').forEach(radio => {
+                        radio.addEventListener('change', (e) => {
+                            const val = e.target.value;
+                            document.getElementById('personalSection').style.display = val === 'personal' ? '' : 'none';
+                            document.getElementById('clientSection').style.display = val === 'client' ? '' : 'none';
+                            document.getElementById('varietySection').style.display = val === 'variety' ? '' : 'none';
+                            document.getElementById('clientSelectGroup').style.display = val === 'client' ? 'flex' : 'none';
+                            document.getElementById('varietySelectGroup').style.display = val === 'variety' ? 'flex' : 'none';
+                            if (val === 'client') window._updateClientChart();
+                            if (val === 'variety') window._updateVarietyChart();
+                        });
+                    });
+                })();
+                </script>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>

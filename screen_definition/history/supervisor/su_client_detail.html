@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>거래처 상세 정보</title>
+    <style>
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .back-btn { padding: 8px; background: none; border: none; cursor: pointer; border-radius: 8px; font-size: 24px; display: flex; align-items: center; justify-content: center; color: #111827; transition: background-color 0.2s; }
+        .back-btn:hover { background-color: #e5e7eb; }
+        .header-content { flex: 1; }
+        .header h1 { font-size: 24px; font-weight: bold; color: #111827; }
+        .header p { color: #6b7280; margin-top: 4px; }
+        .btn-primary { background-color: #2563eb; color: white; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; }
+        .tabs { background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); margin-bottom: 24px; }
+        .tab-buttons { display: flex; border-bottom: 1px solid #e5e7eb; }
+        .tab-btn { padding: 16px 24px; background: none; border: none; font-size: 14px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; }
+        .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+        .tab-content { padding: 24px; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 24px; align-items: stretch; }
+        .info-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; background-color: white; }
+        .info-card h3 { font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px; }
+        .info-item { margin-bottom: 12px; }
+        .info-label { font-size: 14px; color: #6b7280; display: block; margin-bottom: 4px; }
+        .info-value { font-weight: 500; color: #111827; }
+        .info-value.highlight { font-size: 20px; color: #2563eb; }
+        .crops-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .crop-badge { padding: 4px 12px; background-color: #d1fae5; color: #065f46; border-radius: 9999px; font-size: 14px; }
+        .memo-section { border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; }
+        .memo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .memo-content { background-color: #f9fafb; border-radius: 8px; padding: 16px; }
+        .memo-text { font-size: 14px; color: #374151; white-space: pre-wrap; font-family: inherit; }
+        .pipeline-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 16px; }
+        .pipeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+        .badge-blue { background-color: #dbeafe; color: #1e40af; }
+        .badge-green { background-color: #d1fae5; color: #065f46; }
+        .pipeline-flow { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 16px; }
+        .pipeline-step { display: flex; flex-direction: column; align-items: center; min-width: 70px; }
+        .step-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; margin-bottom: 4px; }
+        .step-icon.completed { background-color: #10b981; color: white; }
+        .step-icon.in-progress { background-color: #3b82f6; color: white; }
+        .step-icon.waiting { background-color: #d1d5db; color: #6b7280; }
+        .step-name { font-size: 12px; color: #6b7280; text-align: center; }
+        .step-connector { width: 16px; height: 2px; background-color: #d1d5db; margin-bottom: 16px; }
+        .hidden { display: none; }
+
+        /* 수정 모달용 스타일 추가 */
+        .edit-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; align-items: center; justify-content: center; }
+        .edit-modal.active { display: flex; }
+        .edit-modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+        .edit-group { display: flex; flex-direction: column; gap: 4px; }
+        .edit-group.full { grid-column: span 2; }
+        .edit-group label { font-size: 13px; font-weight: 600; color: #374151; }
+        .edit-group input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+        /* 취소 버튼 UI 업그레이드 */
+        .btn-secondary {
+            padding: 8px 24px;
+            background-color: #f3f4f6; /* 연한 회색 배경 */
+            border: 1px solid #d1d5db; /* 차분한 테두리 */
+            color: #4b5563; /* 가독성 좋은 진회색 글자 */
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease; /* 부드러운 변화 효과 */
+        }
+
+        .btn-secondary:hover {
+            background-color: #e5e7eb; /* 호버 시 조금 더 진해짐 */
+            color: #1f2937;
+            border-color: #9ca3af;
+        }
+
+        /* 저장 버튼(btn-primary)과의 간격 및 정렬 유지 */
+        .edit-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #f3f4f6; /* 푸터 구분선 추가로 더 고급지게! */
+        }
+        @media (max-width: 600px) { .info-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <div class="header">
+        <button class="back-btn" onclick="window.parent.postMessage({type:'changePage', url:'su_client_management.html'}, '*')">←</button>
+        <div class="header-content">
+            <h1 id="client-main-title">🏢 OO육묘장 (C-001)</h1>
+            <p>육묘장 | 사용중</p>
+        </div>
+        <button class="btn-primary" id="triggerEdit">거래처 수정</button>
+    </div>
+
+    <div class="tabs">
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="showTab('info')">기본 정보</button>
+            <button class="tab-btn" onclick="showTab('history')">영업 히스토리</button>
+        </div>
+
+        <div class="tab-content" id="info-tab">
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>📋 기본 정보</h3>
+                    <div class="info-item"><span class="info-label">법인명</span><p class="info-value">OO육묘장</p></div>
+                    <div class="info-item"><span class="info-label">사업자번호</span><p class="info-value">123-45-67890</p></div>
+                    <div class="info-item"><span class="info-label">대표이름</span><p class="info-value">김사장</p></div>
+                    <div class="info-item"><span class="info-label">회사유선번호</span><p class="info-value">02-123-4567</p></div>
+                    <div class="info-item"><span class="info-label">주소</span><p class="info-value">서울특별시 ○○구 ○○로 00</p></div>
+                    <div class="info-item"><span class="info-label">거래처 유형</span><p class="info-value badge badge-blue">육묘장</p></div>
+                </div>
+
+                <div class="info-card">
+                    <h3>👤 담당자 정보</h3>
+                    <div class="info-item"><span class="info-label">이름</span><p class="info-value">김철수 과장</p></div>
+                    <div class="info-item"><span class="info-label">연락처</span><p class="info-value">010-1234-5678</p></div>
+                    <div class="info-item"><span class="info-label">이메일</span><p class="info-value">kim@farm.com</p></div>
+                </div>
+
+                <div class="info-card">
+                    <h3>💰 이번달 거래 현황</h3>
+                    <div class="info-item"><span class="info-label">이번달 누적 거래 금액</span><p class="info-value highlight">₩125,000,000</p></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="info-item"><span class="info-label">이번 달 진행</span><p class="info-value">3건</p></div>
+                        <div class="info-item"><span class="info-label">이번 달 완료</span><p class="info-value">15건</p></div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>🌱 거래 정보</h3>
+                    <div class="info-item"><span class="info-label">여신 한도</span><p class="info-value highlight">₩50,000,000</p></div>
+                    <div class="info-item"><span class="info-label">현재 미수금</span><p class="info-value" style="color: #ea580c;">₩15,000,000</p></div>
+                    <div class="info-item"><span class="info-label">잔여 여신</span><p class="info-value" style="color: #10b981;">₩35,000,000</p></div>
+                </div>
+            </div>
+
+            <div class="info-card" style="margin-bottom: 24px;">
+                <h3>🌾 취급 품종</h3>
+                <div class="crops-list" id="cropsList">
+                    <span class="crop-badge">토마토</span>
+                    <span class="crop-badge">파프리카</span>
+                    <span class="crop-badge">오이</span>
+                    <span class="crop-badge">고추</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="tab-content hidden" id="history-tab">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3>OO육묘장의 영업 파이프라인 (2건)</h3>
+                <select><option>최신순</option><option>오래된순</option></select>
+            </div>
+            <div class="pipeline-card">
+                <div class="pipeline-header">
+                    <div>
+                        <h4 style="font-weight: 600; color: #111827;">파이프라인 #8</h4>
+                        <p style="font-size: 14px; color: #6b7280;">시작일: 2026-01-29 | 계약 금액: ₩15,000,000</p>
+                    </div>
+                    <span class="badge badge-blue">진행 상태: 주문 진행</span>
+                </div>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step"><div class="step-icon completed">✓</div><span class="step-name">견적요청</span></div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step"><div class="step-icon completed">✓</div><span class="step-name">견적서</span></div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step"><div class="step-icon completed">✓</div><span class="step-name">계약서</span></div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step"><div class="step-icon in-progress">🔄</div><span class="step-name">주문서</span></div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step"><div class="step-icon waiting">⏳</div><span class="step-name">명세서</span></div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step"><div class="step-icon waiting">⏳</div><span class="step-name">청구서</span></div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step"><div class="step-icon waiting">⏳</div><span class="step-name">결제완료</span></div>
+                </div>
+                <div style="text-align: right;">
+                    <button class="btn-primary" onclick="window.parent.postMessage({type:'changePage', url:'sales_pipeline_detail.html'},'*')">상세보기 →</button></div>
+            </div>
+            <div class="pipeline-card">
+                <div class="pipeline-header">
+                    <div>
+                        <h4 style="font-weight: 600; color: #111827;">파이프라인 #7</h4>
+                        <p style="font-size: 14px; color: #6b7280;">시작일: 2026-01-15 | 계약 금액: ₩8,500,000</p>
+                    </div>
+                    <span class="badge badge-green">진행 상태: 결제 완료</span>
+                </div>
+                <div class="pipeline-flow">
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">견적요청</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">견적서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">계약서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">주문서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">명세서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">청구서</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="step-icon completed">✓</div>
+                        <span class="step-name">결제완료</span>
+                        <span style="font-size: 12px; color: #6b7280;">완료</span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <button class="btn-primary">상세보기 →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+        <h2 style="font-size: 20px; font-weight: bold;">거래처 정보 수정</h2>
+        <div class="edit-grid">
+            <div class="edit-group"><label>법인명</label><input type="text" id="edit-name"></div>
+            <div class="edit-group"><label>사업자번호</label><input type="text" id="edit-biz"></div>
+            <div class="edit-group"><label>대표이름</label><input type="text" id="edit-ceo"></div>
+            <div class="edit-group"><label>회사유선번호</label><input type="text" id="edit-tel"></div>
+            <div class="edit-group full"><label>주소</label><input type="text" id="edit-addr"></div>
+            <div class="edit-group"><label>담당자 이름</label><input type="text" id="edit-mname"></div>
+            <div class="edit-group"><label>담당자 연락처</label><input type="text" id="edit-mhp"></div>
+            <div class="edit-group full"><label>이메일</label><input type="email" id="edit-memail"></div>
+            <div class="edit-group full"><label>여신 한도 (숫자만)</label><input type="number" id="edit-limit"></div>
+        </div>
+        <div class="edit-footer">
+            <button class="btn-secondary" onclick="closeEditModal()">취소</button>
+            <button class="btn-primary" onclick="saveEditInfo()">💾 저장하기</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 탭 제어 ---
+    function showTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+        const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(`'${tabName}'`));
+        if (activeBtn) activeBtn.classList.add('active');
+        document.getElementById(tabName + '-tab').classList.remove('hidden');
+    }
+
+    // --- 수정 모달 (정교한 라벨 매칭) ---
+    function findValueByLabel(labelText) {
+        const items = document.querySelectorAll('.info-item');
+        for (let item of items) {
+            const label = item.querySelector('.info-label');
+            if (label && label.innerText.trim() === labelText) return item.querySelector('.info-value');
+        }
+        return null;
+    }
+
+    document.getElementById('triggerEdit').onclick = () => {
+        document.getElementById('edit-name').value = findValueByLabel('법인명')?.innerText || '';
+        document.getElementById('edit-biz').value = findValueByLabel('사업자번호')?.innerText || '';
+        document.getElementById('edit-ceo').value = findValueByLabel('대표이름')?.innerText || '';
+        document.getElementById('edit-tel').value = findValueByLabel('회사유선번호')?.innerText || '';
+        document.getElementById('edit-addr').value = findValueByLabel('주소')?.innerText || '';
+        document.getElementById('edit-mname').value = findValueByLabel('이름')?.innerText || '';
+        document.getElementById('edit-mhp').value = findValueByLabel('연락처')?.innerText || '';
+        document.getElementById('edit-memail').value = findValueByLabel('이메일')?.innerText || '';
+        document.getElementById('edit-limit').value = findValueByLabel('여신 한도')?.innerText.replace(/[^0-9]/g, '') || '';
+        document.getElementById('editModal').classList.add('active');
+    };
+
+    function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
+
+    function saveEditInfo() {
+        const name = document.getElementById('edit-name').value;
+        if(findValueByLabel('법인명')) findValueByLabel('법인명').innerText = name;
+        document.getElementById('client-main-title').innerText = `🏢 ${name} (C-001)`;
+        if(findValueByLabel('사업자번호')) findValueByLabel('사업자번호').innerText = document.getElementById('edit-biz').value;
+        if(findValueByLabel('대표이름')) findValueByLabel('대표이름').innerText = document.getElementById('edit-ceo').value;
+        if(findValueByLabel('회사유선번호')) findValueByLabel('회사유선번호').innerText = document.getElementById('edit-tel').value;
+        if(findValueByLabel('주소')) findValueByLabel('주소').innerText = document.getElementById('edit-addr').value;
+        if(findValueByLabel('이름')) findValueByLabel('이름').innerText = document.getElementById('edit-mname').value;
+        if(findValueByLabel('연락처')) findValueByLabel('연락처').innerText = document.getElementById('edit-mhp').value;
+        if(findValueByLabel('이메일')) findValueByLabel('이메일').innerText = document.getElementById('edit-memail').value;
+        const limit = document.getElementById('edit-limit').value;
+        if(findValueByLabel('여신 한도')) findValueByLabel('여신 한도').innerText = '₩' + Number(limit).toLocaleString();
+        alert('수정 완료되었습니다.');
+        closeEditModal();
+    }
+
+
+
+    setupCropManager();
+    window.onclick = (e) => { if(e.target.id === 'editModal') closeEditModal(); };
+</script>
+</body>
+</html>

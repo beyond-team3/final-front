@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>거래처 관리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .header p {
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .search-section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 16px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 8px 12px 8px 40px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .table-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: #f9fafb;
+        }
+
+        th {
+            padding: 16px 24px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        td {
+            padding: 16px 24px;
+            font-size: 14px;
+            color: #111827;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        tbody tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+        }
+
+        .badge-blue {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-green {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            padding: 4px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #2563eb;
+        }
+
+        .btn-icon:hover {
+            background-color: #eff6ff;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 672px;
+            padding: 24px;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 16px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .btn-secondary {
+            padding: 8px 24px;
+            background-color: white;
+            border: 2px solid #d1d5db;
+            color: #374151;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f9fafb;
+        }
+
+        .required {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>거래처 관리</h1>
+                <p>거래처 정보를 관리하세요</p>
+            </div>
+        </div>
+
+        <!-- 검색 및 필터 -->
+        <div class="search-section">
+            <div class="search-form">
+                <input type="text" class="search-input" placeholder="거래처명, 사업자번호 등으로 검색">
+                <select>
+                    <option value="">전체 지역</option>
+                    <option value="서울">서울</option>
+                    <option value="경기">경기</option>
+                    <option value="충청">충청</option>
+                </select>
+                <select>
+                    <option value="">전체 유형</option>
+                    <option value="육묘장">육묘장</option>
+                    <option value="대리점">대리점</option>
+                </select>
+                <button class="btn-primary">검색</button>
+            </div>
+        </div>
+
+        <!-- 거래처 목록 테이블 -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>거래처명</th>
+                        <th>사업자번호</th>
+                        <th>유형</th>
+                        <th>담당자</th>
+                        <th>주소</th>
+                        <th>상태</th>
+                        <th>액션</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>OO육묘장</strong></td>
+                        <td>123-45-67890</td>
+                        <td><span class="badge badge-blue">육묘장</span></td>
+                        <td>김철수 과장</td>
+                        <td>경기</td>
+                        <td><span class="badge badge-green">사용중</span></td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn-icon" onclick="window.parent.postMessage({type:'changePage', url:'client_detail.html'}, '*')">보기</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>△△대리점</strong></td>
+                        <td>234-56-78901</td>
+                        <td><span class="badge badge-blue">대리점</span></td>
+                        <td>이영희 대리</td>
+                        <td>서울</td>
+                        <td><span class="badge badge-green">사용중</span></td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn-icon" onclick="window.parent.postMessage({type:'changePage', url:'client_detail.html'}, '*')">보기</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>□□농장</strong></td>
+                        <td>345-67-89012</td>
+                        <td><span class="badge badge-blue">육묘장</span></td>
+                        <td>박민수 사장</td>
+                        <td>충청</td>
+                        <td><span class="badge badge-green">사용중</span></td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn-icon" onclick="window.parent.postMessage({type:'changePage', url:'client_detail.html'}, '*')">보기</button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 검색 기능 구현 (검색어 + 지역 + 유형 복합 필터)
+        document.querySelector('.btn-primary:not([onclick])').onclick = function() {
+            // 1. 현재 선택된 필터 값들을 가져옵니다.
+            const searchTerm = document.querySelector('.search-input').value.toLowerCase();
+            const regionFilter = document.querySelectorAll('select')[0].value; // 주소 선택박스
+            const typeFilter = document.querySelectorAll('select')[1].value;   // 유형 선택박스
+
+            const rows = document.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                // 2. 각 행의 데이터 추출 (비교를 위해 텍스트 추출)
+                const rowText = row.innerText.toLowerCase(); // 전체 텍스트 (검색어용)
+                const rowRegion = row.cells[4].innerText;    // 5번째 칸 (지역)
+                const rowType = row.cells[2].innerText;      // 3번째 칸 (유형)
+
+                // 3. 필터링 조건 설정
+                // - 검색어 포함 여부
+                const matchesSearch = rowText.includes(searchTerm);
+                // - 지역 일치 여부 (전체 지역일 때는 무조건 true)
+                const matchesRegion = regionFilter === "" || rowRegion === regionFilter;
+                // - 유형 일치 여부 (전체 유형일 때는 무조건 true)
+                const matchesType = typeFilter === "" || rowType === typeFilter;
+
+                // 4. 모든 조건을 만족할 때만 표시
+                if (matchesSearch && matchesRegion && matchesType) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        };
+        document.querySelector('.btn-primary:not([onclick])').onclick = function() {
+            const searchTerm = document.querySelector('.search-input').value.toLowerCase();
+            const regionFilter = document.querySelectorAll('select')[0].value;
+            const typeFilter = document.querySelectorAll('select')[1].value;
+
+            const tbody = document.querySelector('tbody');
+            const rows = tbody.querySelectorAll('tr:not(.no-result-row)'); // 결과 없음 행은 제외하고 계산
+            let visibleCount = 0;
+
+            // 기존에 혹시 있을지 모를 '결과 없음' 메시지 삭제
+            const oldNoResult = tbody.querySelector('.no-result-row');
+            if (oldNoResult) oldNoResult.remove();
+
+            rows.forEach(row => {
+                const rowText = row.innerText.toLowerCase();
+                const rowRegion = row.cells[4].innerText;
+                const rowType = row.cells[2].innerText;
+
+                const matchesSearch = rowText.includes(searchTerm);
+                const matchesRegion = regionFilter === "" || rowRegion === regionFilter;
+                const matchesType = typeFilter === "" || rowType === typeFilter;
+
+                if (matchesSearch && matchesRegion && matchesType) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // 검색 결과가 0개일 때 처리
+            if (visibleCount === 0) {
+                const noResultRow = document.createElement('tr');
+                noResultRow.className = 'no-result-row';
+                noResultRow.innerHTML = `
+            <td colspan="7" style="text-align: center; padding: 40px; color: #6b7280;">
+                검색 조건에 일치하는 거래처가 없습니다.
+            </td>
+        `;
+                tbody.appendChild(noResultRow);
+            }
+        };
+
+        // 엔터키 지원
+        document.querySelector('.search-input').onkeyup = function(e) {
+            if(e.key === 'Enter') document.querySelector('.btn-primary:not([onclick])').click();
+        };
+    </script>
+</body>
+</html>

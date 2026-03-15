@@ -1,0 +1,879 @@
+<html lang="ko"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>거래처 대시보드 - 종자 영업 관리 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden)~.main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+
+        /* ========== 거래처 대시보드 전용 스타일 ========== */
+
+        /* 대시보드 헤더 */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e8ecef;
+        }
+
+        .dashboard-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .dashboard-subtitle {
+            font-size: 13px;
+            color: #95a5a6;
+            margin-top: 4px;
+        }
+
+        /* 상단에 컴포넌트 다 배치되도록 */
+        .dashboard-grid {
+            display: grid;
+            /* 3개가 한 줄에 나오려면 최소 너비를 조금 줄여줍니다 (450px -> 300px) */
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: start;
+        }
+
+        /* 공통 패널 */
+        .panel {
+            border: 1px solid #e8ecef;
+            border-radius: 8px;
+            padding: 22px;
+            background-color: white; /* 배경색 명시 */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02); /* 살짝의 입체감 */
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .panel-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .panel-link {
+            font-size: 12px;
+            color: #7f8c8d;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+
+        .panel-link:hover {
+            color: #2c3e50;
+        }
+
+        .panel-badge {
+            font-size: 11px;
+            color: #7f8c8d;
+            background-color: #f0f3f4;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        /* ── 최근 주문 내역 ── */
+        .order-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .order-card {
+            padding: 14px 16px;
+            border: 1px solid #e8ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .order-card:hover {
+            background-color: #f8f9fa;
+        }
+
+        .order-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .order-no {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .order-date {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 2px;
+        }
+
+        .order-status {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .order-status.processing {
+            background-color: #f0f3f4;
+            color: #556270;
+        }
+
+        .order-status.pending {
+            background-color: #fef9ec;
+            color: #8a6c00;
+            border: 1px solid #ebe0b0;
+        }
+
+        .order-status.completed {
+            background-color: #f0f3f4;
+            color: #7f8c8d;
+        }
+
+        .order-items-summary {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .order-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 8px;
+            border-top: 1px solid #f0f3f4;
+        }
+
+        .order-amount {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .order-action {
+            font-size: 12px;
+            color: #7f8c8d;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+
+        .order-action:hover {
+            color: #2c3e50;
+        }
+
+        /* ── 최근 결제 요청 / 여신 ── */
+        .billing-credit-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+
+        /* 청구 사이클 */
+        .billing-cycle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border: 1px solid #e8ecef;
+            border-radius: 6px;
+        }
+
+        .billing-cycle-label {
+            font-size: 12px;
+            color: #95a5a6;
+        }
+
+        .billing-cycle-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .billing-cycle-next {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        /* 청구 목록 */
+        .billing-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .billing-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 14px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #bdc3c7;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .billing-item:hover {
+            background-color: #edf0f1;
+        }
+
+        .billing-item.due-soon {
+            border-left-color: #e67e22;
+        }
+
+        .billing-item.overdue {
+            border-left-color: #c0392b;
+        }
+
+        .billing-item.paid {
+            border-left-color: #bdc3c7;
+            opacity: 0.6;
+        }
+
+        .billing-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .billing-doc-no {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .billing-due {
+            font-size: 11px;
+            color: #95a5a6;
+        }
+
+        .billing-due.due-soon {
+            color: #e67e22;
+            font-weight: 600;
+        }
+
+        .billing-due.overdue {
+            color: #c0392b;
+            font-weight: 600;
+        }
+
+        .billing-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .billing-amount {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .billing-status-tag {
+            font-size: 11px;
+            color: #7f8c8d;
+        }
+
+
+        /* ── 최근 알림 ── */
+        .notif-list {
+            position: relative;
+            padding-left: 26px;
+        }
+
+        .notif-list::before {
+            content: "";
+            position: absolute;
+            left: 6px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: #e0e0e0;
+        }
+
+        .notif-item {
+            position: relative;
+            margin-bottom: 14px;
+        }
+
+        .notif-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .notif-item::before {
+            content: "";
+            position: absolute;
+            left: -20px;
+            top: 7px;
+            width: 10px;
+            height: 10px;
+            background-color: #bdc3c7;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 1px #bdc3c7;
+        }
+
+        .notif-item.new::before {
+            background-color: #2c3e50;
+            box-shadow: 0 0 0 1px #2c3e50;
+        }
+
+        .notif-time {
+            font-size: 11px;
+            color: #bdc3c7;
+            margin-bottom: 3px;
+        }
+
+        .notif-content {
+            background-color: #f8f9fa;
+            padding: 10px 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .notif-content:hover {
+            background-color: #edf0f1;
+        }
+
+        .notif-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 2px;
+        }
+
+        .notif-detail {
+            font-size: 12px;
+            color: #95a5a6;
+        }
+
+        /* 반응형: 화면이 작아지면 자동으로 1열로 전환 */
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden)~.main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<!-- 헤더 -->
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
+
+<!-- 사이드바 -->
+<aside class="sidebar hidden" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">대시보드</div>
+        <div class="nav-item active" data-screen="dashboard-client">내 거래 현황</div>
+
+        <div class="nav-category">주문 관리</div>
+        <div class="nav-item" data-screen="quote-request">견적 요청하기</div>
+        <div class="nav-item" data-screen="my-orders">나의 주문 내역</div>
+        <div class="nav-item" data-screen="order-create">주문서 작성</div>
+
+        <div class="nav-category">결제 관리</div>
+        <div class="nav-item" data-screen="invoices">청구서 관리</div>
+        <div class="nav-item" data-screen="payment-history">결제 내역</div>
+
+        <div class="nav-category">정보 조회</div>
+        <div class="nav-item" data-screen="products">상품 검색</div>
+        <div class="nav-item" data-screen="documents">문서 보관함</div>
+        <div class="nav-item" data-screen="schedule">일정 확인</div>
+
+        <div class="nav-category">설정</div>
+        <div class="nav-item" data-screen="company-info">거래처 정보</div>
+        <div class="nav-item" data-screen="account">계정 설정</div>
+    </nav>
+</aside>
+
+<!-- 메인 컨텐츠 영역 -->
+<main class="main-content expanded" id="mainContent">
+    <div class="content-wrapper">
+        <div class="screen-content">
+
+            <!-- ========== 거래처 대시보드 컨텐츠 시작 ========== -->
+
+            <!-- 대시보드 헤더 -->
+            <div class="dashboard-header">
+                <div>
+                    <div class="dashboard-title">내 거래 현황</div>
+                    <div class="dashboard-subtitle">대농농협 · 2026년 2월 11일</div>
+                </div>
+            </div>
+
+            <!-- 상단 2열: 최근 주문 내역 -->
+            <div class="dashboard-grid">
+
+                <!-- 최근 주문 내역 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">최근 주문 내역</span>
+                        <a class="panel-link">전체 보기</a>
+                    </div>
+                    <div class="order-list">
+                        <div class="order-card">
+                            <div class="order-card-header">
+                                <div>
+                                    <div class="order-no">OD-2026-0210-001</div>
+                                    <div class="order-date">2026년 2월 10일</div>
+                                </div>
+                                <span class="order-status processing">처리 중</span>
+                            </div>
+                            <div class="order-items-summary">
+                                고추 품종 A-123 × 500kg · 토마토 품종 B-456 × 300kg 외 1건
+                            </div>
+                            <div class="order-card-footer">
+                                <div class="order-amount">₩12,500,000</div>
+                                <span class="order-action">상세 보기</span>
+                            </div>
+                        </div>
+
+                        <div class="order-card">
+                            <div class="order-card-header">
+                                <div>
+                                    <div class="order-no">OD-2026-0209-002</div>
+                                    <div class="order-date">2026년 2월 9일</div>
+                                </div>
+                                <span class="order-status pending">승인 대기</span>
+                            </div>
+                            <div class="order-items-summary">
+                                배추 품종 C-789 × 400kg · 상추 품종 D-012 × 200kg
+                            </div>
+                            <div class="order-card-footer">
+                                <div class="order-amount">₩8,300,000</div>
+                                <span class="order-action">주문 취소</span>
+                            </div>
+                        </div>
+
+                        <div class="order-card">
+                            <div class="order-card-header">
+                                <div>
+                                    <div class="order-no">OD-2026-0207-003</div>
+                                    <div class="order-date">2026년 2월 7일</div>
+                                </div>
+                                <span class="order-status completed">완료</span>
+                            </div>
+                            <div class="order-items-summary">
+                                오이 품종 E-345 × 150kg · 가지 품종 F-678 × 100kg
+                            </div>
+                            <div class="order-card-footer">
+                                <div class="order-amount">₩5,600,000</div>
+                                <span class="order-action">재주문</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 최근 결제 요청 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">결제 요청 현황</span>
+                        <a class="panel-link">청구서 전체 보기</a>
+                    </div>
+                    <div class="billing-credit-wrap">
+
+                        <!-- 여신 현황 -->
+
+
+
+
+                        <div class="billing-cycle-row">
+                            <div>
+                                <div class="billing-cycle-label">청구 사이클</div>
+                                <div class="billing-cycle-value">월별 (매월 15일)</div>
+                            </div>
+                            <div class="billing-cycle-next">다음 청구일 2월 15일</div>
+                        </div>
+
+                        <!-- 청구 목록 -->
+                        <div class="billing-list">
+                            <div class="billing-item due-soon">
+                                <div class="billing-left">
+                                    <div class="billing-doc-no">IN-2026-0210-001</div>
+                                    <div class="billing-due due-soon">기한 2026.02.17 (D-6)</div>
+                                </div>
+                                <div class="billing-right">
+                                    <div class="billing-amount">₩12,500,000</div>
+                                    <div class="billing-status-tag">결제 대기</div>
+                                </div>
+                            </div>
+                            <div class="billing-item due-soon">
+                                <div class="billing-left">
+                                    <div class="billing-doc-no">IN-2026-0208-002</div>
+                                    <div class="billing-due">기한 2026.02.22 (D-11)</div>
+                                </div>
+                                <div class="billing-right">
+                                    <div class="billing-amount">₩8,300,000</div>
+                                    <div class="billing-status-tag">결제 대기</div>
+                                </div>
+                            </div>
+                            <div class="billing-item paid">
+                                <div class="billing-left">
+                                    <div class="billing-doc-no">IN-2026-0205-003</div>
+                                    <div class="billing-due">2026.02.05 완료</div>
+                                </div>
+                                <div class="billing-right">
+                                    <div class="billing-amount">₩11,200,000</div>
+                                    <div class="billing-status-tag">결제 완료</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 최근 알림 -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">최근 알림</span>
+                        <span class="panel-badge">5건</span>
+                    </div>
+                    <div class="notif-list">
+                        <div class="notif-item new">
+                            <div class="notif-time">5분 전</div>
+                            <div class="notif-content">
+                                <div class="notif-title">견적서 승인 완료</div>
+                                <div class="notif-detail">QT-2026-0210-002가 승인되었습니다.</div>
+                            </div>
+                        </div>
+                        <div class="notif-item new">
+                            <div class="notif-time">1시간 전</div>
+                            <div class="notif-content">
+                                <div class="notif-title">청구서 발급</div>
+                                <div class="notif-detail">IN-2026-0210-001이 발급되었습니다. · ₩12,500,000</div>
+                            </div>
+                        </div>
+                        <div class="notif-item new">
+                            <div class="notif-time">3시간 전</div>
+                            <div class="notif-content">
+                                <div class="notif-title">주문서 처리 시작</div>
+                                <div class="notif-detail">OD-2026-0210-001 처리가 시작되었습니다.</div>
+                            </div>
+                        </div>
+                        <div class="notif-item">
+                            <div class="notif-time">어제</div>
+                            <div class="notif-content">
+                                <div class="notif-title">명세서 발급</div>
+                                <div class="notif-detail">ST-2026-0209-001이 발급되었습니다.</div>
+                            </div>
+                        </div>
+                        <div class="notif-item">
+                            <div class="notif-time">2일 전</div>
+                            <div class="notif-content">
+                                <div class="notif-title">계약서 승인 완료</div>
+                                <div class="notif-detail">CT-2026-0208-001이 승인되었습니다.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== 거래처 대시보드 컨텐츠 끝 ========== -->
+
+        </div>
+    </div>
+</main>
+
+<script>
+    // 사이드바 토글 기능
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('hidden');
+        mainContent.classList.toggle('expanded');
+    });
+
+    // 네비게이션 아이템 클릭 이벤트
+    const navItems = document.querySelectorAll('.nav-item');
+
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // 모든 아이템에서 active 클래스 제거
+            navItems.forEach(nav => nav.classList.remove('active'));
+
+            // 클릭된 아이템에 active 클래스 추가
+            item.classList.add('active');
+
+            // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+            const screenName = item.getAttribute('data-screen');
+            console.log(`${screenName} 화면으로 이동`);
+
+            // 실제 프로젝트에서는 다음과 같이 사용:
+            // window.location.href = `${screenName}.html`;
+
+            // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+            if (window.innerWidth <= 768) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    });
+
+    // ESC 키로 사이드바 닫기
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+            sidebar.classList.add('hidden');
+            mainContent.classList.add('expanded');
+        }
+    });
+
+    // 주문 카드 클릭
+    document.querySelectorAll('.order-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const no = card.querySelector('.order-no').textContent;
+            console.log(`${no} 주문 상세로 이동`);
+        });
+    });
+
+    // 청구 아이템 클릭
+    document.querySelectorAll('.billing-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const no = item.querySelector('.billing-doc-no').textContent;
+            console.log(`${no} 청구서 상세로 이동`);
+        });
+    });
+
+    // 알림 클릭
+    document.querySelectorAll('.notif-content').forEach(item => {
+        item.addEventListener('click', () => {
+            const title = item.querySelector('.notif-title').textContent;
+            console.log(`알림 상세: ${title}`);
+        });
+    });
+
+    // 일정 아이템 클릭
+    document.querySelectorAll('.week-event-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const title = item.querySelector('.week-event-title').textContent;
+            console.log(`일정 상세: ${title}`);
+        });
+    });
+</script>
+
+
+<script>
+    (function() {
+        var ws = new WebSocket('ws://' + window.location.host +
+            '/jb-server-page?reloadMode=RELOAD_ON_SAVE&'+
+            'referrer=' + encodeURIComponent(window.location.pathname));
+        ws.onmessage = function (msg) {
+            if (msg.data === 'reload') {
+                window.location.reload();
+            }
+            if (msg.data.startsWith('update-css ')) {
+                var messageId = msg.data.substring(11);
+                var links = document.getElementsByTagName('link');
+                for (var i = 0; i < links.length; i++) {
+                    var link = links[i];
+                    if (link.rel !== 'stylesheet') continue;
+                    var clonedLink = link.cloneNode(true);
+                    var newHref = link.href.replace(/(&|\?)jbUpdateLinksId=\d+/, "$1jbUpdateLinksId=" + messageId);
+                    if (newHref !== link.href) {
+                        clonedLink.href = newHref;
+                    }
+                    else {
+                        var indexOfQuest = newHref.indexOf('?');
+                        if (indexOfQuest >= 0) {
+                            // to support ?foo#hash
+                            clonedLink.href = newHref.substring(0, indexOfQuest + 1) + 'jbUpdateLinksId=' + messageId + '&' +
+                                newHref.substring(indexOfQuest + 1);
+                        }
+                        else {
+                            clonedLink.href += '?' + 'jbUpdateLinksId=' + messageId;
+                        }
+                    }
+                    link.replaceWith(clonedLink);
+                }
+            }
+        };
+    })();
+</script></body></html>

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로토타입 메인 틀</title>
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    
+
+/* Page Specific Styles */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px 12px;
+            margin-right: 20px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* 사이드바 */
+        .sidebar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background-color: #34495e;
+            color: white;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
+        }
+
+        .nav-item.active {
+            background-color: rgba(52, 152, 219, 0.3);
+            border-left-color: #3498db;
+        }
+
+        .nav-category {
+            padding: 20px 20px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #95a5a6;
+            letter-spacing: 0.5px;
+        }
+
+        /* 메인 컨텐츠 영역 */
+        .main-content {
+            position: fixed;
+            top: 60px;
+            left: 250px;
+            right: 0;
+            height: calc(100vh - 60px);
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            background-color: #ecf0f1;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .content-wrapper {
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 화면별 컨텐츠 영역 - 여기에 각 화면 내용을 넣으세요 */
+        .screen-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-height: 500px;
+        }
+
+        .screen-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .main-content {
+                left: 0;
+            }
+
+            .sidebar:not(.hidden) ~ .main-content {
+                filter: brightness(0.7);
+                pointer-events: none;
+            }
+        }
+    
+</style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <button class="menu-button" id="menuToggle">☰</button>
+        <h1 class="header-title">종자 영업 관리 시스템</h1>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+            <div class="nav-category">메뉴</div>
+            <div class="nav-item active" data-screen="dashboard">대시보드</div>
+            <div class="nav-item" data-screen="screen1">화면 1</div>
+            <div class="nav-item" data-screen="screen2">화면 2</div>
+            <div class="nav-item" data-screen="screen3">화면 3</div>
+            
+            <div class="nav-category">설정</div>
+            <div class="nav-item" data-screen="settings">설정</div>
+            <div class="nav-item" data-screen="profile">프로필</div>
+        </nav>
+    </aside>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content" id="mainContent">
+        <div class="content-wrapper">
+            <div class="screen-content">
+<h2 class="screen-title">승인요청리스트</h2>
+
+<style>
+  /* White-tone (including modal) */
+  .approval-wrap{display:flex;flex-direction:column;gap:16px;color:#111;}
+  .approval-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .menu-bar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .menu-item{
+    border:1px solid #E5E7EB;
+    background:#F7F9FB;
+    color:#2C3E50;
+    padding:10px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    font-weight:700;
+    transition:background .15s, border-color .15s, transform .05s;
+    user-select:none;
+  }
+  .menu-item:hover{background:#EEF3F7;}
+  .menu-item:active{transform:translateY(1px);}
+  .menu-item[aria-selected="true"]{
+    background:#2C3E50;
+    border-color:#2C3E50;
+    color:#FFFFFF;
+  }
+  .menu-item:focus-visible{
+    outline:2px solid #93C5FD;
+    outline-offset:2px;
+  }
+  .approval-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .ghost-btn,.approve-btn,.reject-btn{
+    padding:10px 12px;border-radius:12px;cursor:pointer;
+    border:1px solid #E5E7EB;
+    background:#FFFFFF;
+    font-weight:800;
+  }
+  .ghost-btn:hover,.approve-btn:hover,.reject-btn:hover{filter:brightness(0.98);}
+  .approve-btn{background:#16A34A;color:#fff;border-color:#15803D;} /* green */
+  .reject-btn{background:#DC2626;color:#fff;border-color:#B91C1C;}  /* red */
+  .meta-row{display:flex;gap:10px;align-items:center;color:#4B5563;font-size:13px;flex-wrap:wrap;}
+  .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid #E5E7EB;background:#FFFFFF;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#9CA3AF;display:inline-block;}
+  .list-area{
+    border:1px solid #E5E7EB;
+    border-radius:16px;
+    overflow:hidden;
+    background:#FFFFFF;
+  }
+  .list-scroll{max-height:520px;overflow:auto;}
+  .req-item{
+    display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
+    padding:14px 14px;border-bottom:1px solid #F1F5F9;
+    cursor:pointer;
+    background:#FFFFFF;
+  }
+  .req-item:hover{background:#F9FAFB;}
+  .req-left{display:flex;flex-direction:column;gap:6px;min-width:0;}
+  .req-title{font-weight:900;color:#111;}
+  .req-sub{color:#6B7280;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:760px;}
+  .req-right{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex:0 0 auto;}
+  .badge{
+    padding:6px 10px;border-radius:999px;
+    border:1px solid #E5E7EB;
+    background:#F9FAFB;
+    font-size:12px;font-weight:900;color:#111;
+  }
+  .badge.urgent{border-color:#F59E0B;background:#FFFBEB;}
+  .req-time{font-size:12px;color:#6B7280;}
+  .empty{padding:24px;text-align:center;color:#6B7280;}
+
+  /* Modal (must be above top menubar) */
+  .modal-backdrop{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.35);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    z-index:30000; /* ensure above header */
+    padding:20px 16px;
+    overflow:auto;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    width:min(860px, calc(100vw - 32px));
+    max-height:calc(100vh - 40px);
+    overflow:auto;
+    border-radius:18px;
+    border:1px solid #E5E7EB;
+    background:#FFFFFF;
+    box-shadow:0 20px 60px rgba(0,0,0,.25);
+    color:#111;
+  }
+  .modal-head{
+    padding:16px 16px 10px;
+    display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+    border-bottom:1px solid #F1F5F9;
+  }
+  .modal-title{font-size:18px;font-weight:950;line-height:1.2;color:#111;}
+  .modal-close{
+    width:40px;height:40px;border-radius:12px;
+    border:1px solid #E5E7EB;background:#FFFFFF;
+    cursor:pointer;font-size:18px;color:#111;
+  }
+  .modal-close:hover{background:#F9FAFB;}
+  .modal-body{padding:14px 16px;display:grid;gap:14px;}
+  .card{
+    border:1px solid #E5E7EB;
+    border-radius:16px;
+    background:#FFFFFF;
+    padding:12px;
+  }
+  .card h4{font-size:14px;font-weight:950;margin-bottom:8px;color:#111;}
+  .kv{display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:13px;}
+  .k{color:#6B7280;}
+  .v{font-weight:800;word-break:break-word;color:#111;}
+  .doc-preview{
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size:12px;line-height:1.5;
+    color:#111;
+    white-space:pre-wrap;
+    background:#F9FAFB;
+    border:1px solid #E5E7EB;
+    border-radius:14px;
+    padding:12px;
+  }
+  .modal-foot{
+    padding:12px 16px 16px;
+    border-top:1px solid #F1F5F9;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .reason-row{display:flex;flex-direction:column;gap:8px;}
+  .reason-row textarea{
+    width:100%;min-height:90px;resize:vertical;
+    border-radius:14px;
+    border:1px solid #E5E7EB;
+    background:#FFFFFF;
+    padding:10px 12px;
+    color:#111;
+    outline:none;
+  }
+  .reason-row textarea:focus{border-color:#93C5FD; box-shadow:0 0 0 3px rgba(59,130,246,.15);}
+  .btn-row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+  .btn-row button:disabled{opacity:.45;cursor:not-allowed;filter:none;}
+  .helper{font-size:12px;color:#6B7280;}
+  .toast{
+    position:fixed;right:18px;bottom:18px;
+    padding:12px 14px;border-radius:14px;
+    border:1px solid #E5E7EB;
+    background:#FFFFFF;
+    color:#111;
+    display:none;z-index:20001;
+    box-shadow:0 12px 30px rgba(0,0,0,.12);
+    max-width:min(520px, calc(100vw - 36px));
+  }
+  .toast.show{display:block;}
+</style>
+
+<div class="approval-wrap" id="approvalApp">
+  <div class="approval-top">
+    <div>
+      <div class="menu-bar" role="tablist" aria-label="승인 요청 종류 메뉴">
+        <button class="menu-item" role="tab" aria-selected="true" data-tab="estimate">견적서</button>
+        <button class="menu-item" role="tab" aria-selected="false" data-tab="contract">계약서</button>
+        <button class="menu-item" role="tab" aria-selected="false" data-tab="account">계정활성화</button>
+      </div>
+      <div class="meta-row" style="margin-top:10px;">
+        <span class="pill"><span class="dot"></span><span id="metaTotal">총 0건</span></span>
+        <span class="pill"><span class="dot"></span><span id="metaPending">대기 0건</span></span>
+        <span class="pill"><span class="dot"></span><span id="metaTab">현재 탭: 견적서</span></span>
+      </div>
+    </div>
+
+    <div class="approval-actions">
+      <button class="ghost-btn" id="btnRefresh" type="button">새로고침</button>
+    </div>
+  </div>
+
+  <div class="list-area">
+    <div class="list-scroll" id="listScroll" aria-label="승인요청 리스트"></div>
+  </div>
+
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+    <div class="helper" id="pagerInfo">1 / 1 페이지</div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button class="ghost-btn" id="prevPage" type="button">이전</button>
+      <button class="ghost-btn" id="nextPage" type="button">다음</button>
+    </div>
+  </div>
+</div>
+
+</div>
+        </div>
+    </main>
+
+    <!-- Review Modal -->
+    <div class="modal-backdrop" id="reviewBackdrop" aria-hidden="true">
+      <div class="modal" id="reviewModal" role="dialog" aria-modal="true" aria-labelledby="reviewTitle">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title" id="reviewTitle">검토</div>
+            <div class="helper" id="reviewSubtitle">요청 정보를 확인하고 승인/반려를 진행하세요.</div>
+          </div>
+          <button class="modal-close" id="reviewClose" aria-label="닫기"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="card">
+            <h4>요청 정보</h4>
+            <div class="kv">
+              <div class="k">요청유형</div><div class="v" id="fType">-</div>
+              <div class="k">요청제목</div><div class="v" id="fTitle">-</div>
+              <div class="k">요청자</div><div class="v" id="fRequester">-</div>
+              <div class="k">요청일시</div><div class="v" id="fTime">-</div>
+              <div class="k">우선순위</div><div class="v" id="fPriority">-</div>
+              <div class="k">대상 ID</div><div class="v" id="fTargetId">-</div>
+              <div class="k">거래처/고객</div><div class="v" id="fClient">-</div>
+              <div class="k">금액/권한</div><div class="v" id="fAmountOrRole">-</div>
+              <div class="k">담당자</div><div class="v" id="fOwner">-</div>
+              <div class="k">메모</div><div class="v" id="fMemo">-</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4>검토 서류/계정 정보</h4>
+            <div class="doc-preview" id="fDoc">-</div>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <div class="reason-row">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+              <div class="helper"><b>반려 사유서</b> (반려 시 필수)</div>
+              <div class="helper" id="reasonCount">0자</div>
+            </div>
+            <textarea id="rejectReason" placeholder="반려 사유를 작성하세요. (예: 필수 항목 누락, 증빙 서류 불충분 등)"></textarea>
+          </div>
+
+          <div class="btn-row">
+            <button class="ghost-btn" id="btnCloseModal" type="button">닫기</button>
+            <button class="reject-btn" id="btnReject" type="button" disabled>반려</button>
+            <button class="approve-btn" id="btnApprove" type="button">승인</button>
+          </div>
+          <div class="helper">승인은 클릭 후 재확인 팝업에서 OK를 누르면 처리됩니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    
+
+// Page Specific Scripts
+
+    (function(){
+      const $ = (s, el=document) => el.querySelector(s);
+      const $$ = (s, el=document) => Array.from(el.querySelectorAll(s));
+
+      // Sample data (prototype)
+      const data = [
+        { id:'EST-2026-0210-001', type:'estimate', title:'견적서 승인 요청', requester:'영업사원 김OO', time:'2026-02-10 10:12', priority:'일반', client:'대상 거래처: 한빛농원', amountOrRole:'견적금액: 12,800,000원', owner:'담당: 이OO', memo:'단가 변경 반영', doc:'[견적서]\\n- 품목: 토마토(방울) 종자 A\\n- 수량: 2,000 pack\\n- 단가: 6,400원\\n- 납기: 2026-02-20\\n- 비고: 시즌 프로모션 적용\\n\\n[검토 체크]\\n1) 단가/수량/납기 확인\\n2) 할인 적용 근거 확인\\n3) 거래처 여신 한도 확인' , urgent:false },
+        { id:'EST-2026-0210-002', type:'estimate', title:'견적서 승인 요청', requester:'영업사원 박OO', time:'2026-02-10 09:03', priority:'긴급', client:'대상 거래처: 새봄농협', amountOrRole:'견적금액: 33,500,000원', owner:'담당: 최OO', memo:'출하 일정 촉박', doc:'[견적서]\\n- 품목: 수박 대목 B\\n- 수량: 5,000 pack\\n- 단가: 6,700원\\n- 납기: 2026-02-14\\n- 특이사항: 긴급 출하 요청\\n\\n[검토 체크]\\n- 재고/LOT 유효기간 확인\\n- 물류 가능 일정 확인', urgent:true },
+        { id:'CTR-2026-0209-013', type:'contract', title:'계약서 승인 요청', requester:'영업사원 정OO', time:'2026-02-09 16:44', priority:'일반', client:'대상 거래처: 그린팜', amountOrRole:'계약금액: 58,000,000원', owner:'담당: 이OO', memo:'계약 조건 표준', doc:'[계약서 요약]\\n- 계약기간: 2026-02-15 ~ 2026-06-30\\n- 결제조건: 월말 정산, 익월 15일\\n- 반품조건: 시즌 종료 후 일괄 반품 가능(검수 필수)\\n\\n[검토 체크]\\n- 반품 조항 리스크 확인\\n- 결제조건(여신) 확인', urgent:false },
+        { id:'ACC-REQ-2026-0210-007', type:'account', title:'계정 활성화 요청', requester:'거래처 관리자 윤OO', time:'2026-02-10 08:20', priority:'일반', client:'거래처: 다온농장', amountOrRole:'요청 권한: 거래처 관리자', owner:'담당: 고객지원 장OO', memo:'초기 ID/PW 발급 필요', doc:'[계정 정보]\\n- 거래처명: 다온농장\\n- 사업자번호: 123-45-67890\\n- 담당자: 윤OO / 010-****-1234\\n- 이메일: yoon**@example.com\\n\\n[활성화 시 발급]\\n- 초기 ID: daonfarm_admin\\n- 초기 PW: (임시 발급 후 최초 로그인 변경)\\n\\n[검토 체크]\\n- 거래처 등록 여부 확인\\n- 담당자 연락처/이메일 확인', urgent:false },
+        { id:'CTR-2026-0208-004', type:'contract', title:'계약서 승인 요청', requester:'영업사원 오OO', time:'2026-02-08 11:30', priority:'일반', client:'대상 거래처: 서해농자재', amountOrRole:'계약금액: 21,300,000원', owner:'담당: 박OO', memo:'납기 분할', doc:'[계약서 요약]\\n- 납기: 2회 분할 납품\\n- 결제: 선금 30% + 잔금 70%\\n\\n[검토 체크]\\n- 선금 조건 확인\\n- 분할 납품 일정 확인', urgent:false }
+      ];
+
+      const state = { tab:'estimate', page:1, pageSize:6, selectedId:null };
+
+      const els = {
+        tabs: $$('.menu-item'),
+        list: $('#listScroll'),
+        metaTotal: $('#metaTotal'),
+        metaPending: $('#metaPending'),
+        metaTab: $('#metaTab'),
+        prev: $('#prevPage'),
+        next: $('#nextPage'),
+        pagerInfo: $('#pagerInfo'),
+        refresh: $('#btnRefresh'),
+        backdrop: $('#reviewBackdrop'),
+        modal: $('#reviewModal'),
+        closeX: $('#reviewClose'),
+        closeBtn: $('#btnCloseModal'),
+        approve: $('#btnApprove'),
+        reject: $('#btnReject'),
+        reason: $('#rejectReason'),
+        reasonCount: $('#reasonCount'),
+        toast: $('#toast'),
+
+        fType: $('#fType'),
+        fTitle: $('#fTitle'),
+        fRequester: $('#fRequester'),
+        fTime: $('#fTime'),
+        fPriority: $('#fPriority'),
+        fTargetId: $('#fTargetId'),
+        fClient: $('#fClient'),
+        fAmountOrRole: $('#fAmountOrRole'),
+        fOwner: $('#fOwner'),
+        fMemo: $('#fMemo'),
+        fDoc: $('#fDoc'),
+        reviewTitle: $('#reviewTitle')
+      };
+
+      function humanTab(t){ return t==='estimate'?'견적서':(t==='contract'?'계약서':'계정활성화'); }
+
+      function toast(msg){
+        els.toast.textContent = msg;
+        els.toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(()=>els.toast.classList.remove('show'), 2200);
+      }
+
+      function filtered(){
+        return data.filter(x => x.type === state.tab && !x._done);
+      }
+
+      function updateMeta(){
+        const allPending = data.filter(x => !x._done).length;
+        const tabPending = filtered().length;
+        els.metaTotal.textContent = `총 ${data.length}건`;
+        els.metaPending.textContent = `대기 ${allPending}건`;
+        els.metaTab.textContent = `현재 탭: ${humanTab(state.tab)} (대기 ${tabPending}건)`;
+      }
+
+      function render(){
+        updateMeta();
+        const list = filtered().sort((a,b) => (b.time||'').localeCompare(a.time||''));
+        const totalPages = Math.max(1, Math.ceil(list.length / state.pageSize));
+        state.page = Math.min(state.page, totalPages);
+
+        const start = (state.page-1)*state.pageSize;
+        const pageItems = list.slice(start, start+state.pageSize);
+
+        els.list.innerHTML = '';
+        if(pageItems.length === 0){
+          els.list.innerHTML = `<div class="empty">현재 탭에 대기 중인 승인 요청이 없습니다.</div>`;
+        }else{
+          pageItems.forEach(item => {
+            const badge = `<span class="badge">대기</span>`;
+            const sub = `${item.id} · ${item.requester} · ${item.client}`;
+            const el = document.createElement('div');
+            el.className = 'req-item';
+            el.setAttribute('role','button');
+            el.setAttribute('tabindex','0');
+            el.dataset.id = item.id;
+            el.innerHTML = `
+              <div class="req-left">
+                <div class="req-title">${item.title}</div>
+                <div class="req-sub">${sub}</div>
+              </div>
+              <div class="req-right">
+                ${badge}
+                <div class="req-time">${item.time}</div>
+              </div>
+            `;
+            el.addEventListener('click', ()=>openModal(item.id));
+            el.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openModal(item.id); }});
+            els.list.appendChild(el);
+          });
+        }
+
+        els.pagerInfo.textContent = `${state.page} / ${totalPages} 페이지`;
+        els.prev.disabled = state.page<=1;
+        els.next.disabled = state.page>=totalPages;
+      }
+
+      function setTab(tab){
+        state.tab = tab;
+        state.page = 1;
+        els.tabs.forEach(btn=>{
+          const on = btn.dataset.tab === tab;
+          btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        render();
+      }
+
+      function openModal(id){
+        const item = data.find(x=>x.id===id);
+        if(!item) return;
+
+        state.selectedId = id;
+        els.reviewTitle.textContent = `검토 · ${humanTab(item.type)}`;
+
+        els.fType.textContent = humanTab(item.type);
+        els.fTitle.textContent = item.title;
+        els.fRequester.textContent = item.requester;
+        els.fTime.textContent = item.time;
+        els.fPriority.textContent = item.priority;
+        els.fTargetId.textContent = item.id;
+        els.fClient.textContent = item.client;
+        els.fAmountOrRole.textContent = item.amountOrRole;
+        els.fOwner.textContent = item.owner;
+        els.fMemo.textContent = item.memo || '-';
+        els.fDoc.textContent = (item.doc || '-').replace(/\\n/g, '\n');
+        if(els.modal) els.modal.scrollTop = 0;
+
+        els.reason.value = '';
+        els.reasonCount.textContent = '0자';
+        els.reject.disabled = true;
+
+        els.backdrop.classList.add('open');
+        els.backdrop.setAttribute('aria-hidden','false');
+        if(els.modal) els.modal.scrollTop = 0;
+        setTimeout(()=>{
+          if(els.modal) els.modal.scrollTop = 0;
+          const closeBtn = els.closeX;
+          if(closeBtn && typeof closeBtn.focus === 'function'){
+            try { closeBtn.focus({ preventScroll: true }); } catch { closeBtn.focus(); }
+          }
+        }, 0);
+      }
+
+      function closeModal(){
+        els.backdrop.classList.remove('open');
+        els.backdrop.setAttribute('aria-hidden','true');
+        state.selectedId = null;
+      }
+
+      function approveSelected(){
+        const id = state.selectedId;
+        const item = data.find(x=>x.id===id);
+        if(!item) return;
+
+        const ok = window.confirm('승인하시겠습니까?');
+        if(!ok) return;
+
+        item._done = true;
+        item._result = 'approved';
+        toast('승인 처리되었습니다.');
+        closeModal();
+        render();
+      }
+
+      function rejectSelected(){
+        const id = state.selectedId;
+        const item = data.find(x=>x.id===id);
+        if(!item) return;
+
+        const reason = (els.reason.value || '').trim();
+        if(!reason){
+          toast('반려 사유를 작성해야 합니다.');
+          return;
+        }
+        item._done = true;
+        item._result = 'rejected';
+        item._reason = reason;
+        toast('반려 처리되었습니다. (사유 전송됨)');
+        closeModal();
+        render();
+      }
+
+      // Events
+      els.tabs.forEach(btn => btn.addEventListener('click', ()=>setTab(btn.dataset.tab)));
+      els.prev.addEventListener('click', ()=>{ state.page=Math.max(1, state.page-1); render(); });
+      els.next.addEventListener('click', ()=>{ state.page=state.page+1; render(); });
+      els.refresh.addEventListener('click', ()=>{ toast('리스트를 새로고침했습니다.'); render(); });
+
+      els.closeX.addEventListener('click', closeModal);
+      els.closeBtn.addEventListener('click', closeModal);
+      els.backdrop.addEventListener('click', (e)=>{ if(e.target===els.backdrop) closeModal(); });
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && els.backdrop.classList.contains('open')) closeModal(); });
+
+      els.approve.addEventListener('click', approveSelected);
+      els.reject.addEventListener('click', rejectSelected);
+
+      els.reason.addEventListener('input', ()=>{
+        const len = els.reason.value.length;
+        els.reasonCount.textContent = `${len}자`;
+        els.reject.disabled = (els.reason.value.trim().length === 0);
+      });
+
+      // init
+      setTab('estimate');
+    })();
+    
+</script>
+
+    <script>
+        // 사이드바 토글 기능
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            mainContent.classList.toggle('expanded');
+        });
+
+        // 네비게이션 아이템 클릭 이벤트
+        const navItems = document.querySelectorAll('.nav-item');
+        
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                // 모든 아이템에서 active 클래스 제거
+                navItems.forEach(nav => nav.classList.remove('active'));
+                
+                // 클릭된 아이템에 active 클래스 추가
+                item.classList.add('active');
+                
+                // 화면 전환 로직 (실제로는 각 화면별 HTML 파일로 이동)
+                const screenName = item.getAttribute('data-screen');
+                console.log(`${screenName} 화면으로 이동`);
+                
+                // 실제 프로젝트에서는 다음과 같이 사용:
+                // window.location.href = `${screenName}.html`;
+                
+                // 모바일에서 메뉴 선택 후 사이드바 자동 닫기
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
+            });
+        });
+
+        // ESC 키로 사이드바 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>

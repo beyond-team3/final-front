@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>종자 영업 관리 시스템 - 계정 상세</title>
+    <style>
+        /* [공통 템플릿 스타일] */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; height: 100vh; overflow: hidden; }
+
+        .header { position: fixed; top: 0; left: 0; right: 0; height: 60px; background-color: #2c3e50; color: white; display: flex; align-items: center; padding: 0 20px; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .menu-button { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 8px 12px; margin-right: 20px; border-radius: 4px; transition: background-color 0.3s; }
+        .menu-button:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .header-title { font-size: 20px; font-weight: 600; }
+
+        .sidebar { position: fixed; top: 60px; left: 0; width: 250px; height: calc(100vh - 60px); background-color: #34495e; color: white; transition: transform 0.3s ease; z-index: 999; overflow-y: auto; }
+        .sidebar.hidden { transform: translateX(-100%); }
+        .sidebar-nav { padding: 20px 0; }
+        .nav-item { padding: 12px 20px; cursor: pointer; transition: background-color 0.2s; border-left: 3px solid transparent; }
+        .nav-item:hover { background-color: rgba(255, 255, 255, 0.1); border-left-color: #3498db; }
+        .nav-item.active { background-color: rgba(52, 152, 219, 0.3); border-left-color: #3498db; }
+        .nav-category { padding: 20px 20px 10px; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #95a5a6; letter-spacing: 0.5px; }
+
+        .main-content { position: fixed; top: 60px; left: 250px; right: 0; height: calc(100vh - 60px); transition: left 0.3s ease; overflow-y: auto; background-color: #ecf0f1; }
+        .main-content.expanded { left: 0; }
+        .content-wrapper { padding: 30px; max-width: 1400px; margin: 0 auto; }
+
+        /* [화면 전용 스타일] */
+        .screen-content { background-color: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); min-height: 500px; }
+        .screen-title { font-size: 24px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1; }
+
+        /* 모달 스타일 */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 2000; display: none; }
+        .modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100vw - 32px)); z-index: 2001; display: none; }
+        .modal-content { background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.18); overflow: hidden; }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #ecf0f1; }
+        .modal-title { font-size: 16px; color: #2c3e50; font-weight: 600; }
+        .icon-btn { width: 34px; height: 34px; background: #ecf0f1; border: none; cursor: pointer; border-radius: 8px; color: #2c3e50; font-size: 16px; }
+        .modal-body { padding: 16px; display: grid; gap: 12px; }
+        .form-group { display: grid; gap: 6px; }
+        .form-label { font-size: 13px; font-weight: 600; color: #2c3e50; }
+        .form-input { height: 40px; border: 1px solid #dfe6e9; border-radius: 8px; padding: 0 12px; outline: none; font-size: 14px; }
+        .form-input:focus { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.15); }
+        .form-hint { min-height: 18px; font-size: 12px; color: #7f8c8d; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 16px; border-top: 1px solid #ecf0f1; background: #fff; }
+        .btn-ghost { padding: 10px 14px; background: #ecf0f1; border: none; border-radius: 8px; color: #2c3e50; font-weight: 600; cursor: pointer; }
+        .btn-primary {
+            padding: 10px 14px;
+            background: #ecf0f1;
+            border: none;
+            border-radius: 8px;
+            color: #2c3e50;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; max-width: 280px; }
+            .main-content { left: 0; }
+        }
+    </style>
+</head>
+<body>
+<header class="header">
+    <button class="menu-button" id="menuToggle">☰</button>
+    <h1 class="header-title">종자 영업 관리 시스템</h1>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <nav class="sidebar-nav">
+        <div class="nav-category">메뉴</div>
+        <div class="nav-item" data-screen="dashboard">대시보드</div>
+        <div class="nav-item" data-screen="screen1">화면 1</div>
+        <div class="nav-item" data-screen="screen2">화면 2</div>
+        <div class="nav-item" data-screen="screen3">화면 3</div>
+        <div class="nav-category">설정</div>
+        <div class="nav-item" data-screen="settings">설정</div>
+        <div class="nav-item active" data-screen="profile">프로필</div>
+    </nav>
+</aside>
+
+<main class="main-content" id="mainContent">
+    <div class="content-wrapper">
+        <div class="screen-content">
+            <h2 class="screen-title">계정 상세 조회</h2>
+            <div style="display:flex; flex-direction:column; gap:20px;">
+                <section style="border:1px solid #ecf0f1; border-radius:10px; padding:18px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                        <div style="font-size:18px; font-weight:700; color:#2c3e50; width: 100%;">계정 정보</div>
+
+                        <div style="margin-top:16px; display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px; width: 100%;">
+                            <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                                <div style="font-size:12px; color:#95a5a6; font-weight:700;">계정 유형</div>
+                                <div id="accountType" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">영업사원</div>
+                            </div>
+
+                            <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                                <div style="font-size:12px; color:#95a5a6; font-weight:700;">이름</div>
+                                <div id="empName" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">김영업</div>
+                            </div>
+
+                            <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                                <div style="font-size:12px; color:#95a5a6; font-weight:700;">로그인 ID</div>
+                                <div id="empId" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">emp_2001</div>
+                            </div>
+
+                            <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                                <div style="font-size:12px; color:#95a5a6; font-weight:700;">이메일</div>
+                                <div id="empEmail" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">hong@company.com</div>
+                            </div>
+
+                            <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                                <div style="font-size:12px; color:#95a5a6; font-weight:700;">전화번호</div>
+                                <div id="empPhone" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">010-1234-5678</div>
+                            </div>
+
+                            <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                                <div style="font-size:12px; color:#95a5a6; font-weight:700;">주소</div>
+                                <div id="empAddress" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">서울특별시 ○○구 ○○로 00</div>
+                            </div>
+
+                            <div style="padding:12px; background:#f8f9fb; border-radius:10px;">
+                                <div style="font-size:12px; color:#95a5a6; font-weight:700;">최근 업데이트</div>
+                                <div id="updatedAt" style="margin-top:6px; font-size:15px; color:#2c3e50; font-weight:700;">2026-02-11 10:00</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+                    <button id="openActivationModalBtn" style="height:44px; padding:0 16px; border:none; border-radius:10px; background:#2c3e50; color:#fff; font-weight:800; cursor:pointer;">
+                        비밀번호 변경
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="pwModalBackdrop" aria-hidden="true"></div>
+    <div class="modal" id="pwModal" role="dialog" aria-modal="true" aria-labelledby="pwModalTitle" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="pwModalTitle">비밀번호 수정</h3>
+                <button type="button" class="icon-btn" id="closePwModalBtn" aria-label="닫기">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group"><label class="form-label" for="currentPw">기존 비밀번호</label><input class="form-input" id="currentPw" type="password" placeholder="기존 비밀번호를 입력하세요" autocomplete="current-password" /></div>
+                <div class="form-group"><label class="form-label" for="newPw">새 비밀번호</label><input class="form-input" id="newPw" type="password" placeholder="새 비밀번호를 입력하세요" autocomplete="new-password" /></div>
+                <div class="form-group"><label class="form-label" for="newPwConfirm">새 비밀번호 확인</label><input class="form-input" id="newPwConfirm" type="password" placeholder="새 비밀번호를 다시 입력하세요" autocomplete="new-password" /></div>
+                <p class="form-hint" id="pwHint" role="status" aria-live="polite"></p>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn-ghost" id="cancelPwModalBtn">취소</button><button type="button" class="btn-primary" id="submitPwBtn">수정</button></div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // 사이드바 토글 로직
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    menuToggle.addEventListener('click', () => { sidebar.classList.toggle('hidden'); mainContent.classList.toggle('expanded'); });
+
+    // 비밀번호 변경 모달 로직
+    (function () {
+        const openBtn = document.getElementById('openActivationModalBtn');
+        const modal = document.getElementById('pwModal');
+        const backdrop = document.getElementById('pwModalBackdrop');
+        const closeBtn = document.getElementById('closePwModalBtn');
+        const cancelBtn = document.getElementById('cancelPwModalBtn');
+        const submitBtn = document.getElementById('submitPwBtn');
+        const currentPw = document.getElementById('currentPw');
+        const newPw = document.getElementById('newPw');
+        const newPwConfirm = document.getElementById('newPwConfirm');
+        const hint = document.getElementById('pwHint');
+
+        function openModal() { backdrop.style.display = 'block'; modal.style.display = 'block'; modal.setAttribute('aria-hidden', 'false'); backdrop.setAttribute('aria-hidden', 'false'); hint.textContent = ''; currentPw.value = ''; newPw.value = ''; newPwConfirm.value = ''; setTimeout(() => currentPw.focus(), 0); document.body.style.overflow = 'hidden'; }
+        function closeModal() { backdrop.style.display = 'none'; modal.style.display = 'none'; modal.setAttribute('aria-hidden', 'true'); backdrop.setAttribute('aria-hidden', 'true'); hint.textContent = ''; document.body.style.overflow = ''; openBtn.focus(); }
+
+        function validate() {
+            if (!currentPw.value || !newPw.value || !newPwConfirm.value) { hint.textContent = '모든 항목을 입력해주세요.'; hint.style.color = '#7f8c8d'; return false; }
+            if (newPw.value !== newPwConfirm.value) { hint.textContent = '새 비밀번호와 확인 값이 일치하지 않습니다.'; hint.style.color = '#e74c3c'; return false; }
+            if (newPw.value.length < 8) { hint.textContent = '새 비밀번호는 8자 이상을 권장합니다.'; hint.style.color = '#e67e22'; return true; }
+            hint.textContent = ''; return true;
+        }
+
+        openBtn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        backdrop.addEventListener('click', closeModal);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'block') closeModal(); });
+
+        submitBtn.addEventListener('click', () => {
+            if (!validate()) return;
+            // TODO: API 호출 로직
+            hint.textContent = '비밀번호가 수정되었습니다.';
+            hint.style.color = '#27ae60';
+            setTimeout(closeModal, 700);
+        });
+    })();
+</script>
+</body>
+</html>
