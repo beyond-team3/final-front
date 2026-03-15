@@ -40,14 +40,12 @@ spec:
 	}
 
 	stages {
-		// ★ 1. 무조건 Checkout이 가장 먼저 와야 합니다! ★
 		stage('Checkout') {
 			steps {
 				checkout scm
 			}
 		}
 
-		// ★ 2. 중복을 제거한 깔끔한 태그 생성 로직 ★
 		stage('Prepare Tag') {
 			steps {
 				script {
