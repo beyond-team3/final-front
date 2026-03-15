@@ -310,6 +310,7 @@ const fetchClientDetail = async () => {
     await clientStore.fetchTradeSummary(idValue)
     const crops = await clientStore.fetchClientCrops(idValue)
     console.log('[DEBUG] fetchClientCrops result:', crops)
+    await fetchScopedHistory()
   } catch (e) { /* error managed by store */ }
 }
 

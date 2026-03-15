@@ -258,34 +258,50 @@ onBeforeUnmount(() => {
 
 .filter-icon-btn:active {
   background: var(--color-olive-dark);
+  color: #fff;
+}
+
+.filter-icon-btn :deep(svg) {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  fill: currentColor;
 }
 
 .filter-dropdown {
   position: absolute;
   right: 0;
   top: calc(100% + 8px);
-  z-index: 20;
-  min-width: 148px;
-  overflow: hidden;
-  border-radius: 14px;
+  z-index: 40;
+  min-width: 130px;
+  padding: 6px;
+  border-radius: 10px;
   border: 1px solid var(--color-border-card);
-  background: var(--color-bg-card);
-  box-shadow: var(--shadow-md);
+  background: var(--color-bg-input);
+  box-shadow: 0 6px 16px rgba(61, 53, 41, 0.12);
 }
 
 .filter-dropdown-item {
   display: block;
   width: 100%;
-  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 7px 9px;
   text-align: left;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-body);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  cursor: pointer;
 }
 
-.filter-dropdown-item:hover,
-.filter-dropdown-item.active {
+.filter-dropdown-item:hover {
   background: var(--color-bg-section);
   color: var(--color-text-strong);
+}
+
+.filter-dropdown-item.active {
+  background: var(--color-olive-light);
+  color: var(--color-olive-dark);
+  font-weight: 700;
 }
 </style>
