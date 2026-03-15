@@ -1,7 +1,7 @@
 pipeline {
-    agent {
-        kubernetes {
-            yaml """
+	agent {
+		kubernetes {
+			yaml """
 apiVersion: v1
 kind: Pod
 spec:
@@ -20,105 +20,105 @@ spec:
     hostPath:
       path: /var/run/docker.sock
 """
-        }
-    }
+		}
+	}
 
-    tools {
-        nodejs 'node-24'
-    }
+	tools {
+		nodejs 'node-24'
+	}
 
-    environment {
-        AWS_CREDENTIAL_ID = 'aws-ecr-credentials'
-        AWS_REGION = 'ap-northeast-2'
-        ECR_REGISTRY = '906034468269.dkr.ecr.ap-northeast-2.amazonaws.com'
-        IMAGE_NAME = "${ECR_REGISTRY}/monsoon-frontend"
+	environment {
+		AWS_CREDENTIAL_ID = 'aws-ecr-credentials'
+		AWS_REGION = 'ap-northeast-2'
+		ECR_REGISTRY = '906034468269.dkr.ecr.ap-northeast-2.amazonaws.com'
+		IMAGE_NAME = "${ECR_REGISTRY}/monsoon-frontend"
 
-        ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
-        DISCORD_WEBHOOK = credentials('discord-webhook-url')
-        APP_VERSION_PREFIX = '0.0'
-        FINAL_TAG = ""
-    }
+		ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
+		DISCORD_WEBHOOK = credentials('discord-webhook-url')
+		APP_VERSION_PREFIX = '0.0'
+		FINAL_TAG = ""
+	}
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
+	stages {
+		stage('Checkout') {
+			steps {
+				checkout scm
+			}
+		}
 
-        stage('Prepare Tag') {
-            steps {
-                script {
-                    def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    def branchName = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    if (branchName == "HEAD") { branchName = env.BRANCH_NAME ?: "main" }
+		stage('Prepare Tag') {
+			steps {
+				script {
+					def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+					def branchName = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+					if (branchName == "HEAD") { branchName = env.BRANCH_NAME ?: "main" }
 
-                    env.FINAL_TAG = "0.0.${branchName.replaceAll('/', '-')}.${env.BUILD_NUMBER}.${gitCommit}"
-                    echo "완벽하게 생성된 태그: ${env.FINAL_TAG}"
-                }
-            }
-        }
+					env.FINAL_TAG = "0.0.${branchName.replaceAll('/', '-')}.${env.BUILD_NUMBER}.${gitCommit}"
+					echo "완벽하게 생성된 태그: ${env.FINAL_TAG}"
+				}
+			}
+		}
 
-        stage('Install & Build') {
-            steps {
-                script {
-                    echo 'Installing Dependencies...'
-                    sh 'npm install'
+		stage('Install & Build') {
+			steps {
+				script {
+					echo 'Installing Dependencies...'
+					sh 'npm install'
 
-                    echo 'Building Project...'
-                    sh 'CI=false npm run build'
-                }
-            }
-        }
+					echo 'Building Project...'
+					sh 'CI=false npm run build'
+				}
+			}
+		}
 
-        stage('Docker Build & Push to ECR') {
-            steps {
-                container('docker-cli') {
-                    script {
-                        withCredentials([usernamePassword(credentialsId: env.AWS_CREDENTIAL_ID,
-                            usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+		stage('Docker Build & Push to ECR') {
+			steps {
+				container('docker-cli') {
+					script {
+						withCredentials([usernamePassword(credentialsId: env.AWS_CREDENTIAL_ID,
+							usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
 
-                            echo "1. Installing AWS CLI..."
-                            sh "apk add --no-cache aws-cli"
+							echo "1. Installing AWS CLI..."
+							sh "apk add --no-cache aws-cli"
 
-                            echo "2. Building Tag: ${env.FINAL_TAG}"
-                            sh "docker build --no-cache -t ${IMAGE_NAME}:${env.FINAL_TAG} ."
+							echo "2. Building Tag: ${env.FINAL_TAG}"
+							sh "docker build --no-cache -t ${IMAGE_NAME}:${env.FINAL_TAG} ."
 
-                            echo "3. Logging into AWS ECR..."
-                            sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+							echo "3. Logging into AWS ECR..."
+							sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
 
-                            echo "4. Pushing Image to ECR..."
-                            sh "docker push ${IMAGE_NAME}:${env.FINAL_TAG}"
+							echo "4. Pushing Image to ECR..."
+							sh "docker push ${IMAGE_NAME}:${env.FINAL_TAG}"
 
-                            // main 브랜치일 경우에만 latest 태그 푸시
-                            if (env.BRANCH_NAME == 'main') {
-                                sh "docker tag ${IMAGE_NAME}:${env.FINAL_TAG} ${IMAGE_NAME}:latest"
-                                sh "docker push ${IMAGE_NAME}:latest"
-                            }
+							// main 브랜치일 경우에만 latest 태그 푸시
+							if (env.BRANCH_NAME == 'main') {
+								sh "docker tag ${IMAGE_NAME}:${env.FINAL_TAG} ${IMAGE_NAME}:latest"
+								sh "docker push ${IMAGE_NAME}:latest"
+							}
 
-                            // 로그아웃
-                            sh "docker logout ${ECR_REGISTRY}"
-                        }
-                    }
-                }
-            }
-        }
+							// 로그아웃
+							sh "docker logout ${ECR_REGISTRY}"
+						}
+					}
+				}
+			}
+		}
 
-        stage('Update Manifest') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'dev'
-                }
-            }
-            steps {
-                sshagent(credentials: ['github-deploy-key']) {
-                    script {
-                        def targetBranch = (env.BRANCH_NAME == 'main') ? 'main' : 'dev'
+		stage('Update Manifest') {
+			when {
+				anyOf {
+					branch 'main'
+					branch 'dev'
+				}
+			}
+			steps {
+				sshagent(credentials: ['github-deploy-key']) {
+					script {
+						def targetBranch = (env.BRANCH_NAME == 'main') ? 'main' : 'dev'
 
-                        echo "Targeting Tag: " + env.FINAL_TAG
+						echo "Targeting Tag: " + env.FINAL_TAG
 
-                        sh """
+						sh """
                             mkdir -p ~/.ssh
                             ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
@@ -139,45 +139,45 @@ spec:
                                 git push origin ${targetBranch}
                             fi
                         """
-                    }
-                }
-            }
-            post {
-                always {
-                    sh 'rm -rf temp-manifests'
-                }
-            }
-        }
+					}
+				}
+			}
+			post {
+				always {
+					sh 'rm -rf temp-manifests'
+				}
+			}
+		}
 
-        stage('Notify Deployment') {
-            steps {
-                script {
-                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
-                        discordSend(
-                            webhookURL: env.DISCORD_WEBHOOK,
-                            title: "🚀 [Frontend] 배포 준비 완료 (${env.BRANCH_NAME})",
-                            description: "도메인: https://www.monsoonseed.com\n새 버전(${env.FINAL_TAG}) 매니페스트가 성공적으로 업데이트되었습니다.\n ArgoCD가 곧 자동 동기화를 시작합니다!",
-                            result: 'SUCCESS'
-                        )
-                    } else {
-                        discordSend(
-                            webhookURL: env.DISCORD_WEBHOOK,
-                            title: "✅ [Frontend] 빌드 성공 (${env.BRANCH_NAME})",
-                            description: "Branch: ${env.BRANCH_NAME}\n새로운 버전(${env.FINAL_TAG})의 도커 이미지가 ECR에 성공적으로 푸시되었습니다.",
-                            result: 'SUCCESS'
-                        )
-                    }
-                }
-            }
-        }
-    }
+		stage('Notify Deployment') {
+			steps {
+				script {
+					if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
+						discordSend(
+							webhookURL: env.DISCORD_WEBHOOK,
+							title: "🚀 [Frontend] 배포 준비 완료 (${env.BRANCH_NAME})",
+							description: "도메인: https://www.monsoonseed.com\n새 버전(${env.FINAL_TAG}) 매니페스트가 성공적으로 업데이트되었습니다.\n ArgoCD가 곧 자동 동기화를 시작합니다!",
+							result: 'SUCCESS'
+						)
+					} else {
+						discordSend(
+							webhookURL: env.DISCORD_WEBHOOK,
+							title: "🟢 [Frontend] 빌드 성공 (${env.BRANCH_NAME})",
+							description: "Branch: ${env.BRANCH_NAME}\n새로운 버전(${env.FINAL_TAG})의 도커 이미지가 ECR에 성공적으로 푸시되었습니다.",
+							result: 'SUCCESS'
+						)
+					}
+				}
+			}
+		}
+	}
 
-    post {
-        failure {
-            discordSend (webhookURL: env.DISCORD_WEBHOOK,
-                title: "🔴 [Frontend] 빌드 실패",
-                description: "Branch: ${env.BRANCH_NAME}\nBuild: #${env.BUILD_ID}",
-                result: 'FAILURE')
-        }
-    }
+	post {
+		failure {
+			discordSend (webhookURL: env.DISCORD_WEBHOOK,
+				title: "🔴 [Frontend] 빌드 실패",
+				description: "Branch: ${env.BRANCH_NAME}\nBuild: #${env.BUILD_ID}",
+				result: 'FAILURE')
+		}
+	}
 }
