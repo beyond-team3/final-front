@@ -698,6 +698,15 @@ const parseApprovalError = (error, fallbackMessage) => {
   return backendMessage || fallbackMessage || '승인 요청 처리 중 오류가 발생했습니다.'
 }
 
+const normalizeIdOrNull = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 const showFeedback = (tone, message) => {
   feedback.value = { tone, message }
 }
@@ -988,8 +997,8 @@ const handlePageChange = async (nextPage) => {
 }
 
 const resolveApprovalIdFromNotification = async ({ approvalId, targetId, targetType, notificationType }) => {
-  const numericApprovalId = approvalId ? Number(approvalId) : null
-  const numericTargetId = targetId ? Number(targetId) : null
+  const numericApprovalId = normalizeIdOrNull(approvalId)
+  const numericTargetId = normalizeIdOrNull(targetId)
 
   if (numericApprovalId) {
     return numericApprovalId
@@ -1000,18 +1009,8 @@ const resolveApprovalIdFromNotification = async ({ approvalId, targetId, targetT
   }
 
   const normalizedTargetType = String(targetType || '').toUpperCase()
-  const normalizedNotificationType = String(notificationType || '').toUpperCase()
-  const looksLikeApprovalTarget = normalizedTargetType === 'APPROVAL' || normalizedNotificationType.startsWith('APPROVAL_')
-
-  if (looksLikeApprovalTarget) {
-    try {
-      const directApproval = await getApprovalDetail(numericTargetId)
-      if (directApproval?.approvalId) {
-        return Number(directApproval.approvalId)
-      }
-    } catch (error) {
-      // Fallback to target document lookup when targetId is not approvalId.
-    }
+  if (normalizedTargetType === 'APPROVAL') {
+    return numericTargetId
   }
 
   const searchParams = {
@@ -1075,7 +1074,7 @@ const openApprovalFromRouteQuery = async () => {
     })
 
     if (!resolvedApprovalId) {
-      showFeedback('error', '연결된 승인 요청을 찾을 수 없습니다.')
+      showFeedback('error', '승인 요청이 아직 없거나 최신 문서 기준으로 다시 확인이 필요합니다.')
       return
     }
 

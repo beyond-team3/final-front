@@ -55,6 +55,7 @@ function normalizeNotificationItem(item) {
     type: item.type || 'UNKNOWN',
     title: item.title || '',
     content: item.content || '',
+    approvalId: item.approvalId != null ? Number(item.approvalId) : null,
     targetType: item.targetType || null,
     targetId: item.targetId != null ? Number(item.targetId) : null,
     readAt: item.readAt || null,

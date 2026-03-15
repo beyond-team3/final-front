@@ -144,10 +144,23 @@ const formatCreatedAt = (value) => {
 const getTypeMeta = (type) => typeMetaMap[type] || { icon: '알', label: type || '일반 알림', tone: 'tone-neutral' }
 
 const buildNotificationRoute = (item) => {
+  if (String(item?.targetType || '').toUpperCase() === 'APPROVAL' && item?.targetId != null) {
+    return {
+      name: 'approval',
+      query: {
+        approvalId: String(item.approvalId ?? item.targetId),
+        targetType: String(item.targetType || ''),
+        notificationType: String(item.type || ''),
+        openFromNotification: 'true',
+      },
+    }
+  }
+
   if (item?.type?.startsWith('APPROVAL_') && item?.targetId != null) {
     return {
       name: 'approval',
       query: {
+        ...(item?.approvalId != null ? { approvalId: String(item.approvalId) } : {}),
         targetId: String(item.targetId),
         targetType: String(item.targetType || ''),
         notificationType: String(item.type),
@@ -180,7 +193,7 @@ const buildNotificationRoute = (item) => {
       return {
         name: 'approval',
         query: {
-          targetId: String(item.targetId),
+          approvalId: String(item.approvalId ?? item.targetId),
           targetType: String(item.targetType || ''),
           notificationType: String(item.type || ''),
           openFromNotification: 'true',

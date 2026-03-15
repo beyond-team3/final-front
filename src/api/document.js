@@ -97,12 +97,12 @@ export function getDocumentSummaries(params) {
     return api.get('documents', { params, disableCache: true })
 }
 
-export function getDocumentDetail(id) {
-    return api.get(`documents/${id}`)
-}
-
 export function getStatements(params) {
     return api.get('statements', { params })
+}
+
+export function getStatement(statementId) {
+    return api.get(`statements/${statementId}`)
 }
 
 export function getOrders(params) {
@@ -183,4 +183,8 @@ export function deleteContract(id) {
 
 export function getMyInvoices() {
     return api.get('invoices/my')
+}
+
+export function createManualInvoiceDraft(contractId) {
+    return api.post(`invoices/contracts/${contractId}/manual-draft`)
 }

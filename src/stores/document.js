@@ -8,9 +8,9 @@ import {
     cancelOrder as cancelOrderApi,
     publishInvoice as publishInvoiceApi,
     getDocuments,
-    getDocumentDetail,
     getOrders,
     getStatements,
+    getStatement as getStatementApi,
     getInvoices,
     getInvoice,
     getInvoice as getInvoiceApi,
@@ -123,8 +123,8 @@ const normalizeDocument = (doc = {}) => {
     if (!doc) return null
 
     // 1. 문서 코드 통합 추출 (백엔드 필드명 다양성 대응)
-    const id = doc.id || doc.docId || null
-    const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.invoiceCode || ''
+    const id = doc.id || doc.docId || doc.statementId || doc.invoiceId || doc.orderId || null
+    const docCode = doc.docCode || doc.requestCode || doc.quotationCode || doc.contractCode || doc.orderCode || doc.statementCode || doc.invoiceCode || ''
 
     // 2. 타입 식별 및 정규화
     let type = String(doc.type || doc.docType || '').trim().toLowerCase()
@@ -391,6 +391,7 @@ export const useDocumentStore = defineStore('document', () => {
     const getContractById = (id) => contracts.value.find((item) => String(item.id) === String(id))
     const getOrderById = (id) => orders.value.find((item) => String(item.id) === String(id))
     const getInvoiceById = (id) => invoices.value.find((item) => String(item.id) === String(id))
+    const getStatementById = (id) => statements.value.find((item) => String(item.id) === String(id))
 
     /**
      * contractId 기준으로 해당 계약에 속한 명세서 목록 반환
@@ -553,19 +554,6 @@ export const useDocumentStore = defineStore('document', () => {
         } catch (e) {
             console.error('주문서 로드 실패:', e)
             return []
-        }
-    }
-
-    async function fetchDocumentDetail(id) {
-        loading.value = true
-        try {
-            const detail = await getDocumentDetail(id)
-            return normalizeDocument(unwrapData(detail))
-        } catch (e) {
-            error.value = getErrorMessage(e, '문서 상세 정보를 불러오지 못했습니다.')
-            return null
-        } finally {
-            loading.value = false
         }
     }
 
@@ -751,6 +739,42 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    async function fetchStatementDetail(statementId) {
+        loading.value = true
+        try {
+            const response = await getStatementApi(statementId)
+            const detail = unwrapData(response)
+            if (!detail) return null
+
+            const normalized = normalizeDocument({
+                ...detail,
+                type: 'statement',
+                id: detail.statementId ?? detail.id ?? statementId,
+                displayCode: detail.statementCode ?? detail.displayCode,
+                docCode: detail.statementCode ?? detail.docCode,
+            })
+
+            const index = statements.value.findIndex((item) => String(item.id) === String(normalized.id))
+            if (index >= 0) {
+                statements.value[index] = normalized
+            } else {
+                statements.value.unshift(normalized)
+            }
+
+            allRawDocuments.value = [
+                ...allRawDocuments.value.filter((doc) => !(String(doc.type || '').toLowerCase() === 'statement' && String(doc.id) === String(normalized.id))),
+                normalized,
+            ]
+
+            return normalized
+        } catch (e) {
+            error.value = getErrorMessage(e, '명세서 상세 정보를 불러오지 못했습니다.')
+            return null
+        } finally {
+            loading.value = false
+        }
+    }
+
     async function fetchInvoices() {
         try {
             const data = await getInvoices()
@@ -824,6 +848,35 @@ export const useDocumentStore = defineStore('document', () => {
         } finally {
             loading.value = false
         }
+    }
+
+    async function fetchTypedDocumentDetail({ id, type }) {
+        const normalizedType = String(type || '').toLowerCase().replace(/[\s-]+/g, '')
+
+        if (['quotationrequest', 'rfq'].includes(normalizedType)) {
+            return fetchQuotationRequestDetail(id)
+        }
+        if (['quotation', 'quo'].includes(normalizedType)) {
+            return fetchQuotationDetail(id)
+        }
+        if (['contract', 'cnt'].includes(normalizedType)) {
+            return fetchContractDetail(id)
+        }
+        if (['order', 'ord'].includes(normalizedType)) {
+            return fetchOrderDetail(id)
+        }
+        if (['statement', 'stmt'].includes(normalizedType)) {
+            return fetchStatementDetail(id)
+        }
+        if (['invoice', 'inv'].includes(normalizedType)) {
+            return fetchInvoiceDetail(id)
+        }
+        if (['payment', 'pay'].includes(normalizedType)) {
+            return fetchPaymentDetail(id)
+        }
+
+        error.value = '문서 유형이 없어 상세 경로를 결정할 수 없습니다.'
+        return null
     }
 
     const createQuotationRequest = async ({ client, items, requirements }) => {
@@ -1395,13 +1448,14 @@ export const useDocumentStore = defineStore('document', () => {
         fetchProductMaster,
         fetchClientMaster,
         fetchDocumentsV2,
-        fetchDocumentDetail,
+        fetchTypedDocumentDetail,
         totalAmountOf,
         getRequestById,
         getQuotationById,
         getContractById,
         getOrderById,
         getInvoiceById,
+        getStatementById,
         getStatementsByContract,
         activeInvoiceStatementIds,
         createQuotationRequest,
@@ -1422,6 +1476,7 @@ export const useDocumentStore = defineStore('document', () => {
         fetchInvoices,
         publishInvoice,
         fetchInvoiceDetail,
+        fetchStatementDetail,
         fetchQuotationRequestDetail,
         pendingQuotationRequests,
         fetchPendingQuotationRequests,
