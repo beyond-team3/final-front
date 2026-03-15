@@ -1,4 +1,6 @@
 import api from './index'
+import { useBillingStatsV2 } from '@/config/featureFlags'
+import { getV2 } from './v2'
 
 export const STATISTICS_PERIOD = {
   MONTHLY: 'MONTHLY',
@@ -41,6 +43,19 @@ function get(url, params) {
       serialize: buildParamsSerializer,
     },
   })
+}
+
+function getBillingRevenue(url, params) {
+  if (useBillingStatsV2()) {
+    return getV2(url, {
+      params,
+      paramsSerializer: {
+        serialize: buildParamsSerializer,
+      },
+    })
+  }
+
+  return get(url, params)
 }
 
 function pad(value) {
@@ -243,4 +258,25 @@ export function getStatsByVariety(params) {
 
 export function getRanking(params) {
   return get('/statistics/ranking', params)
+}
+
+export function getBillingRevenueMonthly(params) {
+  const url = useBillingStatsV2()
+    ? '/api/v2/statistics/billing/revenue/monthly'
+    : '/statistics/billing/revenue/monthly'
+  return getBillingRevenue(url, params)
+}
+
+export function getBillingRevenueByCategory(params) {
+  const url = useBillingStatsV2()
+    ? '/api/v2/statistics/billing/revenue/by-category'
+    : '/statistics/billing/revenue/by-category'
+  return getBillingRevenue(url, params)
+}
+
+export function getBillingRevenueMonthlyByCategory(params) {
+  const url = useBillingStatsV2()
+    ? '/api/v2/statistics/billing/revenue/monthly-by-category'
+    : '/statistics/billing/revenue/monthly-by-category'
+  return getBillingRevenue(url, params)
 }

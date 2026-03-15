@@ -1,11 +1,12 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { CdrButton, IconAccountProfile, IconArrowLeft, IconArrowRight, IconLocationPinStroke, IconRefresh } from '@rei/cedar'
+import { CdrButton, IconAccountProfile, IconLocationPinStroke, IconRefresh } from '@rei/cedar'
 import { createPersonalSchedule, deletePersonalSchedule, getSchedulesByCondition, updatePersonalSchedule } from '@/api/schedule'
+import { getCalendarRecommendations, getHarvestImminentProducts } from '@/api/product'
+import HarvestImminentSection from '@/components/schedule/HarvestImminentSection.vue'
+import RecommendedVarietiesCarousel from '@/components/schedule/RecommendedVarietiesCarousel.vue'
 import { useAuthStore } from '@/stores/auth'
-import { useNotificationStore } from '@/stores/notification'
-import { syncHarvestSchedulesForSalesRep } from '@/services/GrowingSeasonService'
 import { ROLES } from '@/utils/constants'
 
 const pad2 = (n) => String(n).padStart(2, '0')
@@ -13,14 +14,12 @@ const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDat
 const ym = (d) => `${d.getFullYear()}.${pad2(d.getMonth() + 1)}`
 const toLocalDateTime = (d) => `${ymd(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 const DAY_MS = 24 * 60 * 60 * 1000
-const MAX_VISIBLE_MULTIDAY_LANES = 10
 const getErrorMessage = (error, fallback) => error?.response?.data?.error?.message
   || error?.response?.data?.message
   || error?.message
   || fallback
 
 const authStore = useAuthStore()
-const notificationStore = useNotificationStore()
 const router = useRouter()
 const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
@@ -36,14 +35,16 @@ const events = ref([])
 const scheduleLoading = ref(false)
 const scheduleError = ref('')
 const isSavingSchedule = ref(false)
-
-const recommendations = ref([
-  { id: 1, name: '마라톤 수박 대목', tag: '내병성/중약세', colorA: '#f5f7fb', colorB: '#e6eefb' },
-  { id: 2, name: '스위트 방울토마토', tag: '당도/수량성', colorA: '#f8fbf2', colorB: '#e2f4d9' },
-  { id: 3, name: '프레시 오이', tag: '여름작 추천', colorA: '#f4fbfd', colorB: '#d9f0f7' },
-  { id: 4, name: '파워 고추', tag: '내병성', colorA: '#fff7ef', colorB: '#ffe6cd' },
-])
-const recommendIdx = ref(0)
+const recommendationItems = ref([])
+const recommendationLoading = ref(false)
+const recommendationError = ref('')
+const recommendationErrorStatus = ref(null)
+const harvestSectionMonth = ref(null)
+const harvestSectionNextMonth = ref(null)
+const harvestSectionClients = ref([])
+const harvestSectionLoading = ref(false)
+const harvestSectionError = ref('')
+const harvestSectionErrorStatus = ref(null)
 
 const dayModalOpen = ref(false)
 const detailModalOpen = ref(false)
@@ -58,12 +59,6 @@ const editAllDay = ref(false)
 const editVisibility = ref('PRIVATE')
 const editingId = ref(null)
 const editingStatus = ref(null)
-const harvestAlerts = ref([])
-const harvestDummyItems = [
-  { sourceKey: 'DUMMY-001', varietyName: '샤인토마토 F1', expectedHarvestMonth: 3, clientId: 'C001', clientName: '대상팜' },
-  { sourceKey: 'DUMMY-002', varietyName: '프라임오이', expectedHarvestMonth: 3, clientId: 'C002', clientName: '그린농원' },
-  { sourceKey: 'DUMMY-003', varietyName: '골드파프리카', expectedHarvestMonth: 4, clientId: 'C003', clientName: '해오름농장' },
-]
 
 const normalizeScheduleItem = (item = {}) => {
   const itemType = String(item.itemType ?? item.scheduleItemType ?? item.type ?? '').toUpperCase()
@@ -148,13 +143,6 @@ const getEventDisplayTime = (eventItem) => {
   return eventItem?.time || '-'
 }
 
-const MAX_BADGES_PER_CELL = 2
-
-const truncateBadgeText = (text) => {
-  const rawText = String(text ?? '')
-  return rawText.length > 5 ? `${rawText.slice(0, 5)}...` : rawText
-}
-
 const toStartOfDay = (value) => {
   const dateObj = value instanceof Date ? new Date(value) : new Date(value)
   if (Number.isNaN(dateObj.getTime())) {
@@ -221,13 +209,6 @@ const addHoursToDateTimeLocal = (dateTimeLocalValue, hoursToAdd = 1) => {
   }
   dateObj.setHours(dateObj.getHours() + hoursToAdd)
   return formatToDateTimeLocal(dateObj)
-}
-
-const getVisibleBadges = (events) => {
-  if (!Array.isArray(events) || events.length === 0) {
-    return []
-  }
-  return events.slice(0, MAX_BADGES_PER_CELL)
 }
 
 const clientFilterOptions = computed(() => {
@@ -343,70 +324,15 @@ const calendarCells = computed(() => {
 
 const calendarWeeks = computed(() => Array.from({ length: 6 }, (_, index) => {
   const cells = calendarCells.value.slice(index * 7, index * 7 + 7)
-  const weekStart = toStartOfDay(cells[0]?.date)
-  const weekEnd = toStartOfDay(cells[6]?.date)
-  const lanes = []
-  const multiDaySegments = []
-
-  visibleEvents.value
-    .filter((eventItem) => {
-      if (!isMultiDayEvent(eventItem)) {
-        return false
-      }
-      const range = getEventDayRange(eventItem)
-      if (!range || !weekStart || !weekEnd) {
-        return false
-      }
-      return range.startDay.getTime() <= weekEnd.getTime() && range.endDay.getTime() >= weekStart.getTime()
-    })
-    .sort((left, right) => {
-      const startCompare = String(right.startAt || right.date || '').localeCompare(String(left.startAt || left.date || ''))
-      if (startCompare !== 0) {
-        return startCompare
-      }
-      return String(right.title || '').localeCompare(String(left.title || ''))
-    })
-    .forEach((eventItem) => {
-      const range = getEventDayRange(eventItem)
-      const segmentStart = range.startDay.getTime() < weekStart.getTime() ? weekStart : range.startDay
-      const segmentEnd = range.endDay.getTime() > weekEnd.getTime() ? weekEnd : range.endDay
-      const startCol = compareDay(segmentStart, weekStart) + 1
-      const endCol = compareDay(segmentEnd, weekStart) + 2
-      let laneIndex = 0
-
-      while (lanes[laneIndex] && lanes[laneIndex] >= startCol) {
-        laneIndex += 1
-      }
-
-      if (laneIndex >= MAX_VISIBLE_MULTIDAY_LANES) {
-        return
-      }
-
-      lanes[laneIndex] = endCol - 1
-      multiDaySegments.push({
-        key: `${eventItem.id}-${cells[0]?.date}`,
-        event: eventItem,
-        lane: laneIndex + 1,
-        startCol,
-        endCol,
-        startsBeforeWeek: range.startDay.getTime() < weekStart.getTime(),
-        endsAfterWeek: range.endDay.getTime() > weekEnd.getTime(),
-      })
-    })
 
   return {
     key: cells[0]?.date || `week-${index}`,
     cells,
-    multiDaySegments,
-    laneCount: lanes.length,
-    barAreaHeight: lanes.length > 0 ? (lanes.length * 2) + ((lanes.length - 1) * 2) + 5 : 0,
   }
 }))
 
 const selectedDayEvents = computed(() => eventsByDate(selectedDate.value))
-const currentRecommendation = computed(() => recommendations.value[recommendIdx.value])
-const hasHarvestAlerts = computed(() => harvestAlerts.value.length > 0)
-const harvestItems = computed(() => (hasHarvestAlerts.value ? harvestAlerts.value : harvestDummyItems))
+const calendarMonth = computed(() => viewDate.value.getMonth() + 1)
 const selectedClientLabel = computed(
   () => clientFilterOptions.value.find((item) => item.value === filterState.value.client)?.label || '전체',
 )
@@ -550,6 +476,72 @@ const loadSchedules = async () => {
   }
 }
 
+const buildSectionError = (error, forbiddenMessage, fallback) => {
+  const status = error?.response?.status ?? null
+
+  return {
+    status,
+    message: status === 403 ? forbiddenMessage : getErrorMessage(error, fallback),
+  }
+}
+
+const loadRecommendationSection = async (month = calendarMonth.value) => {
+  recommendationLoading.value = true
+  recommendationError.value = ''
+  recommendationErrorStatus.value = null
+
+  try {
+    const response = await getCalendarRecommendations(month)
+    const data = response?.data ?? {}
+    recommendationItems.value = Array.isArray(data?.items) ? data.items : []
+  } catch (error) {
+    recommendationItems.value = []
+    const { status, message } = buildSectionError(
+      error,
+      '추천 품종 조회 권한이 없습니다.',
+      '추천 품종을 불러오지 못했습니다.',
+    )
+    recommendationErrorStatus.value = status
+    recommendationError.value = message
+  } finally {
+    recommendationLoading.value = false
+  }
+}
+
+const loadHarvestImminentSection = async (month = calendarMonth.value) => {
+  harvestSectionLoading.value = true
+  harvestSectionError.value = ''
+  harvestSectionErrorStatus.value = null
+
+  try {
+    const response = await getHarvestImminentProducts(month)
+    const data = response?.data ?? {}
+    harvestSectionMonth.value = data?.month ?? month
+    harvestSectionNextMonth.value = data?.nextMonth ?? null
+    harvestSectionClients.value = Array.isArray(data?.clients) ? data.clients : []
+  } catch (error) {
+    harvestSectionMonth.value = month
+    harvestSectionNextMonth.value = month === 12 ? 1 : month + 1
+    harvestSectionClients.value = []
+    const { status, message } = buildSectionError(
+      error,
+      '수확 임박 품종 조회 권한이 없습니다.',
+      '수확 임박 품종을 불러오지 못했습니다.',
+    )
+    harvestSectionErrorStatus.value = status
+    harvestSectionError.value = message
+  } finally {
+    harvestSectionLoading.value = false
+  }
+}
+
+const loadCalendarSections = async (month = calendarMonth.value) => {
+  await Promise.all([
+    loadRecommendationSection(month),
+    loadHarvestImminentSection(month),
+  ])
+}
+
 const openDayModal = (date) => {
   selectedDate.value = date
   dayModalOpen.value = true
@@ -578,32 +570,15 @@ const openEditModal = (eventItem = null) => {
   editModalOpen.value = true
 }
 
-const goToRecommendationDetail = async (item, index = null) => {
-  if (item?.id == null) {
+const goToRecommendationDetail = async (item) => {
+  if (item?.productId == null) {
     return
   }
-  if (index !== null) {
-    recommendIdx.value = index
-  }
   try {
-    await router.push(`/products/${item.id}`)
+    await router.push(`/products/${item.productId}`)
   } catch (err) {
     // Ignore unexpected navigation errors.
   }
-}
-
-const prevRecommendation = () => {
-  if (recommendations.value.length === 0) {
-    return
-  }
-  recommendIdx.value = (recommendIdx.value - 1 + recommendations.value.length) % recommendations.value.length
-}
-
-const nextRecommendation = () => {
-  if (recommendations.value.length === 0) {
-    return
-  }
-  recommendIdx.value = (recommendIdx.value + 1) % recommendations.value.length
 }
 
 const goToClientDetail = async (clientId) => {
@@ -726,41 +701,18 @@ const deletePersonal = async (id) => {
 
 const prevMonth = async () => {
   viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() - 1, 1)
-  await loadSchedules()
-  await loadHarvestSchedules()
+  await Promise.all([
+    loadSchedules(),
+    loadCalendarSections(),
+  ])
 }
 
 const nextMonth = async () => {
   viewDate.value = new Date(viewDate.value.getFullYear(), viewDate.value.getMonth() + 1, 1)
-  await loadSchedules()
-  await loadHarvestSchedules()
-}
-
-const loadHarvestSchedules = async () => {
-  if (!isSalesRep.value) {
-    return
-  }
-
-  const salesRepUserId = authStore.me?.id
-  const salesRepEmployeeId = authStore.me?.refId
-
-  if (!salesRepUserId || !salesRepEmployeeId) {
-    return
-  }
-
-  try {
-    const result = await syncHarvestSchedulesForSalesRep({
-      salesRepUserId,
-      salesRepEmployeeId,
-      salesRepName: authStore.me?.name || '',
-      currentDate: viewDate.value,
-    })
-
-    harvestAlerts.value = result.harvestAlerts || []
-    notificationStore.mergeNotifications(ROLES.SALES_REP, result.notifications || [])
-  } catch (error) {
-    harvestAlerts.value = []
-  }
+  await Promise.all([
+    loadSchedules(),
+    loadCalendarSections(),
+  ])
 }
 
 watch(
@@ -772,8 +724,10 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('click', closeFilterMenusByOutsideClick)
-  await loadSchedules()
-  await loadHarvestSchedules()
+  await Promise.all([
+    loadSchedules(),
+    loadCalendarSections(),
+  ])
 })
 
 onBeforeUnmount(() => {
@@ -921,24 +875,7 @@ onBeforeUnmount(() => {
                   v-for="week in calendarWeeks"
                   :key="week.key"
                   class="calendar-week"
-                  :style="{ '--week-lane-count': String(week.laneCount), '--week-event-area': `${week.barAreaHeight}px` }"
                 >
-                  <div v-if="week.multiDaySegments.length > 0" class="week-multiday-layer">
-                    <button
-                      v-for="segment in week.multiDaySegments"
-                      :key="segment.key"
-                      type="button"
-                      class="multiday-badge"
-                      :class="[
-                        segment.event.type,
-                        { 'has-start-cap': !segment.startsBeforeWeek, 'has-end-cap': !segment.endsAfterWeek },
-                      ]"
-                      :style="{ gridColumn: `${segment.startCol} / ${segment.endCol}`, gridRow: String(segment.lane) }"
-                      :aria-label="`${segment.event.title} (${formatDateTimeText(segment.event.startAt)} ~ ${formatDateTimeText(segment.event.endAt)})`"
-                      @click.stop="openDetail(segment.event)"
-                    />
-                  </div>
-
                   <div class="week-day-grid">
                     <div
                       v-for="cell in week.cells"
@@ -948,12 +885,7 @@ onBeforeUnmount(() => {
                       @click="openDayModal(cell.date)"
                     >
                       <div class="day-num">{{ cell.day }}</div>
-                      <div v-if="cell.hasMultiDayEvent || cell.events.length >= 2" class="day-count-badge">{{ cell.events.length }}</div>
-                      <div class="badge-row">
-                        <div v-for="ev in getVisibleBadges(cell.hasMultiDayEvent ? [] : cell.inlineEvents)" :key="ev.id" class="badge" :class="ev.type">
-                          {{ truncateBadgeText(`${eventTypeLabel(ev)} · ${ev.title}`) }}
-                        </div>
-                      </div>
+                      <div v-if="cell.events.length > 0" class="day-count-badge">{{ cell.events.length }}</div>
                     </div>
                   </div>
                 </div>
@@ -963,84 +895,32 @@ onBeforeUnmount(() => {
 	        </div>
 	      </div>
 
-	      <aside class="calendar-right">
-        <div class="side-card">
-          <div class="side-header">
-            <div class="side-title">이번달 추천 품종</div>
-            <span style="font-size:12px;color:#6b7a8c;">자동 슬라이드</span>
-          </div>
+        <aside class="calendar-right">
+          <RecommendedVarietiesCarousel
+            class="calendar-section-block"
+            :month="calendarMonth"
+            :items="recommendationItems"
+            :loading="recommendationLoading"
+            :error-message="recommendationError"
+            :error-status="recommendationErrorStatus"
+            :compact="true"
+            @retry="loadRecommendationSection()"
+            @select-product="goToRecommendationDetail"
+          />
 
-          <div v-if="currentRecommendation" class="carousel">
-            <div class="carousel-img-wrap">
-              <CdrButton
-                class="carousel-arrow left"
-                type="button"
-                modifier="secondary"
-                icon-only
-                with-background
-                aria-label="이전 추천 품종"
-                @click.stop="prevRecommendation"
-              >
-                <IconArrowLeft />
-              </CdrButton>
-              <div
-                class="carousel-img"
-                role="button"
-                tabindex="0"
-                :style="{ background: `linear-gradient(135deg, ${currentRecommendation.colorA}, ${currentRecommendation.colorB})` }"
-                @click="goToRecommendationDetail(currentRecommendation)"
-                @keydown.enter="goToRecommendationDetail(currentRecommendation)"
-                @keydown.space.prevent="goToRecommendationDetail(currentRecommendation)"
-              >
-                <div class="carousel-main-text">{{ currentRecommendation.name }}</div>
-              </div>
-              <CdrButton
-                class="carousel-arrow right"
-                type="button"
-                modifier="secondary"
-                icon-only
-                with-background
-                aria-label="다음 추천 품종"
-                @click.stop="nextRecommendation"
-              >
-                <IconArrowRight />
-              </CdrButton>
-            </div>
-            <div class="carousel-caption">{{ currentRecommendation.name }}</div>
-            <div class="carousel-dots" role="group" aria-label="추천 품종 슬라이드 선택">
-              <button
-                v-for="(item, index) in recommendations"
-                :key="item.id"
-                type="button"
-                class="carousel-dot"
-                :class="{ active: index === recommendIdx }"
-                :aria-label="`${item.name} 보기`"
-                :aria-pressed="index === recommendIdx ? 'true' : 'false'"
-                @click="recommendIdx = index"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div v-if="isSalesRep" class="harvest-card">
-          <div class="harvest-card-header">
-            <div class="harvest-card-title">수확 임박</div>
-          </div>
-          <div class="harvest-list">
-            <div v-if="harvestItems.length === 0" class="harvest-empty">수확 임박 일정이 없습니다.</div>
-            <div v-for="item in harvestItems" :key="item.sourceKey" class="harvest-item">
-              <div class="harvest-item-main">
-                <div class="harvest-variety">{{ item.varietyName }}</div>
-                <div class="harvest-meta">
-                  <span class="harvest-month">수확 {{ item.expectedHarvestMonth }}월</span>
-                  <span class="harvest-client">{{ item.clientName }}</span>
-                </div>
-              </div>
-              <button class="btn btn-primary harvest-cta" type="button" @click="goToClientDetail(item.clientId)">거래처 이동</button>
-            </div>
-          </div>
-        </div>
-      </aside>
+          <HarvestImminentSection
+            class="calendar-section-block"
+            :month="harvestSectionMonth || calendarMonth"
+            :next-month="harvestSectionNextMonth"
+            :clients="harvestSectionClients"
+            :loading="harvestSectionLoading"
+            :error-message="harvestSectionError"
+            :error-status="harvestSectionErrorStatus"
+            :compact="true"
+            @retry="loadHarvestImminentSection()"
+            @select-client="goToClientDetail"
+          />
+        </aside>
     </section>
 
     <div v-if="dayModalOpen" class="modal-backdrop" @click.self="dayModalOpen = false">
@@ -1188,6 +1068,7 @@ onBeforeUnmount(() => {
 .calendar-page { display: flex; gap: 20px; align-items: stretch; }
 .calendar-left { flex: 1 1 auto; min-width: 640px; }
 .calendar-right { width: 360px; flex: 0 0 360px; }
+.calendar-section-block { margin-bottom: 14px; }
 
 .toolbar {
   display: flex;
@@ -1457,11 +1338,6 @@ onBeforeUnmount(() => {
 
 .calendar-week {
   position: relative;
-  --week-lane-count: 0;
-  --week-lane-height: 2px;
-  --week-lane-gap: 2px;
-  --week-event-top: 34px;
-  --week-event-area: 0px;
 }
 
 .week-day-grid {
@@ -1517,317 +1393,6 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 900;
   box-shadow: 0 4px 10px rgba(200, 98, 42, 0.24);
-}
-
-.badge-row {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: calc(38px + var(--week-event-area));
-  bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.week-multiday-layer {
-  position: absolute;
-  top: var(--week-event-top);
-  left: 0;
-  right: 0;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: var(--week-lane-height);
-  gap: var(--week-lane-gap) 0;
-  padding: 0 6px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.multiday-badge {
-  min-width: 0;
-  height: var(--week-lane-height);
-  border: none;
-  border-radius: 999px;
-  background: rgba(122, 140, 66, 0.52);
-  display: block;
-  padding: 0;
-  overflow: hidden;
-  pointer-events: auto;
-  cursor: pointer;
-  box-shadow: none;
-  position: relative;
-}
-
-.multiday-badge::before,
-.multiday-badge::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 1px;
-  height: 6px;
-  background: rgba(88, 104, 48, 0.75);
-  transform: translateY(-50%);
-  opacity: 0;
-}
-
-.multiday-badge.has-start-cap::before {
-  left: 0;
-  opacity: 1;
-}
-
-.multiday-badge.has-end-cap::after {
-  right: 0;
-  opacity: 1;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--color-olive-light, #C8D4A0);
-  background: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.badge.history {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-}
-
-.badge.personal {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-}
-
-.badge.growing-season {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-}
-
-.badge.harvest {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-}
-
-.harvest-card {
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  border-radius: 12px;
-  background: var(--color-bg-input, #FAF7F3);
-  margin-top: 14px;
-  overflow: hidden;
-}
-
-.harvest-card-header {
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid var(--color-border-divider, #E8E3D8);
-  background: var(--color-bg-section, #EFEADF);
-}
-
-.harvest-card-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--color-text-strong, #3D3529);
-}
-
-.harvest-card-subtitle {
-  font-size: 12px;
-  color: var(--color-text-sub, #9A8C7E);
-  margin-top: 4px;
-}
-
-.harvest-list { padding: 10px; display: grid; gap: 8px; }
-
-.harvest-item {
-  border: none;
-  background: transparent;
-  border-radius: 12px;
-  padding: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.harvest-item:hover {
-  background: var(--color-bg-base, #EDE8DF);
-}
-
-.harvest-variety {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-text-strong, #3D3529);
-}
-
-.harvest-meta {
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.harvest-month {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--color-olive-light, #C8D4A0);
-  background: var(--color-olive-light, #C8D4A0);
-  color: var(--color-olive-dark, #586830);
-}
-
-.harvest-client {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  background: var(--color-bg-input, #FAF7F3);
-  color: var(--color-text-sub, #9A8C7E);
-}
-
-.harvest-empty {
-  padding: 12px 14px;
-  color: var(--color-text-sub, #9A8C7E);
-  font-size: 12px;
-}
-
-.harvest-cta {
-  width: auto;
-  min-width: 86px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border-color: var(--color-orange-light, #F0C9A8);
-  background: var(--color-orange-light, #F0C9A8);
-  color: var(--color-orange-dark, #A34E20);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.harvest-cta:hover {
-  border-color: var(--color-orange, #C8622A);
-  background: var(--color-orange, #C8622A);
-  color: #fff;
-}
-
-.side-card {
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  border-radius: 12px;
-  background: var(--color-bg-input, #FAF7F3);
-  overflow: hidden;
-}
-
-.side-header {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border-divider, #E8E3D8);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--color-bg-section, #EFEADF);
-}
-
-.side-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--color-text-strong, #3D3529);
-}
-
-.carousel { padding: 12px 16px 14px; }
-
-.carousel-img-wrap {
-  position: relative;
-}
-
-.carousel-img {
-  width: 100%;
-  height: 190px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border-divider, #E8E3D8);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.carousel-main-text {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--color-text-strong, #3D3529);
-  padding: 0 16px;
-  text-align: center;
-}
-
-.carousel-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(61, 53, 41, 0.36);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 2;
-}
-
-.carousel-arrow.left { left: 8px; }
-.carousel-arrow.right { right: 8px; }
-
-.carousel-arrow:hover {
-  background: rgba(61, 53, 41, 0.56);
-}
-
-.carousel-arrow :deep(svg) {
-  width: 16px;
-  height: 16px;
-}
-
-.carousel-caption {
-  margin-top: 10px;
-  font-weight: 800;
-  color: var(--color-text-strong, #3D3529);
-  font-size: 13px;
-  text-align: center;
-}
-
-.carousel-dots {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.carousel-dot {
-  width: 8px;
-  height: 8px;
-  border: none;
-  border-radius: 999px;
-  background: var(--color-border-card, #DDD7CE);
-  cursor: pointer;
-  padding: 0;
-}
-
-.carousel-dot.active {
-  width: 18px;
-  background: var(--color-olive, #7A8C42);
 }
 
 .modal-backdrop {
@@ -1926,27 +1491,15 @@ onBeforeUnmount(() => {
   color: var(--color-text-body, #6B5F50);
 }
 
-.pill.history {
-  background: var(--color-orange-light, #F0C9A8);
-  border-color: var(--color-orange-light, #F0C9A8);
-  color: var(--color-orange-dark, #A34E20);
-}
-
 .pill.personal {
-  background: var(--color-bg-section, #EFEADF);
-  border-color: var(--color-border-card, #DDD7CE);
-  color: var(--color-text-body, #6B5F50);
-}
-
-.pill.growing-season {
-  background: var(--color-olive-light, #C8D4A0);
-  border-color: var(--color-olive-light, #C8D4A0);
+  background: #dff3d8;
+  border-color: #b8dfae;
   color: var(--color-olive-dark, #586830);
 }
 
-.pill.harvest {
+.pill.deal {
   background: var(--color-orange-light, #F0C9A8);
-  border-color: var(--color-orange-light, #F0C9A8);
+  border-color: #e6aa76;
   color: var(--color-orange-dark, #A34E20);
 }
 

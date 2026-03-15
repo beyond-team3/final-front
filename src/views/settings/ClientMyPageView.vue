@@ -3,18 +3,19 @@ import { reactive, ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useClientStore } from '@/stores/client'
+import { useHistoryStore } from '@/stores/history'
 import ModalBase from '@/components/common/ModalBase.vue'
-import UnifiedHistoryPanel from '@/components/history/UnifiedHistoryPanel.vue'
+import DealHistoryListPanel from '@/components/history/DealHistoryListPanel.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import TabNav from '@/components/common/TabNav.vue'
-import { getClientCrops } from '@/api/client'
 
 import * as authApi from '@/api/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const clientStore = useClientStore()
+const historyStore = useHistoryStore()
 
 const activeTab = ref('info')
 const isPwModalOpen = ref(false)
@@ -127,26 +128,15 @@ const fetchCrops = async () => {
 
 const tabOptions = computed(() => [
   { key: 'info', label: '마이 페이지 정보' },
-  { key: 'history', label: '거래 히스토리', badge: 2 },
+  { key: 'history', label: '거래 히스토리', badge: clientDeals.value.length },
 ])
 
-// 팝업 가상 파이프라인 데이터
-const pipelines = ref([
-  {
-    id: 8,
-    title: '동계 시즌 대량 주문',
-    startDate: '2026-02-15',
-    amount: 15000000,
-    statusText: '주문 진행',
-    statusTone: 'primary',
-    steps: [
-      { name: '견적요청', state: 'completed', statusText: '완료' },
-      { name: '견적서', state: 'completed', statusText: '완료' },
-      { name: '계약서', state: 'completed', statusText: '완료' },
-      { name: '주문서', state: 'in-progress', statusText: '진행' },
-    ],
-  },
-])
+const clientHistoryId = computed(() => String(profile.id || authStore.me?.refId || authStore.me?.clientId || authStore.me?.id || ''))
+const clientDeals = computed(() => {
+  const clientId = clientHistoryId.value
+  if (!clientId) return []
+  return historyStore.pipelinesForView.filter((deal) => String(deal.clientId) === clientId)
+})
 
 const openPwModal = () => {
   pwForm.value = { current: '', next: '', nextConfirm: '' }
@@ -197,6 +187,21 @@ const submitPassword = async () => {
 const openPipelineDetail = (pipelineId) => {
   router.push({ name: 'pipeline-detail', params: { id: pipelineId } })
 }
+
+const fetchClientHistory = async () => {
+  if (!clientHistoryId.value) return
+  await historyStore.fetchPipelines()
+}
+
+watch(
+  () => [activeTab.value, clientHistoryId.value],
+  ([tab, clientId]) => {
+    if (tab === 'history' && clientId) {
+      void fetchClientHistory()
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -289,13 +294,18 @@ const openPipelineDetail = (pipelineId) => {
       </div>
 
       <div v-else class="space-y-4">
-        <UnifiedHistoryPanel
-            :title="`${profile.name}의 거래 히스토리`"
-            :pipelines="pipelines"
-            :show-client-name="false"
-            :show-edit-button="false"
-            @detail="openPipelineDetail"
-            class="!bg-[var(--color-bg-card)] !border-[var(--color-border-card)]"
+        <DealHistoryListPanel
+          :title="`${profile.name}의 거래 히스토리`"
+          :deals="clientDeals"
+          :loading="historyStore.loading"
+          :error="historyStore.error"
+          :show-client-filter="false"
+          search-placeholder="담당자명, deal 번호, 문서코드 검색"
+          empty-title="거래 히스토리가 없습니다."
+          empty-description="아직 진행된 거래가 없거나 조회 권한이 있는 히스토리가 없습니다."
+          @retry="fetchClientHistory"
+          @deal-focus="historyStore.ensureDealLogs"
+          @open-detail="openPipelineDetail"
         />
       </div>
     </div>

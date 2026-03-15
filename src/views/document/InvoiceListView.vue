@@ -22,6 +22,10 @@ const normalizeInvoiceStatus = (status) => {
 const isLoading  = ref(false)
 const invoices   = ref([])
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
+const isAdmin    = computed(() => authStore.currentRole === ROLES.ADMIN)
+const canCreateInvoice = computed(() => isSalesRep.value || isAdmin.value)
+const manualDraftSubmittingId = ref(null)
+const modalError = ref('')
 
 async function fetchInvoices() {
   isLoading.value = true
@@ -106,6 +110,7 @@ function openModal() {
   selectedClient.value = null
   contractsForSelectedClient.value = []
   alreadyIssuedContractId.value = null
+  modalError.value = ''
 }
 function closeModal() { showModal.value = false }
 function goBackToStep1() {
@@ -113,6 +118,7 @@ function goBackToStep1() {
   selectedClient.value = null
   contractsForSelectedClient.value = []
   alreadyIssuedContractId.value = null
+  modalError.value = ''
 }
 
 async function selectClient(client) {
@@ -123,15 +129,21 @@ async function selectClient(client) {
     const res = await getContractsByClient(client.id)
     const raw = res?.data?.data ?? res?.data ?? []
     contractsForSelectedClient.value = Array.isArray(raw) ? raw : []
+    modalError.value = ''
   } catch (e) {
     console.error('[InvoiceListView] getContractsByClient error:', e)
     contractsForSelectedClient.value = []
+    modalError.value = '계약 정보를 불러오지 못했습니다.'
   } finally {
     isLoadingContracts.value = false
   }
 }
 
 function selectContract(contract) {
+  if (!isSalesRep.value) {
+    return
+  }
+
   const hasActive = invoices.value.some(inv =>
       String(inv.contractId) === String(contract.id) &&
       (inv.status === 'DRAFT' || inv.status === 'PUBLISHED')
@@ -147,6 +159,39 @@ function nextIssueDateLabel(contract) {
   if (contract.billingDay)    return `매월 ${contract.billingDay}일`
   return '—'
 }
+
+async function createManualDraft(contract, event) {
+  event?.stopPropagation?.()
+
+  if (!isAdmin.value || manualDraftSubmittingId.value) {
+    return
+  }
+
+  manualDraftSubmittingId.value = contract.id
+  modalError.value = ''
+
+  try {
+    const created = await documentStore.createManualInvoiceDraft(contract.id)
+    await fetchInvoices()
+
+    if (!created) {
+      throw new Error('청구서 초안 생성 결과가 없습니다.')
+    }
+
+    closeModal()
+    window.alert(`수동 청구서 초안이 생성되었습니다. (${created.invoiceCode || created.displayCode || created.id})`)
+    router.push(
+      `/documents/invoice/new?mode=pending&id=${created.invoiceId || created.id}` +
+      (created.contractId ? `&contractId=${created.contractId}` : '') +
+      (created.clientId ? `&clientId=${created.clientId}` : '')
+    )
+  } catch (e) {
+    console.error('[InvoiceListView] createManualDraft error:', e)
+    modalError.value = documentStore.error || e?.response?.data?.message || e?.message || '수동 청구서 초안 생성에 실패했습니다.'
+  } finally {
+    manualDraftSubmittingId.value = null
+  }
+}
 </script>
 
 <template>
@@ -157,13 +202,13 @@ function nextIssueDateLabel(contract) {
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm font-semibold" style="color: #3D3529;">청구서 관리</p>
         <button
-            v-if="isSalesRep"
+            v-if="canCreateInvoice"
             type="button"
             class="rounded px-4 py-2 text-sm font-bold text-white transition-colors hover:opacity-90 shadow-sm"
             style="background-color: #C8622A;"
             @click="openModal"
         >
-          + 신규 청구서 발행
+          {{ isAdmin ? '+ 청구서 테스트' : '+ 신규 청구서 발행' }}
         </button>
       </div>
 
@@ -257,9 +302,9 @@ function nextIssueDateLabel(contract) {
           <div class="flex items-start justify-between border-b px-6 py-5"
                style="border-color:#E8E3D8;background-color:#C8622A;">
             <div>
-              <p class="text-lg font-extrabold text-white">신규 청구서 발행</p>
+              <p class="text-lg font-extrabold text-white">{{ isAdmin ? '수동 청구서 초안 생성' : '신규 청구서 발행' }}</p>
               <p class="mt-0.5 text-xs" style="color:rgba(255,255,255,0.75);">
-                {{ modalStep === 1 ? '거래처를 먼저 선택하세요.' : '발행할 계약을 선택하세요.' }}
+                {{ modalStep === 1 ? '거래처를 먼저 선택하세요.' : (isAdmin ? '초안을 생성할 계약을 선택하세요.' : '발행할 계약을 선택하세요.') }}
               </p>
             </div>
             <button type="button"
@@ -326,6 +371,12 @@ function nextIssueDateLabel(contract) {
               </div>
 
               <p class="mb-3 text-xs font-bold uppercase tracking-wider" style="color:#9A8C7E;">계약 선택</p>
+              <p v-if="isAdmin" class="mb-3 rounded border px-3 py-2 text-xs font-semibold" style="border-color:#F2D3BF;background-color:#FFF3EB;color:#C8622A;">
+                관리자 전용: billingCycle 대기 없이 수동 청구서 초안을 즉시 생성할 수 있습니다.
+              </p>
+              <p v-if="modalError" class="mb-3 rounded border px-3 py-2 text-xs font-semibold" style="border-color:#E1B4B4;background-color:#F8E3E3;color:#9D4B4B;">
+                {{ modalError }}
+              </p>
 
               <div v-if="isLoadingContracts" class="py-8 text-center text-sm" style="color:#9A8C7E;">
                 계약 정보를 불러오는 중...
@@ -333,13 +384,13 @@ function nextIssueDateLabel(contract) {
 
               <div v-else class="flex flex-col gap-3">
                 <div v-for="contract in contractsForSelectedClient" :key="contract.id"
-                     class="cursor-pointer rounded border p-4 transition-all"
+                     class="rounded border p-4 transition-all"
                      :style="alreadyIssuedContractId === contract.id
                        ? 'border-color:#B85C5C;background-color:#FAE8C8;cursor:not-allowed;'
-                       : 'border-color:#DDD7CE;background-color:#FAF7F3;'"
-                     @mouseenter="alreadyIssuedContractId !== contract.id && ($event.currentTarget.style.backgroundColor='#EFEADF')"
-                     @mouseleave="alreadyIssuedContractId !== contract.id && ($event.currentTarget.style.backgroundColor='#FAF7F3')"
-                     @click="selectContract(contract)">
+                       : `border-color:#DDD7CE;background-color:#FAF7F3;${isSalesRep ? 'cursor:pointer;' : 'cursor:default;'}`"
+                     @mouseenter="isSalesRep && alreadyIssuedContractId !== contract.id && ($event.currentTarget.style.backgroundColor='#EFEADF')"
+                     @mouseleave="isSalesRep && alreadyIssuedContractId !== contract.id && ($event.currentTarget.style.backgroundColor='#FAF7F3')"
+                     @click="isSalesRep && selectContract(contract)">
                   <div class="flex items-start justify-between gap-2">
                     <p class="text-sm font-bold" style="color:#3D3529;">
                       {{ contract.contractCode || contract.code || `계약 #${contract.id}` }}
@@ -348,7 +399,9 @@ function nextIssueDateLabel(contract) {
                           class="rounded-full px-2 py-0.5 text-xs font-bold"
                           style="background-color:#B85C5C;color:white;">이미 발행됨</span>
                     <span v-else class="rounded-full px-2 py-0.5 text-xs font-bold"
-                          style="background-color:#C8D4A0;color:#3D3529;">발행 가능</span>
+                          :style="isAdmin ? 'background-color:#D6DDE6;color:#35526B;' : 'background-color:#C8D4A0;color:#3D3529;'">
+                      {{ isAdmin ? '초안 생성 가능' : '발행 가능' }}
+                    </span>
                   </div>
                   <p v-if="alreadyIssuedContractId === contract.id"
                      class="mt-2 text-xs font-semibold" style="color:#B85C5C;">
@@ -358,6 +411,21 @@ function nextIssueDateLabel(contract) {
                     <span>기간 {{ contract.startDate }} ~ {{ contract.endDate }}</span>
                     <span>청구 주기 {{ contract.billingCycle }}</span>
                     <span>다음 발행일 {{ nextIssueDateLabel(contract) }}</span>
+                  </div>
+                  <p v-if="isSalesRep && alreadyIssuedContractId !== contract.id"
+                     class="mt-3 text-xs font-semibold" style="color:#6B5F50;">
+                    계약을 클릭하면 청구서 작성 화면으로 이동합니다.
+                  </p>
+                  <div v-if="isAdmin && alreadyIssuedContractId !== contract.id" class="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      class="rounded px-3 py-1.5 text-xs font-bold text-white transition-colors hover:opacity-90"
+                      style="background-color:#7A8C42;"
+                      :disabled="manualDraftSubmittingId === contract.id"
+                      @click="createManualDraft(contract, $event)"
+                    >
+                      {{ manualDraftSubmittingId === contract.id ? '생성 중...' : '수동 청구서 초안 생성' }}
+                    </button>
                   </div>
                 </div>
                 <div v-if="contractsForSelectedClient.length === 0"

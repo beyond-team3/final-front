@@ -31,19 +31,18 @@ export const MENU_CONFIG = [
     { key: 'client-management', label: '거래처', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/clients' },
     {
         key: 'sales-management',
-        label: '문서 작성',
+        label: '문서 관리',
         roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT],
         children: [
-            { key: 'quote-request', label: '견적 요청서', route: '/documents/request', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'quote-request', label: '견적 요청서', route: '/documents/request', roles: [ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'quote', label: '견적서', route: '/documents/quotation', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
             { key: 'contract', label: '계약서', route: '/documents/contract', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
-            { key: 'order', label: '주문서', route: '/documents/order', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'statement', label: '청구서 관리', route: '/documents/invoices', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'invoice', label: '청구서 작성', route: '/documents/invoice/new', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'order', label: '주문서', route: '/documents/order', roles: [ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'statement', label: '청구서', route: '/documents/invoices', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
 
-            { key: 'document-history', label: '문서 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
+            { key: 'document-history', label: '영업 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
             { key: 'document-all', label: '모든 문서', route: '/documents/all', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'approval', label: '승인', route: '/approval', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'approval', label: '승인 관리', route: '/approval', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
         ],
     },
     {

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { ROLES, PRODUCT_CATEGORY } from '@/utils/constants'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { useRoute } from 'vue-router'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 
 const route = useRoute()
 const requestStatus = ref('')
@@ -25,6 +26,7 @@ const modalSearchInput = ref('')
 const varietyFilter = ref('전체')
 const isVarietyDropdownOpen = ref(false)
 const varietyDropdownRef = ref(null)
+const isSubmitting = ref(false)
 
 const clickOutsideHandler = (e) => {
   if (varietyDropdownRef.value && !varietyDropdownRef.value.contains(e.target)) {
@@ -118,6 +120,7 @@ const removeItem = (uid) => {
 }
 
 const submit = async () => {
+  if (isSubmitting.value) return
   if (selectedItems.value.length === 0) {
     window.alert('상품을 1개 이상 선택해주세요.')
     return
@@ -134,6 +137,7 @@ const submit = async () => {
     return
   }
 
+  isSubmitting.value = true
   try {
     const request = await documentStore.createQuotationRequest({
       client: defaultClient,
@@ -141,20 +145,24 @@ const submit = async () => {
       requirements: requirements.value,
     })
 
-    window.alert('견적 요청서가 정상적으로 제출되었습니다.')
-
     // 발급된 실제 번호(docCode)가 있으면 검색어로 전달
-    router.push({
-      path: '/documents/all',
-      query: {
-        keyword: request?.docCode || undefined,
-        type: 'RFQ'
-      }
+    await navigateToDocumentLoading(router, {
+      to: {
+        path: '/documents/all',
+        query: {
+          keyword: request?.docCode || undefined,
+          type: 'RFQ'
+        }
+      },
+      title: '견적 요청서를 제출했습니다',
+      description: '최신 요청서 목록을 불러오고 있습니다.',
     })
   } catch (err) {
     console.error("저장 에러:", err);
     // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
     window.alert(documentStore.error || "견적 요청서 저장 중 오류가 발생했습니다.");
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -234,11 +242,12 @@ const submit = async () => {
 
           <button
               type="button"
-              class="w-full rounded px-4 py-4 text-base font-semibold text-white transition-colors hover:opacity-90 shadow-md"
+              class="w-full rounded px-4 py-4 text-base font-semibold text-white transition-colors hover:opacity-90 shadow-md disabled:cursor-not-allowed disabled:opacity-60"
               style="background-color: #7A8C42 !important;"
+              :disabled="isSubmitting"
               @click="submit"
           >
-            견적 요청서 제출
+            {{ isSubmitting ? '견적 요청서 저장 중...' : '견적 요청서 제출' }}
           </button>
         </section>
 
