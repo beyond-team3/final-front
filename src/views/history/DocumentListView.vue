@@ -232,7 +232,12 @@ onMounted(() => {
             </tr>
             </thead>
             <tbody>
-            <tr v-for="doc in filteredDocs" :key="doc.id" class="border-t border-[var(--color-border-divider)] hover:bg-[var(--color-bg-section)] transition-colors">
+            <tr
+                v-for="doc in filteredDocs"
+                :key="doc.id"
+                class="cursor-pointer border-t border-[var(--color-border-divider)] transition-colors hover:bg-[var(--color-bg-section)]"
+                @click="openDetail(doc)"
+            >
               <td class="px-6 py-4 font-medium text-[var(--color-olive)]">{{ doc.displayCode }}</td>
               <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.date }}</td>
               <td class="px-6 py-4 font-mono text-[var(--color-text-body)]">{{ doc.amount }}</td>
@@ -243,7 +248,7 @@ onMounted(() => {
                 <button
                     type="button"
                     class="rounded bg-[var(--color-orange)] px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-[var(--color-orange-dark)]"
-                    @click="openDetail(doc)"
+                    @click.stop="openDetail(doc)"
                 >
                   보기
                 </button>

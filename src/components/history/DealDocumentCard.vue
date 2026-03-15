@@ -8,12 +8,19 @@ defineProps({
         required: true,
     },
 })
+
+const emit = defineEmits(['open'])
 </script>
 
 <template>
     <article
+        role="button"
+        tabindex="0"
         class="relative flex flex-col gap-4 rounded-[20px] border px-6 py-5 lg:flex-row lg:items-center"
         :style="{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border-card)' }"
+        @click="emit('open', document)"
+        @keydown.enter="emit('open', document)"
+        @keydown.space.prevent="emit('open', document)"
     >
         <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-bg-section)] text-xl text-[var(--color-olive)]">
             ⎘

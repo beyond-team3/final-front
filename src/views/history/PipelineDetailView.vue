@@ -3,18 +3,24 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import HistoryModal from '@/components/history/HistoryModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import DealActivityPanel from '@/components/history/DealActivityPanel.vue'
 import DealDocumentCard from '@/components/history/DealDocumentCard.vue'
 import DealStageNavigator from '@/components/history/DealStageNavigator.vue'
+import { useAuthStore } from '@/stores/auth'
 import { useDealV2 } from '@/config/featureFlags'
 import { useHistoryStore } from '@/stores/history'
+import { ROLES } from '@/utils/constants'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const historyStore = useHistoryStore()
 
 const selectedStageCode = ref('')
+const isModalOpen = ref(false)
+const selectedDoc = ref(null)
 
 const deal = computed(() => historyStore.getPipelineById(route.params.id))
 const allStageDocuments = computed(() => (deal.value?.documents || []).filter((document) => document.type === selectedStageCode.value))
@@ -61,6 +67,30 @@ const openDocList = () => {
     })
 }
 
+const openDocumentDetail = (document) => {
+    selectedDoc.value = document
+    isModalOpen.value = true
+}
+
+const modalMode = computed(() => {
+    if (!selectedDoc.value) {
+        return 'sales-clean'
+    }
+
+    if (String(selectedDoc.value.status || '').includes('반려')) {
+        return authStore.currentRole === ROLES.ADMIN ? 'admin-rejected' : 'sales-rejected'
+    }
+
+    return 'sales-clean'
+})
+
+const shouldHideRemark = computed(() => authStore.currentRole === ROLES.ADMIN || authStore.currentRole === ROLES.CLIENT)
+const canDownload = computed(() => (
+    authStore.currentRole === ROLES.SALES_REP
+    || authStore.currentRole === ROLES.ADMIN
+    || authStore.currentRole === ROLES.CLIENT
+))
+
 onMounted(async () => {
     if (!deal.value) {
         await historyStore.fetchPipelines()
@@ -98,7 +128,6 @@ onMounted(async () => {
 
                                 <div class="flex gap-2">
                                     <span v-if="useDealV2()" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
-                                    <button type="button" class="btn" style="background: var(--color-orange); color: #fff;">딜 종료</button>
                                 </div>
                             </div>
 
@@ -167,7 +196,12 @@ onMounted(async () => {
 
                             <div v-else>
                                 <div class="space-y-4">
-                                <DealDocumentCard v-for="document in stageDocuments" :key="document.documentKey" :document="document" />
+                                <DealDocumentCard
+                                    v-for="document in stageDocuments"
+                                    :key="document.documentKey"
+                                    :document="document"
+                                    @open="openDocumentDetail"
+                                />
                                 </div>
                             </div>
                         </section>
@@ -175,6 +209,18 @@ onMounted(async () => {
                 <section class="pipeline-card pipeline-log-card">
                     <DealActivityPanel :activities="deal.timeline" />
                 </section>
+
+                <HistoryModal
+                    v-model="isModalOpen"
+                    :title="selectedDoc ? selectedDoc.displayCode || selectedDoc.targetCode : '문서코드'"
+                    :doc-id="selectedDoc ? String(selectedDoc.id) : ''"
+                    :doc-type="selectedDoc ? String(selectedDoc.typeLabel || selectedDoc.type) : ''"
+                    :mode="modalMode"
+                    :show-download="canDownload"
+                    :hide-remark="shouldHideRemark"
+                    :remark="selectedDoc ? selectedDoc.remark || '' : ''"
+                    :reject-reason="selectedDoc ? selectedDoc.rejectReason || '' : ''"
+                />
             </section>
             </section>
 </template>
