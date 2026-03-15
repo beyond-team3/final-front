@@ -147,13 +147,6 @@ const getEventDisplayTime = (eventItem) => {
   return eventItem?.time || '-'
 }
 
-const MAX_BADGES_PER_CELL = 2
-
-const truncateBadgeText = (text) => {
-  const rawText = String(text ?? '')
-  return rawText.length > 5 ? `${rawText.slice(0, 5)}...` : rawText
-}
-
 const toStartOfDay = (value) => {
   const dateObj = value instanceof Date ? new Date(value) : new Date(value)
   if (Number.isNaN(dateObj.getTime())) {
@@ -220,13 +213,6 @@ const addHoursToDateTimeLocal = (dateTimeLocalValue, hoursToAdd = 1) => {
   }
   dateObj.setHours(dateObj.getHours() + hoursToAdd)
   return formatToDateTimeLocal(dateObj)
-}
-
-const getVisibleBadges = (events) => {
-  if (!Array.isArray(events) || events.length === 0) {
-    return []
-  }
-  return events.slice(0, MAX_BADGES_PER_CELL)
 }
 
 const clientFilterOptions = computed(() => {
@@ -877,12 +863,7 @@ onBeforeUnmount(() => {
                       @click="openDayModal(cell.date)"
                     >
                       <div class="day-num">{{ cell.day }}</div>
-                      <div v-if="cell.hasMultiDayEvent || cell.events.length >= 2" class="day-count-badge">{{ cell.events.length }}</div>
-                      <div class="badge-row">
-                        <div v-for="ev in getVisibleBadges(cell.hasMultiDayEvent ? [] : cell.inlineEvents)" :key="ev.id" class="badge" :class="ev.type">
-                          {{ truncateBadgeText(`${eventTypeLabel(ev)} · ${ev.title}`) }}
-                        </div>
-                      </div>
+                      <div v-if="cell.events.length > 0" class="day-count-badge">{{ cell.events.length }}</div>
                     </div>
                   </div>
                 </div>
@@ -1441,47 +1422,6 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 900;
   box-shadow: 0 4px 10px rgba(200, 98, 42, 0.24);
-}
-
-.badge-row {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: 38px;
-  bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border-card, #DDD7CE);
-  background: var(--color-bg-input, #FAF7F3);
-  color: var(--color-text-body, #6B5F50);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.badge.personal {
-  background: #dff3d8;
-  border-color: #b8dfae;
-  color: var(--color-olive-dark, #586830);
-}
-
-.badge.deal {
-  background: var(--color-orange-light, #F0C9A8);
-  border-color: #e6aa76;
-  color: var(--color-orange-dark, #A34E20);
 }
 
 .harvest-card {
