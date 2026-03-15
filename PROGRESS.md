@@ -31,7 +31,7 @@
 
 ### 롤백 메모
 - 기능 커밋 해시: `92af90a`
-- 문서 커밋 해시: `<TO_FILL_DOCS_COMMIT>`
+- 문서 커밋 해시: `d475855`
 - 권장 순서:
-  - `git revert <TO_FILL_DOCS_COMMIT>`
+  - `git revert d475855`
   - `git revert 92af90a`
