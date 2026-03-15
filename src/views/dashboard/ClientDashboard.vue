@@ -9,9 +9,21 @@ const dashboard = ref(null)
 const loading = ref(false)
 const error = ref('')
 
-const orders = computed(() => dashboard.value?.orders ?? [])
-const billings = computed(() => dashboard.value?.billings ?? [])
-const notifications = computed(() => dashboard.value?.notifications ?? [])
+const allOrders = computed(() => dashboard.value?.orders ?? [])
+// 최근 주문 내역 최대 3개만 노출
+const orders = computed(() => allOrders.value.slice(0, 3))
+const ordersTotalCount = computed(() => allOrders.value.length)
+
+const allBillings = computed(() => dashboard.value?.billings ?? [])
+// 결제 요청 최대 5개만 노출
+const billings = computed(() => allBillings.value.slice(0, 5))
+const billingsTotalCount = computed(() => allBillings.value.length)
+
+const allNotifications = computed(() => dashboard.value?.notifications ?? [])
+// 최근 알림 최대 4개만 노출
+const notifications = computed(() => allNotifications.value.slice(0, 4))
+const notificationsTotalCount = computed(() => allNotifications.value.length)
+
 const title = computed(() => dashboard.value?.title || '내 거래 현황')
 const subtitle = computed(() => dashboard.value?.subtitle || '')
 const billingCycleValue = computed(() => dashboard.value?.billingCycle?.value || '-')
@@ -112,7 +124,7 @@ onMounted(fetchDashboard)
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">최근 알림</span>
-          <span class="panel-badge">{{ notifications.length }}건</span>
+          <span class="panel-badge">{{ notifications.length }}<template v-if="notificationsTotalCount > 5"><span class="text-xs text-muted"> / {{ notificationsTotalCount }}</span></template>건</span>
         </div>
         <div class="notif-list">
           <div v-for="item in notifications" :key="item.time + item.title" class="notif-item" :class="item.isNew ? 'new' : ''">
@@ -148,6 +160,9 @@ onMounted(fetchDashboard)
   display: flex; flex-direction: column; height: 100%; box-sizing: border-box;
 }
 
+.text-xs { font-size: 9px; }
+.text-muted { color: var(--muted); }
+
 .dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .dashboard-title   { font-size: 22px; font-weight: 700; color: var(--text); }
 .dashboard-subtitle{ font-size: 13px; color: var(--muted); margin-top: 4px; }
@@ -160,7 +175,7 @@ onMounted(fetchDashboard)
 .panel-link:hover { color: var(--accent); }
 .panel-badge  { font-size: 11px; color: var(--muted); background: var(--warm-md); padding: 3px 8px; border-radius: 4px; }
 
-.order-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
+.order-list { display: flex; flex-direction: column; gap: 8px; max-height: none; overflow: visible; }
 .order-card { padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--warm); flex-shrink: 0; }
 .order-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .order-no   { font-size: 13px; font-weight: 600; color: var(--text); }
@@ -174,7 +189,7 @@ onMounted(fetchDashboard)
 .order-amount { font-size: 14px; font-weight: 700; color: var(--text); }
 .order-action { font-size: 12px; color: var(--accent); cursor: pointer; }
 
-.billing-credit-wrap { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
+.billing-credit-wrap { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; max-height: 240px; }
 .billing-cycle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--warm); border-radius: 8px; border-left: 3px solid var(--accent); flex-shrink: 0; }
 .billing-cycle-label { font-size: 11px; color: var(--muted); }
 .billing-cycle-value { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
@@ -191,9 +206,11 @@ onMounted(fetchDashboard)
 .billing-amount  { font-size: 14px; font-weight: 700; color: var(--text); }
 .billing-status-tag { font-size: 11px; color: var(--muted); }
 
-.notif-list { position: relative; padding-left: 26px; overflow-y: auto; flex: 1; }
+.list-more-indicator { padding: 10px; text-align: center; color: var(--muted); font-size: 11px; background: var(--warm); border-radius: 8px; margin-top: 8px; }
+
+.notif-list { position: relative; padding-left: 26px; max-height: none; overflow: visible; }
 .notif-list::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 1px; background: var(--border); }
-.notif-item { position: relative; margin-bottom: 14px; }
+.notif-item { position: relative; margin-bottom: 14px; flex-shrink: 0; }
 .notif-item:last-child { margin-bottom: 0; }
 .notif-item::before { content: ''; position: absolute; left: -20px; top: 7px; width: 10px; height: 10px; background: var(--faint); border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--faint); }
 .notif-item.new::before { background: var(--accent); box-shadow: 0 0 0 1px var(--accent); }

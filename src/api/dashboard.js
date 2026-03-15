@@ -45,6 +45,29 @@ function normalizeSalesRepDashboard(payload) {
 }
 
 // ────────────────────────────────────────────────
+// 우선거래 연락처 정규화
+// GET /api/v1/scoring/priority-list
+// ────────────────────────────────────────────────
+function normalizePriorityContacts(payload) {
+    if (!Array.isArray(payload)) {
+        return []
+    }
+
+    return payload.map((item) => ({
+        accountId: item.accountId || 0,
+        accountName: item.accountName || '-',
+        totalScore: item.totalScore || 0,
+        primaryReason: item.primaryReason || '',
+        detailDescription: item.detailDescription || '',
+        breakdown: item.breakdown || {
+            contractScore: 0,
+            orderScore: 0,
+            visitScore: 0,
+        },
+    }))
+}
+
+// ────────────────────────────────────────────────
 // 관리자 대시보드  GET /api/dashboard/admin
 // ────────────────────────────────────────────────
 function normalizeAdminDashboard(payload) {
@@ -125,4 +148,33 @@ export function getAdminDashboard() {
 
 export function getClientDashboard() {
     return api.get('/dashboard/client').then(normalizeClientDashboard)
+}
+
+/**
+ * 우선거래 연락처 조회 (재시도 로직 포함)
+ * GET /api/v1/scoring/priority-list
+ * @returns {Promise<Array>} 우선거래 연락처 목록
+ */
+export async function getPriorityContacts() {
+    const maxRetries = 3
+    const delayMs = 1000
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await api.get('/scoring/priority-list').then(normalizePriorityContacts)
+        } catch (error) {
+            if (attempt === maxRetries) {
+                throw error
+            }
+
+            // 500 오류면 재시도
+            if (error.response?.status === 500) {
+                await new Promise(resolve => setTimeout(resolve, delayMs * attempt))
+                continue
+            }
+
+            // 다른 오류면 즉시 throw
+            throw error
+        }
+    }
 }

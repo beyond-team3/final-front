@@ -51,7 +51,7 @@ function parseStatements(data) {
     vatAmount:     Number(s.vatAmount    ?? 0),
     total:         Number(s.totalAmount  ?? 0),
     orderCode:     s.orderCode ?? s.orderId ?? null,
-    issueDate:     s.issueDate ?? null,
+    issueDate:     s.issueDate ?? s.createdAt ?? null,
     _checked:      s.included === true,
   }))
 }
@@ -285,6 +285,7 @@ const statementCardStatus = computed(() => {
 // ─── PDF 미리보기용 ──────────────────────────────────────────
 const today    = new Date()
 const todayStr = today.toLocaleDateString('ko-KR')
+const todayFormatted = `${today.getFullYear()}년 ${String(today.getMonth() + 1).padStart(2, '0')}월 ${String(today.getDate()).padStart(2, '0')}일`
 const dueDate  = new Date(today)
 dueDate.setDate(dueDate.getDate() + 30)
 const dueDateStr = dueDate.toLocaleDateString('ko-KR')
@@ -615,108 +616,71 @@ function onAccessDeniedConfirm() {
           </section>
 
           <!-- 오른쪽 패널: PDF 미리보기 -->
-          <section class="rounded-lg p-4 shadow-inner" style="background-color:#525659;">
-            <div class="relative min-h-[750px] rounded bg-white p-8 shadow-2xl"
-                 style="font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;font-size:11px;color:#000;">
+          <aside class="w-full xl:w-[500px] sticky top-5 rounded-lg bg-[#525659] p-4 shadow-inner overflow-y-auto custom-scrollbar max-h-[90vh]">
+            <div class="flex flex-col items-center">
+              <div class="bg-white px-12 pt-8 pb-12 w-[794px] min-h-[1115px] shadow-2xl relative text-[13px] text-black flex flex-col"
+                   style="font-family:'KoPub Dotum',sans-serif !important;transform:scale(0.55);transform-origin:top center;margin-bottom:calc(-1115px * 0.45);">
 
-              <div class="mb-6 flex items-end justify-between border-b-2 border-black pb-4">
-                <h1 class="text-2xl font-black tracking-[8px]">청 구 서</h1>
-                <div class="text-right text-[10px]">
-                  <p class="font-bold">문서번호: {{ invNo }}</p>
-                  <p>발행일: {{ invoice?.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('ko-KR') : todayStr }}</p>
+                <!-- 제목 -->
+                <div class="text-center border-b-2 border-black pb-3 mb-10">
+                  <h1 class="text-3xl font-bold tracking-widest">청 구 서</h1>
                 </div>
-              </div>
 
-              <div class="mb-5 grid grid-cols-2 gap-4 text-[10px]">
-                <table class="w-full border-collapse">
+                <!-- 기본 정보 -->
+                <div class="mb-8 space-y-3 leading-relaxed text-[15px]">
+                  <p><strong>수 신 (갑):</strong> <span class="border-b border-black px-2 font-bold">{{ displayClientName }}</span></p>
+                  <p><strong>발 신 (을):</strong> (주) 몬순</p>
+                  <p><strong>계약 코드:</strong> <span class="font-mono text-base">{{ displayContractCode }}</span></p>
+                  <p><strong>청구 기간:</strong> <span class="font-mono text-base">{{ invoice?.startDate || '—' }} ~ {{ invoice?.endDate || '—' }}</span></p>
+                  <p><strong>발 행 일:</strong> <span class="font-mono text-base">{{ invoice?.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('ko-KR') : todayStr }}</span></p>
+                  <p><strong>납부 기한:</strong> <span class="font-mono text-base">{{ invoice?.dueDate || dueDateStr }}</span></p>
+                  <p><strong>문서 번호:</strong> <span class="font-mono text-base">{{ invNo }}</span></p>
+                </div>
+
+                <!-- 명세서 테이블 -->
+                <div class="mb-2">
+                  <strong class="text-sm">[명세서 목록]</strong>
+                </div>
+                <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[13px]">
+                  <thead style="background-color:#F7F3EC;">
+                  <tr class="border-b-2 border-black">
+                    <th class="border-r border-black p-3 text-left px-4">명세서 번호</th>
+                    <th class="border-r border-black p-3 text-right px-4">공급가액</th>
+                    <th class="border-r border-black p-3 text-right px-4">부가세(10%)</th>
+                    <th class="p-3 text-right px-4">합 계</th>
+                  </tr>
+                  </thead>
                   <tbody>
-                  <tr>
-                    <td class="border border-gray-400 px-2 py-1 font-bold w-16" style="background-color:#f0f0f0;">수 신</td>
-                    <td class="border border-gray-400 px-2 py-1 font-bold">{{ displayClientName }}</td>
+                  <tr v-for="(stmt, i) in selectedStatements" :key="stmt.id" class="border-b border-black">
+                    <td class="border-r border-black p-3 text-left font-bold px-4">{{ stmt.statementCode }}</td>
+                    <td class="border-r border-black p-3 text-right font-mono px-4">{{ stmt.supply.toLocaleString() }}</td>
+                    <td class="border-r border-black p-3 text-right font-mono px-4">{{ stmt.vatAmount.toLocaleString() }}</td>
+                    <td class="p-3 text-right font-bold font-mono px-4">{{ stmt.total.toLocaleString() }}</td>
                   </tr>
-                  <tr>
-                    <td class="border border-gray-400 px-2 py-1 font-bold" style="background-color:#f0f0f0;">계약코드</td>
-                    <td class="border border-gray-400 px-2 py-1">{{ displayContractCode }}</td>
+                  <tr v-if="selectedStatements.length === 0">
+                    <td colspan="4" class="p-10 italic text-center" style="color:#9A8C7E;">명세서를 선택하면 여기에 표시됩니다.</td>
                   </tr>
-                  <tr>
-                    <td class="border border-gray-400 px-2 py-1 font-bold" style="background-color:#f0f0f0;">청구기간</td>
-                    <td class="border border-gray-400 px-2 py-1">{{ invoice?.startDate || '—' }} ~ {{ invoice?.endDate || '—' }}</td>
+                  <tr v-if="selectedStatements.length > 0">
+                    <td colspan="3" class="border-r border-black p-3 bg-[#FAF7F3] font-bold text-right px-4">청구 합계 금액 (VAT 포함)</td>
+                    <td class="p-3 text-right font-extrabold px-4 text-xl">{{ totalAmount.toLocaleString() }}</td>
                   </tr>
                   </tbody>
                 </table>
-                <table class="w-full border-collapse">
-                  <tbody>
-                  <tr>
-                    <td class="border border-gray-400 px-2 py-1 font-bold w-16" style="background-color:#f0f0f0;">발 신</td>
-                    <td class="border border-gray-400 px-2 py-1 font-bold">CEDAR</td>
-                  </tr>
-                  <tr>
-                    <td class="border border-gray-400 px-2 py-1 font-bold" style="background-color:#f0f0f0;">납부기한</td>
-                    <td class="border border-gray-400 px-2 py-1">{{ invoice?.dueDate || dueDateStr }}</td>
-                  </tr>
-                  <tr>
-                    <td class="border border-gray-400 px-2 py-1 font-bold" style="background-color:#f0f0f0;">담당자</td>
-                    <td class="border border-gray-400 px-2 py-1">{{ invoice?.employeeName || '—' }}</td>
-                  </tr>
-                  </tbody>
-                </table>
-              </div>
 
-              <table class="mb-0 w-full border-collapse text-[10px]">
-                <thead>
-                <tr style="background-color:#222;color:white;">
-                  <th class="border border-gray-600 px-2 py-1.5 text-left">명세서 번호</th>
-                  <th class="border border-gray-600 px-2 py-1.5 text-left">주문 번호</th>
-                  <th class="border border-gray-600 px-2 py-1.5 text-left">발행일</th>
-                  <th class="border border-gray-600 px-2 py-1.5 text-right">공급가액</th>
-                  <th class="border border-gray-600 px-2 py-1.5 text-right">부가세(10%)</th>
-                  <th class="border border-gray-600 px-2 py-1.5 text-right">합 계</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr v-for="(stmt, i) in selectedStatements" :key="stmt.id"
-                    :style="i%2===0 ? '' : 'background-color:#f9f9f9;'">
-                  <td class="border border-gray-300 px-2 py-1.5">{{ stmt.statementCode }}</td>
-                  <td class="border border-gray-300 px-2 py-1.5">{{ stmt.orderCode || '—' }}</td>
-                  <td class="border border-gray-300 px-2 py-1.5">{{ stmt.issueDate ? new Date(stmt.issueDate).toLocaleDateString('ko-KR') : '—' }}</td>
-                  <td class="border border-gray-300 px-2 py-1.5 text-right">{{ stmt.supply.toLocaleString() }}</td>
-                  <td class="border border-gray-300 px-2 py-1.5 text-right">{{ stmt.vatAmount.toLocaleString() }}</td>
-                  <td class="border border-gray-300 px-2 py-1.5 text-right font-semibold">{{ stmt.total.toLocaleString() }}</td>
-                </tr>
-                <tr v-if="selectedStatements.length === 0">
-                  <td colspan="6" class="border border-gray-300 py-6 text-center" style="color:#999;">명세서를 선택하면 여기에 표시됩니다.</td>
-                </tr>
-                <tr v-if="selectedStatements.length > 0" style="background-color:#f0f0f0;font-weight:bold;">
-                  <td colspan="3" class="border border-gray-400 px-2 py-1.5">합 계 ({{ selectedStatements.length }}건)</td>
-                  <td class="border border-gray-400 px-2 py-1.5 text-right">{{ supplyAmount.toLocaleString() }}</td>
-                  <td class="border border-gray-400 px-2 py-1.5 text-right">{{ taxAmount.toLocaleString() }}</td>
-                  <td class="border border-gray-400 px-2 py-1.5 text-right">{{ totalAmount.toLocaleString() }}</td>
-                </tr>
-                <tr v-if="selectedStatements.length > 0" style="background-color:#222;color:white;font-weight:bold;">
-                  <td colspan="5" class="border border-gray-600 px-2 py-2 text-right text-[11px]">청구 합계 금액 (VAT 포함)</td>
-                  <td class="border border-gray-600 px-2 py-2 text-right text-[12px]">₩ {{ totalAmount.toLocaleString() }}</td>
-                </tr>
-                </tbody>
-              </table>
+                <!-- 날짜 + 서명 문구 -->
+                <div class="pt-8 pb-2 text-center flex flex-col items-center">
+                  <p class="text-[15px] font-bold mb-4">{{ todayFormatted }}</p>
+                  <div class="w-full px-16">
+                    <div class="border-t-2 border-black pt-5">
+                      <p class="font-bold text-xl">위 청구 내용을 확인하기 위해 기명 날인함</p>
+                      <p class="mt-2 text-[15px]">발행처: (주) 몬순</p>
+                    </div>
+                  </div>
+                </div>
 
-              <div v-if="remarks" class="mt-4 border px-3 py-2 text-[10px]" style="border-color:#ccc;">
-                <p class="font-bold mb-1">비고</p>
-                <p>{{ remarks }}</p>
-              </div>
-
-              <div class="mt-6 flex justify-end gap-6 border-t border-black pt-4">
-                <div class="text-center text-[10px]">
-                  <div class="mx-auto mb-1.5 h-12 w-20 border border-gray-400"></div>거래처 확인
-                </div>
-                <div class="text-center text-[10px]">
-                  <div class="mx-auto mb-1.5 h-12 w-20 border border-gray-400"></div>담당 영업자
-                </div>
-                <div class="text-center text-[10px]">
-                  <div class="mx-auto mb-1.5 h-12 w-20 border border-gray-400"></div>팀장 결재
-                </div>
               </div>
             </div>
-          </section>
+          </aside>
         </div>
       </template>
     </div>
