@@ -23,6 +23,18 @@ export function getCultivationTimes(productId) {
   return api.get(`/products/${productId}/cultivation-time`)
 }
 
+export function getCalendarRecommendations(month) {
+  return api.get('/products/calendar/recommendations', {
+    params: { month },
+  })
+}
+
+export function getHarvestImminentProducts(month) {
+  return api.get('/products/calendar/harvest-imminent', {
+    params: { month },
+  })
+}
+
 export function updateProduct(id, data) {
   return api.put(`/products/${id}`, data)
 }
