@@ -1,11 +1,12 @@
 import api from './index'
 
 const unwrapApiResult = (result) => {
-  if (result?.result === 'SUCCESS') {
-    return result.data
+  const payload = result?.data ?? result
+  if (payload?.result === 'SUCCESS') {
+    return payload.data
   }
 
-  return result?.data ?? result
+  return payload
 }
 
 export async function searchApprovals(params) {

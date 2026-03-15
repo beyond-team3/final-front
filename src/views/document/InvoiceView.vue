@@ -2,13 +2,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useDocumentStore } from '@/stores/document'
 import { ROLES } from '@/utils/constants'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import ModalBase from '@/components/common/ModalBase.vue'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 import {
   getInvoiceDetail,
   getInvoice,
   toggleInvoiceStatement,
+  createInvoice as apiCreateInvoice,
   publishInvoice as apiPublishInvoice,
   cancelInvoice as apiCancelInvoice,
 } from '@/api/document'
@@ -16,6 +19,7 @@ import {
 const route  = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const documentStore = useDocumentStore()
 
 const invoiceId  = ref(route.query.id         || null)
 const contractId = ref(route.query.contractId || null)
@@ -28,35 +32,24 @@ const successMessage        = ref('')
 const showCancelModal       = ref(false)
 const cancelErrorMsg        = ref('')
 const remarks               = ref('')
-// ✅ 권한 에러 모달
 const showAccessDeniedModal = ref(false)
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
+const isAdmin    = computed(() => authStore.currentRole === ROLES.ADMIN)
 
 // ─── 핵심 데이터 ────────────────────────────────────────────────
 const invoice    = ref(null)
 const statements = ref([])
 
-/**
- * ✅ InvoiceDetailResponse.StatementItem 구조에 맞게 파싱
- * {
- *   statementId, statementCode,
- *   supplyAmount, vatAmount, totalAmount,
- *   included
- * }
- * ※ orderId/orderCode는 StatementItem에 없음 → Statement 엔티티에서 추가 필요하거나 생략
- */
 function parseStatements(data) {
   const raw = data?.statements ?? []
   if (!Array.isArray(raw) || raw.length === 0) return []
-
   return raw.map(s => ({
     id:            Number(s.statementId),
     statementCode: s.statementCode ?? String(s.statementId),
     supply:        Number(s.supplyAmount ?? 0),
     vatAmount:     Number(s.vatAmount    ?? 0),
     total:         Number(s.totalAmount  ?? 0),
-    // StatementItem에 orderId/orderCode 없음 → 백엔드에서 추가하면 여기서 꺼냄
     orderCode:     s.orderCode ?? s.orderId ?? null,
     issueDate:     s.issueDate ?? null,
     _checked:      s.included === true,
@@ -68,26 +61,21 @@ async function loadInvoice(id) {
   showAccessDeniedModal.value = false
   try {
     let data = null
-
     if (isSalesRep.value) {
-      // 영업사원: detail (memo + contractCode 포함) 우선
       try {
-        const res = await getInvoiceDetail(id)  // GET /invoices/{id}/detail
+        const res = await getInvoiceDetail(id)
         data = res?.data?.data ?? res?.data ?? null
       } catch (err) {
         if (err?.response?.status === 403 || err?.response?.status === 401) {
-          // ✅ 담당 거래처 아님 → 권한 에러 모달
           showAccessDeniedModal.value = true
           return
         }
-        // 그 외 에러는 공통 API 폴백
         const res = await getInvoice(id)
         data = res?.data?.data ?? res?.data ?? null
       }
     } else {
-      // 거래처 등: 공통 조회
       try {
-        const res = await getInvoice(id)  // GET /invoices/{id}
+        const res = await getInvoice(id)
         data = res?.data?.data ?? res?.data ?? null
       } catch (err) {
         if (err?.response?.status === 403 || err?.response?.status === 401) {
@@ -97,16 +85,11 @@ async function loadInvoice(id) {
         throw err
       }
     }
-
     if (!data) return
-
     invoice.value = data
     remarks.value = data.memo ?? ''
-
-    // ✅ InvoiceDetailResponse 필드: contractId, clientId 직접 있음
     if (data.contractId && !contractId.value) contractId.value = String(data.contractId)
     if (data.clientId   && !clientId.value)   clientId.value   = String(data.clientId)
-
     statements.value = parseStatements(data)
   } catch (e) {
     console.error('[InvoiceView] loadInvoice error:', e)
@@ -122,7 +105,7 @@ onMounted(async () => {
   if (invoiceId.value) await loadInvoice(invoiceId.value)
 })
 
-
+// ─── 상태 ────────────────────────────────────────────────────────
 const invoiceStatus = computed(() => {
   const raw = String(invoice.value?.status ?? '').trim().toUpperCase()
   if (raw === 'PUBLISHED') return 'PUBLISHED'
@@ -131,43 +114,60 @@ const invoiceStatus = computed(() => {
   return 'DRAFT'
 })
 
-const isReadOnly = computed(() => invoiceStatus.value !== 'DRAFT')
+const canEditDraftInvoice = computed(() => {
+  if (!isSalesRep.value) return false
+  if (invoiceId.value)   return invoiceStatus.value === 'DRAFT'
+  return true
+})
+
+const canPublishDraftInvoice = computed(() =>
+    isSalesRep.value && !!invoiceId.value && invoiceStatus.value === 'DRAFT'
+)
+
+const isReadOnly = computed(() => !canEditDraftInvoice.value)
 
 const modeLabel = computed(() => {
   if (invoiceStatus.value === 'CANCELED')  return '취소된 청구서'
   if (invoiceStatus.value === 'PAID')      return '수납 완료'
   if (invoiceStatus.value === 'PUBLISHED') return '발행 완료'
+  if (invoiceId.value && isAdmin.value)    return '수동 생성 초안'
   if (invoiceId.value)                     return '발행 대기'
   return '신규 청구서 발행'
 })
 
 const canCreate = computed(() => {
   if (isSubmitting.value) return false
-  return !!invoiceId.value && invoiceStatus.value === 'DRAFT'
+  if (invoiceId.value)    return canPublishDraftInvoice.value
+  return isSalesRep.value && !!contractId.value
 })
 
 const canCancelInvoice = computed(() =>
     isSalesRep.value && !!invoiceId.value && invoiceStatus.value === 'DRAFT'
 )
 
+const readOnlyReason = computed(() => {
+  if (invoiceStatus.value === 'CANCELED')
+    return '취소된 청구서입니다. 포함된 명세서는 다음 빌링 사이클에 재포함됩니다.'
+  if (invoiceStatus.value === 'PUBLISHED' || invoiceStatus.value === 'PAID')
+    return '발행 완료된 청구서입니다. 수정 및 재발행이 불가합니다.'
+  if (isAdmin.value && invoiceId.value)
+    return '관리자는 수동 생성된 청구서를 조회만 할 수 있으며 발행은 담당 영업사원만 가능합니다.'
+  return '읽기 전용 청구서입니다.'
+})
+
 // ─── 계약/거래처 표시 ────────────────────────────────────────────
-// ✅ InvoiceDetailResponse에 contractCode, clientName 필드 직접 있음
 const displayContractCode = computed(() =>
-    invoice.value?.contractCode
-    ?? (contractId.value ? `계약 #${contractId.value}` : '—')
+    invoice.value?.contractCode ?? (contractId.value ? `계약 #${contractId.value}` : '—')
 )
-
-const displayClientName = computed(() =>
-    invoice.value?.clientName ?? '—'
-)
-
+const displayClientName  = computed(() => invoice.value?.clientName ?? '—')
 const displayInvoiceDate = computed(() => {
   const d = invoice.value?.invoiceDate ?? invoice.value?.startDate
   if (!d) return '—'
   return new Date(d).toLocaleDateString('ko-KR')
 })
 
-// togglingIds: API 호출 중인 statementId 목록 — 배열로 관리 (Set은 Vue 반응성 추적 불안정)
+// ─── 체크박스 ────────────────────────────────────────────────────
+// togglingIds: 배열로 관리 (Set은 Vue 반응성 추적 불안정)
 const togglingIds = ref([])
 
 const selectedStatements = computed(() => statements.value.filter(s => s._checked))
@@ -191,7 +191,7 @@ async function toggleStatement(stmtId, checked) {
       s.id === numId ? { ...s, _checked: checked } : s
   )
 
-  if (!invoiceId.value) return   // 신규 발행 중 → API 불필요
+  if (!invoiceId.value || !canEditDraftInvoice.value) return
 
   togglingIds.value = [...togglingIds.value, numId]
   try {
@@ -201,7 +201,6 @@ async function toggleStatement(stmtId, checked) {
       statements.value = parseStatements(responseData)
     }
   } catch (e) {
-    // 롤백
     statements.value = statements.value.map(s =>
         s.id === numId ? { ...s, _checked: !checked } : s
     )
@@ -225,7 +224,7 @@ async function toggleAll(checked) {
       targets.some(t => t.id === s.id) ? { ...s, _checked: checked } : s
   )
 
-  if (!invoiceId.value) return  // 신규 발행 중 → API 불필요
+  if (!invoiceId.value || !canEditDraftInvoice.value) return
 
   // 2. API 병렬 호출
   const results = await Promise.allSettled(
@@ -255,7 +254,6 @@ async function toggleAll(checked) {
 
 // ─── 뒤로가기/이탈 시 DRAFT 자동 취소 ──────────────────────────
 onBeforeRouteLeave(async (to, from, next) => {
-  // 발행 성공 후 이탈이면 취소 안 함
   if (invoiceId.value && invoiceStatus.value === 'DRAFT' && !showSuccess.value) {
     try {
       await apiCancelInvoice(invoiceId.value)
@@ -296,13 +294,48 @@ const invNo = computed(() =>
     `CINV-${today.toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*9000)+1000}`
 )
 
+// ─── 청구서 생성 ─────────────────────────────────────────────
+async function handleCreateInvoice() {
+  if (!isSalesRep.value) { alert('청구서 생성은 영업사원만 가능합니다.'); return }
+  if (!contractId.value) { alert('계약 정보를 확인할 수 없습니다.'); return }
+  isSubmitting.value = true
+  try {
+    const res     = await apiCreateInvoice({ contractId: Number(contractId.value), startDate: null, endDate: null, memo: remarks.value || null })
+    const created = res?.data?.data ?? res?.data ?? res
+    const newId   = created?.invoiceId ?? created?.id
+    if (newId) {
+      invoiceId.value = String(newId)
+      await loadInvoice(newId)
+      await documentStore.fetchInvoices()
+    }
+    await navigateToDocumentLoading(router, {
+      to: {
+        name: 'document-all',
+        query: { keyword: invoice.value?.invoiceCode || created?.invoiceCode || newId || undefined, type: 'INV' },
+      },
+      title: '청구서를 생성했습니다',
+      description: '최신 청구서 목록을 불러오고 있습니다.',
+    })
+  } catch (e) {
+    console.error('[InvoiceView] createInvoice error:', e)
+    if (e?.response?.status === 403 || e?.response?.status === 401) {
+      showAccessDeniedModal.value = true
+    } else {
+      alert(e?.response?.data?.message || '청구서 생성 중 오류가 발생했습니다.')
+    }
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
 // ─── 발행 확정 ───────────────────────────────────────────────
 async function handlePublishInvoice() {
-  if (!invoiceId.value) return
+  if (!canPublishDraftInvoice.value) return
   isSubmitting.value = true
   try {
     await apiPublishInvoice(invoiceId.value)
     await loadInvoice(invoiceId.value)
+    await documentStore.fetchInvoices()
     successMessage.value = '청구서가 발행 완료되었습니다'
     showSuccess.value = true
   } catch (e) {
@@ -310,7 +343,7 @@ async function handlePublishInvoice() {
     if (e?.response?.status === 403 || e?.response?.status === 401) {
       showAccessDeniedModal.value = true
     } else {
-      alert('발행 확정 중 오류가 발생했습니다.')
+      alert(e?.response?.data?.error?.message || e?.response?.data?.message || '발행 확정 중 오류가 발생했습니다.')
     }
   } finally {
     isSubmitting.value = false
@@ -318,12 +351,15 @@ async function handlePublishInvoice() {
 }
 
 function onActionButton() {
-  handlePublishInvoice()
+  if (invoiceId.value && canPublishDraftInvoice.value) handlePublishInvoice()
+  else handleCreateInvoice()
 }
 
-const actionButtonLabel = computed(() =>
-    isSubmitting.value ? '처리 중...' : '청구서 발행 확정'
-)
+const actionButtonLabel = computed(() => {
+  if (isSubmitting.value) return '처리 중...'
+  if (invoiceId.value && canPublishDraftInvoice.value) return '청구서 발행 확정'
+  return '청구서 생성 (발행 대기)'
+})
 
 // ─── 청구서 취소 ─────────────────────────────────────────────
 async function confirmInvoiceCancel() {
@@ -342,6 +378,7 @@ function onSuccessConfirm() {
   showSuccess.value = false
   router.push('/documents/invoices')
 }
+
 function onAccessDeniedConfirm() {
   showAccessDeniedModal.value = false
   router.push('/documents/invoices')
@@ -377,6 +414,7 @@ function onAccessDeniedConfirm() {
           <span v-if="invoiceStatus==='CANCELED'">취소 완료 — 취소된 청구서입니다.</span>
           <span v-else-if="invoiceStatus==='PAID'">수납 완료 — 수납이 완료된 청구서입니다.</span>
           <span v-else-if="invoiceStatus==='PUBLISHED'">발행 완료 — 발행 완료된 청구서입니다. 수정할 수 없습니다.</span>
+          <span v-else-if="invoiceId && isAdmin">관리자 조회 전용 — 수동 생성된 초안이며 담당 영업사원이 발행해야 합니다.</span>
           <span v-else-if="invoiceId">발행 대기 — 명세서를 확인하고 청구서를 발행 확정하세요.</span>
           <span v-else>신규 청구서 발행 — 발행할 명세서를 선택하고 청구서를 생성하세요.</span>
         </div>
@@ -386,7 +424,7 @@ function onAccessDeniedConfirm() {
           <!-- 왼쪽 패널 -->
           <section class="space-y-4">
 
-            <!-- ✅ 계약 요약 카드 — contractCode/clientName 직접 필드 사용 -->
+            <!-- 계약 요약 카드 -->
             <article class="relative rounded-lg border p-5" style="background-color:#F7F3EC;border-color:#DDD7CE;">
               <StatusBadge class="absolute right-4 top-4" :status="invoiceCardStatus" />
               <p class="mb-3 text-[10px] font-bold uppercase tracking-widest" style="color:#9A8C7E;">선택된 계약</p>
@@ -458,19 +496,18 @@ function onAccessDeniedConfirm() {
                       <p class="font-bold" style="color:#3D3529;">{{ stmt.statementCode }}</p>
                     </td>
                     <td class="px-4 py-3" style="color:#9A8C7E;">
-                      <!-- StatementItem에 orderCode 없음 → 백엔드 추가 전까지 '—' -->
                       {{ stmt.orderCode || '—' }}
                     </td>
                     <td class="px-4 py-3 text-right font-semibold" style="color:#6B5F50;">
                       ₩{{ stmt.supply.toLocaleString() }}
                     </td>
                     <td class="px-4 py-3 text-center">
-                        <span class="rounded-full px-2 py-0.5 text-xs font-bold"
-                              :style="stmt._checked
-                                ? 'background-color:#C8622A;color:white;'
-                                : 'background-color:#C8D4A0;color:#3D3529;'">
-                          {{ stmt._checked ? '포함' : '청구 가능' }}
-                        </span>
+                      <span class="rounded-full px-2 py-0.5 text-xs font-bold"
+                            :style="stmt._checked
+                              ? 'background-color:#C8622A;color:white;'
+                              : 'background-color:#C8D4A0;color:#3D3529;'">
+                        {{ stmt._checked ? '포함' : '청구 가능' }}
+                      </span>
                     </td>
                     <td class="px-4 py-3 text-xs" style="color:#9A8C7E;">
                       {{ stmt.issueDate ? new Date(stmt.issueDate).toLocaleDateString('ko-KR') : '—' }}
@@ -572,8 +609,7 @@ function onAccessDeniedConfirm() {
             <div v-if="isReadOnly"
                  class="flex items-center rounded-lg border px-6 py-4 text-sm"
                  style="background-color:#F7F3EC;border-color:#DDD7CE;color:#9A8C7E;">
-              <span v-if="invoiceStatus==='CANCELED'">취소된 청구서입니다. 포함된 명세서는 다음 빌링 사이클에 재포함됩니다.</span>
-              <span v-else>발행 완료된 청구서입니다. 수정 및 재발행이 불가합니다.</span>
+              <span>{{ readOnlyReason }}</span>
             </div>
 
           </section>
@@ -685,7 +721,7 @@ function onAccessDeniedConfirm() {
       </template>
     </div>
 
-    <!-- ✅ 권한 없음 모달 -->
+    <!-- 권한 없음 모달 -->
     <Teleport to="body">
       <div v-if="showAccessDeniedModal"
            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -714,9 +750,7 @@ function onAccessDeniedConfirm() {
            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
         <div class="rounded-lg border px-12 py-10 text-center shadow-2xl"
              style="background-color:#F7F3EC;border-color:#DDD7CE;">
-          <p class="text-xl font-extrabold" style="color:#3D3529;">
-            {{ successMessage }}
-          </p>
+          <p class="text-xl font-extrabold" style="color:#3D3529;">{{ successMessage }}</p>
           <p class="mt-2 text-sm" style="color:#9A8C7E;">
             {{ selectedStatements.length }}건의 명세서가 처리되었습니다.<br>
             총 청구 금액: <strong style="color:#3D3529;">₩{{ totalAmount.toLocaleString() }}</strong>

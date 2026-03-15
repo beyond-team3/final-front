@@ -2,6 +2,9 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import api from '@/api'
 import {
+  getBillingRevenueByCategory,
+  getBillingRevenueMonthly,
+  getBillingRevenueMonthlyByCategory,
   getAdminStats,
   getRanking,
   getSalesRepStats,
@@ -93,6 +96,13 @@ export const useStatisticsStore = defineStore('statistics', () => {
   const varietyOptions = ref([])
   const optionsLoading = ref(false)
   const optionsError = ref(null)
+  const billingRevenue = ref({
+    monthly: [],
+    byCategory: [],
+    monthlyByCategory: [],
+    loading: false,
+    error: null,
+  })
 
   const scopedStateMap = computed(() => ({
     personal: personal.value,
@@ -246,6 +256,30 @@ export const useStatisticsStore = defineStore('statistics', () => {
     target.rankingLoading = false
   }
 
+  async function loadBillingRevenue(params) {
+    billingRevenue.value.loading = true
+    billingRevenue.value.error = null
+
+    try {
+      const [monthlyResult, byCategoryResult, monthlyByCategoryResult] = await Promise.all([
+        getBillingRevenueMonthly(params),
+        getBillingRevenueByCategory(params),
+        getBillingRevenueMonthlyByCategory(params),
+      ])
+
+      billingRevenue.value.monthly = unwrapStatisticsData(monthlyResult)
+      billingRevenue.value.byCategory = unwrapStatisticsData(byCategoryResult)
+      billingRevenue.value.monthlyByCategory = unwrapStatisticsData(monthlyByCategoryResult)
+    } catch (error) {
+      billingRevenue.value.error = getErrorMessage(error, '청구 매출 통계를 불러오지 못했습니다.')
+      billingRevenue.value.monthly = []
+      billingRevenue.value.byCategory = []
+      billingRevenue.value.monthlyByCategory = []
+    } finally {
+      billingRevenue.value.loading = false
+    }
+  }
+
   return {
     personal,
     employee,
@@ -254,6 +288,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
     clientOptions,
     employeeOptions,
     varietyOptions,
+    billingRevenue,
     optionsLoading,
     optionsError,
     loadOptions,
@@ -262,5 +297,6 @@ export const useStatisticsStore = defineStore('statistics', () => {
     loadScopedRanking,
     clearStats,
     clearRanking,
+    loadBillingRevenue,
   }
 })

@@ -17,19 +17,17 @@ const CATEGORY_LABELS = {
   ALL: '전체',
   APPROVAL: '승인',
   QUOTATION_REQUEST: '견적요청',
-  CONTRACT: '계약',
   BILLING: '정산/청구',
   ACCOUNT: '계정',
   PRODUCT: '상품',
   CULTIVATION: '재배',
-  STATUS: '상태 변경',
+  STATUS: '거래 실황',
 }
 
 const FIXED_CATEGORY_ORDER = [
   'ALL',
   'APPROVAL',
   'QUOTATION_REQUEST',
-  'CONTRACT',
   'BILLING',
   'ACCOUNT',
   'PRODUCT',
@@ -55,6 +53,7 @@ function normalizeNotificationItem(item) {
     type: item.type || 'UNKNOWN',
     title: item.title || '',
     content: item.content || '',
+    approvalId: item.approvalId != null ? Number(item.approvalId) : null,
     targetType: item.targetType || null,
     targetId: item.targetId != null ? Number(item.targetId) : null,
     readAt: item.readAt || null,

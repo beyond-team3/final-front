@@ -7,6 +7,8 @@ import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import { PRODUCT_CATEGORY } from '@/utils/constants'
+import { useQuotationV2 } from '@/config/featureFlags'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +45,7 @@ const internalMemo = ref('')
 const customerRequirements = ref('')
 const currentRejectionReason = ref('')
 const selectedItems = ref([])
+const reviseSourceQuotationId = ref(null)
 const modalSearchInput = ref('')
 const clientSearchInput = ref('')
 const varietyFilter = ref('전체')
@@ -111,7 +114,15 @@ onMounted(async () => {
     }
 
     if (route.query.rewrite === 'true') {
-      if (route.query.requestId) {
+      if (route.query.quotationId) {
+        const rejectedQuotation = await documentStore.fetchQuotationDetail(route.query.quotationId)
+        if (rejectedQuotation) {
+          startFromRejectedQuotation(rejectedQuotation)
+        } else {
+          window.alert('재작성할 견적서 정보를 불러오지 못했습니다.')
+          router.push('/documents/all')
+        }
+      } else if (route.query.requestId) {
         await startFromRequest({ id: route.query.requestId })
       } else {
         startNewQuotation()
@@ -168,6 +179,7 @@ const startFromRequest = async (reqSummary) => {
 
   sourceRequestId.value = req.id
   sourceHistoryId.value = req.historyId || null
+  reviseSourceQuotationId.value = null
 
   selectedClientId.value = req.clientId
   inCorpCode.value = req.clientCode || req.clientId || ''
@@ -206,6 +218,7 @@ const startNewQuotation = () => {
 
   sourceRequestId.value = null
   sourceHistoryId.value = null
+  reviseSourceQuotationId.value = null
 
   inCorpCode.value = ''
   inCorp.value = ''
@@ -220,9 +233,12 @@ const startFromRejectedQuotation = (quo) => {
   isNewMode.value = false
   showStartModal.value = false
 
+  const sourceQuotationId = quo.id || quo.quotationId || null
+
   // 원본이 견적 요청서 기반인지 확인
   sourceRequestId.value = quo.requestId || null
   sourceHistoryId.value = quo.historyId || null
+  reviseSourceQuotationId.value = sourceQuotationId
 
   selectedClientId.value = quo.clientId
   inCorpCode.value = quo.client?.code || quo.clientId || ''
@@ -236,11 +252,11 @@ const startFromRejectedQuotation = (quo) => {
   selectedItems.value = (quo.items || []).map(i => ({
     uid: Date.now() + Math.random(),
     productId: i.productId,
-    variety: i.variety,
-    name: i.name,
-    count: i.quantity,
+    variety: PRODUCT_CATEGORY[i.variety || i.productCategory] || (i.variety || i.productCategory || '-'),
+    name: i.name || i.productName,
+    count: i.quantity || i.count,
     unit: i.unit,
-    price: i.unitPrice
+    price: i.unitPrice || i.price
   }))
 }
 
@@ -355,19 +371,23 @@ const submitDoc = async () => {
         unit: item.unit,
         unitPrice: item.price
       })),
-      memo: internalMemo.value
+      memo: internalMemo.value,
+      reviseFromQuotationId: reviseSourceQuotationId.value
     }
 
     const result = await documentStore.createQuotation(payload)
     if (result) {
       // 작성 후 참조 목록 최신화 (이미 사용한 요청서 제거)
       await documentStore.fetchPendingQuotationRequests()
-      window.alert(`견적서 발행 완료`);
       // 실제 번호(docCode)가 있으면 검색어로 전달, 없으면 ID라도 전달
       const keyword = result.docCode || result.id
-      router.push({
-        path: '/documents/all',
-        query: { keyword, type: 'QUO' }
+      await navigateToDocumentLoading(router, {
+        to: {
+          path: '/documents/all',
+          query: { keyword, type: 'QUO' }
+        },
+        title: '견적서를 발행했습니다',
+        description: '최신 견적서 목록을 불러오고 있습니다.',
       });
     }
   } catch (error) {
@@ -385,6 +405,7 @@ const submitDoc = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
+        <span v-if="useQuotationV2() && !isViewMode" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
       </div>
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in">
         <div class="flex-1 space-y-5 w-full">
@@ -494,11 +515,12 @@ const submitDoc = async () => {
 
           <button
               v-if="!isViewMode"
-              class="w-full text-white py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:opacity-90"
+              class="w-full text-white py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               style="background-color: #7A8C42 !important;"
+              :disabled="isSubmitting"
               @click="submitDoc"
           >
-            견적서 발행 완료
+            {{ isSubmitting ? '견적서 저장 중...' : '견적서 발행 완료' }}
           </button>
         </div>
 

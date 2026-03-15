@@ -7,6 +7,7 @@ import ModalBase from '@/components/common/ModalBase.vue'
 import PaginationControls from '@/components/common/PaginationControls.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
+import HistoryModal from '@/components/history/HistoryModal.vue'
 import { decideApprovalStep, getApprovalDetail, searchApprovals } from '@/api/approval'
 import { getOrder as getOrderApi } from '@/api/document'
 import { useDocumentStore } from '@/stores/document'
@@ -156,6 +157,26 @@ const unwrapApiData = (response) => {
   if (response.result === 'SUCCESS') return response.data
   if (response.data !== undefined) return response.data
   return response
+}
+
+const unwrapApprovalPayload = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return payload
+  }
+
+  if (Array.isArray(payload.content)) {
+    return payload
+  }
+
+  if (payload.result === 'SUCCESS' && payload.data) {
+    return unwrapApprovalPayload(payload.data)
+  }
+
+  if (payload.data && typeof payload.data === 'object') {
+    return unwrapApprovalPayload(payload.data)
+  }
+
+  return payload
 }
 
 const fetchOrderApprovalDetail = async (orderId) => {
@@ -576,6 +597,39 @@ const detailApprovalInfoFields = computed(() => {
   ]
 })
 
+const approvalModalDocType = computed(() => {
+  if (selectedApproval.value?.dealType === 'QUO') return 'quotation'
+  if (selectedApproval.value?.dealType === 'CNT') return 'contract'
+  if (selectedApproval.value?.dealType === 'ORD') return 'order'
+  return ''
+})
+
+const approvalModalDocId = computed(() => String(selectedApproval.value?.targetId || ''))
+
+const approvalModalRejectReason = computed(() => {
+  const approval = selectedApproval.value || {}
+  const rejectedStep = [...(approval.steps || [])]
+    .filter((step) => step.status === 'REJECTED')
+    .sort((left, right) => (right.stepOrder || 0) - (left.stepOrder || 0))[0]
+
+  return firstFilledValue(rejectedStep?.reason, approval.reason, approval.rejectReason, approval.rejectionReason, '')
+})
+
+const approvalTimelineEntries = computed(() => (
+  (selectedApproval.value?.steps || []).map((step) => ({
+    id: step.stepId || `${selectedApproval.value?.approvalId || 'approval'}-${step.stepOrder}`,
+    title: `${step.stepOrder}단계 · ${actorTypeLabel(step.actorType)}`,
+    statusLabel: stepStatusLabel(step.status),
+    decisionLabel: step.decision ? decisionLabel(step.decision) : '미결정',
+    decidedBy: step.decidedByUserId ?? '-',
+    requestedAt: formatDateTime(firstFilledValue(step.createdAt, step.requestedAt, selectedApproval.value?.createdAt, null)),
+    decidedAt: formatDateTime(step.decidedAt),
+    reason: step.reason || '',
+    toneClass: stepToneClass(step.status),
+    badgeClass: statusToneClass(step.status === 'WAITING' ? 'PENDING' : step.status),
+  }))
+))
+
 const previewHeadline = computed(() => {
   if (detailDocumentTypeKey.value === 'quotation') return '견 적 서'
   if (detailDocumentTypeKey.value === 'contract') return '물 품 공 급 계 약 서'
@@ -645,7 +699,8 @@ const buildSearchParams = (pageNumber, size) => ({
 })
 
 const fetchApprovalPage = async (pageNumber, size) => {
-  const data = await searchApprovals(buildSearchParams(pageNumber, size))
+  const rawData = await searchApprovals(buildSearchParams(pageNumber, size))
+  const data = unwrapApprovalPayload(rawData)
 
   return {
     ...data,
@@ -696,6 +751,15 @@ const parseApprovalError = (error, fallbackMessage) => {
   }
 
   return backendMessage || fallbackMessage || '승인 요청 처리 중 오류가 발생했습니다.'
+}
+
+const normalizeIdOrNull = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
 const showFeedback = (tone, message) => {
@@ -988,8 +1052,8 @@ const handlePageChange = async (nextPage) => {
 }
 
 const resolveApprovalIdFromNotification = async ({ approvalId, targetId, targetType, notificationType }) => {
-  const numericApprovalId = approvalId ? Number(approvalId) : null
-  const numericTargetId = targetId ? Number(targetId) : null
+  const numericApprovalId = normalizeIdOrNull(approvalId)
+  const numericTargetId = normalizeIdOrNull(targetId)
 
   if (numericApprovalId) {
     return numericApprovalId
@@ -1000,18 +1064,8 @@ const resolveApprovalIdFromNotification = async ({ approvalId, targetId, targetT
   }
 
   const normalizedTargetType = String(targetType || '').toUpperCase()
-  const normalizedNotificationType = String(notificationType || '').toUpperCase()
-  const looksLikeApprovalTarget = normalizedTargetType === 'APPROVAL' || normalizedNotificationType.startsWith('APPROVAL_')
-
-  if (looksLikeApprovalTarget) {
-    try {
-      const directApproval = await getApprovalDetail(numericTargetId)
-      if (directApproval?.approvalId) {
-        return Number(directApproval.approvalId)
-      }
-    } catch (error) {
-      // Fallback to target document lookup when targetId is not approvalId.
-    }
+  if (normalizedTargetType === 'APPROVAL') {
+    return numericTargetId
   }
 
   const searchParams = {
@@ -1075,7 +1129,7 @@ const openApprovalFromRouteQuery = async () => {
     })
 
     if (!resolvedApprovalId) {
-      showFeedback('error', '연결된 승인 요청을 찾을 수 없습니다.')
+      showFeedback('error', '승인 요청이 아직 없거나 최신 문서 기준으로 다시 확인이 필요합니다.')
       return
     }
 
@@ -1182,25 +1236,34 @@ const railClass = (approval) => {
 }
 
 const sectionList = computed(() => {
+  let sections
+
   if (currentRole.value === ROLES.SALES_REP) {
-    return [
+    sections = [
       { key: 'sales-rep', title: '영업 승인 대기', accent: 'accent-sales', items: groupedApprovals.value.salesRep },
       { key: 'done', title: '완료/반려', accent: 'accent-done', items: groupedApprovals.value.done },
     ]
-  }
-
-  if (currentRole.value === ROLES.CLIENT) {
-    return [
+  } else if (currentRole.value === ROLES.CLIENT) {
+    sections = [
+      { key: 'client', title: '거래처 승인 대기', accent: 'accent-client', items: groupedApprovals.value.client },
+      { key: 'done', title: '완료/반려', accent: 'accent-done', items: groupedApprovals.value.done },
+    ]
+  } else {
+    sections = [
+      { key: 'admin', title: '관리자 승인 대기', accent: 'accent-admin', items: groupedApprovals.value.admin },
       { key: 'client', title: '거래처 승인 대기', accent: 'accent-client', items: groupedApprovals.value.client },
       { key: 'done', title: '완료/반려', accent: 'accent-done', items: groupedApprovals.value.done },
     ]
   }
 
-  return [
-    { key: 'admin', title: '관리자 승인 대기', accent: 'accent-admin', items: groupedApprovals.value.admin },
-    { key: 'client', title: '거래처 승인 대기', accent: 'accent-client', items: groupedApprovals.value.client },
-    { key: 'done', title: '완료/반려', accent: 'accent-done', items: groupedApprovals.value.done },
-  ]
+  const visibleSections = sections.filter((section) => section.items.length > 0)
+  if (visibleSections.length > 0) {
+    return visibleSections
+  }
+
+  return filteredApprovals.value.length > 0
+    ? [{ key: 'all', title: '승인 요청 전체', accent: 'accent-done', items: filteredApprovals.value }]
+    : sections
 })
 
 onMounted(async () => {
@@ -1322,12 +1385,7 @@ onBeforeUnmount(() => {
         />
 
         <template v-else>
-          <section
-            v-for="section in sectionList"
-            :key="section.key"
-            v-show="section.items.length > 0"
-            class="approval-section"
-          >
+          <section v-for="section in sectionList" :key="section.key" class="approval-section">
             <div class="section-header">
               <div class="section-title-wrap">
                 <span class="section-accent" :class="section.accent" />
@@ -1391,408 +1449,19 @@ onBeforeUnmount(() => {
       </template>
     </section>
 
-    <teleport to="body">
-      <div v-if="detailModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="detailModalOpen = false">
-        <section class="approval-history-modal">
-          <header class="approval-history-header">
-            <div class="approval-history-header-title">
-              <h3>{{ selectedDocumentDetail?.displayCode || selectedApproval?.displayCode || '승인 상세' }}</h3>
-              <span>
-                {{ selectedDocumentDetail?.displayCode || selectedApproval?.displayCode || '-' }}
-              </span>
-            </div>
-            <div class="approval-history-header-actions">
-              <a
-                v-if="previewPdfUrl"
-                :href="previewPdfUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="rounded bg-[var(--color-olive)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-olive-dark)] transition-colors"
-              >
-                원본 PDF
-              </a>
-              <button type="button" class="rounded px-2 py-1 text-xl text-[var(--color-text-sub)] hover:bg-[var(--color-bg-section)]" @click="detailModalOpen = false">×</button>
-            </div>
-          </header>
-
-          <div class="approval-history-body">
-            <div class="approval-history-preview">
-              <div class="approval-history-preview-scroll custom-scrollbar">
-                <div v-if="detailLoading" class="approval-history-loading">
-                  <div class="w-12 h-12 border-4 border-[var(--color-olive)] border-t-transparent rounded-full animate-spin"></div>
-                  <p>문서를 준비하고 있습니다...</p>
-                </div>
-
-                <template v-else-if="selectedApproval">
-                  <div v-if="previewMode === 'pdf'" class="preview-canvas preview-pdf-canvas">
-                    <iframe
-                      :src="previewPdfUrl"
-                      title="승인 상세 PDF 미리보기"
-                      class="preview-pdf-frame"
-                    />
-                  </div>
-
-                  <div v-else-if="previewMode === 'generated'" class="origin-top scale-[0.7] 2xl:scale-[0.8] transition-transform duration-500">
-                    <div class="current-pdf-template transform-gpu shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
-                      <div v-if="detailDocumentTypeKey === 'quotation'" class="preview-page preview-page-legacy">
-                        <div class="preview-page-header">
-                          <p class="preview-page-kicker">{{ previewDocumentCode }}</p>
-                          <h3>{{ previewHeadline }}</h3>
-                        </div>
-                        <div class="preview-page-block preview-two-column">
-                          <div>
-                            <p class="preview-label">수신</p>
-                            <strong>{{ detailClientInfo.clientName }}</strong>
-                          </div>
-                          <div>
-                            <p class="preview-label">담당</p>
-                            <strong>{{ previewResolvedMemberName }}</strong>
-                          </div>
-                        </div>
-                        <div class="preview-page-block preview-three-column">
-                          <div>
-                            <p class="preview-label">작성일</p>
-                            <strong>{{ formatDateTime(firstFilledValue(previewSource.createdAt, previewSource.date, selectedApproval.createdAt, null)) }}</strong>
-                          </div>
-                          <div>
-                            <p class="preview-label">유효기간</p>
-                            <strong>{{ getValidityDate(firstFilledValue(previewSource.createdAt, previewSource.date, null)) || '-' }}</strong>
-                          </div>
-                          <div>
-                            <p class="preview-label">총 합계</p>
-                            <strong>{{ formatCurrency(detailItemsTotal) }}원</strong>
-                          </div>
-                        </div>
-                        <div class="preview-page-block">
-                          <table class="preview-table">
-                            <thead>
-                              <tr>
-                                <th>품목명</th>
-                                <th>수량</th>
-                                <th>단위</th>
-                                <th>금액</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr v-for="item in detailItems" :key="item.key">
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ item.unit }}</td>
-                                <td class="preview-number">{{ formatCurrency(item.amount) }}</td>
-                              </tr>
-                              <tr v-if="detailItems.length === 0">
-                                <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      <div v-else-if="detailDocumentTypeKey === 'contract'" class="preview-page preview-page-legacy">
-                        <div class="preview-page-header">
-                          <p class="preview-page-kicker">{{ previewDocumentCode }}</p>
-                          <h3>{{ previewHeadline }}</h3>
-                        </div>
-                        <div class="preview-page-block preview-three-column">
-                          <div>
-                            <p class="preview-label">계약상대자</p>
-                            <strong>{{ detailClientInfo.clientName }}</strong>
-                          </div>
-                          <div>
-                            <p class="preview-label">계약기간</p>
-                            <strong>{{ formatDateTime(firstFilledValue(previewSource.startDate, null)) }} ~ {{ formatDateTime(firstFilledValue(previewSource.endDate, null)) }}</strong>
-                          </div>
-                          <div>
-                            <p class="preview-label">청구 주기</p>
-                            <strong>{{ firstFilledValue(previewSource.billingCycle, '-') }}</strong>
-                          </div>
-                        </div>
-                        <div class="preview-page-block">
-                          <table class="preview-table">
-                            <thead>
-                              <tr>
-                                <th>품목명</th>
-                                <th>수량</th>
-                                <th>단위</th>
-                                <th>금액</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr v-for="item in detailItems" :key="item.key">
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ item.unit }}</td>
-                                <td class="preview-number">{{ formatCurrency(item.amount) }}</td>
-                              </tr>
-                              <tr v-if="detailItems.length === 0">
-                                <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                        <div v-if="previewSource.specialTerms" class="preview-page-block">
-                          <p class="preview-label">특약 사항</p>
-                          <p class="preview-copy">{{ previewSource.specialTerms }}</p>
-                        </div>
-                      </div>
-
-                      <div v-else-if="detailDocumentTypeKey === 'order'" class="preview-page preview-page-legacy">
-                        <div class="preview-page-header">
-                          <p class="preview-page-kicker">{{ previewDocumentCode }}</p>
-                          <h3>{{ previewHeadline }}</h3>
-                        </div>
-                        <div class="preview-page-block preview-three-column">
-                          <div>
-                            <p class="preview-label">거래처</p>
-                            <strong>{{ detailClientInfo.clientName }}</strong>
-                          </div>
-                          <div>
-                            <p class="preview-label">주문일</p>
-                            <strong>{{ formatDateTime(firstFilledValue(previewSource.createdAt, previewSource.orderDate, previewSource.date, null)) }}</strong>
-                          </div>
-                          <div>
-                            <p class="preview-label">주문 상태</p>
-                            <strong>{{ firstFilledValue(previewSource.status, '-') }}</strong>
-                          </div>
-                        </div>
-                        <div v-if="detailDeliveryFields.length > 0" class="preview-page-block preview-two-column">
-                          <div v-for="field in detailDeliveryFields" :key="field.label">
-                            <p class="preview-label">{{ field.label }}</p>
-                            <strong>{{ field.value }}</strong>
-                          </div>
-                        </div>
-                        <div class="preview-page-block">
-                          <table class="preview-table">
-                            <thead>
-                              <tr>
-                                <th>품목명</th>
-                                <th>수량</th>
-                                <th>단위</th>
-                                <th>금액</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr v-for="item in detailItems" :key="item.key">
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ item.unit }}</td>
-                                <td class="preview-number">{{ formatCurrency(item.amount) }}</td>
-                              </tr>
-                              <tr v-if="detailItems.length === 0">
-                                <td colspan="4" class="detail-empty-row">표시할 품목 정보가 없습니다.</td>
-                              </tr>
-                            </tbody>
-                            <tfoot v-if="detailItems.length > 0">
-                              <tr>
-                                <td colspan="3">총 합계</td>
-                                <td class="preview-number">{{ formatCurrency(detailItemsTotal) }}</td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div v-else class="preview-placeholder">
-                    <div class="preview-placeholder-badge">PREVIEW UNAVAILABLE</div>
-                    <h4>{{ previewPlaceholderTitle }}</h4>
-                    <p v-for="message in previewPlaceholderMessages" :key="message">{{ message }}</p>
-                  </div>
-                </template>
-              </div>
-            </div>
-
-            <div v-if="selectedApproval" class="approval-history-sidebar">
-              <div class="approval-history-sidebar-scroll custom-scrollbar">
-                <article class="card approval-history-card">
-                  <div class="approval-history-card-header">
-                    <div class="approval-history-card-title">
-                      <span class="approval-history-card-accent approval-history-card-accent-olive"></span>
-                      <h3>거래처 및 담당자</h3>
-                    </div>
-                    <span>PARTNER INFO</span>
-                  </div>
-                  <div class="approval-history-card-stack">
-                    <div class="approval-history-field">
-                      <label>상호명 / 법인명</label>
-                      <div>{{ detailPartyFields[0]?.value || '-' }}</div>
-                    </div>
-                    <div class="approval-history-field">
-                      <label>SeedFlow+ 담당 영업사원</label>
-                      <div class="approval-history-field-row">
-                        <div class="approval-history-avatar">{{ String(detailPartyFields[1]?.value || '-').slice(0, 1) }}</div>
-                        <span>{{ detailPartyFields[1]?.value || '-' }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-
-                <article class="card approval-history-card">
-                  <div class="approval-history-card-header">
-                    <div class="approval-history-card-title">
-                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
-                      <h3>문서 정보</h3>
-                    </div>
-                    <span>DOC INFO</span>
-                  </div>
-                  <dl class="approval-info-list">
-                    <div v-for="field in detailDocumentFields" :key="field.label">
-                      <dt>{{ field.label }}</dt>
-                      <dd>{{ field.value }}</dd>
-                    </div>
-                    <div v-for="field in detailOrderFields" :key="field.label">
-                      <dt>{{ field.label }}</dt>
-                      <dd>{{ field.value }}</dd>
-                    </div>
-                    <div v-for="field in detailDeliveryFields" :key="field.label">
-                      <dt>{{ field.label }}</dt>
-                      <dd>{{ field.value }}</dd>
-                    </div>
-                  </dl>
-                </article>
-
-                <article class="card approval-history-card">
-                  <div class="approval-history-card-header">
-                    <div class="approval-history-card-title">
-                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
-                      <h3>세부 품목 내역</h3>
-                    </div>
-                    <span>{{ detailItems.length }} ITEMS</span>
-                  </div>
-                  <div class="approval-history-items">
-                    <div v-for="item in detailItems" :key="item.key" class="approval-history-item-row">
-                      <div>
-                        <span class="approval-history-item-name">{{ item.name }}</span>
-                        <span class="approval-history-item-meta">{{ item.unit }}</span>
-                      </div>
-                      <div class="approval-history-item-value">
-                        <span>{{ item.quantity }} {{ item.unit }}</span>
-                        <span>₩{{ formatCurrency(item.amount) }}</span>
-                      </div>
-                    </div>
-                    <div v-if="detailItems.length === 0" class="approval-history-empty">표시할 품목 정보가 없습니다.</div>
-                  </div>
-                  <div v-if="detailItems.length > 0" class="approval-history-total">
-                    <div>
-                      <span>Final Quote</span>
-                      <span>₩{{ formatCurrency(Math.round(detailItemsTotal * 1.1)) }}</span>
-                    </div>
-                    <div>
-                      <strong>₩{{ formatCurrency(detailItemsTotal) }}</strong>
-                      <p>VAT INCLUDED</p>
-                    </div>
-                  </div>
-                </article>
-
-                <article class="card approval-history-card">
-                  <div class="approval-history-card-header">
-                    <div class="approval-history-card-title">
-                      <span class="approval-history-card-accent approval-history-card-accent-olive"></span>
-                      <h3>승인 정보</h3>
-                    </div>
-                    <span>APPROVAL INFO</span>
-                  </div>
-                  <dl class="approval-info-list">
-                    <div v-for="field in detailApprovalInfoFields" :key="field.label">
-                      <dt>{{ field.label }}</dt>
-                      <dd>{{ field.value }}</dd>
-                    </div>
-                  </dl>
-                </article>
-
-                <article v-if="detailInternalMemo" class="card approval-history-card">
-                  <div class="approval-history-card-header">
-                    <div class="approval-history-card-title">
-                      <span class="approval-history-card-accent"></span>
-                      <h3>공지 및 내부 비고</h3>
-                    </div>
-                  </div>
-                  <div class="approval-history-note">{{ detailInternalMemo }}</div>
-                </article>
-
-                <article v-if="selectedApproval.steps.some((step) => step.reason)" class="card approval-history-card">
-                  <div class="approval-history-card-header">
-                    <div class="approval-history-card-title">
-                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
-                      <h3>반려 사유서</h3>
-                    </div>
-                    <span>REJECT NOTE</span>
-                  </div>
-                  <div class="approval-history-note">
-                    {{ [...selectedApproval.steps].reverse().find((step) => step.reason)?.reason || '반려 사유 없음' }}
-                  </div>
-                </article>
-
-                <article class="card approval-history-card">
-                  <div class="approval-history-card-header">
-                    <div class="approval-history-card-title">
-                      <span class="approval-history-card-accent approval-history-card-accent-orange"></span>
-                      <h3>승인 타임라인</h3>
-                    </div>
-                    <span>TIMELINE</span>
-                  </div>
-                  <ol class="timeline-list">
-                    <li v-for="step in selectedApproval.steps" :key="step.stepId" class="timeline-item">
-                      <div class="timeline-bullet" :class="stepToneClass(step.status)" />
-                      <div class="timeline-body">
-                        <div class="timeline-top">
-                          <strong>{{ step.stepOrder }}단계 · {{ actorTypeLabel(step.actorType) }}</strong>
-                          <span class="badge" :class="statusToneClass(step.status === 'WAITING' ? 'PENDING' : step.status)">
-                            {{ stepStatusLabel(step.status) }}
-                          </span>
-                        </div>
-                        <dl class="timeline-detail-grid">
-                          <div>
-                            <dt>결정 상태</dt>
-                            <dd>{{ step.decision ? decisionLabel(step.decision) : '미결정' }}</dd>
-                          </div>
-                          <div>
-                            <dt>결정자 ID</dt>
-                            <dd>{{ step.decidedByUserId ?? '-' }}</dd>
-                          </div>
-                          <div>
-                            <dt>요청 시각</dt>
-                            <dd>{{ formatDateTime(firstFilledValue(step.createdAt, step.requestedAt, selectedApproval.createdAt, null)) }}</dd>
-                          </div>
-                          <div>
-                            <dt>처리 시각</dt>
-                            <dd>{{ formatDateTime(step.decidedAt) }}</dd>
-                          </div>
-                        </dl>
-                        <p v-if="step.reason" class="timeline-reason">반려 사유: {{ step.reason }}</p>
-                      </div>
-                    </li>
-                  </ol>
-                </article>
-              </div>
-
-              <div v-if="canDecideApproval(selectedApproval)" class="approval-history-sidebar-footer">
-                <button
-                  type="button"
-                  class="btn approve-btn"
-                  @click="openDecisionModal(selectedApproval, 'APPROVE')"
-                >
-                  {{ decisionButtonText(selectedApproval) }}
-                </button>
-                <button
-                  type="button"
-                  class="btn reject-btn"
-                  @click="openDecisionModal(selectedApproval, 'REJECT')"
-                >
-                  반려
-                </button>
-              </div>
-
-              <div class="approval-history-footer-meta">
-                <span>SeedFlow+ Digital Asset</span>
-                <span>Proprietary & Confidential</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </teleport>
+    <HistoryModal
+      v-model="detailModalOpen"
+      :title="selectedApproval?.displayCode || '승인 상세'"
+      :doc-id="approvalModalDocId"
+      :doc-type="approvalModalDocType"
+      :reject-reason="approvalModalRejectReason"
+      :approval-info-fields="detailApprovalInfoFields"
+      :approval-timeline="approvalTimelineEntries"
+      :show-approval-actions="canDecideApproval(selectedApproval)"
+      :approval-action-label="decisionButtonText(selectedApproval)"
+      @approve="openDecisionModal(selectedApproval, 'APPROVE')"
+      @reject="openDecisionModal(selectedApproval, 'REJECT')"
+    />
 
     <ModalBase
       v-model="decisionModalOpen"

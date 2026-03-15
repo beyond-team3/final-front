@@ -7,6 +7,8 @@ import { useProductStore } from '@/stores/product'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import { useContractV2 } from '@/config/featureFlags'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +21,7 @@ const authStore = useAuthStore()
 const isProcessStarted = ref(false)
 const isNewMode = ref(false)
 const isViewMode = ref(false) // 상세 조회 모드 여부
+const isSubmitting = ref(false)
 const showStartModal = ref(false)
 const showCorpModal = ref(false)
 const showProductModal = ref(false)
@@ -29,6 +32,7 @@ const contractId = ref(null)
 const contractCode = ref('')
 const sourceQuotationId = ref(null)
 const sourceHistoryId = ref(null)
+const reviseSourceContractId = ref(null)
 const status = ref('')
 const createdAt = ref('')
 
@@ -147,6 +151,7 @@ const startContractFromPrefill = async (quotationId) => {
 
   sourceQuotationId.value = quotationId
   sourceHistoryId.value = prefill.historyId || null
+  reviseSourceContractId.value = null
 
   conInCorpCode.value = prefill.clientId || prefill.client?.id || prefill.clientCode || ''
   conInCorp.value = prefill.clientName || prefill.client?.name || ''
@@ -168,9 +173,15 @@ const startContractFromPrefill = async (quotationId) => {
   }))
 }
 
-const copyRejectedContract = async (c) => {
+const startFromRejectedContract = async (rawContractId) => {
+  const sourceContractId = rawContractId ? Number(rawContractId) : null
+  if (!sourceContractId || Number.isNaN(sourceContractId)) {
+    window.alert('재작성할 계약서 ID가 유효하지 않습니다.')
+    return
+  }
+
   try {
-    const response = await api.get('/contracts/prefill', { params: { contractId: c.id } })
+    const response = await api.get('/contracts/prefill', { params: { contractId: sourceContractId } })
     const prefill = response?.data ?? response
 
     if (!prefill) {
@@ -184,6 +195,7 @@ const copyRejectedContract = async (c) => {
 
     sourceQuotationId.value = prefill.quotationId || null
     sourceHistoryId.value = prefill.historyId || null
+    reviseSourceContractId.value = sourceContractId
 
     conInCorpCode.value = prefill.clientId || prefill.client?.id || ''
     conInCorp.value = prefill.clientName || prefill.client?.name || ''
@@ -209,6 +221,10 @@ const copyRejectedContract = async (c) => {
   }
 }
 
+const copyRejectedContract = async (c) => {
+  await startFromRejectedContract(c.id || c.contractId || null)
+}
+
 onMounted(async () => {
   window.addEventListener('click', clickOutsideHandler)
   try {
@@ -220,7 +236,9 @@ onMounted(async () => {
     }
 
     if (route.query.rewrite === 'true') {
-      if (route.query.quotationId) {
+      if (route.query.contractId) {
+        await startFromRejectedContract(route.query.contractId)
+      } else if (route.query.quotationId) {
         await startContractFromPrefill(route.query.quotationId)
       } else {
         startNewContract()
@@ -243,10 +261,6 @@ onMounted(async () => {
     console.error("데이터 로딩 중 에러 발생:", e)
   }
 
-  if (route.query.quotationId) {
-    const q = documentStore.quotations?.find(item => item.id === route.query.quotationId)
-    if (q) startContract(q)
-  }
 })
 
 onUnmounted(() => {
@@ -300,6 +314,7 @@ const startContract = (q) => {
   showStartModal.value = false
 
   sourceQuotationId.value = q.id
+  reviseSourceContractId.value = null
 
   const existingPipeline = historyStore.pipelines?.find(h =>
       h.documents?.some(d => String(d.id) === String(q.id))
@@ -328,6 +343,7 @@ const startNewContract = () => {
 
   sourceQuotationId.value = null
   sourceHistoryId.value = null
+  reviseSourceContractId.value = null
 
   conInCorpCode.value = ""
   conInCorp.value = ""
@@ -420,14 +436,27 @@ const todayFormatted = computed(() => {
   return `${now.getFullYear()}년 ${String(now.getMonth() + 1).padStart(2, '0')}월 ${String(now.getDate()).padStart(2, '0')}일`
 })
 
+const normalizedSourceQuotationId = computed(() => {
+  const raw = sourceQuotationId.value
+  if (raw === null || raw === undefined || raw === '') {
+    return null
+  }
+
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+})
+
+const isQuotationBasedMode = computed(() => !isNewMode.value && !!normalizedSourceQuotationId.value)
+
 const submitContract = async () => {
-  if (isViewMode.value) return
+  if (isViewMode.value || isSubmitting.value) return
   if (!conInCorp.value) return window.alert("거래처 정보가 빠져있습니다.")
   if (selectedItems.value.length === 0) return window.alert("계약할 상품을 하나라도 추가해주세요")
 
+  isSubmitting.value = true
   try {
     const result = await documentStore.createContract({
-      quotationId: isNewMode.value ? null : sourceQuotationId.value,
+      quotationId: isQuotationBasedMode.value ? normalizedSourceQuotationId.value : null,
       client: {
         id: conInCorpCode.value,
         name: conInCorp.value,
@@ -445,23 +474,29 @@ const submitContract = async () => {
       billingCycle: conBillingCycle.value,
       specialTerms: conSpecialTerms.value,
       memo: conInternalMemo.value,
-      historyId: sourceHistoryId.value
+      historyId: sourceHistoryId.value,
+      reviseFromContractId: reviseSourceContractId.value
     })
 
     if (result) {
       // 작성 후 참조 목록 최신화 (이미 사용한 견적 제거)
       await documentStore.fetchApprovedQuotations()
-      window.alert(`계약서 생성 완료`);
       const keyword = result.docCode || result.id
-      router.push({
-        path: '/documents/all',
-        query: { keyword, type: 'CNT' }
+      await navigateToDocumentLoading(router, {
+        to: {
+          path: '/documents/all',
+          query: { keyword, type: 'CNT' }
+        },
+        title: '계약서를 생성했습니다',
+        description: '최신 계약서 목록을 불러오고 있습니다.',
       });
     }
   } catch (error) {
     console.error("서버 저장 에러:", error);
     // documentStore.error에는 getErrorMessage에 의해 정제된 한글 메시지가 담겨 있습니다.
     window.alert(documentStore.error || "계약서 저장 중 오류가 발생했습니다.");
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -471,6 +506,7 @@ const submitContract = async () => {
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
         <p class="text-sm" style="color: #9A8C7E;">문서 관리 &gt; <span class="font-semibold" style="color: #3D3529;">계약서 {{ isViewMode ? '상세' : '작성' }}</span></p>
+        <span v-if="useContractV2() && !isViewMode" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
       </div>
 
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 animate-in">
@@ -615,11 +651,12 @@ const submitContract = async () => {
           <button
               v-if="!isViewMode"
               type="button"
-              class="w-full py-4 rounded-lg font-bold text-lg text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
+              class="w-full py-4 rounded-lg font-bold text-lg text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               style="background-color: #7A8C42 !important;"
+              :disabled="isSubmitting"
               @click="submitContract"
           >
-            계약 체결 및 승인 요청
+            {{ isSubmitting ? '계약 저장 중...' : '계약 체결 및 승인 요청' }}
           </button>
         </div>
 

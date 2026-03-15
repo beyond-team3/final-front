@@ -8,6 +8,7 @@ import { ROLES } from '@/utils/constants'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import OrderModal from '@/components/document/OrderModal.vue'
 import { getContractsByClient, getContract, createOrder  } from '@/api/document'
+import { navigateToDocumentLoading } from '@/utils/documentLoading'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,6 +25,7 @@ const deliveryMemo = ref('')
 const deliveryAddressDetail = ref('')
 const lineItems = ref([])
 const selectedSalesRepName = ref('')
+const isSubmitting = ref(false)
 
 // ✅ 새로 추가: 진행 중인 계약 로드 상태
 const loadingContracts = ref(false)
@@ -125,6 +127,7 @@ const setQty = (item, val) => {
 }
 
 const submitOrder = async () => {
+  if (isSubmitting.value) return
   if (!selectedContract.value) {
     window.alert('계약서를 선택해주세요.')
     return
@@ -147,6 +150,7 @@ const submitOrder = async () => {
     return
   }
 
+  isSubmitting.value = true
   try {
     const response = await createOrder({
       headerId: selectedContract.value.id,
@@ -161,11 +165,22 @@ const submitOrder = async () => {
       }))
     })
 
-    window.alert('주문이 정상적으로 생성되었습니다.')
-    router.push({ name: 'document-all' })
+    await navigateToDocumentLoading(router, {
+      to: {
+        name: 'document-all',
+        query: {
+          keyword: response?.docCode || response?.orderCode || response?.id || undefined,
+          type: 'ORD',
+        },
+      },
+      title: '주문서를 생성했습니다',
+      description: '최신 주문서 목록을 불러오고 있습니다.',
+    })
   } catch (error) {
     console.error('주문 생성 실패:', error)
     window.alert('주문 생성에 실패했습니다. ' + (error.response?.data?.error?.message || error.message))
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -419,8 +434,8 @@ const onSelectContract = async (contract) => {
                 <button class="btn btn-cancel" @click="router.push('/documents/order')">
                   취소
                 </button>
-                <button class="btn btn-save" @click="submitOrder">
-                  주문 생성
+                <button class="btn btn-save" :disabled="isSubmitting" @click="submitOrder">
+                  {{ isSubmitting ? '주문 저장 중...' : '주문 생성' }}
                 </button>
               </div>
             </div>
