@@ -31,7 +31,10 @@
 
 ### 롤백 메모
 - 기능 커밋 해시: `92af90a`
-- 문서 커밋 해시: `d475855`
+- 문서 커밋 해시:
+  - `66dc8f8` (`FRT-87 docs(progress): 롤백 해시 기록 보정`)
+  - `d475855` (`FRT-87 docs(progress): api v2 테스트 롤백 메모 추가`)
 - 권장 순서:
+  - `git revert 66dc8f8`
   - `git revert d475855`
   - `git revert 92af90a`
