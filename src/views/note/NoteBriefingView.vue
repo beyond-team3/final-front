@@ -135,6 +135,20 @@ const closeNoteDetail = () => {
   showDetailModal.value = false
   selectedDetailNote.value = null
 }
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '기록 없음'
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return dateStr
+  
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  
+  return `${y}-${m}-${d} ${h}:${min}`
+}
 </script>
 
 <template>
@@ -154,7 +168,7 @@ const closeNoteDetail = () => {
 
     <!-- Header -->
     <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
-      <PageHeader title="AI 영업 브리핑" subtitle="고객사별 핵심 활동과 전략 인사이트를 제공합니다." />
+      <PageHeader title="AI 영업 브리핑" subtitle="거래처별 핵심 활동과 전략 인사이트를 제공합니다." />
       
       <div class="flex flex-col gap-1 w-full lg:w-64">
         <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">브리핑 대상</label>
@@ -162,7 +176,7 @@ const closeNoteDetail = () => {
           v-model="selectedClientId" 
           class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-4 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
         >
-          <option value="">고객사 선택</option>
+          <option value="">거래처 선택</option>
           <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">
             {{ client.name }}
           </option>
@@ -177,7 +191,7 @@ const closeNoteDetail = () => {
           <img :src="seedLogo" alt="Seed Logo" class="w-14 h-14 object-contain opacity-50" />
         </div>
         <h3 class="text-xl font-bold text-[var(--color-text-strong)] mb-2">분석 대기 중</h3>
-        <p class="text-[var(--color-text-sub)]">상단에서 고객사를 선택하여 리포트를 확인하세요.</p>
+        <p class="text-[var(--color-text-sub)]">상단에서 거래처를 선택하여 리포트를 확인하세요.</p>
       </div>
 
       <div v-else-if="status === 'EMPTY'" class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm animate-in fade-in duration-500">
@@ -186,7 +200,7 @@ const closeNoteDetail = () => {
         </div>
         <h4 class="text-2xl font-bold text-[var(--color-text-strong)] mb-3">분석 데이터 부족</h4>
         <p class="text-[var(--color-text-sub)] mb-8 text-lg">
-          해당 고객에 대해 AI가 분석할 수 있는 영업 기록이 충분하지 않습니다.<br>
+          해당 거래처에 대해 AI가 분석할 수 있는 영업 기록이 충분하지 않습니다.<br>
           최소 3개 이상의 영업 노트를 작성해 주세요.
         </p>
         <button 
@@ -213,7 +227,10 @@ const closeNoteDetail = () => {
               <span class="text-xs text-white/70">version NO.{{ briefing.revision }}</span>
             </div>
             <h3 class="text-5xl text-white/95 font-extrabold mb-4">{{ selectedClientName }}</h3>
-            <p class="text-white/80 font-medium text-lg">영업 데이터 기반 전략 브리핑</p>
+            <p class="text-white/80 font-medium text-lg">
+              총 {{ briefing.evidenceNoteIds?.length || 0 }}개의 영업 데이터 분석 기반 · 
+              마지막 업데이트: {{ formatDate(briefing.updatedAt || briefing.createdAt) }}
+            </p>
           </div>
           <i class="fas fa-brain absolute -right-4 -bottom-4 text-white/10 text-[12rem]"></i>
         </div>
