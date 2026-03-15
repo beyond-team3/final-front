@@ -32,10 +32,13 @@ spec:
 	}
 
 	environment {
-		DOCKER_CREDENTIAL_ID = 'docker-hub-id'
+		AWS_CREDENTIAL_ID = 'aws-ecr-credentials'
+		AWS_REGION = 'ap-northeast-2'
+		ECR_REGISTRY = '906034468269.dkr.ecr.ap-northeast-2.amazonaws.com'
+		IMAGE_NAME = "${ECR_REGISTRY}/monsoon-frontend"
+
 		ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
 		DISCORD_WEBHOOK = credentials('discord-webhook-url')
-		IMAGE_NAME = '21monsoon/monsoon-frontend'
 		APP_VERSION_PREFIX = '0.0'
 		FINAL_TAG = ""
 	}
@@ -67,18 +70,23 @@ spec:
 			}
 		}
 
-		stage('Docker Build & Push') {
+		stage('Docker Build & Push to ECR') {
 			steps {
 				container('docker-cli') {
 					script {
-						withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIAL_ID,
-							usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+						withCredentials([usernamePassword(credentialsId: env.AWS_CREDENTIAL_ID,
+							usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
 
-							echo "Building and Pushing Tag: ${env.FINAL_TAG}"
+							echo "1. Installing AWS CLI..."
+							sh "apk add --no-cache aws-cli"
 
-							// 도커 빌드 및 푸시
+							echo "2. Building Tag: ${env.FINAL_TAG}"
 							sh "docker build --no-cache -t ${IMAGE_NAME}:${env.FINAL_TAG} ."
-							sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+
+							echo "3. Logging into AWS ECR..."
+							sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+
+							echo "4. Pushing Image to ECR..."
 							sh "docker push ${IMAGE_NAME}:${env.FINAL_TAG}"
 
 							// main 브랜치일 경우에만 latest 태그 푸시
@@ -86,7 +94,9 @@ spec:
 								sh "docker tag ${IMAGE_NAME}:${env.FINAL_TAG} ${IMAGE_NAME}:latest"
 								sh "docker push ${IMAGE_NAME}:latest"
 							}
-							sh "docker logout"
+
+							// 로그아웃
+							sh "docker logout ${ECR_REGISTRY}"
 						}
 					}
 				}
@@ -116,10 +126,12 @@ spec:
                             git clone git@github.com:beyond-team3/final-manifests.git temp-manifests
                             cd temp-manifests
                             git checkout ${targetBranch}
+
                             sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
 
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
+
                             git add frontend/deployment.yml
                             if ! git diff --cached --quiet; then
                                 git commit -m "[CD] Update frontend to ${env.FINAL_TAG} [skip ci]"
@@ -136,7 +148,7 @@ spec:
 			}
 		}
 
-		stage('Wait for Deploy') {
+		stage('Wait for ArgoCD Sync') {
 			steps {
 				container('argocd-cli') {
 					script {
@@ -147,10 +159,11 @@ spec:
 							sh "argocd app wait monsoon-app --timeout 300"
 
 						}
+
 						discordSend(
 							webhookURL: env.DISCORD_WEBHOOK,
-							title: "[Frontend] 배포 완료!",
-							description: "도메인: https://www.monsoonseed.com\n버전: ${env.FINAL_TAG}",
+							title: "🚀 [Frontend] 새 버전 배포 준비 완료 (Preview)",
+							description: "도메인: https://www.monsoonseed.com\n새 버전(${env.FINAL_TAG})이 생성되어 트래픽 전환을 대기 중입니다.",
 							result: 'SUCCESS',
 							color: '#00FF00'
 						)
