@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useDocumentStore } from '@/stores/document'
 import { ROLES } from '@/utils/constants'
 import CedarCheckbox from '@/components/common/CedarCheckbox.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -18,6 +19,7 @@ import {
 const route  = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const documentStore = useDocumentStore()
 
 const invoiceId  = ref(route.query.id         || null)
 const contractId = ref(route.query.contractId || null)
@@ -33,6 +35,7 @@ const remarks               = ref('')
 const showAccessDeniedModal = ref(false)
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
+const isAdmin = computed(() => authStore.currentRole === ROLES.ADMIN)
 
 // ─── 핵심 데이터 ────────────────────────────────────────────────
 const invoice    = ref(null)
@@ -132,25 +135,58 @@ const invoiceStatus = computed(() => {
   return 'DRAFT'
 })
 
-const isReadOnly = computed(() => invoiceStatus.value !== 'DRAFT')
+const canEditDraftInvoice = computed(() => {
+  if (!isSalesRep.value) {
+    return false
+  }
+
+  if (invoiceId.value) {
+    return invoiceStatus.value === 'DRAFT'
+  }
+
+  return true
+})
+
+const canPublishDraftInvoice = computed(() =>
+  isSalesRep.value && !!invoiceId.value && invoiceStatus.value === 'DRAFT'
+)
+
+const isReadOnly = computed(() => !canEditDraftInvoice.value)
 
 const modeLabel = computed(() => {
   if (invoiceStatus.value === 'CANCELED')  return '취소된 청구서'
   if (invoiceStatus.value === 'PAID')      return '수납 완료'
   if (invoiceStatus.value === 'PUBLISHED') return '발행 완료'
+  if (invoiceId.value && isAdmin.value)    return '수동 생성 초안'
   if (invoiceId.value)                     return '발행 대기'
   return '신규 청구서 발행'
 })
 
 const canCreate = computed(() => {
   if (isSubmitting.value) return false
-  if (invoiceId.value)    return invoiceStatus.value === 'DRAFT'
-  return !!contractId.value
+  if (invoiceId.value)    return canPublishDraftInvoice.value
+  return isSalesRep.value && !!contractId.value
 })
 
 const canCancelInvoice = computed(() =>
     isSalesRep.value && !!invoiceId.value && invoiceStatus.value === 'DRAFT'
 )
+
+const readOnlyReason = computed(() => {
+  if (invoiceStatus.value === 'CANCELED') {
+    return '취소된 청구서입니다. 포함된 명세서는 다음 빌링 사이클에 재포함됩니다.'
+  }
+
+  if (invoiceStatus.value === 'PUBLISHED' || invoiceStatus.value === 'PAID') {
+    return '발행 완료된 청구서입니다. 수정 및 재발행이 불가합니다.'
+  }
+
+  if (isAdmin.value && invoiceId.value) {
+    return '관리자는 수동 생성된 청구서를 조회만 할 수 있으며 발행은 담당 영업사원만 가능합니다.'
+  }
+
+  return '읽기 전용 청구서입니다.'
+})
 
 // ─── 계약/거래처 표시 ────────────────────────────────────────────
 // ✅ InvoiceDetailResponse에 contractCode, clientName 필드 직접 있음
@@ -193,7 +229,7 @@ async function toggleStatement(stmtId, checked) {
   // Optimistic update
   stmt._checked = checked
 
-  if (!invoiceId.value) return   // 신규 발행 중 → API 불필요
+  if (!invoiceId.value || !canEditDraftInvoice.value) return
 
   // ✅ Set 재할당으로 반응성 트리거
   togglingIds.value = new Set([...togglingIds.value, numId])
@@ -260,6 +296,10 @@ const invNo = computed(() =>
 
 // ─── 청구서 생성 ─────────────────────────────────────────────
 async function handleCreateInvoice() {
+  if (!isSalesRep.value) {
+    alert('청구서 생성은 영업사원만 가능합니다.')
+    return
+  }
   if (!contractId.value) { alert('계약 정보를 확인할 수 없습니다.'); return }
   isSubmitting.value = true
   try {
@@ -269,6 +309,7 @@ async function handleCreateInvoice() {
     if (newId) {
       invoiceId.value = String(newId)
       await loadInvoice(newId)
+      await documentStore.fetchInvoices()
     }
     showSuccess.value = true
   } catch (e) {
@@ -285,18 +326,19 @@ async function handleCreateInvoice() {
 
 // ─── 발행 확정 ───────────────────────────────────────────────
 async function handlePublishInvoice() {
-  if (!invoiceId.value) return
+  if (!canPublishDraftInvoice.value) return
   isSubmitting.value = true
   try {
     await apiPublishInvoice(invoiceId.value)
     await loadInvoice(invoiceId.value)
+    await documentStore.fetchInvoices()
     showSuccess.value = true
   } catch (e) {
     console.error('[InvoiceView] publishInvoice error:', e)
     if (e?.response?.status === 403 || e?.response?.status === 401) {
       showAccessDeniedModal.value = true
     } else {
-      alert('발행 확정 중 오류가 발생했습니다.')
+      alert(e?.response?.data?.error?.message || e?.response?.data?.message || '발행 확정 중 오류가 발생했습니다.')
     }
   } finally {
     isSubmitting.value = false
@@ -304,13 +346,13 @@ async function handlePublishInvoice() {
 }
 
 function onActionButton() {
-  if (invoiceId.value && invoiceStatus.value === 'DRAFT') handlePublishInvoice()
+  if (invoiceId.value && canPublishDraftInvoice.value) handlePublishInvoice()
   else handleCreateInvoice()
 }
 
 const actionButtonLabel = computed(() => {
   if (isSubmitting.value) return '처리 중...'
-  if (invoiceId.value && invoiceStatus.value === 'DRAFT') return '청구서 발행 확정'
+  if (invoiceId.value && canPublishDraftInvoice.value) return '청구서 발행 확정'
   return '청구서 생성 (발행 대기)'
 })
 
@@ -366,6 +408,7 @@ function onAccessDeniedConfirm() {
           <span v-if="invoiceStatus==='CANCELED'">취소 완료 — 취소된 청구서입니다.</span>
           <span v-else-if="invoiceStatus==='PAID'">수납 완료 — 수납이 완료된 청구서입니다.</span>
           <span v-else-if="invoiceStatus==='PUBLISHED'">발행 완료 — 발행 완료된 청구서입니다. 수정할 수 없습니다.</span>
+          <span v-else-if="invoiceId && isAdmin">관리자 조회 전용 — 수동 생성된 초안이며 담당 영업사원이 발행해야 합니다.</span>
           <span v-else-if="invoiceId">발행 대기 — 명세서를 확인하고 청구서를 발행 확정하세요.</span>
           <span v-else>신규 청구서 발행 — 발행할 명세서를 선택하고 청구서를 생성하세요.</span>
         </div>
@@ -557,8 +600,7 @@ function onAccessDeniedConfirm() {
             <div v-if="isReadOnly"
                  class="flex items-center rounded-lg border px-6 py-4 text-sm"
                  style="background-color:#F7F3EC;border-color:#DDD7CE;color:#9A8C7E;">
-              <span v-if="invoiceStatus==='CANCELED'">취소된 청구서입니다. 포함된 명세서는 다음 빌링 사이클에 재포함됩니다.</span>
-              <span v-else>발행 완료된 청구서입니다. 수정 및 재발행이 불가합니다.</span>
+              <span>{{ readOnlyReason }}</span>
             </div>
 
           </section>

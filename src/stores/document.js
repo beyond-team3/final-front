@@ -34,6 +34,7 @@ import {
     getRejectedQuotationsForContract as getRejectedQuotationsForContractApi,
     getRejectedContracts as getRejectedContractsApi,
     getDocumentSummaries,
+    createManualInvoiceDraft as createManualInvoiceDraftApi,
     reviseContract as reviseContractApi,
     reviseQuotation as reviseQuotationApi,
 } from '@/api/document'
@@ -348,6 +349,10 @@ export const useDocumentStore = defineStore('document', () => {
             const managedClientIds = clientMaster.value
                 .filter(c => String(c.managerId) === myRefId)
                 .map(c => String(c.id))
+
+            if (managedClientIds.length === 0) {
+                return list
+            }
 
             return list.filter((item) => {
                 // 1. 내가 작성한 문서인가?
@@ -1257,6 +1262,33 @@ export const useDocumentStore = defineStore('document', () => {
         }
     }
 
+    const createManualInvoiceDraft = async (contractId) => {
+        try {
+            const created = unwrapData(await createManualInvoiceDraftApi(contractId))
+            if (!created) {
+                return null
+            }
+
+            const normalized = normalizeDocument({
+                ...created,
+                type: 'invoice',
+                id: created.invoiceId ?? created.id,
+                invoiceId: created.invoiceId ?? created.id,
+                invoiceCode: created.invoiceCode ?? created.displayCode,
+            })
+
+            allRawDocuments.value = [
+                normalized,
+                ...allRawDocuments.value.filter((doc) => !(String(doc.type || '').toLowerCase() === 'invoice' && String(doc.id) === String(normalized.id))),
+            ]
+
+            return normalized
+        } catch (e) {
+            error.value = getErrorMessage(e, '수동 청구서 초안 생성에 실패했습니다.')
+            throw e
+        }
+    }
+
     const publishInvoice = async (invoiceId) => {
         try {
             const result = await publishInvoiceApi(invoiceId)
@@ -1463,6 +1495,7 @@ export const useDocumentStore = defineStore('document', () => {
         createContract,
         createOrder,
         createInvoice,
+        createManualInvoiceDraft,
         markInvoiceIssued,
         cancelOrder,
         cancelInvoice,
