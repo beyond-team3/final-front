@@ -167,7 +167,7 @@ onMounted(fetchEmployeeDetail)
 </script>
 
 <template>
-  <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8 text-[var(--font-body)]">
+  <section class="min-h-screen bg-[var(--color-bg-base)] p-3 lg:p-6 text-[var(--font-body)]">
     <PageHeader title="사원 상세" :subtitle="employee?.employeeCode">
       <template #actions>
         <button
@@ -199,13 +199,13 @@ onMounted(fetchEmployeeDetail)
     <LoadingSpinner v-if="loading" text="사원 상세를 불러오는 중입니다." />
     <ErrorMessage v-else-if="error" :message="error" @retry="fetchEmployeeDetail" />
 
-    <article v-else-if="employee" class="grid gap-6 xl:grid-cols-[1.15fr_1fr]">
+    <article v-else-if="employee" class="mx-auto flex max-w-5xl flex-col gap-6">
       <!-- 사원 프로필 카드 -->
-      <section class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
-        <div class="mb-6 flex items-center justify-between">
+      <section class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-4 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
           <div class="flex items-center gap-3">
             <span class="h-5 w-1.5 rounded-full bg-[var(--color-olive)]"></span>
-            <h3 class="text-xl font-bold text-[var(--color-text-strong)]">사원 프로필</h3>
+            <h3 class="text-lg font-bold text-[var(--color-text-strong)]">사원 프로필</h3>
           </div>
           <div
               class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold"
@@ -216,37 +216,37 @@ onMounted(fetchEmployeeDetail)
           </div>
         </div>
 
-        <dl class="grid gap-3 text-sm md:grid-cols-2">
-          <div class="rounded-lg bg-[var(--color-bg-section)] p-3.5 border border-[var(--color-border-divider)]">
-            <dt class="text-xs font-bold text-[var(--color-text-sub)] uppercase mb-1">사원 코드</dt>
-            <dd class="text-base font-bold text-[var(--color-text-strong)]">{{ employee.employeeCode }}</dd>
+        <dl class="grid gap-2.5 text-sm md:grid-cols-3">
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-3 border border-[var(--color-border-divider)]">
+            <dt class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase mb-0.5">사원 코드</dt>
+            <dd class="text-sm font-bold text-[var(--color-text-strong)]">{{ employee.employeeCode }}</dd>
           </div>
-          <div class="rounded-lg bg-[var(--color-bg-section)] p-3.5 border border-[var(--color-border-divider)]">
-            <dt class="text-xs font-bold text-[var(--color-text-sub)] uppercase mb-1">사원명</dt>
-            <dd class="text-base font-bold text-[var(--color-text-strong)]">{{ employee.name }}</dd>
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-3 border border-[var(--color-border-divider)]">
+            <dt class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase mb-0.5">사원명</dt>
+            <dd class="text-sm font-bold text-[var(--color-text-strong)]">{{ employee.name }}</dd>
           </div>
-          <div class="rounded-lg bg-[var(--color-bg-section)] p-3.5 border border-[var(--color-border-divider)]">
-            <dt class="text-xs font-bold text-[var(--color-text-sub)] uppercase mb-1">역할</dt>
-            <dd class="text-base font-bold text-[var(--color-text-strong)]">{{ roleLabel }}</dd>
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-3 border border-[var(--color-border-divider)]">
+            <dt class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase mb-0.5">역할</dt>
+            <dd class="text-sm font-bold text-[var(--color-text-strong)]">{{ roleLabel }}</dd>
           </div>
-          <div class="rounded-lg bg-[var(--color-bg-section)] p-3.5 border border-[var(--color-border-divider)]">
-            <dt class="text-xs font-bold text-[var(--color-text-sub)] uppercase mb-1">이메일</dt>
-            <dd class="text-base font-bold text-[var(--color-text-strong)]">{{ employee.email }}</dd>
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-3 border border-[var(--color-border-divider)]">
+            <dt class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase mb-0.5">이메일</dt>
+            <dd class="text-sm font-bold text-[var(--color-text-strong)]">{{ employee.email }}</dd>
           </div>
-          <div class="rounded-lg bg-[var(--color-bg-section)] p-3.5 border border-[var(--color-border-divider)]">
-            <dt class="text-xs font-bold text-[var(--color-text-sub)] uppercase mb-1">전화번호</dt>
-            <dd class="text-base font-bold text-[var(--color-text-strong)]">{{ employee.phone }}</dd>
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-3 border border-[var(--color-border-divider)]">
+            <dt class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase mb-0.5">전화번호</dt>
+            <dd class="text-sm font-bold text-[var(--color-text-strong)]">{{ employee.phone }}</dd>
           </div>
-          <div class="rounded-lg bg-[var(--color-bg-section)] p-3.5 border border-[var(--color-border-divider)]">
-            <dt class="text-xs font-bold text-[var(--color-text-sub)] uppercase mb-1">등록일시</dt>
-            <dd class="text-base font-bold text-[var(--color-text-strong)]">{{ employee.createdAt }}</dd>
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-3 border border-[var(--color-border-divider)]">
+            <dt class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase mb-0.5">등록일시</dt>
+            <dd class="text-sm font-bold text-[var(--color-text-strong)]">{{ employee.createdAt }}</dd>
           </div>
-          <div class="rounded-lg bg-[var(--color-bg-section)] p-3.5 border border-[var(--color-border-divider)] md:col-span-2">
-            <dt class="text-xs font-bold text-[var(--color-text-sub)] uppercase mb-1">주소</dt>
-            <dd class="flex items-center justify-between gap-2 w-full text-base font-bold text-[var(--color-text-strong)]">
+          <div class="rounded-lg bg-[var(--color-bg-section)] p-3 border border-[var(--color-border-divider)] md:col-span-3">
+            <dt class="text-[10px] font-bold text-[var(--color-text-sub)] uppercase mb-0.5">주소</dt>
+            <dd class="flex items-center justify-between gap-2 w-full text-sm font-bold text-[var(--color-text-strong)]">
               <span class="truncate">{{ employee.displayAddressOnly }}</span>
-              <span class="shrink-0 inline-flex items-center gap-1.5 rounded bg-white px-2 py-1 text-xs font-bold text-[var(--color-olive)] border border-[var(--color-olive-light)] shadow-sm">
-                <span class="text-[10px] text-[var(--color-olive-dark)] opacity-70 font-medium">우편번호</span>
+              <span class="shrink-0 inline-flex items-center gap-1.5 rounded bg-white px-2 py-0.5 text-[11px] font-bold text-[var(--color-olive)] border border-[var(--color-olive-light)] shadow-sm">
+                <span class="text-[9px] text-[var(--color-olive-dark)] opacity-70 font-medium">우편번호</span>
                 {{ employee.displayZonecode }}
               </span>
             </dd>
@@ -255,11 +255,11 @@ onMounted(fetchEmployeeDetail)
       </section>
 
       <!-- 담당 거래처 카드 -->
-      <section class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-6 shadow-sm">
-        <div class="mb-6 flex items-center justify-between">
+      <section class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-4 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
           <div class="flex items-center gap-3">
             <span class="h-5 w-1.5 rounded-full bg-[var(--color-orange)]"></span>
-            <h3 class="text-xl font-bold text-[var(--color-text-strong)]">담당 거래처</h3>
+            <h3 class="text-lg font-bold text-[var(--color-text-strong)]">담당 거래처</h3>
           </div>
           <span class="inline-flex items-center rounded-full bg-[var(--color-orange-light)] px-3 py-1 text-xs font-bold text-[var(--color-orange-dark)]">
             {{ assignedClientCount }}개
@@ -270,14 +270,14 @@ onMounted(fetchEmployeeDetail)
           <p class="text-sm font-medium text-[var(--color-text-sub)]">배정된 거래처가 없습니다.</p>
         </div>
 
-        <div v-else class="overflow-hidden rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-card)]">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-[var(--color-bg-section)] text-[var(--color-text-sub)]">
+        <div v-else class="overflow-auto max-h-[200px] rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-card)] custom-scrollbar">
+          <table class="w-full min-w-[800px] text-left text-sm border-separate border-spacing-0">
+            <thead class="sticky top-0 z-10 bg-[var(--color-bg-section)] text-[var(--color-text-sub)] shadow-[0_1px_0_rgba(0,0,0,0.05)]">
             <tr>
-              <th class="px-5 py-3 font-bold uppercase tracking-wider">거래처 코드</th>
-              <th class="px-5 py-3 font-bold uppercase tracking-wider">거래처명</th>
-              <th class="px-5 py-3 font-bold uppercase tracking-wider">계정 활성화 상태</th>
-              <th class="px-5 py-3 font-bold uppercase tracking-wider">마지막 로그인</th>
+              <th class="px-5 py-3 font-bold uppercase tracking-wider border-b border-[var(--color-border-divider)] whitespace-nowrap">거래처 코드</th>
+              <th class="px-5 py-3 font-bold uppercase tracking-wider border-b border-[var(--color-border-divider)] whitespace-nowrap">거래처명</th>
+              <th class="px-5 py-3 font-bold uppercase tracking-wider border-b border-[var(--color-border-divider)] whitespace-nowrap">계정 활성화 상태</th>
+              <th class="px-5 py-3 font-bold uppercase tracking-wider border-b border-[var(--color-border-divider)] whitespace-nowrap">마지막 로그인</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-[var(--color-border-divider)]">

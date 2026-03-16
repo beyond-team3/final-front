@@ -1,4 +1,6 @@
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   modelValue: {
     type: Number,
@@ -11,6 +13,20 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const pageGroupSize = 10
+
+const pageNumbers = computed(() => {
+  const currentGroup = Math.ceil(props.modelValue / pageGroupSize)
+  const start = (currentGroup - 1) * pageGroupSize + 1
+  const end = Math.min(currentGroup * pageGroupSize, props.totalPages)
+  
+  const pages = []
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 const setPage = (page) => {
   if (page < 1 || page > props.totalPages || page === props.modelValue) {
@@ -34,7 +50,7 @@ const setPage = (page) => {
 
     <div class="page-numbers">
       <button
-        v-for="p in totalPages"
+        v-for="p in pageNumbers"
         :key="p"
         type="button"
         class="page-num-btn"

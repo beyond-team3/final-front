@@ -461,7 +461,7 @@ const statusBadgeStyle = (tone) => ({
       </div>
 
       <section class="mb-5 rounded-[10px] border p-[18px] shadow-[0_1px_2px_rgba(61,53,41,0.06)]" style="background-color: #EFEADF; border-color: #DDD7CE;">
-        <div class="grid gap-3 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto_auto]">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto_auto]">
           <label class="flex flex-col gap-2">
             <input
                 v-model="keyword"
@@ -566,11 +566,7 @@ const statusBadgeStyle = (tone) => ({
         </template>
 
         <template #footer>
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p class="text-sm" style="color: #9A8C7E;">
-              총 {{ totalElements }}건 중
-              {{ visibleStart }}-{{ visibleEnd }}건 표시
-            </p>
+          <div class="flex justify-center py-2">
             <PaginationControls v-model="page" :total-pages="totalPages" />
           </div>
         </template>

@@ -156,7 +156,7 @@ onUnmounted(() => {
 const handleCloseModal = () => {
   showStartModal.value = false
   if (!isProcessStarted.value) {
-    router.push('/documents/create')
+    router.push('/documents/all')
   }
 }
 
@@ -537,7 +537,6 @@ const submitDoc = async () => {
                   <p>담당: <span class="px-2">{{ inName || '(빈값)' }}</span></p>
                   <p>견적 유효기간: <span class="font-bold border-b border-black px-1">{{ validityDate }}</span> (발행일로부터 30일)</p>
                 </div>
-                <div class="w-14 h-14 border border-black flex items-center justify-center font-bold text-xs">인</div>
               </div>
               <table class="w-full border-collapse border border-black text-center mb-5 text-[10px]">
                 <thead class="bg-[#F7F3EC]">
@@ -601,7 +600,7 @@ const submitDoc = async () => {
             </div>
 
             <div v-if="currentTab === 'pending-rfq'">
-              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적 요청서 참조</p>
+              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">요청된 견적 요청서</p>
               <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
                 <table class="w-full text-sm text-center border-collapse">
                   <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
@@ -627,7 +626,7 @@ const submitDoc = async () => {
             </div>
 
             <div v-else-if="currentTab === 'rejected-quo'">
-              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">이전 반려/만료된 견적서의 내용을 가져옵니다.</p>
+              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">반려/만료된 견적서</p>
               <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
                 <table class="w-full text-sm text-center border-collapse">
                   <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
