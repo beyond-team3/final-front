@@ -501,11 +501,8 @@ onBeforeUnmount(() => {
         </article>
       </div>
 
-      <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-divider)] bg-[var(--color-bg-card)] px-4 py-3">
+      <footer class="flex flex-wrap items-center justify-center gap-3 border-t border-[var(--color-border-divider)] bg-[var(--color-bg-card)] px-4 py-3">
         <PaginationControls v-model="page" :total-pages="totalPages" />
-        <span class="text-xs text-[var(--color-text-sub)]">
-          현재 {{ pageSummary.number }}/{{ totalPages }} · 페이지 크기 {{ pageSummary.size }} · 전체 {{ pageSummary.totalElements }}건
-        </span>
       </footer>
     </div>
 

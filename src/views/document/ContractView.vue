@@ -200,7 +200,7 @@ const startFromRejectedContract = async (rawContractId) => {
     conInCorpCode.value = prefill.clientId || prefill.client?.id || ''
     conInCorp.value = prefill.clientName || prefill.client?.name || ''
     conInName.value = prefill.managerName || prefill.client?.contact || ''
-    conInNo.value = prefill.quotationCode || prefill.quotationId || '반려 계약서 복사'
+    conInNo.value = prefill.quotationCode || prefill.quotationId || '반려된 계약서'
     conStartDate.value = prefill.startDate || ''
     conEndDate.value = prefill.endDate || ''
     conBillingCycle.value = (prefill.billingCycle === 'MONTHLY' ? '월' : prefill.billingCycle === 'QUARTERLY' ? '분기' : prefill.billingCycle === 'HALF_YEARLY' ? '반기' : prefill.billingCycle) || '월'
@@ -737,19 +737,19 @@ const submitContract = async () => {
               class="px-4 py-2 text-sm font-bold transition-all border-b-2"
               :class="activeStartTab === 'quotation' ? 'border-[#C8622A] text-[#C8622A]' : 'border-transparent text-[#9A8C7E] hover:text-[#6B5F50]'"
             >
-              승인 견적서 참조
+              승인된 견적서
             </button>
             <button 
               @click="activeStartTab = 'contract'" 
               class="px-4 py-2 text-sm font-bold transition-all border-b-2"
               :class="activeStartTab === 'contract' ? 'border-[#C8622A] text-[#C8622A]' : 'border-transparent text-[#9A8C7E] hover:text-[#6B5F50]'"
             >
-              반려 계약서 복사
+              반려된 계약서
             </button>
           </div>
 
           <div v-if="activeStartTab === 'quotation'">
-            <p class="mb-4 text-xs font-bold" style="color: #6B5F50;">진행 중인 견적서 참조</p>
+            <p class="mb-4 text-xs font-bold" style="color: #6B5F50;">진행 중인 견적서</p>
             <div class="max-h-[300px] overflow-y-auto border rounded mb-5 shadow-inner" style="background-color: #FAF7F3; border-color: #DDD7CE;">
               <table class="w-full text-sm text-center border-collapse">
                 <thead class="sticky top-0 z-10" style="background-color: #EFEADF;">
@@ -778,7 +778,7 @@ const submitContract = async () => {
           </div>
 
           <div v-if="activeStartTab === 'contract'">
-            <p class="mb-4 text-xs font-bold" style="color: #6B5F50;">반려된 계약서 내용 복제</p>
+            <p class="mb-4 text-xs font-bold" style="color: #6B5F50;">반려된 계약서</p>
             <div class="max-h-[300px] overflow-y-auto border rounded mb-5 shadow-inner" style="background-color: #FAF7F3; border-color: #DDD7CE;">
               <table class="w-full text-sm text-center border-collapse">
                 <thead class="sticky top-0 z-10" style="background-color: #EFEADF;">
