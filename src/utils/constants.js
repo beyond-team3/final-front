@@ -51,7 +51,6 @@ export const MENU_CONFIG = [
         roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT],
         children: [
             { key: 'variety', label: '품종 카탈로그', route: '/products/catalog', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'product-favorites', label: '즐겨찾기', route: '/products/favorites', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'product-compare', label: '상품 비교', route: '/products/compare', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'product-register', label: '상품 등록', route: '/products/register', roles: [ROLES.ADMIN] },
         ],
