@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import DashboardCalendar from '@/components/dashboard/DashboardCalendar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
@@ -7,6 +8,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { getAdminDashboard, getWeeklySchedules } from '@/api/dashboard'
 
 const dashboard = ref(null)
+const router = useRouter()
 const loading   = ref(false)
 const error     = ref('')
 
@@ -256,7 +258,16 @@ onMounted(() => {
       <div class="chart-card">
         <div class="chart-header">
           <h2 class="chart-title">매출 추이</h2>
-          <span class="chart-period">{{ trendPeriod }}</span>
+          <div class="flex items-center gap-3">
+            <span class="chart-period">{{ trendPeriod }}</span>
+            <button
+                class="px-3 py-1.5 rounded-lg border border-[#D97757] text-[12px] font-bold text-[#D97757] hover:bg-[#FEF3E8] transition-colors flex items-center gap-1.5 shadow-sm"
+                @click="router.push('/statistics')"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              상세 통계 분석
+            </button>
+          </div>
         </div>
         <div class="chart-canvas-wrap">
           <canvas ref="chartCanvas" class="chart-canvas" />
