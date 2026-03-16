@@ -35,7 +35,6 @@ spec:
 
 		ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
 		DISCORD_WEBHOOK = credentials('discord-webhook-url')
-		FINAL_TAG = ""
 	}
 
 	stages {
