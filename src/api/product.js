@@ -43,8 +43,8 @@ export function deleteProduct(id) {
   return api.delete(`/products/${id}`)
 }
 
-export function getSimilarProducts(id) {
-  return api.get(`/products/${id}/similar`)
+export function getSimilarProducts(id, params) {
+    return api.get(`/products/${id}/similar`, { params })
 }
 
 export function getFavorites() {

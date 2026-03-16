@@ -9,9 +9,19 @@ import { getSimilarProducts as getSimilarProductsApi } from '@/api/product'
 const route = useRoute()
 const productStore = useProductStore()
 
-onMounted(() => {
+onMounted(async () => {
   if (productStore.products.length === 0) {
-    productStore.fetchProducts()
+    await productStore.fetchProducts()
+  }
+
+  const rawBase = Array.isArray(route.query.base) ? route.query.base[0] : route.query.base
+  if (rawBase) {
+    productStore.setSelectedBaseProduct(Number(rawBase))
+  }
+
+
+  if (baseProduct.value) {
+    fetchSimilarProductsFromApi()
   }
 })
 
@@ -86,9 +96,15 @@ const similarProducts = computed(() => {
 const apiSimilarProducts = ref([])
 const loadingSimilar = ref(false)
 
+// race condition 방지용 요청 카운터
+let requestId = 0
+
 const fetchSimilarProductsFromApi = async () => {
   if (!baseProduct.value) return
+
+  const currentId = ++requestId
   loadingSimilar.value = true
+
   try {
     const criteria = productStore.enabledSimilarityKeys
     const response = await getSimilarProductsApi(baseProduct.value.id, {
@@ -96,30 +112,41 @@ const fetchSimilarProductsFromApi = async () => {
       threshold: productStore.similarityThreshold,
       criteria: criteria.length > 0 ? criteria : undefined
     })
-    // API 응답 매핑
-    apiSimilarProducts.value = response?.similarProducts || []
+    // 가장 마지막 요청의 응답만 반영
+    if (currentId === requestId) {
+      apiSimilarProducts.value = response?.similarProducts || []
+    }
   } catch (error) {
-    console.error('유사 상품 조회 실패:', error)
-    apiSimilarProducts.value = []
+    if (currentId === requestId) {
+      console.error('유사 상품 조회 실패:', error)
+      apiSimilarProducts.value = []
+    }
   } finally {
-    loadingSimilar.value = false
+    if (currentId === requestId) {
+      loadingSimilar.value = false
+    }
   }
 }
 
-watch([() => baseProduct.value?.id, () => productStore.similarityThreshold, () => productStore.enabledSimilarityKeys], () => {
-  if (baseProduct.value) {
-    fetchSimilarProductsFromApi()
-  }
-}, { deep: true })
+watch(
+    [
+      () => baseProduct.value?.id,
+      () => productStore.similarityThreshold,
+      () => [...productStore.enabledSimilarityKeys], // 배열 복사로 참조 변경 감지
+    ],
+    () => {
+      if (baseProduct.value) {
+        fetchSimilarProductsFromApi()
+      }
+    },
+    { deep: true }
+)
 
 const graphNodes = computed(() => {
-  const nodes = apiSimilarProducts.value.length > 0
-      ? apiSimilarProducts.value
-      : similarProducts.value
-
-  return nodes.slice(0, 5).map((node) => ({
-    ...node,
-    graphProductId: Number(node.productId ?? node.id),
+  return apiSimilarProducts.value.slice(0, 5).map((node) => ({
+    graphProductId: Number(node.productId),
+    productName: node.productName,
+    similarityScore: node.similarityScore,
   }))
 })
 
@@ -255,8 +282,8 @@ const similarityText = (product) => {
                 y1="225"
                 :x2="[300, 500, 250, 550, 350][index]"
                 :y2="[150, 150, 300, 300, 350][index]"
-                :stroke="node.similarityScore >= 85 ? '#7A8C42' : '#DDD7CE'"
-                :stroke-width="node.similarityScore >= 85 ? 2 : 1"
+                :stroke="node.similarityScore >= 75 ? '#7A8C42' : '#DDD7CE'"
+                :stroke-width="node.similarityScore >= 75 ? 2 : 1"
                 stroke-opacity="0.7"
             />
 
@@ -278,16 +305,17 @@ const similarityText = (product) => {
               <!-- 선택된 경우 외곽 링 표시 -->
               <circle
                   v-if="isInLocalCompare(node.graphProductId)"
-                  :r="(node.similarityScore >= 85 ? 24 : node.similarityScore >= 70 ? 20 : 16) + 7"
+                  :r="(node.similarityScore >= 85 ? 24 : node.similarityScore >= 65 ? 20 : 16) + 7"
                   fill="none"
                   stroke="#7A8C42"
                   stroke-width="2.5"
                   stroke-dasharray="4 2"
               />
+              <!-- ✅ 클릭 전까지 항상 회색, 클릭 후 초록색 -->
               <circle
-                  :r="node.similarityScore >= 85 ? 24 : node.similarityScore >= 70 ? 20 : 16"
-                  :fill="isInLocalCompare(node.graphProductId) ? '#7A8C42' : node.similarityScore >= 70 ? '#C8622A' : '#DDD7CE'"
-                  :stroke="isInLocalCompare(node.graphProductId) ? '#5F7033' : node.similarityScore >= 70 ? '#A84F21' : '#BFB3A5'"
+                  :r="node.similarityScore >= 85 ? 24 : node.similarityScore >= 65 ? 20 : 16"
+                  :fill="isInLocalCompare(node.graphProductId) ? '#7A8C42' : '#DDD7CE'"
+                  :stroke="isInLocalCompare(node.graphProductId) ? '#5F7033' : '#BFB3A5'"
                   stroke-width="2"
               />
               <!-- 선택된 경우 체크 표시 -->
