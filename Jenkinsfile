@@ -49,15 +49,14 @@ spec:
 			steps {
 				script {
 					sh 'git rev-parse --short HEAD > tag.txt'
+					// String 강제 변환 + .trim()으로 공백 제거
+					def gitCommit = readFile('tag.txt').trim()
 
-					// 읽어온 값을 로컬 변수에 담을 때 반드시 String으로 형변환을 강제.
-					String gitCommit = readFile('tag.txt').trim()
-					echo "1. 로컬 변수 확인: ${gitCommit}"
+					// env. 변수 대신 전역 map에 직접 넣는 방식
+					env['FINAL_TAG'] = "${gitCommit}"
 
-					// env 객체에 직접 할당하는 대신, 젠킨스 전역 환경 변수로 다시 변경.
-					env.FINAL_TAG = gitCommit.toString()
-
-					echo "2. env 객체 확인: ${env.FINAL_TAG}"
+					echo "1. 로컬 변수: ${gitCommit}"
+					echo "2. env 객체: ${env.FINAL_TAG}"
 
 					sh 'rm tag.txt'
 				}
