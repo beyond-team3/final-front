@@ -141,7 +141,7 @@ onMounted(fetchClients)
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
-    <div class="mx-auto max-w-6xl space-y-6">
+    <div class="space-y-6">
       <PageHeader title="거래처 관리" subtitle="전체 거래처를 효율적으로 관리하고 정책을 설정합니다." class="!bg-transparent !p-0">
         <template #actions>
           <button

@@ -206,7 +206,7 @@ watch(
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-5">
-    <div class="mx-auto max-w-6xl space-y-4">
+    <div class="space-y-4">
       <PageHeader class="!bg-transparent !p-0 !mb-4" :title="profile.name">
         <template #title>
           <div class="flex items-center gap-3">

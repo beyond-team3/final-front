@@ -173,6 +173,13 @@ const startContractFromPrefill = async (quotationId) => {
   }))
 }
 
+const handleCloseModal = () => {
+  showStartModal.value = false
+  if (!isProcessStarted.value) {
+    router.push('/documents/all')
+  }
+}
+
 const startFromRejectedContract = async (rawContractId) => {
   const sourceContractId = rawContractId ? Number(rawContractId) : null
   if (!sourceContractId || Number.isNaN(sourceContractId)) {
@@ -728,7 +735,7 @@ const submitContract = async () => {
       <div class="w-[750px] rounded-lg shadow-2xl border overflow-hidden" style="background-color: #F7F3EC; border-color: #DDD7CE;">
         <div class="text-white p-4 flex justify-between items-center font-bold" style="background-color: #C8622A !important;">
           <h3 style="color: white !important;">문서 작성 방식 선택</h3>
-          <button @click="showStartModal = false" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
+          <button @click="handleCloseModal" class="text-2xl hover:text-gray-200 transition-colors" style="color: white !important;">&times;</button>
         </div>
         <div class="p-6">
           <div class="flex border-b mb-4" style="border-color: #DDD7CE;">
