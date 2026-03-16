@@ -156,7 +156,7 @@ onUnmounted(() => {
 const handleCloseModal = () => {
   showStartModal.value = false
   if (!isProcessStarted.value) {
-    router.push('/documents/create')
+    router.push('/documents/all')
   }
 }
 
