@@ -69,8 +69,11 @@
     --color-status-error: #B85C5C;
     /* 오류 (따뜻한 레드) */
 
-    --font-display: 'Cormorant Garamond', serif;
-    --font-body: 'KoPub Dotum', sans-serif;
+    --font-sans: 'KoPub Dotum', sans-serif;
+    --font-serif: 'Cormorant Garamond', serif;
+
+    --font-display: var(--font-sans);
+    --font-body: var(--font-sans);
 
     --text-display: 48px;
     --text-h1: 32px;
@@ -990,10 +993,11 @@
         margin: var(--space-8) 0;
     }
 
+    /* SeedFlow+ Logo Special Styling */
     .logo-seedflow {
-        font-family: var(--font-display);
+        font-family: var(--font-serif) !important;
         font-style: normal;
-        font-weight: 300;
+        font-weight: 700;
         color: var(--color-text);
     }
 }

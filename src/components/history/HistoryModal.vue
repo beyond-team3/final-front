@@ -783,7 +783,7 @@ const getValidityDate = (dateStr) => {
               <div v-else-if="docDetail" class="origin-top scale-[0.7] 2xl:scale-[0.8] transition-transform duration-500">
                 <div class="current-pdf-template transform-gpu shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)]">
                   <!-- 견적서 -->
-                  <div v-if="isQuotationDocument" class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                  <div v-if="isQuotationDocument" class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]" style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
                     <div class="text-center border-b-2 border-black pb-3 mb-8"><h1 class="text-3xl font-bold tracking-[10px]">견 적 서</h1></div>
                     <div class="flex justify-between items-start mb-8 text-[13px]">
                       <div class="space-y-2">
@@ -813,7 +813,7 @@ const getValidityDate = (dateStr) => {
                   </div>
 
                   <!-- 계약서 -->
-                  <div v-else-if="isContractDocument" class="bg-white px-12 pt-8 pb-12 w-[794px] shadow-2xl relative text-[13px] text-black flex flex-col" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                  <div v-else-if="isContractDocument" class="bg-white px-12 pt-8 pb-12 w-[794px] shadow-2xl relative text-[13px] text-black flex flex-col" style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
                     <div class="text-center border-b-2 border-black pb-3 mb-10"><h1 class="text-3xl font-bold tracking-widest">물 품 공 급 계 약 서</h1></div>
                     <div class="mb-8 space-y-3 leading-relaxed text-[15px]">
                       <p><strong>계약상대자 (갑):</strong> <span class="border-b border-black px-2 font-bold">{{ docDetail.clientName || docDetail.client?.name || '(빈값)' }}</span></p>
@@ -852,7 +852,7 @@ const getValidityDate = (dateStr) => {
                   <!-- ✅ 수정: resolvedOrderItems, resolvedClientName 사용 (contractDetailId → 상품명/단가 매핑) -->
                   <div v-else-if="isOrderDocument"
                        class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
-                       style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                       style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
                     <div class="text-center border-b-2 border-black pb-3 mb-8">
                       <h1 class="text-3xl font-bold tracking-[10px]">주 문 서</h1>
                     </div>
@@ -907,7 +907,7 @@ const getValidityDate = (dateStr) => {
                   <!-- 명세서 -->
                   <div v-else-if="isStatementDocument"
                        class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
-                       style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                       style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
                     <div class="text-center border-b-2 border-black pb-3 mb-8">
                       <h1 class="text-3xl font-bold tracking-[10px]">명 세 서</h1>
                     </div>
@@ -970,7 +970,7 @@ const getValidityDate = (dateStr) => {
                   <!-- ✅ 수정: resolvedClientName, resolvedInvoiceStatements, invoiceTotals 사용 -->
                   <div v-else-if="isInvoiceDocument"
                        class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
-                       style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                       style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
                     <div class="text-center border-b-2 border-black pb-3 mb-8">
                       <h1 class="text-3xl font-bold tracking-[10px]">청 구 서</h1>
                     </div>
@@ -1024,7 +1024,7 @@ const getValidityDate = (dateStr) => {
                   <!-- 결제 확인서 -->
                   <div v-else-if="isPaymentDocument"
                        class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
-                       style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                       style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
 
                     <div class="text-center border-b-2 border-black pb-3 mb-10">
                       <h1 class="text-3xl font-bold tracking-[10px]">결 제 확 인 서</h1>
@@ -1093,7 +1093,7 @@ const getValidityDate = (dateStr) => {
                   </div>
 
                   <!-- 견적 요청서 -->
-                  <div v-else-if="isQuotationRequest" class="bg-white p-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                  <div v-else-if="isQuotationRequest" class="bg-white p-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]" style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
                     <div class="mb-8 border-b-2 border-black pb-4 text-center"><h1 class="text-2xl font-bold tracking-widest">견 적 요 청 서</h1></div>
                     <div class="space-y-2 mb-8 text-[13px]"><p class="mb-2">귀하의 무궁한 발전을 기원합니다.</p><p>아래와 같이 견적을 요청하오니 검토 부탁드립니다.</p></div>
                     <table class="my-6 w-full border-collapse border-2 border-black text-center text-[11px]">

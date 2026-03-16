@@ -259,7 +259,7 @@ const onSelectContract = async (contract) => {
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">{{ isClient ? '주문서 작성' : '주문서' }}</span></p>
+        <p class="text-2xl" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">{{ isClient ? '주문서 작성' : '주문서' }}</span></p>
         <button
             type="button"
             class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
@@ -763,7 +763,7 @@ const onSelectContract = async (contract) => {
   padding: 32px;
   min-height: 700px;
   border-radius: 2px;
-  font-family: 'KoPub Dotum', sans-serif;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: #1a1a1a;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);

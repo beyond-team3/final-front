@@ -21,7 +21,7 @@ const selectedDoc = ref(null)
 
 const normalizeTab = (tab) => {
   const map = {
-    견적요청: '견적요청서',
+    요청: '견적요청서',
     견적: '견적서',
     계약: '계약서',
     주문: '주문서',
@@ -33,12 +33,12 @@ const normalizeTab = (tab) => {
 }
 const currentTab = ref(typeof route.query.title === 'string' ? normalizeTab(route.query.title) : '견적요청서')
 const STEP_SHORT_LABEL = {
-  견적요청서: 'RFQ',
-  견적서: 'QUO',
-  계약서: 'CNT',
-  주문서: 'ORD',
-  명세서: 'STMT',
-  청구서: 'INV',
+  견적요청서: '요청',
+  견적서: '견적',
+  계약서: '계약',
+  주문서: '주문',
+  명세서: '명세',
+  청구서: '청구',
 }
 
 const pipeline = computed(() => historyStore.getPipelineById(route.query.pipelineId))
@@ -193,7 +193,7 @@ onMounted(() => {
                 class="group relative flex flex-1 flex-col items-center gap-2 px-1"
                 @click="setTab(step.name)"
             >
-              <span class="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold" :class="stepClass(step.status)">
+              <span class="flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm font-semibold transition-all" :class="stepClass(step.status)">
                 {{ STEP_SHORT_LABEL[step.name] || step.name.slice(0, 1) }}
               </span>
               <span class="text-center text-xs font-medium" :class="stepLabelClass(step.name)">

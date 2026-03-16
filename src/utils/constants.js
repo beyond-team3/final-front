@@ -29,6 +29,7 @@ export const HEADER_MENU_CONFIG = [
 export const MENU_CONFIG = [
     { key: 'dashboard', label: '대시보드', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], route: '/dashboard' },
     { key: 'client-management', label: '거래처 관리', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/clients' },
+    { key: 'employee-management', label: '사원 관리', roles: [ROLES.ADMIN], route: '/employees' },
     {
         key: 'sales-management',
         label: '문서 관리',
@@ -51,13 +52,11 @@ export const MENU_CONFIG = [
         roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT],
         children: [
             { key: 'variety', label: '품종 카탈로그', route: '/products/catalog', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'product-favorites', label: '즐겨찾기', route: '/products/favorites', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'product-compare', label: '상품 비교', route: '/products/compare', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'product-register', label: '상품 등록', route: '/products/register', roles: [ROLES.ADMIN] },
         ],
     },
     { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
-    { key: 'employee-management', label: '사원 관리', roles: [ROLES.ADMIN], route: '/employees' },
     {
         key: 'note',
         label: '노트',
@@ -70,7 +69,6 @@ export const MENU_CONFIG = [
         ],
     },
     { key: 'payment', label: '결제', roles: [ROLES.CLIENT], route: '/payment' },
-    { key: 'statistics', label: '통계', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/statistics' },
 ]
 export const DOC_STATUS = {
     QUOTATION_REQUEST: {

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import DashboardCalendar from '@/components/dashboard/DashboardCalendar.vue'
 import DashboardReference from '@/components/dashboard/DashboardReference.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -8,6 +9,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { getSalesRepDashboard, getWeeklySchedules, getPriorityContacts } from '@/api/dashboard'
 
 const dashboard = ref(null)
+const router = useRouter()
 const priorityContacts = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -97,7 +99,16 @@ onMounted(() => {
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">개인 월별 매출</span>
-          <span class="panel-badge">{{ periodLabel }}</span>
+          <div class="flex items-center gap-2">
+            <span class="panel-badge">{{ periodLabel }}</span>
+            <button
+                class="text-[11px] font-bold text-[#D97757] hover:underline flex items-center gap-1"
+                @click="router.push('/statistics')"
+            >
+              상세 통계 보기
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
         </div>
         <div class="monthly-sales-summary">
           <div class="monthly-main-row">
