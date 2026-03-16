@@ -88,6 +88,8 @@ const formatDate = (value) => {
   return date.toLocaleDateString('ko-KR')
 }
 
+const firstFilled = (...values) => values.find((value) => value !== null && value !== undefined && String(value).trim() !== '')
+
 const decorateDocument = (doc) => ({
   ...doc,
   docTypeLabel: DOC_TYPE_META[doc.docType]?.label || doc.docType,
@@ -96,8 +98,22 @@ const decorateDocument = (doc) => ({
   statusTone: STATUS_META[doc.status]?.tone || 'default',
   expiredDateLabel: formatDate(doc.expiredDate),
   createdAtLabel: formatDate(doc.createdAt),
-  ownerEmployeeName: doc.ownerEmployeeName || '-',
-  clientName: doc.clientName || '-',
+  ownerEmployeeName: firstFilled(
+    doc.ownerEmployeeName,
+    doc.ownerEmpName,
+    doc.salesRepName,
+    doc.authorName,
+    doc.managerName,
+    doc.client?.contact,
+    doc.clientContact,
+    '-',
+  ),
+  clientName: firstFilled(
+    doc.clientName,
+    doc.client?.name,
+    doc.name,
+    '-',
+  ),
 })
 
 const matchesNotificationTarget = (doc, targetType, targetId) => {
