@@ -247,6 +247,9 @@ const resolvedMemberName = computed(() => {
     return doc.employeeName || doc.salesRepName || employeeFromStore || employeeFromLogs || doc.authorName || doc.writerName || '담당자 미지정'
   } else if (isInvoiceDocument.value) {
     return doc.salesRepName || doc.employeeName || employeeFromStore || employeeFromLogs || doc.authorName || doc.writerName || '담당자 미지정'
+  } else if (isPaymentDocument.value) {
+    // 결제확인서: 담당자 정보 없음 — 결제자(CLIENT) 이름으로 대체
+    return doc.clientName || resolvedClientName.value || '-'
   } else {
     return doc.salesRepName || employeeFromStore || doc.authorName || doc.writerName || '영업 담당자 미지정'
   }
@@ -1121,7 +1124,7 @@ const getValidityDate = (dateStr) => {
                 </div>
                 <div class="space-y-5">
                   <div class="flex flex-col gap-1.5"><label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">상호명 / 법인명</label><div class="p-3 border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] text-base font-black text-[var(--color-text-strong)] shadow-inner">{{ resolvedClientName }}</div></div>
-                  <div class="flex flex-col gap-2">
+                  <div v-if="!isPaymentDocument" class="flex flex-col gap-2">
                     <label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">담당 영업사원</label>
                     <div class="flex items-center justify-between p-3 border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] shadow-inner">
                       <div class="flex items-center gap-3">
@@ -1131,6 +1134,49 @@ const getValidityDate = (dateStr) => {
                       <span class="text-[9px] bg-[var(--color-olive)] text-white px-2 py-1 rounded-lg font-black tracking-tighter">OFFICIAL</span>
                     </div>
                   </div>
+                </div>
+              </article>
+
+              <!-- 결제확인서: 결제 정보 패널 -->
+              <article v-if="isPaymentDocument" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+                <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-green-500 rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">결제 정보</h3></div>
+                  <span class="text-[10px] font-bold text-[var(--color-text-sub)]">PAYMENT INFO</span>
+                </div>
+                <div class="space-y-3">
+                  <div class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-3">
+                    <p class="text-[10px] font-bold text-[var(--color-text-sub)]">결제 번호</p>
+                    <p class="mt-1 font-bold font-mono text-[var(--color-text-strong)]">{{ docDetail.paymentCode || docDetail.displayCode || docId }}</p>
+                  </div>
+                  <div class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-3">
+                    <p class="text-[10px] font-bold text-[var(--color-text-sub)]">연결 청구서</p>
+                    <p class="mt-1 font-bold font-mono text-[var(--color-text-strong)]">{{ docDetail.invoiceCode || '—' }}</p>
+                  </div>
+                  <div class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-3">
+                    <p class="text-[10px] font-bold text-[var(--color-text-sub)]">결제 수단</p>
+                    <p class="mt-1 font-bold text-[var(--color-text-strong)]">{{ paymentMethodLabel }}</p>
+                  </div>
+                  <div class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-3">
+                    <p class="text-[10px] font-bold text-[var(--color-text-sub)]">결제 일시</p>
+                    <p class="mt-1 font-bold text-[var(--color-text-strong)]">{{ formatKRDate(docDetail.paidAt || docDetail.createdAt) }}</p>
+                  </div>
+                  <div class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-3">
+                    <p class="text-[10px] font-bold text-[var(--color-text-sub)]">결제 상태</p>
+                    <span class="inline-block mt-1 bg-green-100 text-green-700 font-black px-3 py-1 rounded-full text-xs">
+                      {{ docDetail.status === 'COMPLETED' ? '결제 완료' : docDetail.status === 'PENDING' ? '처리 중' : docDetail.status }}
+                    </span>
+                  </div>
+                </div>
+                <!-- 결제 금액 강조 -->
+                <div class="mt-4 space-y-2 bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]">
+                  <div v-if="docDetail.invoiceTotalAmount && docDetail.invoiceTotalAmount !== docDetail.paymentAmount" class="flex justify-between text-xs text-[var(--color-text-sub)]">
+                    <span>청구 원금</span><span class="line-through">₩{{ Number(docDetail.invoiceTotalAmount ?? 0).toLocaleString() }}</span>
+                  </div>
+                  <div class="flex justify-between items-end pt-1">
+                    <span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">실 결제 금액</span>
+                    <span class="text-2xl font-black text-[var(--color-olive)]">₩{{ Number(docDetail.paymentAmount ?? docDetail.amount ?? 0).toLocaleString() }}</span>
+                  </div>
+                  <p class="text-[9px] font-bold text-[var(--color-text-sub)] text-right">VAT INCLUDED</p>
                 </div>
               </article>
 
@@ -1164,8 +1210,8 @@ const getValidityDate = (dateStr) => {
                 </div>
               </article>
 
-              <!-- 청구서 외 문서: items 기반 패널 -->
-              <article v-if="!isInvoiceDocument" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+              <!-- 청구서 외 문서: items 기반 패널 (결제확인서 제외) -->
+              <article v-if="!isInvoiceDocument && !isPaymentDocument" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
                 <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
                   <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-orange)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">세부 품목 내역</h3></div>
                   <span class="text-[10px] font-bold text-[var(--color-text-sub)] tracking-tighter">{{ (isOrderDocument ? resolvedOrderItems : (docDetail.items || [])).length }} ITEMS</span>
