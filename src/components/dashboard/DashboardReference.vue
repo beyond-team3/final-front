@@ -8,7 +8,7 @@ defineProps({
   },
   badge: {
     type: String,
-    default: '점수 기반',
+    default: '고객관리 점수 기반',
   },
   items: {
     type: Array,
@@ -28,26 +28,31 @@ const showScoreGuide = ref(false)
 <template>
   <div class="panel">
     <div class="panel-header">
-      <div class="title-group">
-        <span class="panel-title">{{ title }}</span>
-        <div class="info-guide-wrap">
-          <button class="btn-info-guide" @click="showScoreGuide = !showScoreGuide" title="점수 산출 기준 안내">i</button>
-          <transition name="fade">
-            <div v-if="showScoreGuide" class="guide-popup">
-              <button class="guide-close" @click="showScoreGuide = false">×</button>
-              <h3 class="popup-title">💡 고객 관리 우선순위 점수란?</h3>
-              <p class="popup-main">데이터를 기반으로 지금 바로 챙겨야 할 고객을 알려드리는 지표입니다. 점수가 높을수록 관리가 시급합니다.</p>
-              <ul class="guide-list">
-                <li><strong>• 계약 만료 (50%):</strong> 30일 이내 종료 시 점수 상승</li>
-                <li><strong>• 주문 공백 (30%):</strong> 진행 중인 주문서 부재 시 점수 부여</li>
-                <li><strong>• 장기 미방문 (20%):</strong> 마지막 방문 후 경과 시간 비례</li>
-              </ul>
-              <div class="popup-tip">✅ 점수가 높은 고객부터 우선 연락해보세요!</div>
-            </div>
-          </transition>
-        </div>
+      <span class="panel-title">{{ title }}</span>
+
+      <div class="badge-guide-wrap">
+        <button 
+          class="panel-badge clickable" 
+          @click="showScoreGuide = !showScoreGuide"
+          title="점수 산출 기준 안내"
+        >
+          {{ badge }}
+        </button>
+
+        <transition name="fade">
+          <div v-if="showScoreGuide" class="guide-popup badge-align">
+            <button class="guide-close" @click="showScoreGuide = false">×</button>
+            <h3 class="popup-title">고객 관리 우선순위 점수란?</h3>
+            <p class="popup-main">데이터를 기반으로 지금 바로 챙겨야 할 고객을 알려드리는 지표입니다. 점수가 높을수록 관리가 시급합니다.</p>
+            <ul class="guide-list">
+              <li><strong>• 계약 만료 (50%):</strong> 30일 이내 종료 시 점수 상승</li>
+              <li><strong>• 주문 공백 (30%):</strong> 진행 중인 주문서 부재 시 점수 부여</li>
+              <li><strong>• 장기 미방문 (20%):</strong> 마지막 방문 후 경과 시간 비례</li>
+            </ul>
+            <div class="popup-tip">점수가 높은 고객부터 우선 연락해보세요!</div>
+          </div>
+        </transition>
       </div>
-      <span class="panel-badge">{{ badge }}</span>
     </div>
 
     <div class="client-list">
@@ -67,17 +72,29 @@ const showScoreGuide = ref(false)
 </template>
 
 <style scoped>
-.panel { border: 1px solid #e8ecef; border-radius: 8px; padding: 22px; position: relative; }
+.panel { 
+  border: 1px solid #e8ecef; 
+  border-radius: 8px; 
+  padding: 22px; 
+  position: relative; 
+  background: #fff; 
+  overflow: visible; /* 팝업이 잘리지 않도록 설정 */
+  z-index: 10; /* 기본 위젯들보다 약간 높게 설정 */
+}
+.panel:has(.guide-popup) {
+  z-index: 100; /* 팝업이 열렸을 때 다른 위젯보다 위에 오도록 설정 */
+}
 .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-.title-group { display: flex; align-items: center; gap: 6px; }
 .panel-title { font-size: 15px; font-weight: 600; color: #2c3e50; }
-.panel-badge { font-size: 11px; color: #7f8c8d; background: #f0f3f4; padding: 3px 8px; border-radius: 4px; }
+
+.badge-guide-wrap { position: relative; }
+.panel-badge { font-size: 11px; color: #7f8c8d; background: #f0f3f4; padding: 3px 8px; border-radius: 4px; border: none; }
+.panel-badge.clickable { cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+.panel-badge.clickable:hover { background: #e2e6e7; color: #2c3e50; }
 
 /* 정보 가이드 팝업 스타일 */
-.info-guide-wrap { position: relative; display: flex; align-items: center; }
-.btn-info-guide { width: 16px; height: 16px; border-radius: 50%; background: #bdc3c7; color: #fff; border: none; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; transition: background 0.2s; }
-.btn-info-guide:hover { background: #95a5a6; }
-.guide-popup { position: absolute; top: 24px; left: 0; width: 260px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; }
+.guide-popup { position: absolute; top: 28px; right: 0; width: 270px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; }
+.guide-popup.badge-align { right: 0; left: auto; }
 .guide-close { position: absolute; top: 10px; right: 10px; border: none; background: none; color: #bdc3c7; cursor: pointer; font-size: 18px; line-height: 1; }
 .popup-title { font-size: 13px; margin: 0 0 8px 0; color: #2c3e50; font-weight: 700; }
 .popup-main { font-size: 11px; color: #7f8c8d; margin: 0 0 10px 0; line-height: 1.5; }
