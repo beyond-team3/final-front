@@ -13,7 +13,13 @@ onMounted(async () => {
   if (productStore.products.length === 0) {
     await productStore.fetchProducts()
   }
-  // products 준비되면 바로 유사 상품 조회
+
+  const rawBase = Array.isArray(route.query.base) ? route.query.base[0] : route.query.base
+  if (rawBase) {
+    productStore.setSelectedBaseProduct(Number(rawBase))
+  }
+
+
   if (baseProduct.value) {
     fetchSimilarProductsFromApi()
   }
