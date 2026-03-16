@@ -294,10 +294,6 @@ onMounted(() => {
   margin-bottom: 18px;
   flex-shrink: 0;
 }
-.timeline-filter     { display: flex; gap: 6px; }
-.timeline-filter-btn { padding: 4px 10px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
-.timeline-filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
-
 .timeline-list {
   position: relative;
   padding-left: 28px;
