@@ -32,7 +32,6 @@ spec:
 		AWS_REGION = 'ap-northeast-2'
 		ECR_REGISTRY = '906034468269.dkr.ecr.ap-northeast-2.amazonaws.com'
 		IMAGE_NAME = "${ECR_REGISTRY}/monsoon-frontend"
-		FINAL_TAG = ""
 
 		ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
 		DISCORD_WEBHOOK = credentials('discord-webhook-url')
