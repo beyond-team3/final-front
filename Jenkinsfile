@@ -48,17 +48,17 @@ spec:
 		stage('Prepare Tag') {
 			steps {
 				script {
-					// 커밋 해시를 임시 파일(tag.txt)에 기록합니다.
 					sh 'git rev-parse --short HEAD > tag.txt'
 
-					// 파일 내용을 읽어와서 변수에 담습니다.
-					def gitCommit = readFile('tag.txt').trim()
+					// 읽어온 값을 로컬 변수에 담을 때 반드시 String으로 형변환을 강제.
+					String gitCommit = readFile('tag.txt').trim()
+					echo "1. 로컬 변수 확인: ${gitCommit}"
 
-					env.FINAL_TAG = gitCommit
-					echo "확인된 커밋 해시: ${gitCommit}"
-					echo "최종 배포 태그: ${env.FINAL_TAG}"
+					// env 객체에 직접 할당하는 대신, 젠킨스 전역 환경 변수로 다시 변경.
+					env.FINAL_TAG = gitCommit.toString()
 
-					// 사용한 임시 파일은 삭제합니다.
+					echo "2. env 객체 확인: ${env.FINAL_TAG}"
+
 					sh 'rm tag.txt'
 				}
 			}
