@@ -286,7 +286,7 @@ watch(
               {{ crop }}
             </div>
             <div v-if="profile.crops.length === 0" class="flex w-full flex-col items-center justify-center py-4 text-sm text-[var(--color-text-placeholder)]">
-              <span class="mb-1 text-2xl">🌿</span>
+              <img src="@/assets/images/Seed_logo.png" alt="Seed Logo" class="mb-2 h-10 w-auto opacity-20 grayscale" />
               등록된 품종이 없습니다.
             </div>
           </div>

@@ -63,7 +63,7 @@ onBeforeUnmount(() => {
       class="modal-overlay p-4"
       @click.self="onBackdropClick"
     >
-      <section class="modal max-h-[90vh] w-full overflow-hidden" :class="widthClass">
+      <section class="modal w-full" :class="widthClass">
         <header class="modal-header">
           <h3 class="modal-title">{{ title }}</h3>
           <button
@@ -74,7 +74,7 @@ onBeforeUnmount(() => {
           />
         </header>
 
-        <div class="modal-body max-h-[calc(90vh-120px)] overflow-y-auto">
+        <div class="modal-body">
           <slot />
         </div>
 
