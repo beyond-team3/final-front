@@ -84,6 +84,7 @@ const onSubmit = async () => {
                   id="loginId"
                   v-model="loginId"
                   type="text"
+                  autocomplete="username"
                   class="h-12 w-full rounded-xl border border-[var(--color-border)] bg-[#FAF9F6] px-4 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-border-focus)] focus:bg-white focus:ring-2 focus:ring-[var(--color-olive-light)] transition-all placeholder-[var(--color-faint)]"
                   placeholder="아이디를 입력하세요"
                   required
@@ -96,6 +97,7 @@ const onSubmit = async () => {
                   id="loginPw"
                   v-model="loginPw"
                   type="password"
+                  autocomplete="current-password"
                   class="h-12 w-full rounded-xl border border-[var(--color-border)] bg-[#FAF9F6] px-4 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-border-focus)] focus:bg-white focus:ring-2 focus:ring-[var(--color-olive-light)] transition-all placeholder-[var(--color-faint)]"
                   placeholder="비밀번호를 입력하세요"
                   required
@@ -120,6 +122,24 @@ const onSubmit = async () => {
                 <p class="text-sm font-medium text-red-600">{{ errorMessage || error }}</p>
               </div>
             </transition>
+
+            <div class="mt-8 pt-6 border-t border-[var(--color-border)] opacity-60">
+              <p class="text-[11px] font-bold text-[var(--color-muted)] mb-3 uppercase tracking-wider">Test Accounts</p>
+              <div class="space-y-2 text-[12px] text-[var(--color-muted)] font-medium">
+                <div class="flex justify-between items-center">
+                  <span>관리자</span>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)]">EMP-0001 / qwer1234</code>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span>영업사원</span>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)]">EMP-0005 / qwer1234</code>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span>거래처</span>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)]">CLNT-0008 / qwer1324</code>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
       </div>

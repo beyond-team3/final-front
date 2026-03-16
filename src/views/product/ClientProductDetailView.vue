@@ -49,11 +49,20 @@ const toggleCompare = async () => {
   }
 }
 
-const saveNote = () => {
-  if (!product.value) return
-  productStore.setProductNote(product.value.id, noteDraft.value.trim())
-  window.alert('피드백이 저장되었습니다.')
-}
+const saveNote = async () => {
+  if (!noteDraft.value.trim()) return;
+
+  try {
+    await productStore.addFeedbackMessage(product.value.id, noteDraft.value.trim());
+    noteDraft.value = "";
+    productStore.setProductNote(product.value.id, "")
+    window.alert("피드백이 저장되었습니다.");
+  } catch (err) {
+    console.error("피드백 저장 실패:", err);
+    window.alert("피드백 저장에 실패했습니다.");
+  }
+};
+
 </script>
 
 <template>

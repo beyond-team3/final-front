@@ -1,3 +1,4 @@
+import { DOC_STATUS } from '@/utils/constants'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
@@ -12,6 +13,27 @@ import {
 } from '@/api/notification'
 
 const DEFAULT_PAGE_SIZE = 20
+
+// DOC_STATUS에서 한글 라벨 맵 추출
+const STATUS_TRANSLATIONS = Object.values(DOC_STATUS).reduce((acc, category) => {
+  Object.entries(category).forEach(([key, value]) => {
+    if (value.label) {
+      acc[key] = value.label
+    }
+  })
+  return acc
+}, {
+  // 추가적인 특수 상태값들
+  PENDING_ADMIN: '관리자 승인 대기',
+  PENDING_CLIENT: '거래처 승인 대기',
+})
+
+const TRANSLATION_REGEX = new RegExp(`\\b(${Object.keys(STATUS_TRANSLATIONS).join('|')})\\b`, 'g')
+
+function translateText(text) {
+  if (!text || typeof text !== 'string') return text
+  return text.replace(TRANSLATION_REGEX, (match) => STATUS_TRANSLATIONS[match] || match)
+}
 
 const CATEGORY_LABELS = {
   ALL: '전체',
@@ -51,8 +73,8 @@ function normalizeNotificationItem(item) {
   return {
     id: Number(item.id),
     type: item.type || 'UNKNOWN',
-    title: item.title || '',
-    content: item.content || '',
+    title: translateText(item.title || ''),
+    content: translateText(item.content || ''),
     approvalId: item.approvalId != null ? Number(item.approvalId) : null,
     targetType: item.targetType || null,
     targetId: item.targetId != null ? Number(item.targetId) : null,

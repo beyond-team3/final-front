@@ -15,10 +15,6 @@ spec:
     volumeMounts:
     - name: docker-sock
       mountPath: /var/run/docker.sock
-  - name: argocd-cli
-    image: argoproj/argocd:v2.10.1
-    command: ['cat']
-    tty: true
   volumes:
   - name: docker-sock
     hostPath:
@@ -44,17 +40,22 @@ spec:
 	}
 
 	stages {
-		stage('Prepare Tag') {
-			steps {
-				script {
-					env.FINAL_TAG = "${env.APP_VERSION_PREFIX}.${env.BRANCH_NAME.replaceAll("/", "-")}.${env.BUILD_NUMBER}.${env.GIT_COMMIT.take(7)}"
-				}
-			}
-		}
-
 		stage('Checkout') {
 			steps {
 				checkout scm
+			}
+		}
+
+		stage('Prepare Tag') {
+			steps {
+				script {
+					def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+					def branchName = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+					if (branchName == "HEAD") { branchName = env.BRANCH_NAME ?: "main" }
+
+					env.FINAL_TAG = "0.0.${branchName.replaceAll('/', '-')}.${env.BUILD_NUMBER}.${gitCommit}"
+					echo "완벽하게 생성된 태그: ${env.FINAL_TAG}"
+				}
 			}
 		}
 
@@ -148,24 +149,22 @@ spec:
 			}
 		}
 
-		stage('Wait for ArgoCD Sync') {
+		stage('Notify Deployment') {
 			steps {
-				container('argocd-cli') {
-					script {
-						withCredentials([usernamePassword(credentialsId: env.ARGOCD_CREDENTIAL_ID,
-							usernameVariable: 'ARGO_USER', passwordVariable: 'ARGO_PASS')]) {
-
-							sh "argocd login argocd-server.argocd.svc.cluster.local --username ${ARGO_USER} --password ${ARGO_PASS} --insecure"
-							sh "argocd app wait monsoon-app --timeout 300"
-
-						}
-
+				script {
+					if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
 						discordSend(
 							webhookURL: env.DISCORD_WEBHOOK,
-							title: "🚀 [Frontend] 새 버전 배포 준비 완료 (Preview)",
-							description: "도메인: https://www.monsoonseed.com\n새 버전(${env.FINAL_TAG})이 생성되어 트래픽 전환을 대기 중입니다.",
-							result: 'SUCCESS',
-							color: '#00FF00'
+							title: "🚀 [Frontend] 배포 준비 완료 (${env.BRANCH_NAME})",
+							description: "도메인: https://www.monsoonseed.com\n새 버전(${env.FINAL_TAG}) 매니페스트가 성공적으로 업데이트되었습니다.\n ArgoCD가 곧 자동 동기화를 시작합니다!",
+							result: 'SUCCESS'
+						)
+					} else {
+						discordSend(
+							webhookURL: env.DISCORD_WEBHOOK,
+							title: "🟢 [Frontend] 빌드 성공 (${env.BRANCH_NAME})",
+							description: "Branch: ${env.BRANCH_NAME}\n새로운 버전(${env.FINAL_TAG})의 도커 이미지가 ECR에 성공적으로 푸시되었습니다.",
+							result: 'SUCCESS'
 						)
 					}
 				}

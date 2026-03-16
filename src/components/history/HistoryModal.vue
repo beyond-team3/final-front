@@ -486,7 +486,8 @@ const downloadDocument = async () => {
     paper.style.boxSizing = 'border-box';
 
     if (isContract) {
-      paper.style.minHeight = '1110px';
+      // 1110px 고정 시 미세한 오차로 2페이지가 생기는 것을 방지하기 위해 auto 설정
+      paper.style.minHeight = 'auto'; 
       paper.style.height = 'auto';
       paper.style.overflow = 'visible';
     } else {
@@ -511,7 +512,10 @@ const downloadDocument = async () => {
       scrollY: 0
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: isContract ? ['avoid-all', 'css', 'legacy'] : 'avoid-all' }
+    pagebreak: { 
+      mode: isContract ? ['css', 'legacy'] : 'avoid-all',
+      avoid: ['tr', 'h1', 'h2', 'h3', 'table', '.no-break']
+    }
   }
 
   try {
@@ -596,12 +600,11 @@ const getValidityDate = (dateStr) => {
                         <p>담당: <span class="px-2">{{ resolvedMemberName }}</span></p>
                         <p>견적 유효기간: <span class="font-bold border-b border-black px-1 text-black">{{ getValidityDate(docDetail.date || docDetail.createdAt) }}</span> (30일)</p>
                       </div>
-                      <div class="w-16 h-16 border-2 border-black flex items-center justify-center font-bold text-sm">인</div>
                     </div>
                     <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[11px]">
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-2">품종</th><th class="border-r border-black p-2">상품명</th><th class="border-r border-black p-2">수량</th><th class="border-r border-black p-2">단위</th><th class="border-r border-black p-2">단가</th><th class="p-2">금액</th></tr></thead>
                       <tbody>
-                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-q-'+idx" class="border-b border-black">
+                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-q-'+idx" class="border-b border-black no-break">
                         <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
                         <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
                         <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
@@ -619,7 +622,7 @@ const getValidityDate = (dateStr) => {
                   </div>
 
                   <!-- 계약서 -->
-                  <div v-else-if="isContractDocument" class="bg-white px-12 pt-8 pb-12 w-[794px] min-h-[1110px] shadow-2xl relative text-[13px] text-black flex flex-col" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
+                  <div v-else-if="isContractDocument" class="bg-white px-12 pt-8 pb-12 w-[794px] shadow-2xl relative text-[13px] text-black flex flex-col" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
                     <div class="text-center border-b-2 border-black pb-3 mb-10"><h1 class="text-3xl font-bold tracking-widest">물 품 공 급 계 약 서</h1></div>
                     <div class="mb-8 space-y-3 leading-relaxed text-[15px]">
                       <p><strong>계약상대자 (갑):</strong> <span class="border-b border-black px-2 font-bold">{{ docDetail.clientName || docDetail.client?.name || '(빈값)' }}</span></p>
@@ -631,7 +634,7 @@ const getValidityDate = (dateStr) => {
                     <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[13px]">
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-3">상품명</th><th class="border-r border-black p-3 w-16">수량</th><th class="border-r border-black p-3">단위</th><th class="border-r border-black p-3">단가</th><th class="p-3">금액</th></tr></thead>
                       <tbody>
-                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-c-'+idx" class="border-b border-black">
+                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-c-'+idx" class="border-b border-black no-break">
                         <td class="border-r border-black p-3 text-left font-bold px-4">{{ item.name }}</td>
                         <td class="border-r border-black p-3">{{ item.quantity ?? item.count ?? 0 }}</td>
                         <td class="border-r border-black p-3">{{ item.unit }}</td>
@@ -644,11 +647,11 @@ const getValidityDate = (dateStr) => {
                       </tr>
                       </tbody>
                     </table>
-                    <div v-if="docDetail.specialTerms" class="pt-20">
+                    <div v-if="docDetail.specialTerms" class="pt-20 no-break">
                       <strong class="text-sm border-b border-black pb-1">[특약 사항]</strong>
                       <p class="mt-3 border border-black p-5 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[13px] min-h-[80px]">{{ docDetail.specialTerms }}</p>
                     </div>
-                    <div class="pt-8 pb-2 text-center flex flex-col items-center">
+                    <div class="pt-8 pb-2 text-center flex flex-col items-center no-break">
                       <p class="text-[15px] font-bold mb-4">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p>
                       <div class="w-full px-16"><div class="border-t-2 border-black pt-5"><p class="font-bold text-xl">위 계약의 내용을 증명하기 위해 기명 날인함</p></div></div>
                     </div>
@@ -681,7 +684,7 @@ const getValidityDate = (dateStr) => {
                       </tr>
                       </thead>
                       <tbody>
-                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-o-'+idx" class="border-b border-black">
+                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-o-'+idx" class="border-b border-black no-break">
                         <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
                         <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
                         <td class="border-r border-black p-2">{{ item.unit }}</td>
@@ -1101,5 +1104,6 @@ const getValidityDate = (dateStr) => {
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
 .card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.no-break { break-inside: avoid; page-break-inside: avoid; }
 .current-pdf-template { width: 210mm; min-height: 297mm; background-color: #FFFFFF !important; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); color: #1e293b; line-height: 1.5; }
 </style>

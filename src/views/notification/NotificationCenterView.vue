@@ -501,11 +501,8 @@ onBeforeUnmount(() => {
         </article>
       </div>
 
-      <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-divider)] bg-[var(--color-bg-card)] px-4 py-3">
+      <footer class="flex flex-wrap items-center justify-center gap-3 border-t border-[var(--color-border-divider)] bg-[var(--color-bg-card)] px-4 py-3">
         <PaginationControls v-model="page" :total-pages="totalPages" />
-        <span class="text-xs text-[var(--color-text-sub)]">
-          현재 {{ pageSummary.number }}/{{ totalPages }} · 페이지 크기 {{ pageSummary.size }} · 전체 {{ pageSummary.totalElements }}건
-        </span>
       </footer>
     </div>
 
@@ -568,26 +565,24 @@ onBeforeUnmount(() => {
 }
 
 .schedule-filter :deep(.schedule-filter-btn) {
+  padding: 6px 14px;
   border-radius: 10px;
   border: none;
   background: linear-gradient(135deg, rgba(250, 247, 243, 0.96) 0%, rgba(239, 234, 223, 0.96) 100%);
   color: var(--color-text-body, #6B5F50);
-  font-weight: 500;
-  box-shadow: 0 1px 2px rgba(61, 53, 41, 0.08);
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .schedule-filter :deep(.schedule-filter-btn:hover),
 .schedule-filter :deep(.schedule-filter-btn:focus-visible) {
-  background: linear-gradient(135deg, rgba(239, 234, 223, 0.95) 0%, rgba(200, 212, 160, 0.55) 100%);
+  background: var(--color-bg-section, #EFEADF);
   color: var(--color-text-strong, #3D3529);
-  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.12), 0 6px 14px rgba(61, 53, 41, 0.14);
 }
 
 .schedule-filter :deep(.schedule-filter-btn.is-active) {
   background: linear-gradient(120deg, rgba(200, 212, 160, 0.92) 0%, rgba(122, 140, 66, 0.48) 100%);
   color: var(--color-text-strong, #3D3529);
-  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.16), 0 6px 14px rgba(88, 104, 48, 0.2);
 }
 
 .notification-icon {

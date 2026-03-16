@@ -5,11 +5,12 @@ import DashboardReference from '@/components/dashboard/DashboardReference.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import { getSalesRepDashboard, getWeeklySchedules } from '@/api/dashboard'
+import { getSalesRepDashboard, getWeeklySchedules, getPriorityContacts } from '@/api/dashboard'
 
 const dashboard = ref(null)
-const loading   = ref(false)
-const error     = ref('')
+const priorityContacts = ref([])
+const loading = ref(false)
+const error = ref('')
 
 // 캘린더 전용 상태
 const calendarData    = ref(null)
@@ -28,7 +29,7 @@ const monthlyAmount    = computed(() => dashboard.value?.monthlySales?.amount ||
 const monthlyChange    = computed(() => dashboard.value?.monthlySales?.change || '-')
 const monthlyDiff      = computed(() => dashboard.value?.monthlySales?.diff || '-')
 const monthlyCompleted = computed(() => dashboard.value?.monthlySales?.completedCount || '-')
-const hasData          = computed(() => monthlyBars.value.length || billings.value.length || timeline.value.length)
+const hasData = computed(() => monthlyBars.value.length || billings.value.length || timeline.value.length || priorityContacts.value.length)
 
 // 캘린더 props (API 데이터 우선, 없으면 컴포넌트 default 사용)
 const calendarBadge    = computed(() => calendarData.value?.badge    ?? undefined)
@@ -41,7 +42,12 @@ const fetchDashboard = async () => {
   error.value   = ''
 
   try {
-    dashboard.value = await getSalesRepDashboard()
+    const [dashData, priorityData] = await Promise.all([
+      getSalesRepDashboard(),
+      getPriorityContacts()
+    ])
+    dashboard.value = dashData
+    priorityContacts.value = priorityData.slice(0, 5) // Top 5
   } catch (e) {
     error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
   } finally {
@@ -145,7 +151,7 @@ onMounted(() => {
     </div>
 
     <div class="dashboard-grid-bottom">
-      <DashboardReference />
+      <DashboardReference :items="priorityContacts" />
 
       <div class="panel">
         <div class="timeline-header-row">
@@ -288,6 +294,10 @@ onMounted(() => {
   margin-bottom: 18px;
   flex-shrink: 0;
 }
+.timeline-filter     { display: flex; gap: 6px; }
+.timeline-filter-btn { padding: 4px 10px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
+.timeline-filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+
 .timeline-list {
   position: relative;
   padding-left: 28px;
