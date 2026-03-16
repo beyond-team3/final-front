@@ -12,13 +12,7 @@ defineProps({
   },
   items: {
     type: Array,
-    default: () => [
-      { rank: 1, name: '풍년농장', reason: '최근 주문 2주 경과 · 재배 시즌 임박', score: 95 },
-      { rank: 2, name: '황금들판', reason: '회의록 3주 경과 · 주문 빈도 높음', score: 88 },
-      { rank: 3, name: '녹색농협', reason: '재배 시즌 1개월 전 · 재주문 예상', score: 82 },
-      { rank: 4, name: '푸른농원', reason: '주문 이력 좋음 · 시즌 적기 도래', score: 79 },
-      { rank: 5, name: '희망농장', reason: '미팅 1개월 경과 · 주문 패턴 분석', score: 74 },
-    ],
+    default: () => [],
   },
 })
 
@@ -56,15 +50,16 @@ const showScoreGuide = ref(false)
     </div>
 
     <div class="client-list">
-      <div v-for="item in items" :key="item.rank" class="client-item">
-        <div class="client-rank" :class="item.rank <= 3 ? `rank-${item.rank}` : ''">{{ item.rank }}</div>
+      <div v-for="(item, idx) in items" :key="item.accountId || idx" class="client-item">
+        <div class="client-rank" :class="idx + 1 <= 3 ? `rank-${idx + 1}` : ''">{{ idx + 1 }}</div>
         <div class="client-info">
-          <div class="client-name">{{ item.name }}</div>
-          <div class="client-reason">{{ item.reason }}</div>
+          <div class="client-name">{{ item.accountName }}</div>
+          <div class="client-reason">{{ item.primaryReason }}</div>
+          <div v-if="item.detailDescription" class="client-detail-desc">{{ item.detailDescription }}</div>
         </div>
         <div class="client-score-wrap">
-          <div class="client-score">{{ item.score }}</div>
           <div class="client-score-label">점수</div>
+          <div class="client-score">{{ Math.round(item.totalScore) }}</div>
         </div>
       </div>
     </div>
@@ -115,7 +110,8 @@ const showScoreGuide = ref(false)
 .client-rank.rank-3 { color: #7f8c8d; }
 .client-info { flex: 1; }
 .client-name { font-size: 14px; font-weight: 600; color: #2c3e50; margin-bottom: 2px; }
-.client-reason { font-size: 12px; color: #95a5a6; }
+.client-reason { font-size: 12px; color: #95a5a6; margin-bottom: 4px; }
+.client-detail-desc { font-size: 11px; color: #bdc3c7; line-height: 1.4; }
 .client-score-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .client-score { font-size: 18px; font-weight: 700; color: #2c3e50; }
 .client-score-label { font-size: 10px; color: #bdc3c7; }
