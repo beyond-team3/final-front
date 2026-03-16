@@ -103,6 +103,7 @@ const conEndDate = ref('')
 const conBillingCycle = ref('월')
 const conSpecialTerms = ref('')
 const conInternalMemo = ref('')
+const conRejectReason = ref('')
 const selectedItems = ref([])
 
 const templateType = ref('')
@@ -155,12 +156,14 @@ const startContractFromPrefill = async (quotationId) => {
 
   conInCorpCode.value = prefill.clientId || prefill.client?.id || prefill.clientCode || ''
   conInCorp.value = prefill.clientName || prefill.client?.name || ''
-  conInName.value = prefill.managerName || prefill.client?.contact || prefill.client?.managerName || ''
+  conInName.value = prefill.managerName || prefill.client?.managerName || prefill.client?.contact || ''
   conInNo.value = prefill.displayCode || prefill.quotationCode || quotationId
   conStartDate.value = prefill.startDate || ''
   conEndDate.value = prefill.endDate || ''
   conBillingCycle.value = prefill.billingCycle || '월'
   conSpecialTerms.value = prefill.specialTerms || ''
+  
+  conRejectReason.value = prefill.rejectReason || ''
   conInternalMemo.value = prefill.memo || ''
   selectedItems.value = (prefill.items || []).map(item => ({
     uid: item.id || `${Date.now()}-${Math.random()}`,
@@ -206,12 +209,14 @@ const startFromRejectedContract = async (rawContractId) => {
 
     conInCorpCode.value = prefill.clientId || prefill.client?.id || ''
     conInCorp.value = prefill.clientName || prefill.client?.name || ''
-    conInName.value = prefill.managerName || prefill.client?.contact || ''
+    conInName.value = prefill.managerName || prefill.client?.managerName || prefill.client?.contact || ''
     conInNo.value = prefill.quotationCode || prefill.quotationId || '반려된 계약서'
     conStartDate.value = prefill.startDate || ''
     conEndDate.value = prefill.endDate || ''
     conBillingCycle.value = (prefill.billingCycle === 'MONTHLY' ? '월' : prefill.billingCycle === 'QUARTERLY' ? '분기' : prefill.billingCycle === 'HALF_YEARLY' ? '반기' : prefill.billingCycle) || '월'
     conSpecialTerms.value = prefill.specialTerms || ''
+    
+    conRejectReason.value = prefill.rejectReason || ''
     conInternalMemo.value = prefill.memo || ''
     selectedItems.value = (prefill.items || []).map(item => ({
       uid: item.uid || `${Date.now()}-${Math.random()}`,
@@ -330,8 +335,9 @@ const startContract = (q) => {
 
   conInCorpCode.value = q.clientId || q.client?.id || ''
   conInCorp.value = q.client?.name || ''
-  conInName.value = q.client?.contact || ''
+  conInName.value = q.managerName || q.client?.managerName || q.client?.contact || ''
   conInNo.value = q.displayCode || q.quotationCode || q.id
+  conRejectReason.value = ''
   selectedItems.value = (q.items || []).map(item => ({
     uid: item.id || `${Date.now()}-${Math.random()}`,
     productId: item.productId || item.id,
@@ -356,6 +362,7 @@ const startNewContract = () => {
   conInCorp.value = ""
   conInName.value = ""
   conInNo.value = "신규 생성"
+  conRejectReason.value = ''
   selectedItems.value = []
 }
 
@@ -644,6 +651,16 @@ const submitContract = async () => {
                 </tr>
                 </tbody>
               </table>
+            </div>
+          </article>
+
+          <article v-if="conRejectReason" class="card border p-5 rounded-lg shadow-sm mb-5" style="background-color: #FDF4F1; border-color: #F8D7CC;">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold text-white bg-[#B85C5C]">반려 사유</span>
+              <h3 class="text-base font-bold" style="color: #3D3529;">반려 사유 내용</h3>
+            </div>
+            <div class="border p-3 rounded text-sm leading-relaxed whitespace-pre-wrap min-h-[40px]" style="background-color: #FFF9F7; border-color: #F8D7CC; color: #B85C5C; font-weight: 500;">
+              {{ conRejectReason }}
             </div>
           </article>
 
