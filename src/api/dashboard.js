@@ -35,7 +35,6 @@ function normalizeSalesRepDashboard(payload) {
 
         timeline: Array.isArray(raw.timeline) ? raw.timeline : [],
 
-        // 백엔드 응답 필드명 그대로 유지
         priorityAccounts: Array.isArray(raw.priorityAccounts) ? raw.priorityAccounts : [],
 
         timelineFilters: Array.isArray(raw.timelineFilters)
@@ -45,61 +44,15 @@ function normalizeSalesRepDashboard(payload) {
 }
 
 // ────────────────────────────────────────────────
-// 우선거래 연락처 정규화
-// GET /api/v1/scoring/priority-list
-// ────────────────────────────────────────────────
-function normalizePriorityContacts(payload) {
-    if (!Array.isArray(payload)) {
-        return []
-    }
-
-    return payload.map((item) => ({
-        accountId: item.accountId || 0,
-        accountName: item.accountName || '-',
-        totalScore: item.totalScore || 0,
-        primaryReason: item.primaryReason || '',
-        detailDescription: item.detailDescription || '',
-        breakdown: item.breakdown || {
-            contractScore: 0,
-            orderScore: 0,
-            visitScore: 0,
-        },
-    }))
-}
-
-// ────────────────────────────────────────────────
 // 관리자 대시보드  GET /api/dashboard/admin
 // ────────────────────────────────────────────────
 function normalizeAdminDashboard(payload) {
     const raw = pickRecord(payload)
 
-    // 백엔드 kpis는 배열이 아닌 객체 형태로 내려옴
-    // { totalMonthlySales, salesGrowthRate, pendingDocumentCount, pendingDetail }
-    const kpisRaw = raw.kpis || {}
-    const kpis = [
-        {
-            label: '이번 달 매출',
-            icon: 'KRW',
-            iconClass: 'blue',
-            value: kpisRaw.totalMonthlySales || '-',
-            change: kpisRaw.salesGrowthRate || '-',
-            positive: true,
-        },
-        {
-            label: '대기 문서',
-            icon: '!',
-            iconClass: 'orange',
-            value: kpisRaw.pendingDocumentCount || '-',
-            change: kpisRaw.pendingDetail || '처리 필요',
-            positive: false,
-        },
-    ]
-
-    // dashboard.js normalizeAdminDashboard 수정
     return {
         title: raw.title || '관리자 대시보드',
         trendPeriod: raw.trendPeriod || '이번 달',
-        kpis: raw.kpis || {},          // ← 배열 변환 없이 객체 그대로
+        kpis: raw.kpis || {},
         salesTrend: raw.salesTrend || { lastYear: [], thisYear: [] },
         rankings: Array.isArray(raw.rankings) ? raw.rankings : [],
         approvalCount: Number(raw.approvalCount || 0),
@@ -123,16 +76,157 @@ function normalizeClientDashboard(payload) {
 
         billings: Array.isArray(raw.billings) ? raw.billings : [],
 
-        // 백엔드 필드명은 `new`, 프론트 컴포넌트는 `isNew` 로 사용하므로 여기서 변환
         notifications: Array.isArray(raw.notifications)
             ? raw.notifications.map((n) => ({
                 time: n.time,
                 title: n.title,
                 detail: n.detail,
-                isNew: n.new ?? false,   // `new` → `isNew`
+                isNew: n.new ?? false,
             }))
             : [],
     }
+}
+
+// ────────────────────────────────────────────────
+// 주간 캘린더  GET /api/v1/schedules
+// ────────────────────────────────────────────────
+
+/** 이번 주 일요일~토요일의 from/to ISO 문자열을 반환 */
+function getCurrentWeekRange() {
+    const now = new Date()
+    const day = now.getDay() // 0=일 ~ 6=토
+    const sunday = new Date(now)
+    sunday.setDate(now.getDate() - day)
+    sunday.setHours(0, 0, 0, 0)
+
+    const saturday = new Date(sunday)
+    saturday.setDate(sunday.getDate() + 6)
+    saturday.setHours(23, 59, 59, 999)
+
+    return {
+        from: sunday.toISOString(),
+        to: saturday.toISOString(),
+        sunday,
+    }
+}
+
+/** eventType / docType → DashboardCalendar의 type 매핑 */
+function resolveEventType(schedule) {
+    const docType = (schedule.docType || '').toUpperCase()
+    const eventType = (schedule.eventType || '').toUpperCase()
+
+    if (docType === 'CONTRACT' || eventType === 'CONTRACT') return 'contract'
+    if (docType === 'INVOICE'  || eventType === 'BILLING')  return 'billing'
+    return 'default'
+}
+
+/** type → 한글 태그 */
+const TAG_LABEL = {
+    contract: '계약',
+    billing:  '청구',
+    default:  '영업',
+}
+
+/**
+ * /api/v1/schedules 응답(data 배열)을 DashboardCalendar props 형태로 변환
+ * @param {Array} items - API data 배열
+ * @param {Date}  sunday - 이번 주 일요일 Date 객체
+ */
+function normalizeWeeklySchedules(items, sunday) {
+    const DAY_KO = ['일', '월', '화', '수', '목', '금', '토']
+    const today  = new Date()
+
+    // weekDays: 일~토 7칸
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(sunday)
+        d.setDate(sunday.getDate() + i)
+
+        const isToday =
+            d.getFullYear() === today.getFullYear() &&
+            d.getMonth()    === today.getMonth()    &&
+            d.getDate()     === today.getDate()
+
+        return {
+            day:  DAY_KO[i],
+            date: String(d.getDate()),
+            today: isToday || undefined,
+        }
+    })
+
+    // badge: "M월 D일 - M월 D일"
+    const sat = new Date(sunday)
+    sat.setDate(sunday.getDate() + 6)
+    const badge = `${sunday.getMonth() + 1}월 ${sunday.getDate()}일 - ${sat.getMonth() + 1}월 ${sat.getDate()}일`
+
+    // 요일 인덱스(0=일) 계산 헬퍼
+    const dayIndex = (dateStr) => {
+        const d = new Date(dateStr)
+        // 해당 날짜가 이번 주 범위 안에 있는지 확인
+        const diff = Math.floor((d - sunday) / 86400000)
+        return diff >= 0 && diff <= 6 ? diff : -1
+    }
+
+    // dayEvents: 7개 칸, 각 칸에 이벤트 배열
+    const dayEvents = Array.from({ length: 7 }, () => [])
+
+    // listEvents: 이번 주 일정 목록 (날짜순)
+    const listEvents = []
+
+    const sorted = [...items].sort(
+        (a, b) => new Date(a.startAt) - new Date(b.startAt),
+    )
+
+    for (const s of sorted) {
+        const idx  = dayIndex(s.startAt)
+        if (idx === -1) continue
+
+        const type  = resolveEventType(s)
+        const d     = new Date(s.startAt)
+        const dateD = new Date(sunday)
+        dateD.setDate(sunday.getDate() + idx)
+
+        dayEvents[idx].push({ label: s.title, type })
+
+        listEvents.push({
+            date:   String(dateD.getDate()),
+            day:    DAY_KO[idx],
+            title:  s.title,
+            detail: s.description || '',
+            type,
+            tag:    TAG_LABEL[type],
+        })
+    }
+
+    return { badge, weekDays, dayEvents, listEvents }
+}
+
+/**
+ * 주간 캘린더 데이터 조회
+ * GET /api/v1/schedules
+ * @returns {Promise<{ badge, weekDays, dayEvents, listEvents }>}
+ */
+export function getWeeklySchedules() {
+    const { from, to, sunday } = getCurrentWeekRange()
+
+    return api
+        .get('/schedules', {
+            params: {
+                from,
+                to,
+                includePersonal: true,
+                includeDeal: true,
+            },
+        })
+        .then((payload) => {
+            // 응답 구조: { result, data: [...] }  또는  data 배열 직접
+            const items = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.data)
+                    ? payload.data
+                    : []
+
+            return normalizeWeeklySchedules(items, sunday)
+        })
 }
 
 // ────────────────────────────────────────────────
@@ -153,28 +247,37 @@ export function getClientDashboard() {
 /**
  * 우선거래 연락처 조회 (재시도 로직 포함)
  * GET /api/v1/scoring/priority-list
- * @returns {Promise<Array>} 우선거래 연락처 목록
  */
 export async function getPriorityContacts() {
     const maxRetries = 3
-    const delayMs = 1000
+    const delayMs    = 1000
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             return await api.get('/scoring/priority-list').then(normalizePriorityContacts)
         } catch (error) {
-            if (attempt === maxRetries) {
-                throw error
-            }
-
-            // 500 오류면 재시도
+            if (attempt === maxRetries) throw error
             if (error.response?.status === 500) {
-                await new Promise(resolve => setTimeout(resolve, delayMs * attempt))
+                await new Promise((resolve) => setTimeout(resolve, delayMs * attempt))
                 continue
             }
-
-            // 다른 오류면 즉시 throw
             throw error
         }
     }
+}
+
+function normalizePriorityContacts(payload) {
+    if (!Array.isArray(payload)) return []
+    return payload.map((item) => ({
+        accountId:         item.accountId         || 0,
+        accountName:       item.accountName        || '-',
+        totalScore:        item.totalScore         || 0,
+        primaryReason:     item.primaryReason      || '',
+        detailDescription: item.detailDescription  || '',
+        breakdown: item.breakdown || {
+            contractScore: 0,
+            orderScore:    0,
+            visitScore:    0,
+        },
+    }))
 }
