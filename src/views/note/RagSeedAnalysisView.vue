@@ -13,18 +13,29 @@ const router = useRouter()
 // --- State ---
 const selectedClientId = ref('')
 const selectedContractId = ref('')
-const queryType = ref('RECAP') // RECAP, RISK, MATCHING, CHECKLIST
+const queryText = ref('') // Free text input
 const analysisResult = ref(null)
 const status = ref('IDLE') // IDLE, LOADING, SUCCESS, EMPTY, ERROR
 
 const selectedNote = ref(null)
 const showDetailModal = ref(false)
 
+const recommendedThemes = [
+  { label: '지난 맥락 요약', value: '지난 맥락을 요약해줘' },
+  { label: '리스크 탐지', value: '영업 리스크를 탐지해줘' },
+  { label: '종자 매칭 전략', value: '맞춤형 종자 매칭 전략을 제안해줘' },
+  { label: '미팅 체크리스트', value: '다음 미팅을 위한 체크리스트를 만들어줘' }
+]
+
 // --- Computed ---
 const selectedClientName = computed(() => noteStore.getClientName(selectedClientId.value))
 const availableContracts = computed(() => noteStore.contractOptions)
 
 // --- Methods ---
+const setQuery = (text) => {
+  queryText.value = text
+}
+
 const handleClientChange = async () => {
   selectedContractId.value = ''
   if (selectedClientId.value) {
@@ -90,8 +101,7 @@ const formatObjectToMarkdown = (data) => {
 }
 
 const fetchAnalysis = async () => {
-  if (!selectedClientId.value) {
-    status.value = 'IDLE'
+  if (!selectedClientId.value || !queryText.value.trim()) {
     return
   }
 
@@ -102,7 +112,7 @@ const fetchAnalysis = async () => {
     const result = await noteStore.askRagSeed({
       clientId: selectedClientId.value,
       contractId: selectedContractId.value || 'NONE',
-      query: queryType.value
+      query: queryText.value
     })
 
     if (result && result.content) {
@@ -170,65 +180,84 @@ onMounted(async () => {
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
-    <!-- Header & Filter Bar -->
-    <div class="mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between">
+    <!-- Header -->
+    <div class="mb-6">
       <PageHeader 
         title="RAGseed 전략 분석" 
         subtitle="영업 데이터(Seed)에서 인출한 AI 전략 리포트입니다." 
       />
-
-      <div class="flex flex-wrap gap-3 rounded-xl bg-[var(--color-bg-sidebar)] p-4 shadow-sm border border-[var(--color-border-card)]">
-        <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">거래처</label>
-          <select 
-            v-model="selectedClientId" 
-            @change="handleClientChange"
-            class="h-10 w-48 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
-          >
-            <option value="">거래처 선택</option>
-            <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">
-              {{ client.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">계약 범위</label>
-          <select 
-            v-model="selectedContractId"
-            class="h-10 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
-            :disabled="!selectedClientId"
-          >
-            <option value="">전체</option>
-            <option v-for="contract in availableContracts" :key="contract.id" :value="contract.contractCode">
-              {{ contract.contractCode }}
-            </option>
-          </select>
-        </div>
-
-        <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">분석 테마</label>
-          <select 
-            v-model="queryType"
-            class="h-10 w-44 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
-          >
-            <option value="RECAP">지난 맥락 요약</option>
-            <option value="RISK">리스크 탐지</option>
-            <option value="MATCHING">종자 매칭 전략</option>
-            <option value="CHECKLIST">미팅 체크리스트</option>
-          </select>
-        </div>
-
-        <button 
-          @click="fetchAnalysis"
-          class="mt-auto h-10 rounded-lg bg-[var(--color-olive)] px-6 text-sm font-bold text-white transition-all hover:bg-[var(--color-olive-dark)] shadow-sm disabled:bg-gray-400"
-          :disabled="!selectedClientId || status === 'LOADING'"
-        >
-          <i v-if="status === 'LOADING'" class="fas fa-spinner fa-spin mr-2"></i>
-          분석 실행
-        </button>
-      </div>
     </div>
+
+    <!-- Filter Bar -->
+    <div class="mb-10 flex flex-col gap-4 rounded-xl bg-[var(--color-bg-sidebar)] p-5 shadow-sm border border-[var(--color-border-card)] w-full">
+      <div class="flex flex-wrap gap-4 items-end">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">거래처</label>
+            <select 
+              v-model="selectedClientId" 
+              @change="handleClientChange"
+              class="h-11 w-48 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm transition-all"
+            >
+              <option value="">거래처 선택</option>
+              <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">
+                {{ client.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">계약 범위</label>
+            <select 
+              v-model="selectedContractId"
+              class="h-11 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm transition-all"
+              :disabled="!selectedClientId"
+            >
+              <option value="">전체 계약</option>
+              <option v-for="contract in availableContracts" :key="contract.id" :value="contract.contractCode">
+                {{ contract.contractCode }}
+              </option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1.5 flex-1 min-w-[300px]">
+            <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">분석 요청 사항</label>
+            <div class="relative">
+              <input 
+                v-model="queryText"
+                type="text"
+                placeholder="어떤 분석이 필요하신가요? (직접 입력 가능)"
+                class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] pl-4 pr-10 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm transition-all"
+                @keyup.enter="fetchAnalysis"
+              />
+              <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-placeholder)]"></i>
+            </div>
+          </div>
+
+          <button 
+            @click="fetchAnalysis"
+            class="h-11 rounded-lg bg-[var(--color-olive)] px-8 text-sm font-bold text-white transition-all hover:bg-[var(--color-olive-dark)] hover:shadow-md shadow-sm disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed group"
+            :disabled="!selectedClientId || !queryText.trim() || status === 'LOADING'"
+          >
+            <i v-if="status === 'LOADING'" class="fas fa-spinner fa-spin mr-2"></i>
+            <i v-else class="fas fa-magic mr-2 opacity-80 group-hover:opacity-100 transition-opacity"></i>
+            분석 실행
+          </button>
+        </div>
+
+        <!-- 추천 검색어 배지 -->
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <span class="text-[11px] font-bold text-[var(--color-text-placeholder)] uppercase mr-1">추천 검색어:</span>
+          <button
+            v-for="theme in recommendedThemes"
+            :key="theme.label"
+            type="button"
+            @click="setQuery(theme.value)"
+            class="rounded-full border border-[var(--color-border-card)] bg-white px-3.5 py-1.5 text-xs font-medium text-[var(--color-text-body)] transition-all hover:border-[var(--color-olive)] hover:text-[var(--color-olive)] hover:shadow-sm active:scale-95"
+          >
+            # {{ theme.label }}
+          </button>
+        </div>
+      </div>
 
     <!-- Main Content Area -->
     <div class="mx-auto max-w-5xl">
@@ -238,7 +267,7 @@ onMounted(async () => {
           <img :src="seedLogo" alt="Seed Logo" class="w-14 h-14 object-contain opacity-50" />
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">전략 인출 준비 완료</h3>
-        <p class="text-[var(--color-text-sub)]">분석할 거래처와 테마를 상단에서 선택해 주세요.</p>
+        <p class="text-[var(--color-text-sub)]">거래처를 선택하고 분석 요청 사항을 입력해 주세요.</p>
       </div>
 
       <!-- LOADING State -->
@@ -298,7 +327,7 @@ onMounted(async () => {
             ></div>
 
             <!-- Risk Highlight Area -->
-            <div v-if="queryType === 'RISK' || analysisResult.content.includes('위험') || analysisResult.content.includes('리스크')" class="mt-12 rounded-2xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/10 p-8 shadow-inner">
+            <div v-if="queryText.includes('RISK') || queryText.includes('리스크') || analysisResult.content.includes('위험') || analysisResult.content.includes('리스크')" class="mt-12 rounded-2xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/10 p-8 shadow-inner">
               <h5 class="mb-4 flex items-center gap-3 font-bold text-[var(--color-status-error)] text-lg">
                 <i class="fas fa-shield-virus"></i>
                 집중 리스크 탐지 및 권고 사항
