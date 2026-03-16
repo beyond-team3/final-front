@@ -385,12 +385,6 @@ const addProduct = (p) => {
   showProductModal.value = false
 }
 
-const updateQty = (item, val) => {
-  if (isViewMode.value) return
-  let num = parseInt(val)
-  item.qty = isNaN(num) || num < 1 ? 1 : num
-}
-
 const removeItem = (uid) => {
   if (isViewMode.value) return
   selectedItems.value = selectedItems.value.filter(i => i.uid !== uid)
@@ -512,7 +506,7 @@ const submitContract = async () => {
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm" style="color: #9A8C7E;">문서 관리 &gt; <span class="font-semibold" style="color: #3D3529;">계약서 {{ isViewMode ? '상세' : '작성' }}</span></p>
+        <p class="text-2xl" style="color: #9A8C7E;">문서 관리 &gt; <span class="font-semibold" style="color: #3D3529;">계약서 {{ isViewMode ? '상세' : '작성' }}</span></p>
         <span v-if="useContractV2() && !isViewMode" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
       </div>
 
@@ -617,11 +611,14 @@ const submitContract = async () => {
                   <td class="px-3 py-2 text-left text-xs text-[#9A8C7E]">{{ item.variety }}</td>
                   <td class="px-3 py-2 text-left font-medium">{{ item.name }}</td>
                   <td class="px-3 py-2 text-center">
-                    <input v-if="!isFieldLocked" type="number" min="1" class="w-20 p-1 border rounded text-center font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" :value="item.qty" @input="updateQty(item, $event.target.value)">
+                    <input v-if="!isFieldLocked" type="number" min="1" class="w-20 p-1 border rounded text-center font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" v-model.number="item.qty">
                     <span v-else class="font-bold">{{ item.qty }}</span>
                   </td>
                   <td class="px-3 py-2 text-center text-xs font-bold" style="color: #9A8C7E;">{{ item.unit }}</td>
-                  <td class="px-3 py-2 text-right font-mono">{{ Number(item.price || 0).toLocaleString() }}</td>
+                  <td class="px-3 py-2 text-right font-mono">
+                    <input v-if="!isFieldLocked" type="number" min="0" class="w-28 p-1 border rounded text-right font-bold outline-none focus:ring-1 focus:ring-[#7A8C42]" style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;" v-model.number="item.price">
+                    <span v-else>{{ Number(item.price || 0).toLocaleString() }}</span>
+                  </td>
                   <td v-if="!isViewMode" class="px-3 py-2 text-center">
                     <button
                         v-if="!isFieldLocked"
@@ -670,7 +667,7 @@ const submitContract = async () => {
         <aside class="w-full xl:w-[500px] sticky top-5 rounded-lg bg-[#525659] p-4 shadow-inner overflow-y-auto custom-scrollbar max-h-[90vh]">
           <div class="flex flex-col items-center">
             <!-- Adaptive Container: Remains 1 page but grows if needed -->
-            <div class="bg-white px-12 pt-8 pb-12 w-[794px] min-h-[1115px] shadow-2xl relative text-[13px] text-black flex flex-col" style="font-family: 'KoPub Dotum', sans-serif !important; transform: scale(0.55); transform-origin: top center; margin-bottom: calc(-1115px * 0.45);">
+            <div class="bg-white px-12 pt-8 pb-12 w-[794px] min-h-[1115px] shadow-2xl relative text-[13px] text-black flex flex-col" style="font-family: var(--font-sans) !important; transform: scale(0.55); transform-origin: top center; margin-bottom: calc(-1115px * 0.45);">
               <div class="text-center border-b-2 border-black pb-3 mb-10">
                 <h1 class="text-3xl font-bold tracking-widest">물 품 공 급 계 약 서</h1>
               </div>

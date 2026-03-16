@@ -53,7 +53,7 @@ const openDetail = () => emit('open-detail', props.deal.id)
                     <template v-for="(step, index) in deal.steps" :key="step.code">
                         <div class="flex flex-col items-center gap-2">
                             <div
-                                class="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-semibold"
+                                class="flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-[11px] font-semibold"
                                 :style="{
                                     backgroundColor: step.state === 'pending' ? 'var(--color-border-divider)' : 'var(--color-olive)',
                                     color: step.state === 'pending' ? 'var(--color-text-sub)' : '#fff',

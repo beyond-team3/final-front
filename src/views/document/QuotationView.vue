@@ -404,7 +404,7 @@ const submitDoc = async () => {
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
+        <p class="text-2xl" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
         <span v-if="useQuotationV2() && !isViewMode" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
       </div>
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in">
@@ -526,9 +526,9 @@ const submitDoc = async () => {
 
         <div class="w-full xl:w-[500px] sticky top-5">
           <div class="bg-[#525659] p-4 rounded-lg shadow-inner">
-            <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black" style="font-family: 'KoPub Dotum', sans-serif !important;">
+            <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black" style="font-family: var(--font-sans) !important;">
               <div class="text-center border-b-2 border-black pb-3 mb-5">
-                <h1 class="text-2xl font-bold tracking-widest" style="font-family: 'KoPub Dotum', sans-serif !important;">견 적 서</h1>
+                <h1 class="text-2xl font-bold tracking-widest" style="font-family: var(--font-sans) !important;">견 적 서</h1>
                 <p v-if="quotationCode" class="text-[10px] mt-1 text-right">No. {{ quotationCode }}</p>
               </div>
               <div class="flex justify-between items-start mb-6 text-[12px]">

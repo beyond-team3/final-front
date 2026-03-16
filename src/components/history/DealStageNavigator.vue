@@ -24,8 +24,9 @@ const emit = defineEmits(['select'])
                             class="flex items-center justify-center rounded-full transition"
                             :disabled="step.state === 'pending'"
                             :style="{
-                                width: selectedCode === step.code ? '44px' : step.state === 'pending' ? '36px' : '40px',
+                                minWidth: selectedCode === step.code ? '44px' : step.state === 'pending' ? '36px' : '40px',
                                 height: selectedCode === step.code ? '44px' : step.state === 'pending' ? '36px' : '40px',
+                                padding: '0 8px',
                                 backgroundColor: step.state === 'pending' ? 'var(--color-bg-card)' : 'var(--color-olive)',
                                 border: step.state === 'pending' ? '2px dashed var(--color-border-card)' : 'none',
                                 color: step.state === 'pending' ? 'var(--color-text-placeholder)' : '#fff',

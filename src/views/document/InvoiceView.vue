@@ -619,7 +619,7 @@ function onAccessDeniedConfirm() {
           <aside class="w-full xl:w-[500px] sticky top-5 rounded-lg bg-[#525659] p-4 shadow-inner overflow-y-auto custom-scrollbar max-h-[90vh]">
             <div class="flex flex-col items-center">
               <div class="bg-white px-12 pt-8 pb-12 w-[794px] min-h-[1115px] shadow-2xl relative text-[13px] text-black flex flex-col"
-                   style="font-family:'KoPub Dotum',sans-serif !important;transform:scale(0.55);transform-origin:top center;margin-bottom:calc(-1115px * 0.45);">
+                   style="font-family: var(--font-sans) !important; transform: scale(0.55); transform-origin: top center; margin-bottom: calc(-1115px * 0.45);">
 
                 <!-- 제목 -->
                 <div class="text-center border-b-2 border-black pb-3 mb-10">

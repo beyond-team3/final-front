@@ -8,6 +8,7 @@ import HarvestImminentSection from '@/components/schedule/HarvestImminentSection
 import RecommendedVarietiesCarousel from '@/components/schedule/RecommendedVarietiesCarousel.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import { getStageMeta } from '@/utils/dealHistory'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
@@ -96,7 +97,12 @@ const normalizeScheduleItem = (item = {}) => {
   }
 }
 
-const dealLabel = (ev) => ev?.docType || ev?.eventType || '거래 일정'
+const dealLabel = (ev) => {
+  if (ev?.docType) {
+    return getStageMeta(ev.docType).shortLabel
+  }
+  return ev?.eventType || '거래 일정'
+}
 
 const dealLabelWithOwner = (ev) => {
   const baseLabel = dealLabel(ev)

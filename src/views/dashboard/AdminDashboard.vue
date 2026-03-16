@@ -87,7 +87,7 @@ const renderChart = async () => {
           legend: {
             position: 'top',
             align: 'end',
-            labels: { boxWidth: 12, boxHeight: 2, font: { size: 12 }, color: '#78716C' },
+            labels: { boxWidth: 12, boxHeight: 2, font: { size: 12, family: "'KoPub Dotum', sans-serif" }, color: '#78716C' },
           },
           tooltip: {
             callbacks: {
@@ -104,7 +104,7 @@ const renderChart = async () => {
           y: {
             grid: { color: 'rgba(0,0,0,0.06)' },
             ticks: {
-              font: { size: 12 },
+              font: { size: 12, family: "'KoPub Dotum', sans-serif" },
               color: '#A8A29E',
               callback: (v) => `₩${(v / 100).toFixed(0)}억`,
             },
@@ -149,7 +149,7 @@ const renderFallbackChart = (canvas) => {
   }
 
   ctx.fillStyle  = '#A8A29E'
-  ctx.font       = '11px sans-serif'
+  ctx.font       = '11px "KoPub Dotum", sans-serif'
   ctx.textAlign  = 'center'
   labels.forEach((label, i) => { ctx.fillText(label, toX(i), H - PAD.bottom + 16) })
 
