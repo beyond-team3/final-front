@@ -21,10 +21,10 @@ const selectedNote = ref(null)
 const showDetailModal = ref(false)
 
 const recommendedThemes = [
-  { label: '지난 맥락 요약', value: '지난 맥락을 요약해줘' },
-  { label: '리스크 탐지', value: '영업 리스크를 탐지해줘' },
-  { label: '종자 매칭 전략', value: '맞춤형 종자 매칭 전략을 제안해줘' },
-  { label: '미팅 체크리스트', value: '다음 미팅을 위한 체크리스트를 만들어줘' }
+  { label: '지난 맥락 요약', value: 'RECAP', display: '지난 맥락을 요약해줘' },
+  { label: '리스크 탐지', value: 'RISK', display: '영업 리스크를 탐지해줘' },
+  { label: '종자 매칭 전략', value: 'MATCHING', display: '맞춤형 종자 매칭 전략을 제안해줘' },
+  { label: '미팅 체크리스트', value: 'CHECKLIST', display: '다음 미팅을 위한 체크리스트를 만들어줘' }
 ]
 
 // --- Computed ---
@@ -32,8 +32,8 @@ const selectedClientName = computed(() => noteStore.getClientName(selectedClient
 const availableContracts = computed(() => noteStore.contractOptions)
 
 // --- Methods ---
-const setQuery = (text) => {
-  queryText.value = text
+const setQuery = (theme) => {
+  queryText.value = theme.display
 }
 
 const handleClientChange = async () => {
@@ -109,15 +109,30 @@ const fetchAnalysis = async () => {
   analysisResult.value = null
 
   try {
+    // 추천 검색어 중 일치하는 항목이 있으면 value(상수)를 사용하고, 없으면 입력값 그대로 사용
+    const matchedTheme = recommendedThemes.find(t => t.display === queryText.value)
+    const finalQuery = matchedTheme ? matchedTheme.value : queryText.value
+
     const result = await noteStore.askRagSeed({
       clientId: selectedClientId.value,
       contractId: selectedContractId.value || 'NONE',
-      query: queryText.value
+      query: finalQuery
     })
 
     if (result && result.content) {
-      const raw = result.content
-      // 백엔드에서 JSON 객체 그대로 응답하므로, 객체일 경우 포맷터 적용 / 문자열일 경우 그대로 사용
+      let raw = result.content
+      
+      // 백엔드 AI가 JSON 문자열로 응답했을 경우를 대비한 파싱 처리
+      if (typeof raw === 'string' && (raw.startsWith('{') || raw.startsWith('['))) {
+        try {
+          const parsed = JSON.parse(raw)
+          raw = parsed.content || parsed.response || parsed.summary || raw
+        } catch (e) {
+          console.warn('Failed to parse AI response as JSON, using raw string.')
+        }
+      }
+
+      // 객체일 경우 포맷터 적용 / 문자열일 경우 그대로 사용
       const content = (typeof raw === 'object' && raw !== null) 
         ? formatObjectToMarkdown(raw) 
         : raw
@@ -251,7 +266,7 @@ onMounted(async () => {
             v-for="theme in recommendedThemes"
             :key="theme.label"
             type="button"
-            @click="setQuery(theme.value)"
+            @click="setQuery(theme)"
             class="rounded-full border border-[var(--color-border-card)] bg-white px-3.5 py-1.5 text-xs font-medium text-[var(--color-text-body)] transition-all hover:border-[var(--color-olive)] hover:text-[var(--color-olive)] hover:shadow-sm active:scale-95"
           >
             # {{ theme.label }}
@@ -327,7 +342,7 @@ onMounted(async () => {
             ></div>
 
             <!-- Risk Highlight Area -->
-            <div v-if="queryText.includes('RISK') || queryText.includes('리스크') || analysisResult.content.includes('위험') || analysisResult.content.includes('리스크')" class="mt-12 rounded-2xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/10 p-8 shadow-inner">
+            <div v-if="queryText.toUpperCase().includes('RISK') || queryText.includes('리스크') || analysisResult.content.includes('위험') || analysisResult.content.includes('리스크')" class="mt-12 rounded-2xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/10 p-8 shadow-inner">
               <h5 class="mb-4 flex items-center gap-3 font-bold text-[var(--color-status-error)] text-lg">
                 <i class="fas fa-shield-virus"></i>
                 집중 리스크 탐지 및 권고 사항
