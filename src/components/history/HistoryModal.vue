@@ -323,6 +323,7 @@ const resolvedOrderItems = computed(() => {
       name: matched?.productName || matched?.name || item.productName || item.name || `주문 품목 ${idx + 1}`,
       unit: matched?.unit || item.unit || 'EA',
       unitPrice,
+      quantity,
       variety: matched?.productCategory || matched?.variety || item.variety || '',
       amount: quantity * unitPrice,
     }
