@@ -313,14 +313,15 @@ const resolvedOrderItems = computed(() => {
     const matched = contractItems.find(ci =>
         String(ci.id ?? ci.detailId ?? ci.contractDetailId) === String(item.contractDetailId)
     )
-    const unitPrice = matched?.unitPrice ?? item.unitPrice ?? 0
+    const unitPrice = Number(matched?.unitPrice ?? item.unitPrice ?? item.price ?? 0)
+    const quantity = Number(item.quantity ?? item.count ?? 0)
     return {
       ...item,
       name: matched?.productName || matched?.name || item.productName || item.name || `주문 품목 ${idx + 1}`,
       unit: matched?.unit || item.unit || 'EA',
       unitPrice,
       variety: matched?.productCategory || matched?.variety || item.variety || '',
-      amount: item.quantity * unitPrice,
+      amount: quantity * unitPrice,
     }
   })
 })
@@ -703,13 +704,13 @@ const confirmCancel = async () => {
     try {
       // 캐시된 상태가 stale할 수 있으므로 서버에서 최신 상태 재확인
       const freshData = await documentStore.fetchTypedDocumentDetail({ id: props.docId, type: 'order' })
-      const freshStatus = String(freshData?.status || '').trim().toUpperCase()
+      const freshStatus = normalizeOrderStatus(freshData?.status)
       if (freshStatus === 'CANCELED') {
         cancelErrorMessage.value = '이미 취소된 주문입니다.'
         docDetail.value = freshData
         return
       }
-      if (freshStatus !== 'PENDING') {
+      if (!cancellableOrderStatuses.includes(freshStatus)) {
         cancelErrorMessage.value = '이미 승인된 주문서라 취소가 불가합니다.'
         docDetail.value = freshData
         return
