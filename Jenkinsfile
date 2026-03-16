@@ -48,10 +48,18 @@ spec:
 		stage('Prepare Tag') {
 			steps {
 				script {
-					def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim() // 깃허브 커밋 해시 앞 7자리
+					// 커밋 해시를 임시 파일(tag.txt)에 기록합니다.
+					sh 'git rev-parse --short HEAD > tag.txt'
 
-					env.FINAL_TAG = "${gitCommit}"
-					echo "완벽하게 생성된 태그: ${env.FINAL_TAG}"
+					// 파일 내용을 읽어와서 변수에 담습니다.
+					def gitCommit = readFile('tag.txt').trim()
+
+					env.FINAL_TAG = gitCommit
+					echo "확인된 커밋 해시: ${gitCommit}"
+					echo "최종 배포 태그: ${env.FINAL_TAG}"
+
+					// 사용한 임시 파일은 삭제합니다.
+					sh 'rm tag.txt'
 				}
 			}
 		}
@@ -125,7 +133,7 @@ spec:
                             cd temp-manifests
                             git checkout ${targetBranch}
 
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
+                            sed -i "s|image: .*monsoon-frontend:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
 
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
