@@ -37,7 +37,7 @@ export const useProductStore = defineStore('product', () => {
   const error = ref(null)
 
   const selectedBaseProductId = ref(null)
-  const similarityThreshold = ref(70)
+  const similarityThreshold = ref(0)
   const similarityCriteria = ref({ ...DEFAULT_CRITERIA })
   const feedbackByProduct = ref({})
   const productNotes = ref({})
@@ -195,7 +195,9 @@ export const useProductStore = defineStore('product', () => {
 
   const setSelectedBaseProduct = (id) => { selectedBaseProductId.value = id ? Number(id) : null }
   const setSimilarityThreshold = (val) => { similarityThreshold.value = Number(val) }
-  const setSimilarityCriterion = (key, val) => { similarityCriteria.value[key] = val }
+  const setSimilarityCriterion = (key, val) => {
+        similarityCriteria.value = { ...similarityCriteria.value, [key]: val }
+    }
 
   const getSimilarityScore = (baseId, targetId) => {
     const base = getProductById(baseId)

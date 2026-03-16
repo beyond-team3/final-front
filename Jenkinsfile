@@ -35,7 +35,6 @@ spec:
 
 		ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
 		DISCORD_WEBHOOK = credentials('discord-webhook-url')
-		FINAL_TAG = ""
 	}
 
 	stages {
@@ -48,10 +47,12 @@ spec:
 		stage('Prepare Tag') {
 			steps {
 				script {
-					def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim() // 깃허브 커밋 해시 앞 7자리
+					sh 'git rev-parse --short HEAD > tag.txt'
 
-					env.FINAL_TAG = "${gitCommit}"
-					echo "완벽하게 생성된 태그: ${env.FINAL_TAG}"
+					env.FINAL_TAG = readFile('tag.txt').trim()
+
+					echo "생성 태그: ${env.FINAL_TAG}"
+					sh 'rm tag.txt'
 				}
 			}
 		}
@@ -125,7 +126,7 @@ spec:
                             cd temp-manifests
                             git checkout ${targetBranch}
 
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
+                            sed -i "s|image: .*monsoon-frontend:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
 
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
