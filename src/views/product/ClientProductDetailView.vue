@@ -49,11 +49,12 @@ const toggleCompare = async () => {
   }
 }
 
-const saveNote = () => {
-  if (!product.value) return
-  productStore.setProductNote(product.value.id, noteDraft.value.trim())
-  window.alert('피드백이 저장되었습니다.')
-}
+const saveNote = async () => {
+  if (!v.value.trim()) return;
+  await r.addFeedbackMessage(e.value.id, v.value.trim());
+  v.value = "";
+  window.alert("피드백이 저장되었습니다.");
+};
 </script>
 
 <template>
