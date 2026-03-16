@@ -48,15 +48,15 @@ spec:
 			steps {
 				script {
 					sh 'git rev-parse --short HEAD > tag.txt'
-					// String 강제 변환 + .trim()으로 공백 제거
+
+					// 읽어온 값을 로컬 변수에 담습니다.
 					def gitCommit = readFile('tag.txt').trim()
 
-					// env. 변수 대신 전역 map에 직접 넣는 방식
-					env['FINAL_TAG'] = "${gitCommit}"
+					// env[''] 나 env. 방식 대신, 그냥 변수 이름으로 할당합니다.
+					// 샌드박스 보안을 통과하는 가장 순수한 방식입니다.
+					FINAL_TAG = gitCommit
 
-					echo "1. 로컬 변수: ${gitCommit}"
-					echo "2. env 객체: ${env.FINAL_TAG}"
-
+					echo "확인된 태그: ${FINAL_TAG}"
 					sh 'rm tag.txt'
 				}
 			}
@@ -84,18 +84,18 @@ spec:
 							echo "1. Installing AWS CLI..."
 							sh "apk add --no-cache aws-cli"
 
-							echo "2. Building Tag: ${env.FINAL_TAG}"
-							sh "docker build --no-cache -t ${IMAGE_NAME}:${env.FINAL_TAG} ."
+							echo "2. Building Tag: ${FINAL_TAG}"
+							sh "docker build --no-cache -t ${IMAGE_NAME}:${FINAL_TAG} ."
 
 							echo "3. Logging into AWS ECR..."
 							sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
 
 							echo "4. Pushing Image to ECR..."
-							sh "docker push ${IMAGE_NAME}:${env.FINAL_TAG}"
+							sh "docker push ${IMAGE_NAME}:${FINAL_TAG}"
 
 							// main 브랜치일 경우에만 latest 태그 푸시
 							if (env.BRANCH_NAME == 'main') {
-								sh "docker tag ${IMAGE_NAME}:${env.FINAL_TAG} ${IMAGE_NAME}:latest"
+								sh "docker tag ${IMAGE_NAME}:${FINAL_TAG} ${IMAGE_NAME}:latest"
 								sh "docker push ${IMAGE_NAME}:latest"
 							}
 
@@ -119,7 +119,7 @@ spec:
 					script {
 						def targetBranch = (env.BRANCH_NAME == 'main') ? 'main' : 'dev'
 
-						echo "Targeting Tag: " + env.FINAL_TAG
+						echo "Targeting Tag: " + FINAL_TAG
 
 						sh """
                             mkdir -p ~/.ssh
@@ -131,14 +131,14 @@ spec:
                             cd temp-manifests
                             git checkout ${targetBranch}
 
-                            sed -i "s|image: .*monsoon-frontend:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
+                            sed -i "s|image: .*monsoon-frontend:.*|image: ${IMAGE_NAME}:${FINAL_TAG}|g" frontend/deployment.yml
 
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
 
                             git add frontend/deployment.yml
                             if ! git diff --cached --quiet; then
-                                git commit -m "[CD] Update frontend to ${env.FINAL_TAG} [skip ci]"
+                                git commit -m "[CD] Update frontend to ${FINAL_TAG} [skip ci]"
                                 git push origin ${targetBranch}
                             fi
                         """
@@ -159,7 +159,7 @@ spec:
 						discordSend(
 							webhookURL: env.DISCORD_WEBHOOK,
 							title: "🚀 [Frontend] Preview 배포 준비 완료 (main)",
-							description: """새 버전(${env.FINAL_TAG}) 매니페스트가 성공적으로 업데이트되었습니다.
+							description: """새 버전(${FINAL_TAG}) 매니페스트가 성공적으로 업데이트되었습니다.
 ArgoCD 동기화가 완료되면 아래 링크에서 새 API를 테스트해 주세요!
 
 👀 **미리보기(Preview) 도메인 (프론트/백엔드 연동):**
@@ -175,7 +175,7 @@ ArgoCD 대시보드에서 'monsoon-frontend' Rollout의 **[Promote]** 버튼을 
 						discordSend(
 							webhookURL: env.DISCORD_WEBHOOK,
 							title: "🟢 [Frontend] 빌드 성공 (${env.BRANCH_NAME})",
-							description: "Branch: ${env.BRANCH_NAME}\n새로운 버전(${env.FINAL_TAG})의 도커 이미지가 ECR에 성공적으로 푸시되었습니다.",
+							description: "Branch: ${env.BRANCH_NAME}\n새로운 버전(${FINAL_TAG})의 도커 이미지가 ECR에 성공적으로 푸시되었습니다.",
 							result: 'SUCCESS'
 						)
 					}
