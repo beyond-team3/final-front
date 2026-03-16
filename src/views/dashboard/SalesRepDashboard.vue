@@ -5,9 +5,10 @@ import DashboardReference from '@/components/dashboard/DashboardReference.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import { getSalesRepDashboard } from '@/api/dashboard'
+import { getSalesRepDashboard, getPriorityContacts } from '@/api/dashboard'
 
 const dashboard = ref(null)
+const priorityContacts = ref([])
 const loading = ref(false)
 const error = ref('')
 const selectedTimelineFilter = ref('전체')
@@ -23,14 +24,19 @@ const monthlyAmount = computed(() => dashboard.value?.monthlySales?.amount || '-
 const monthlyChange = computed(() => dashboard.value?.monthlySales?.change || '-')
 const monthlyDiff = computed(() => dashboard.value?.monthlySales?.diff || '-')
 const monthlyCompleted = computed(() => dashboard.value?.monthlySales?.completedCount || '-')
-const hasData = computed(() => monthlyBars.value.length || billings.value.length || timeline.value.length)
+const hasData = computed(() => monthlyBars.value.length || billings.value.length || timeline.value.length || priorityContacts.value.length)
 
 const fetchDashboard = async () => {
   loading.value = true
   error.value = ''
 
   try {
-    dashboard.value = await getSalesRepDashboard()
+    const [dashData, priorityData] = await Promise.all([
+      getSalesRepDashboard(),
+      getPriorityContacts()
+    ])
+    dashboard.value = dashData
+    priorityContacts.value = priorityData.slice(0, 5) // Top 5
   } catch (e) {
     error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
   } finally {
@@ -120,7 +126,7 @@ onMounted(fetchDashboard)
     </div>
 
     <div class="dashboard-grid-bottom">
-      <DashboardReference />
+      <DashboardReference :items="priorityContacts" />
 
       <div class="panel">
         <div class="timeline-header-row">
