@@ -5,10 +5,6 @@
       <!-- 헤더 -->
       <div class="sidebar-header">
         <div class="sidebar-title-row">
-<!--          <svg class="icon-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">-->
-<!--            <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v1h-2v-1a1 1 0 0 0-1-1h-1v1a6 6 0 0 1-12 0v-1H3a1 1 0 0 0-1 1v1H0v-1a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4h4zM9 6h6V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1z"/>-->
-<!--            <path d="M2 12H0M24 12h-2M2 17H0M24 17h-2"/>-->
-<!--          </svg>-->
           <h1 class="sidebar-title">병해충+품종 매칭 지도</h1>
           <div class="score-guide-wrap">
             <button class="score-guide-trigger badge-style" @click="showScoreGuide = !showScoreGuide" title="고객관리 점수 산출 기준 안내">
@@ -31,10 +27,32 @@
             </transition>
           </div>
         </div>
+
         <p class="data-source-header">
           농촌진흥청 국가농작물병해충관리시스템(NCPMS)의
           병해충 예찰 데이터를 연동하여 분석된 정보입니다.
         </p>
+
+        <!-- 관리자 전용 동기화 패널 (위치 이동) -->
+        <div v-if="authStore.currentRole === 'ADMIN'" class="admin-sync-panel">
+          <div class="panel-header">
+            <i class="fas fa-sync-alt text-[var(--color-olive)]"></i>
+            <span class="panel-title">병해충 예찰 데이터 동기화</span>
+          </div>
+          <div class="sync-inputs">
+            <input v-model="syncYear" type="text" placeholder="YYYY" class="sync-input year" maxlength="4">
+            <input v-model="syncMonth" type="text" placeholder="MM" class="sync-input month" maxlength="2">
+            <input v-model="syncDay" type="text" placeholder="DD" class="sync-input day" maxlength="2">
+            <button 
+              class="sync-action-btn"
+              :disabled="isSyncing"
+              @click="handleManualSync"
+            >
+              <i v-if="isSyncing" class="fas fa-spinner fa-spin"></i>
+              <span v-else>실행</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- 필터 섹션 -->
@@ -93,18 +111,18 @@
       </div>
 
       <!-- 심각도 범례 -->
-<!--      <div v-if="forecasts.length > 0" class="legend-section">-->
-<!--        <h2 class="section-label">위험도 범례</h2>-->
-<!--        <div class="legend-list">-->
-<!--          <div v-for="level in severityLevels" :key="level.key" class="legend-item">-->
-<!--            <span class="legend-dot" :style="{ background: level.color }"></span>-->
-<!--            <span class="legend-text">{{ level.label }}</span>-->
-<!--            <span class="legend-count">-->
-<!--              {{ forecasts.filter(f => f.severity === level.key).length }}건-->
-<!--            </span>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
+      <div v-if="forecasts.length > 0" class="legend-section">
+        <h2 class="section-label">위험도 범례</h2>
+        <div class="legend-list">
+          <div v-for="level in severityLevels" :key="level.key" class="legend-item">
+            <span class="legend-dot" :style="{ background: level.color }"></span>
+            <span class="legend-text">{{ level.label }}</span>
+            <span class="legend-count">
+              {{ forecasts.filter(f => f.severity === level.key).length }}건
+            </span>
+          </div>
+        </div>
+      </div>
 
       <!-- 추천 품종 섹션 -->
       <div class="products-section">
@@ -222,10 +240,45 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 import { getForecasts, getSalesOffices } from '@/api/pestMap'
+import { getPriorityContacts } from '@/api/dashboard'
 import { toggleBookmark } from '@/api/product'
 
 // ─── 상태 ───────────────────────────────────────────
+const authStore = useAuthStore()
+
+// --- Admin Sync State ---
+const syncYear = ref('2025')
+const syncMonth = ref('05')
+const syncDay = ref('16')
+const isSyncing = ref(false)
+
+const handleManualSync = async () => {
+  if (!confirm('공공데이터(NCPMS) 동기화를 시작하시겠습니까?')) return
+  
+  isSyncing.value = true
+  try {
+    const response = await axios.post('/api/v1/map/sync', null, {
+      params: {
+        year: syncYear.value,
+        month: syncMonth.value,
+        day: syncDay.value
+      },
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      }
+    })
+    window.alert(response.data.message || '데이터 동기화가 백그라운드에서 시작되었습니다.')
+  } catch (err) {
+    console.error('[Sync Error]', err)
+    window.alert('동기화 요청 중 오류가 발생했습니다.')
+  } finally {
+    isSyncing.value = false
+  }
+}
+
 const mapRef = ref(null)
 const mapReady = ref(false)
 const isLoading = ref(false)
@@ -251,6 +304,7 @@ const forecastLoadError = ref('')
 const crops = [
   { code: 'PEPPER',    label: '고추' },
   { code: 'ONION',    label: '양파'  },
+  { code: 'GARLIC',    label: '마늘'  },
   { code: 'CABBAGE',   label: '배추' },
   { code: 'RADISH',    label: '무'   },
   { code: 'TOMATO',    label: '토마토' }
@@ -258,17 +312,23 @@ const crops = [
 
 const pestsByCrop = {
   PEPPER:  [
-    { code: 'PP01', label: '탄저병' },
-    { code: 'PP02', label: '역병'   },
-    // { code: 'P03',  label: '탄저병(공통)' },
-    { code: 'P05',  label: '바이러스/기타' },
+    { code: 'P03', label: '탄저병' },
+    { code: 'P05',  label: '역병' },
+    // { code: 'P09',  label: '나방' },
+    // { code: 'P13',  label: '총채벌레' },
+    // { code: 'P15',  label: '가루이' },
+    { code: 'P21',  label: '바이러스' },
   ],
   ONION:  [
     { code: 'P01', label: '노균병'   },
     // { code: 'PP01', label: '탄저병' },
-    { code: 'PP02', label: '역병'   },
-    // { code: 'P07',  label: '잎마름병' },
-    { code: 'P05',  label: '바이러스/기타' },
+    // { code: 'PP02', label: '역병'   },
+    { code: 'P07',  label: '잎마름병' },
+    { code: 'P11',  label: '균핵병' },
+  ],
+  GARLIC:  [
+    { code: 'P07',  label: '잎마름병' },
+    { code: 'P11',  label: '균핵병' },
   ],
   CABBAGE: [
     { code: 'CB01', label: '무름병' },
@@ -279,9 +339,6 @@ const pestsByCrop = {
   ],
   TOMATO:  [
     { code: 'TM01', label: '역병' },
-  ],
-  GARLIC:  [
-    { code: 'GR01', label: '노균병' },
   ],
 }
 
@@ -340,13 +397,31 @@ function initKakaoMap() {
 async function fetchOffices() {
   officeLoadError.value = ''
   try {
-    const data = await getSalesOffices()
-    // PagedModel 구조(VIA_DTO) 또는 일반 리스트 대응
-    const officeList = data.content || data.data?.content || data.data || data
-    renderOfficeMarkers(officeList)
+    const [officesData, priorityData] = await Promise.all([
+      getSalesOffices(),
+      getPriorityContacts()
+    ])
+    
+    const officeList = officesData.content || officesData.data?.content || officesData.data || officesData
+    
+    // 우선순위 데이터 병합 (ID 또는 이름 기준)
+    const mergedList = officeList.map(office => {
+      const priority = priorityData.find(p => 
+        String(p.accountId) === String(office.id) || p.accountName === office.name
+      )
+      if (priority) {
+        return {
+          ...office,
+          totalScore: priority.totalScore,
+          primaryReason: priority.primaryReason
+        }
+      }
+      return office
+    })
+
+    renderOfficeMarkers(mergedList)
   } catch (err) {
     console.error('[PestMap] 영업처 조회 실패:', err)
-    // renderOfficeMarkers(DUMMY_OFFICES)
     officeLoadError.value = '영업처 데이터를 불러오지 못했습니다.'
   }
 }
@@ -362,7 +437,7 @@ function renderOfficeMarkers(offices) {
 
   list.forEach(office => {
     const position = new window.kakao.maps.LatLng(office.lat, office.lng)
-    const score = office.score || 0
+    const score = office.totalScore || office.score || 0
     
     // 점수가 높을수록 긴급 (빨강 > 주황 > 노랑 > 초록)
     let statusClass = 'status-normal'
@@ -404,10 +479,11 @@ function renderOfficeMarkers(offices) {
       <div class="info-score-row">
         <span class="info-score-label">고객관리 점수</span>
         <div class="info-score-track">
-          <div class="info-score-fill" style="width:${Math.min(office.score || 0, 100)}%"></div>
+          <div class="info-score-fill" style="width:${Math.min(score, 100)}%"></div>
         </div>
-        <span class="info-score-value">${office.score || 0}점</span>
+        <span class="info-score-value">${Math.round(score)}점</span>
       </div>
+      <div class="info-reason">${office.primaryReason || ''}</div>
       <div class="info-crops-label">취급 품종</div>
       <div class="info-crop-tags">${cropTags || '<span class="text-xs text-gray-400 italic">정보 없음</span>'}</div>
     `
@@ -731,6 +807,86 @@ const AREA_COORDS = {
   background: var(--color-bg-base);
   font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   overflow: hidden;
+}
+
+/* 관리자 동기화 패널 */
+.admin-sync-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-card);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(61, 53, 41, 0.05);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sync-inputs {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+.sync-input {
+  min-width: 0; /* flex box 내에서 shrink 가능하도록 설정 */
+  height: 32px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-card);
+  border-radius: 6px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-body);
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.sync-input.year { flex: 2; }
+.sync-input.month, .sync-input.day { flex: 1; }
+
+.sync-input:focus {
+  border-color: var(--color-olive);
+}
+
+.sync-action-btn {
+  flex: none;
+  padding: 0 10px;
+  height: 32px;
+  background: var(--color-olive);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.sync-action-btn:hover:not(:disabled) {
+  background: var(--color-olive-dark);
+}
+
+.sync-action-btn:disabled {
+  background: var(--color-text-placeholder);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* ════════════════════════════════════════
@@ -1547,6 +1703,16 @@ const AREA_COORDS = {
   font-weight: 700;
   color: #7A8C42;
   white-space: nowrap;
+}
+
+.info-reason {
+  font-size: 11px;
+  color: var(--color-orange);
+  text-align: right;
+  margin-top: -8px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 /* 취급 품종 */
