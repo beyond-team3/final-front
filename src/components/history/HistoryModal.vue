@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { searchApprovals } from '@/api/approval'
+import { cancelOrder as apiCancelOrder, getContractsByClient, getContract } from '@/api/document'
 import { useDocumentStore } from '@/stores/document'
 import { useAuthStore } from '@/stores/auth'
 import { useEmployeeStore } from '@/stores/employee'
@@ -68,7 +69,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'approve', 'reject'])
+const emit = defineEmits(['update:modelValue', 'approve', 'reject', 'cancelled'])
 
 const router = useRouter()
 const documentStore = useDocumentStore()
@@ -125,7 +126,7 @@ const resolveDocumentTypeKey = (rawType) => {
 const normalizeOrderStatus = (status) => {
   const raw = String(status || '').trim().toUpperCase()
   if (['ORDERED', 'PENDING', 'REQUESTED', '처리중', '대기'].includes(raw)) return 'REQUESTED'
-  if (['APPROVED', 'ACTIVE', '승인', '완료'].includes(raw)) return 'APPROVED'
+  if (['CONFIRMED', 'APPROVED', 'ACTIVE', '승인', '완료', '확정'].includes(raw)) return 'APPROVED'
   if (['REJECTED', 'REJECT', '반려'].includes(raw)) return 'REJECTED'
   if (['CANCELED', 'CANCELLED', 'CANCEL', '취소'].includes(raw)) return 'CANCELED'
   return 'DRAFT'
@@ -202,16 +203,22 @@ const isAuthor = computed(() => {
   const isNameMatch = authStore.currentRole === ROLES.CLIENT &&
       (String(doc.clientName || '').trim() === String(me.clientName || me.name || '').trim())
 
-  return authorIds.some(aid => myIds.includes(aid)) || isNameMatch
+  // 주문서: CLIENT 역할이면 clientId 일치만으로도 본인으로 간주
+  const isOrderClientMatch = isOrderDocument.value &&
+      authStore.currentRole === ROLES.CLIENT &&
+      doc.clientId && me.refId &&
+      String(doc.clientId) === String(me.refId)
+
+  return authorIds.some(aid => myIds.includes(aid)) || isNameMatch || isOrderClientMatch
 })
 
 // 💡 표시할 멤버 이름 (작성자/담당자)
-// ✅ 수정: employeeId로 employee store에서 이름 조회 + 다양한 필드 fallback
+// ✅ SALES_REP/ADMIN은 employeeStore 조회, CLIENT는 recentLogs SALES_REP actorId로 fallback
 const resolvedMemberName = computed(() => {
   const doc = docDetail.value
   if (!doc) return '-'
 
-  // employeeId가 있으면 store에서 이름 조회 (청구서/주문서 등 이름 필드 없는 경우 대응)
+  // employeeId로 store 조회 (SALES_REP/ADMIN 전용 — CLIENT는 employees store 비어있음)
   const employeeFromStore = (() => {
     const eid = doc.employeeId ?? doc.salesRepId
     if (!eid) return null
@@ -219,25 +226,40 @@ const resolvedMemberName = computed(() => {
     return emp?.name || emp?.employeeName || null
   })()
 
+  // CLIENT 역할일 때: recentLogs에서 SALES_REP actorId로 이름 추출 시도
+  const employeeFromLogs = (() => {
+    if (authStore.currentRole !== ROLES.CLIENT) return null
+    if (!Array.isArray(doc.recentLogs)) return null
+    const salesRepLog = doc.recentLogs.find(log => log.actorType === 'SALES_REP')
+    if (!salesRepLog) return null
+    // actorId가 있어도 이름을 알 수 없으므로 employeeId 필드명으로 store 재시도
+    const emp = employeeStore.employees.find(e => String(e.id) === String(salesRepLog.actorId))
+    return emp?.name || emp?.employeeName || null
+  })()
+
   if (isQuotationRequest.value) {
     return doc.managerName || doc.client?.contact || doc.authorName || doc.writerName || '담당자 미지정'
   } else if (isOrderDocument.value) {
-    return doc.salesRepName || doc.managerName || employeeFromStore || doc.employeeName || doc.authorName || doc.writerName || '담당자 미지정'
+    // orderContract(getContract 응답)에 salesRepName이 있으면 우선 사용
+    const fromContract = orderContract.value?.salesRepName || null
+    return doc.salesRepName || doc.managerName || fromContract || employeeFromStore || employeeFromLogs || doc.employeeName || doc.authorName || doc.writerName || '담당자 미지정'
   } else if (isStatementDocument.value) {
-    return doc.employeeName || doc.salesRepName || employeeFromStore || doc.authorName || doc.writerName || '담당자 미지정'
+    return doc.employeeName || doc.salesRepName || employeeFromStore || employeeFromLogs || doc.authorName || doc.writerName || '담당자 미지정'
   } else if (isInvoiceDocument.value) {
-    return doc.salesRepName || doc.employeeName || employeeFromStore || doc.authorName || doc.writerName || '담당자 미지정'
+    return doc.salesRepName || doc.employeeName || employeeFromStore || employeeFromLogs || doc.authorName || doc.writerName || '담당자 미지정'
   } else {
     return doc.salesRepName || employeeFromStore || doc.authorName || doc.writerName || '영업 담당자 미지정'
   }
 })
 
-// 💡 청구서용 거래처명 — clientName 없을 때 clientId로 store에서 조회
+// 💡 거래처명 — clientName 없을 때 clientId로 store 조회, 주문서는 orderContract에서도 확인
 const resolvedClientName = computed(() => {
   const doc = docDetail.value
   if (!doc) return '-'
   if (doc.clientName) return doc.clientName
   if (doc.client?.name) return doc.client.name
+  // 주문서: getContract 응답에 clientName 있음
+  if (isOrderDocument.value && orderContract.value?.clientName) return orderContract.value.clientName
   const cid = doc.clientId
   if (!cid) return '-'
   const client = documentStore.clientMaster?.find(c => String(c.id) === String(cid))
@@ -256,14 +278,24 @@ const resolvedInvoiceStatements = computed(() => {
   })
 })
 
-// 💡 청구서 합계
+// 💡 청구서 합계 — 최상위 금액 우선, 없으면 statements 합산으로 계산
 const invoiceTotals = computed(() => {
   const doc = docDetail.value
   if (!doc) return { supply: 0, vat: 0, total: 0 }
-  // API에서 최상위 금액이 오면 그걸 우선 사용
-  const total = Number(doc.totalAmount ?? doc.amount ?? 0)
-  const supply = Number(doc.supplyAmount ?? Math.round(total / 1.1))
-  const vat = Number(doc.vatAmount ?? (total - supply))
+
+  // 최상위에 totalAmount가 있으면 우선 사용
+  if (doc.totalAmount || doc.amount) {
+    const total = Number(doc.totalAmount ?? doc.amount ?? 0)
+    const supply = Number(doc.supplyAmount ?? Math.round(total / 1.1))
+    const vat = Number(doc.vatAmount ?? (total - supply))
+    return { supply, vat, total }
+  }
+
+  // 없으면 statements 합산
+  const stmts = resolvedInvoiceStatements.value
+  const supply = stmts.reduce((s, st) => s + st.supplyAmount, 0)
+  const vat = stmts.reduce((s, st) => s + st.vatAmount, 0)
+  const total = stmts.reduce((s, st) => s + st.totalAmount, 0)
   return { supply, vat, total }
 })
 
@@ -272,22 +304,23 @@ const resolvedOrderItems = computed(() => {
   const doc = docDetail.value
   if (!doc || !isOrderDocument.value) return []
 
-  // orderContract ref 우선, 없으면 store fallback
   const contractId = doc.headerId ?? doc.contractId
   const contract = orderContract.value || (contractId ? documentStore.getContractById(String(contractId)) : null)
   const contractItems = contract?.items || []
 
-  return (doc.items || []).map(item => {
+  return (doc.items || []).map((item, idx) => {
+    // getContract 응답: items[].id = detailId, productName, unitPrice, unit, productCategory
     const matched = contractItems.find(ci =>
-        String(ci.detailId ?? ci.contractDetailId ?? ci.id) === String(item.contractDetailId)
+        String(ci.id ?? ci.detailId ?? ci.contractDetailId) === String(item.contractDetailId)
     )
+    const unitPrice = matched?.unitPrice ?? item.unitPrice ?? 0
     return {
       ...item,
-      name: matched?.name || matched?.productName || item.name || `품목 #${item.contractDetailId}`,
-      unit: matched?.unit || item.unit || '-',
-      unitPrice: matched?.unitPrice ?? matched?.price ?? item.unitPrice ?? 0,
-      variety: matched?.variety || item.variety || '',
-      amount: item.quantity * (matched?.unitPrice ?? matched?.price ?? item.unitPrice ?? 0),
+      name: matched?.productName || matched?.name || item.productName || item.name || `주문 품목 ${idx + 1}`,
+      unit: matched?.unit || item.unit || 'EA',
+      unitPrice,
+      variety: matched?.productCategory || matched?.variety || item.variety || '',
+      amount: item.quantity * unitPrice,
     }
   })
 })
@@ -372,8 +405,10 @@ const showRewriteButton = computed(() => (
 ))
 
 const orderStatus = computed(() => normalizeOrderStatus(docDetail.value?.status))
-const canOrderCancel = computed(() => isOrderDocument.value && authStore.currentRole === ROLES.CLIENT && orderStatus.value === 'REQUESTED' && authStore.currentRole !== ROLES.ADMIN)
-const showOrderCancelButton = computed(() => isOrderDocument.value && orderStatus.value !== 'CANCELED' && authStore.currentRole === ROLES.CLIENT && isAuthor.value && authStore.currentRole !== ROLES.ADMIN)
+// 취소 가능 상태: PENDING만 허용
+const cancellableOrderStatuses = ['REQUESTED']
+const canOrderCancel = computed(() => isOrderDocument.value && authStore.currentRole === ROLES.CLIENT && cancellableOrderStatuses.includes(orderStatus.value) && authStore.currentRole !== ROLES.ADMIN)
+const showOrderCancelButton = computed(() => isOrderDocument.value && orderStatus.value !== 'CANCELED' && orderStatus.value !== 'REJECTED' && authStore.currentRole === ROLES.CLIENT && isAuthor.value && authStore.currentRole !== ROLES.ADMIN)
 
 const isDeleteAction = ref(false)
 const handleDelete = () => {
@@ -499,10 +534,6 @@ const loadDetail = async () => {
   isLoading.value = true
 
   try {
-    if (authStore.currentRole !== ROLES.CLIENT && employeeStore.employees.length === 0) {
-      try { await employeeStore.fetchEmployees() } catch (e) {}
-    }
-
     const typeKey = resolveDocumentTypeKey(props.docType)
 
     let detail = null
@@ -527,18 +558,36 @@ const loadDetail = async () => {
     docDetail.value = detail
     if (docDetail.value && !docDetail.value.type) docDetail.value.type = typeKey
 
-    // ✅ 주문서: headerId(contractId)로 계약 상세 fetch → orderContract ref에 저장 → resolvedOrderItems 반응
+    // ✅ 주문서: headerId(contractId)로 계약 품목 fetch → resolvedOrderItems 매핑
     if (isOrderDocument.value && docDetail.value) {
+      orderContract.value = null
       const contractId = docDetail.value.headerId ?? docDetail.value.contractId
       if (contractId) {
         try {
-          // store에서 먼저 확인
-          let contract = documentStore.getContractById(String(contractId))
-          // store에 items가 없으면 fresh fetch
-          if (!contract || !contract.items || contract.items.length === 0) {
-            contract = await documentStore.fetchTypedDocumentDetail({ id: String(contractId), type: 'contract' })
+          if (authStore.currentRole === ROLES.CLIENT) {
+            // CLIENT는 contracts/{id} 상세 조회 가능 (OrderView.vue에서도 동일하게 사용)
+            try {
+              const res = await getContract(contractId)
+              const contract = res?.data?.data || res?.data || null
+              orderContract.value = contract || null
+            } catch (e) {
+              // getContract 실패 시 active 목록에서 id 확인 후 재시도
+              const clientId = authStore.me?.refId || authStore.me?.clientId || docDetail.value.clientId
+              if (clientId) {
+                const listRes = await getContractsByClient(clientId)
+                const list = listRes?.data?.data || listRes?.data || []
+                const found = Array.isArray(list) ? list.find(c => String(c.id) === String(contractId)) : null
+                orderContract.value = found || null
+              }
+            }
+          } else {
+            // SALES_REP/ADMIN은 계약 상세 직접 fetch
+            let contract = documentStore.getContractById(String(contractId))
+            if (!contract || !contract.items || contract.items.length === 0) {
+              contract = await documentStore.fetchTypedDocumentDetail({ id: String(contractId), type: 'contract' })
+            }
+            orderContract.value = contract || null
           }
-          orderContract.value = contract || null
         } catch (e) {
           console.error('[HistoryModal] 주문서 계약 상세 조회 실패:', e)
         }
@@ -547,8 +596,8 @@ const loadDetail = async () => {
       orderContract.value = null
     }
 
-    // ✅ employeeStore 로드 (CLIENT 역할 포함 — 청구서/주문서 담당자 표시)
-    if (employeeStore.employees.length === 0) {
+    // ✅ employeeStore 로드 — SALES_REP/ADMIN만 호출 (CLIENT는 403)
+    if (authStore.currentRole !== ROLES.CLIENT && employeeStore.employees.length === 0) {
       try { await employeeStore.fetchEmployees() } catch (e) {}
     }
 
@@ -632,6 +681,7 @@ const downloadDocument = async () => {
 
 const confirmCancel = async () => {
   cancelErrorMessage.value = ''
+
   if (isDeleteAction.value) {
     let success = false
     if (isContractDocument.value) success = await documentStore.deleteContract(props.docId)
@@ -640,11 +690,42 @@ const confirmCancel = async () => {
     cancelErrorMessage.value = '문서 삭제에 실패했습니다. 권한이 없거나 이미 처리된 문서일 수 있습니다.'
     return
   }
+
   if (showOrderCancelButton.value) {
-    const result = await documentStore.cancelOrder(props.docId)
-    if (result.success) { showCancelConfirm.value = false; await loadDetail(); return }
-    cancelErrorMessage.value = result.message || '주문 취소 처리에 실패했습니다.'
-    return
+    if (orderStatus.value === 'CANCELED') {
+      cancelErrorMessage.value = '이미 취소된 주문입니다.'
+      return
+    }
+    if (!canOrderCancel.value) {
+      cancelErrorMessage.value = '이미 승인된 주문서라 취소가 불가합니다.'
+      return
+    }
+    try {
+      // 캐시된 상태가 stale할 수 있으므로 서버에서 최신 상태 재확인
+      const freshData = await documentStore.fetchTypedDocumentDetail({ id: props.docId, type: 'order' })
+      const freshStatus = String(freshData?.status || '').trim().toUpperCase()
+      if (freshStatus === 'CANCELED') {
+        cancelErrorMessage.value = '이미 취소된 주문입니다.'
+        docDetail.value = freshData
+        return
+      }
+      if (freshStatus !== 'PENDING') {
+        cancelErrorMessage.value = '이미 승인된 주문서라 취소가 불가합니다.'
+        docDetail.value = freshData
+        return
+      }
+
+      await apiCancelOrder(Number(props.docId))
+      // axios는 2xx에서만 resolve, 에러면 catch로 빠지므로 여기까지 오면 성공
+      window.alert('주문이 취소되었습니다.')
+      showCancelConfirm.value = false
+      close()
+      emit('cancelled', props.docId)
+      return
+    } catch (e) {
+      console.error('[HistoryModal] 주문 취소 오류:', e)
+      cancelErrorMessage.value = e?.response?.data?.error?.message || '주문 취소 처리 중 오류가 발생했습니다.'
+    }
   }
 }
 
@@ -671,7 +752,12 @@ const getValidityDate = (dateStr) => {
             <button v-if="showRewriteButton" type="button" class="rounded bg-[var(--color-orange)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--color-orange-dark)]" @click="handleRewrite">재작성</button>
             <button v-if="showQuotationCancelButton" type="button" class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors" @click="handleDelete">견적 취소</button>
             <button v-if="showContractDeleteButton" type="button" class="rounded bg-[#C44536] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#A3392D] transition-colors" @click="handleDelete">계약 삭제</button>
-            <button v-if="showOrderCancelButton" type="button" class="rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors bg-[var(--color-orange)] hover:bg-[var(--color-orange-dark)] disabled:cursor-not-allowed disabled:opacity-50" :disabled="!canOrderCancel" @click="showCancelConfirm = true">주문 취소</button>
+            <button v-if="showOrderCancelButton" type="button"
+                    class="rounded px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    :class="canOrderCancel ? 'bg-[var(--color-orange)] hover:bg-[var(--color-orange-dark)]' : 'bg-slate-400 cursor-not-allowed'"
+                    :title="canOrderCancel ? '' : '이미 승인된 주문서라 취소가 불가합니다'"
+                    :disabled="!canOrderCancel"
+                    @click="canOrderCancel && (showCancelConfirm = true)">주문 취소</button>
             <button v-if="showDownload" type="button" class="rounded bg-[var(--color-olive)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-olive-dark)] transition-colors" @click="downloadDocument">
               <span v-if="isDownloading" class="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
               {{ isDownloading ? 'PDF 생성 중...' : '다운로드' }}
@@ -1096,7 +1182,17 @@ const getValidityDate = (dateStr) => {
                   </div>
                   <div v-if="(isOrderDocument ? resolvedOrderItems : (docDetail.items || [])).length === 0" class="p-4 text-center text-xs text-[var(--color-text-sub)]">품목 정보가 없습니다.</div>
                 </div>
-                <div v-if="!isQuotationRequest" class="flex justify-between items-end bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]"><div class="flex flex-col"><span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">Final Quote</span></div><div class="text-right"><span class="text-2xl font-black text-[var(--color-olive)]">₩{{ Number(docDetail.totalAmount || docDetail.amount || 0).toLocaleString() }}</span><p class="text-[9px] font-bold text-[var(--color-text-sub)] mt-1">VAT INCLUDED</p></div></div>
+                <div v-if="!isQuotationRequest" class="flex justify-between items-end bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]">
+                  <div class="flex flex-col">
+                    <span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">
+                      {{ isOrderDocument ? '주문 합계' : isContractDocument ? '계약 금액' : isStatementDocument ? '명세 합계' : '견적 금액' }}
+                    </span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-2xl font-black text-[var(--color-olive)]">₩{{ Number(docDetail.totalAmount || docDetail.amount || 0).toLocaleString() }}</span>
+                    <p class="text-[9px] font-bold text-[var(--color-text-sub)] mt-1">VAT INCLUDED</p>
+                  </div>
+                </div>
               </article>
               <article v-if="isStatementDocument" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
                 <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
@@ -1233,13 +1329,21 @@ const getValidityDate = (dateStr) => {
     </div>
   </teleport>
 
-  <ModalBase v-model="showCancelConfirm" title="취소 확인" width-class="max-w-md">
-    <p class="text-sm text-slate-700">해당 문서를 취소 및 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
+  <ModalBase v-model="showCancelConfirm" :title="isOrderDocument && !isDeleteAction ? '주문 취소 확인' : '취소 확인'" width-class="max-w-md">
+    <template v-if="isOrderDocument && !isDeleteAction && !canOrderCancel">
+      <p class="text-sm font-semibold text-[#C44536]">이미 승인된 주문서라 취소가 불가합니다.</p>
+    </template>
+    <template v-else>
+      <p class="text-sm text-slate-700">
+        <template v-if="isOrderDocument && !isDeleteAction">주문을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.</template>
+        <template v-else>해당 문서를 취소 및 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</template>
+      </p>
+    </template>
     <p v-if="cancelErrorMessage" class="mt-3 text-xs font-semibold text-[#C44536]">{{ cancelErrorMessage }}</p>
     <template #footer>
       <div class="flex justify-end gap-2">
         <button type="button" class="rounded border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50" @click="showCancelConfirm = false">닫기</button>
-        <button type="button" class="rounded px-3 py-1.5 text-sm font-semibold text-white" style="background-color: #C44536" @click="confirmCancel">확인</button>
+        <button v-if="canOrderCancel || isDeleteAction || !isOrderDocument" type="button" class="rounded px-3 py-1.5 text-sm font-semibold text-white" style="background-color: #C44536" @click="confirmCancel">확인</button>
       </div>
     </template>
   </ModalBase>

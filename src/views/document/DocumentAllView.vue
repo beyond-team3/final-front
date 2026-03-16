@@ -577,6 +577,7 @@ const statusBadgeStyle = (tone) => ({
           :title="selectedDocument?.docCode || '문서 상세'"
           :doc-id="String(selectedDocument?.docId || '')"
           :doc-type="selectedDocument?.docTypeLabel || selectedDocument?.docType || ''"
+          @cancelled="loadDocuments"
       />
     </section>
 </template>
