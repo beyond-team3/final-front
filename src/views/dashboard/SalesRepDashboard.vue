@@ -41,7 +41,12 @@ const fetchDashboard = async () => {
   error.value   = ''
 
   try {
-    dashboard.value = await getSalesRepDashboard()
+    const [dashData, priorityData] = await Promise.all([
+      getSalesRepDashboard(),
+      getPriorityContacts()
+    ])
+    dashboard.value = dashData
+    priorityContacts.value = priorityData.slice(0, 5) // Top 5
   } catch (e) {
     error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
   } finally {
@@ -145,7 +150,7 @@ onMounted(() => {
     </div>
 
     <div class="dashboard-grid-bottom">
-      <DashboardReference />
+      <DashboardReference :items="priorityContacts" />
 
       <div class="panel">
         <div class="timeline-header-row">

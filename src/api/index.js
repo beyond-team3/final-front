@@ -107,19 +107,22 @@ api.interceptors.response.use(
         })
 
         if (status === 401) {
+            let router = null
+
             try {
-                const [{ useAuthStore }, { default: router }] = await Promise.all([
+                const [{ useAuthStore }, routerModule] = await Promise.all([
                     import('@/stores/auth'),
                     import('@/router'),
                 ])
 
+                router = routerModule.default
                 const authStore = useAuthStore()
                 await authStore.logout()
             } catch (logoutError) {
                 console.error('401 처리 중 로그아웃 실패:', logoutError)
             }
 
-            if (window.location.pathname !== '/login') {
+            if (router && window.location.pathname !== '/login') {
                 router.push('/login')
             }
         }

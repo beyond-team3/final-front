@@ -10,13 +10,31 @@
 <!--            <path d="M2 12H0M24 12h-2M2 17H0M24 17h-2"/>-->
 <!--          </svg>-->
           <h1 class="sidebar-title">병해충+품종 매칭 지도</h1>
-        </div>
-        <p class="sidebar-subtitle">SeedFlow+ Pest Matching MAP</p>
-      </div>
+          <div class="score-guide-wrap">
+            <button class="score-guide-trigger badge-style" @click="showScoreGuide = !showScoreGuide" title="고객관리 점수 산출 기준 안내">
+              고객관리 점수 기반
+            </button>
 
-      <!-- 데이터 출처 공지 -->
-      <div class="data-source-notice">
-        농촌진흥청 국가농작물병해충관리시스템(NCPMS)의 실시간 병해충 예찰 데이터를 연동하여 분석된 정보입니다.
+            <!-- 점수 설명 팝업 -->
+            <transition name="pop">
+              <div v-if="showScoreGuide" class="score-guide-popup">
+                <button class="popup-close-btn" @click="showScoreGuide = false">✕</button>
+                <h3 class="popup-title">고객 관리 우선순위 점수란?</h3>
+                <p class="popup-main">데이터 기반 고객 관리 지표입니다. 점수가 높을수록 관리가 시급합니다.</p>
+                <ul class="popup-list">
+                  <li><strong>계약 만료 (50%):</strong> 30일 이내 종료 시 점수 급상승</li>
+                  <li><strong>주문 공백 (30%):</strong> 진행 중인 주문서 부재 시 부여</li>
+                  <li><strong>장기 미방문 (20%):</strong> 마지막 방문 후 경과 시간 비례</li>
+                </ul>
+                <div class="popup-tip">점수가 높은 고객부터 방문 계획을 세워보세요!</div>
+              </div>
+            </transition>
+          </div>
+        </div>
+        <p class="data-source-header">
+          농촌진흥청 국가농작물병해충관리시스템(NCPMS)의
+          병해충 예찰 데이터를 연동하여 분석된 정보입니다.
+        </p>
       </div>
 
       <!-- 필터 섹션 -->
@@ -87,32 +105,6 @@
 <!--          </div>-->
 <!--        </div>-->
 <!--      </div>-->
-
-      <!-- 점수 설명 섹션 -->
-      <div class="score-guide-section">
-        <h2 class="section-label">고객 관리 우선순위 점수란?</h2>
-        <div class="guide-content">
-          <p class="guide-main">데이터를 기반으로 지금 바로 챙겨야 할 고객을 알려드리는 지표입니다. 점수가 높을수록 관리가 시급하며, 아래 세 가지 항목을 종합하여 산출됩니다.</p>
-
-          <ul class="guide-list">
-            <li>
-              <span class="guide-item-title">계약 만료 (50%)</span>
-              <p class="guide-item-desc">계약 종료가 30일 이내로 다가오거나 이미 지난 경우 점수가 급격히 올라갑니다. (재계약 준비 필요)</p>
-            </li>
-            <li>
-              <span class="guide-item-title">주문 공백 (30%)</span>
-              <p class="guide-item-desc">현재 진행 중인 주문서가 확인되지 않는 고객에게 점수를 부여합니다. (신규 주문 제안 필요)</p>
-            </li>
-            <li>
-              <span class="guide-item-title">장기 미방문 (20%)</span>
-              <p class="guide-item-desc">마지막 방문 이후 시간이 오래 흐를수록 점수가 서서히 높아집니다. (관계 유지 방문 필요)</p>
-            </li>
-          </ul>
-<!--          <div class="guide-tip">-->
-<!--            <strong>활용 팁:</strong> 리스트 상단의 점수가 높은 고객부터 우선적으로 연락하거나 방문 계획을 세워보세요!-->
-<!--          </div>-->
-        </div>
-      </div>
 
       <!-- 추천 품종 섹션 -->
       <div class="products-section">
@@ -733,8 +725,9 @@ const AREA_COORDS = {
 ════════════════════════════════════════ */
 .pest-map-view {
   display: flex;
-  width: 100%;
-  height: 100vh;
+  width: calc(100% + 48px); /* 레이아웃 패딩(24px*2) 무시 */
+  margin: -24px; /* 레이아웃 패딩(24px) 상쇄 */
+  height: calc(100vh - 56px); /* 전체 화면에서 헤더 높이만 제외 */
   background: var(--color-bg-base);
   font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   overflow: hidden;
@@ -751,7 +744,9 @@ const AREA_COORDS = {
   border-right: 1px solid var(--color-border-card);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible; /* 팝업이 잘리지 않도록 visible 유지 */
+  position: relative;
+  z-index: 10; /* 헤더(z-50)보다 낮게 조정하여 겹침 방지 */
 }
 
 /* 헤더 */
@@ -782,21 +777,13 @@ const AREA_COORDS = {
   letter-spacing: -0.3px;
 }
 
-.sidebar-subtitle {
-  font-size: 11px;
-  color: var(--color-text-placeholder);
-  margin: 0;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-/* 데이터 출처 공지 */
-.data-source-notice {
-  padding: 12px 20px 0;
-  font-size: 9px;
-  color: var(--color-text-placeholder);
+.data-source-header {
+  font-size: 13px;
+  color: var(--color-text-sub);
+  margin: 6px 0 0;
   line-height: 1.4;
   word-break: keep-all;
+  opacity: 0.9;
 }
 
 /* 필터 섹션 */
@@ -927,35 +914,36 @@ const AREA_COORDS = {
   align-items: center;
 }
 
-.score-guide-trigger {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--color-text-placeholder);
+.score-guide-trigger.badge-style {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-card);
+  padding: 3px 8px;
+  color: var(--color-text-sub);
   cursor: pointer;
   display: flex;
   align-items: center;
-  transition: color 0.15s;
-  margin-top: -14px; /* section-label 마진 보정 */
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.score-guide-trigger:hover {
+.score-guide-trigger.badge-style:hover {
   color: var(--color-olive);
-}
-
-.score-guide-trigger svg {
-  width: 14px;
-  height: 14px;
+  background: var(--color-bg-card);
+  border-color: var(--color-olive-light);
 }
 
 .score-guide-popup {
   position: absolute;
-  top: 10px;
-  left: -10px;
+  top: 25px;
+  left: 0px;
   width: 280px;
-  background: #fff;
+  background: var(--color-bg-card);
   border: 1px solid var(--color-border-card);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 18px 16px;
   box-shadow: 0 10px 25px rgba(61, 53, 41, 0.2);
   z-index: 100;

@@ -28,16 +28,16 @@ export const HEADER_MENU_CONFIG = [
 
 export const MENU_CONFIG = [
     { key: 'dashboard', label: '대시보드', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], route: '/dashboard' },
-    { key: 'client-management', label: '거래처', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/clients' },
+    { key: 'client-management', label: '거래처 관리', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/clients' },
     {
         key: 'sales-management',
         label: '문서 관리',
         roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT],
         children: [
-            { key: 'quote-request', label: '견적 요청서', route: '/documents/request', roles: [ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'quote', label: '견적서', route: '/documents/quotation', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
-            { key: 'contract', label: '계약서', route: '/documents/contract', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
-            { key: 'order', label: '주문서', route: '/documents/order', roles: [ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'quote-request', label: '견적 요청서', route: '/documents/request', roles: [ROLES.CLIENT] },
+            { key: 'quote', label: '견적서', route: '/documents/quotation', roles: [ROLES.SALES_REP] },
+            { key: 'contract', label: '계약서', route: '/documents/contract', roles: [ROLES.SALES_REP] },
+            { key: 'order', label: '주문서', route: '/documents/order', roles: [ROLES.CLIENT] },
             { key: 'statement', label: '청구서', route: '/documents/invoices', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
 
             { key: 'document-history', label: '영업 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN] },

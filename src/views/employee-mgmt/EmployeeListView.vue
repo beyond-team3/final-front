@@ -94,7 +94,7 @@ onUnmounted(() => {
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
-    <div class="mx-auto max-w-[1200px] space-y-6">
+    <div class="space-y-6">
       <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 class="text-3xl font-black text-[var(--color-text-strong)]">사원 관리</h1>
