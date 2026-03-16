@@ -78,6 +78,7 @@ const employeeStore = useEmployeeStore()
 const docDetail = ref(null)
 const isLoading = ref(false)
 const approvalRejectReason = ref('')
+const orderContract = ref(null) // 주문서용 계약 상세 (contractDetailId 매핑에 사용)
 
 const showInfoPanel = computed(() => props.mode !== 'readonly')
 const showApprovalInfoPanel = computed(() => props.approvalInfoFields.length > 0)
@@ -205,17 +206,90 @@ const isAuthor = computed(() => {
 })
 
 // 💡 표시할 멤버 이름 (작성자/담당자)
+// ✅ 수정: employeeId로 employee store에서 이름 조회 + 다양한 필드 fallback
 const resolvedMemberName = computed(() => {
   const doc = docDetail.value
   if (!doc) return '-'
 
-  if (isQuotationRequest.value || isOrderDocument.value) {
+  // employeeId가 있으면 store에서 이름 조회 (청구서/주문서 등 이름 필드 없는 경우 대응)
+  const employeeFromStore = (() => {
+    const eid = doc.employeeId ?? doc.salesRepId
+    if (!eid) return null
+    const emp = employeeStore.employees.find(e => String(e.id) === String(eid))
+    return emp?.name || emp?.employeeName || null
+  })()
+
+  if (isQuotationRequest.value) {
     return doc.managerName || doc.client?.contact || doc.authorName || doc.writerName || '담당자 미지정'
+  } else if (isOrderDocument.value) {
+    return doc.salesRepName || doc.managerName || employeeFromStore || doc.employeeName || doc.authorName || doc.writerName || '담당자 미지정'
   } else if (isStatementDocument.value) {
-    return doc.employeeName || doc.salesRepName || doc.authorName || doc.writerName || '담당자 미지정'
+    return doc.employeeName || doc.salesRepName || employeeFromStore || doc.authorName || doc.writerName || '담당자 미지정'
+  } else if (isInvoiceDocument.value) {
+    return doc.salesRepName || doc.employeeName || employeeFromStore || doc.authorName || doc.writerName || '담당자 미지정'
   } else {
-    return doc.salesRepName || doc.authorName || doc.writerName || '영업 담당자 미지정'
+    return doc.salesRepName || employeeFromStore || doc.authorName || doc.writerName || '영업 담당자 미지정'
   }
+})
+
+// 💡 청구서용 거래처명 — clientName 없을 때 clientId로 store에서 조회
+const resolvedClientName = computed(() => {
+  const doc = docDetail.value
+  if (!doc) return '-'
+  if (doc.clientName) return doc.clientName
+  if (doc.client?.name) return doc.client.name
+  const cid = doc.clientId
+  if (!cid) return '-'
+  const client = documentStore.clientMaster?.find(c => String(c.id) === String(cid))
+  return client?.name || client?.clientName || `거래처 #${cid}`
+})
+
+// 💡 청구서 statements 금액 보완 — supplyAmount/vatAmount 없을 때 totalAmount 기준 역산
+const resolvedInvoiceStatements = computed(() => {
+  const doc = docDetail.value
+  if (!doc || !isInvoiceDocument.value) return []
+  return (doc.statements || []).map(stmt => {
+    const total = Number(stmt.totalAmount ?? stmt.total ?? 0)
+    const supply = Number(stmt.supplyAmount ?? stmt.supply ?? Math.round(total / 1.1))
+    const vat = Number(stmt.vatAmount ?? (total - supply))
+    return { ...stmt, supplyAmount: supply, vatAmount: vat, totalAmount: total }
+  })
+})
+
+// 💡 청구서 합계
+const invoiceTotals = computed(() => {
+  const doc = docDetail.value
+  if (!doc) return { supply: 0, vat: 0, total: 0 }
+  // API에서 최상위 금액이 오면 그걸 우선 사용
+  const total = Number(doc.totalAmount ?? doc.amount ?? 0)
+  const supply = Number(doc.supplyAmount ?? Math.round(total / 1.1))
+  const vat = Number(doc.vatAmount ?? (total - supply))
+  return { supply, vat, total }
+})
+
+// 💡 주문서 items — contractDetailId로 계약 상세에서 상품명/단가 매핑
+const resolvedOrderItems = computed(() => {
+  const doc = docDetail.value
+  if (!doc || !isOrderDocument.value) return []
+
+  // orderContract ref 우선, 없으면 store fallback
+  const contractId = doc.headerId ?? doc.contractId
+  const contract = orderContract.value || (contractId ? documentStore.getContractById(String(contractId)) : null)
+  const contractItems = contract?.items || []
+
+  return (doc.items || []).map(item => {
+    const matched = contractItems.find(ci =>
+        String(ci.detailId ?? ci.contractDetailId ?? ci.id) === String(item.contractDetailId)
+    )
+    return {
+      ...item,
+      name: matched?.name || matched?.productName || item.name || `품목 #${item.contractDetailId}`,
+      unit: matched?.unit || item.unit || '-',
+      unitPrice: matched?.unitPrice ?? matched?.price ?? item.unitPrice ?? 0,
+      variety: matched?.variety || item.variety || '',
+      amount: item.quantity * (matched?.unitPrice ?? matched?.price ?? item.unitPrice ?? 0),
+    }
+  })
 })
 
 const statementRecentLogs = computed(() => {
@@ -289,12 +363,12 @@ const isRewritableContract = computed(() => {
 })
 
 const showRewriteButton = computed(() => (
-  authStore.currentRole === ROLES.SALES_REP
-  && isAuthor.value
-  && (
-    (isRewritableQuotation.value && showQuotationCancelButton.value)
-    || (isRewritableContract.value && showContractDeleteButton.value)
-  )
+    authStore.currentRole === ROLES.SALES_REP
+    && isAuthor.value
+    && (
+        (isRewritableQuotation.value && showQuotationCancelButton.value)
+        || (isRewritableContract.value && showContractDeleteButton.value)
+    )
 ))
 
 const orderStatus = computed(() => normalizeOrderStatus(docDetail.value?.status))
@@ -366,17 +440,17 @@ const close = () => {
 
 const getApprovalRejectReason = (approval) => {
   const stepReason = Array.isArray(approval?.steps)
-    ? [...approval.steps]
-      .sort((left, right) => (right.stepOrder || 0) - (left.stepOrder || 0))
-      .find((step) => String(step?.status || '').toUpperCase().includes('REJECT'))?.reason
-    : ''
+      ? [...approval.steps]
+          .sort((left, right) => (right.stepOrder || 0) - (left.stepOrder || 0))
+          .find((step) => String(step?.status || '').toUpperCase().includes('REJECT'))?.reason
+      : ''
 
   return String(
-    stepReason
-    || approval?.reason
-    || approval?.rejectReason
-    || approval?.rejectionReason
-    || '',
+      stepReason
+      || approval?.reason
+      || approval?.rejectReason
+      || approval?.rejectionReason
+      || '',
   ).trim()
 }
 
@@ -402,8 +476,8 @@ const loadRejectReason = async () => {
     })
 
     const approvals = Array.isArray(result?.content)
-      ? result.content
-      : (Array.isArray(result) ? result : [])
+        ? result.content
+        : (Array.isArray(result) ? result : [])
     const rejectedApproval = approvals.find((approval) => getApprovalRejectReason(approval))
 
     approvalRejectReason.value = rejectedApproval ? getApprovalRejectReason(rejectedApproval) : ''
@@ -439,7 +513,8 @@ const loadDetail = async () => {
     else if (typeKey === 'invoice') detail = documentStore.getInvoiceById(currentId)
     else if (['quotation-request', 'rfq'].includes(typeKey)) detail = documentStore.getRequestById(currentId)
 
-    const requiresFreshDetail = isQuotationDocument.value || isContractDocument.value || isStatementDocument.value
+    // ✅ 수정: isOrderDocument, isInvoiceDocument도 fresh fetch 대상에 포함
+    const requiresFreshDetail = isQuotationDocument.value || isContractDocument.value || isStatementDocument.value || isOrderDocument.value || isInvoiceDocument.value
 
     if (requiresFreshDetail || !detail || !detail.items || detail.items.length === 0) {
       const fetched = await documentStore.fetchTypedDocumentDetail({
@@ -451,6 +526,32 @@ const loadDetail = async () => {
 
     docDetail.value = detail
     if (docDetail.value && !docDetail.value.type) docDetail.value.type = typeKey
+
+    // ✅ 주문서: headerId(contractId)로 계약 상세 fetch → orderContract ref에 저장 → resolvedOrderItems 반응
+    if (isOrderDocument.value && docDetail.value) {
+      const contractId = docDetail.value.headerId ?? docDetail.value.contractId
+      if (contractId) {
+        try {
+          // store에서 먼저 확인
+          let contract = documentStore.getContractById(String(contractId))
+          // store에 items가 없으면 fresh fetch
+          if (!contract || !contract.items || contract.items.length === 0) {
+            contract = await documentStore.fetchTypedDocumentDetail({ id: String(contractId), type: 'contract' })
+          }
+          orderContract.value = contract || null
+        } catch (e) {
+          console.error('[HistoryModal] 주문서 계약 상세 조회 실패:', e)
+        }
+      }
+    } else {
+      orderContract.value = null
+    }
+
+    // ✅ employeeStore 로드 (CLIENT 역할 포함 — 청구서/주문서 담당자 표시)
+    if (employeeStore.employees.length === 0) {
+      try { await employeeStore.fetchEmployees() } catch (e) {}
+    }
+
     await loadRejectReason()
   } catch (e) {
     console.error('[HistoryModal] 상세 로드 중 오류 발생:', e)
@@ -486,8 +587,7 @@ const downloadDocument = async () => {
     paper.style.boxSizing = 'border-box';
 
     if (isContract) {
-      // 1110px 고정 시 미세한 오차로 2페이지가 생기는 것을 방지하기 위해 auto 설정
-      paper.style.minHeight = 'auto'; 
+      paper.style.minHeight = 'auto';
       paper.style.height = 'auto';
       paper.style.overflow = 'visible';
     } else {
@@ -503,7 +603,7 @@ const downloadDocument = async () => {
     filename: `${docDetail.value?.displayCode || props.docId}.pdf`,
     image: { type: 'jpeg', quality: 1.0 },
     html2canvas: {
-      scale: isContract ? 2 : 3, // 견적서는 고화질(3), 계약서는 긴 문서 대응을 위해 2 적용
+      scale: isContract ? 2 : 3,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
@@ -512,7 +612,7 @@ const downloadDocument = async () => {
       scrollY: 0
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { 
+    pagebreak: {
       mode: isContract ? ['css', 'legacy'] : 'avoid-all',
       avoid: ['tr', 'h1', 'h2', 'h3', 'table', '.no-break']
     }
@@ -658,6 +758,7 @@ const getValidityDate = (dateStr) => {
                   </div>
 
                   <!-- 주문서 -->
+                  <!-- ✅ 수정: resolvedOrderItems, resolvedClientName 사용 (contractDetailId → 상품명/단가 매핑) -->
                   <div v-else-if="isOrderDocument"
                        class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
                        style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
@@ -667,7 +768,7 @@ const getValidityDate = (dateStr) => {
                     <div class="flex justify-between items-start mb-8 text-[13px]">
                       <div class="space-y-2">
                         <p>공급자: <span class="border-b border-black font-bold px-2 text-[15px]">(주) 몬순</span></p>
-                        <p>주문자: <span class="border-b border-black font-bold px-2 text-[15px]">{{ docDetail.clientName || docDetail.client?.name || '(빈값)' }}</span> 귀하</p>
+                        <p>주문자: <span class="border-b border-black font-bold px-2 text-[15px]">{{ resolvedClientName }}</span> 귀하</p>
                         <p>담당자: <span class="px-2">{{ resolvedMemberName }}</span></p>
                         <p>주문일: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</span></p>
                       </div>
@@ -684,12 +785,15 @@ const getValidityDate = (dateStr) => {
                       </tr>
                       </thead>
                       <tbody>
-                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-o-'+idx" class="border-b border-black no-break">
+                      <tr v-for="(item, idx) in resolvedOrderItems" :key="'pdf-o-'+idx" class="border-b border-black no-break">
                         <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
-                        <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
+                        <td class="border-r border-black p-2">{{ item.quantity ?? 0 }}</td>
                         <td class="border-r border-black p-2">{{ item.unit }}</td>
-                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
-                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
+                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? 0).toLocaleString() }}</td>
+                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? 0).toLocaleString() }}</td>
+                      </tr>
+                      <tr v-if="resolvedOrderItems.length === 0">
+                        <td colspan="5" class="p-6 text-center text-[#777]">품목 정보가 없습니다.</td>
                       </tr>
                       </tbody>
                       <tfoot class="bg-[#FAF7F3] font-bold">
@@ -699,9 +803,9 @@ const getValidityDate = (dateStr) => {
                       </tr>
                       </tfoot>
                     </table>
-                    <div v-if="docDetail.memo" class="mb-6">
+                    <div v-if="docDetail.memo || docDetail.deliveryRequest" class="mb-6">
                       <strong class="text-xs">[비고]</strong>
-                      <p class="mt-2 min-h-[60px] border border-black p-4 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[12px]">{{ docDetail.memo }}</p>
+                      <p class="mt-2 min-h-[60px] border border-black p-4 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[12px]">{{ docDetail.memo || docDetail.deliveryRequest }}</p>
                     </div>
                     <div class="absolute bottom-20 left-0 right-0 text-center space-y-4">
                       <p class="text-sm font-bold">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p>
@@ -772,6 +876,7 @@ const getValidityDate = (dateStr) => {
                   </div>
 
                   <!-- 청구서 -->
+                  <!-- ✅ 수정: resolvedClientName, resolvedInvoiceStatements, invoiceTotals 사용 -->
                   <div v-else-if="isInvoiceDocument"
                        class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
                        style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
@@ -780,53 +885,48 @@ const getValidityDate = (dateStr) => {
                     </div>
                     <div class="flex justify-between items-start mb-8 text-[13px]">
                       <div class="space-y-2">
-                        <p>청구처: <span class="border-b border-black font-bold px-2 text-[15px]">{{ docDetail.clientName || docDetail.client?.name || '(빈값)' }}</span> 귀하</p>
+                        <p>수 신 (갑): <span class="border-b border-black font-bold px-2 text-[15px]">{{ resolvedClientName }}</span> 귀하</p>
+                        <p>발 신 (을): <span class="font-bold">(주) 몬순</span></p>
                         <p>담당: <span class="px-2">{{ resolvedMemberName }}</span></p>
-                        <p>청구일: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.date || docDetail.billingDate || docDetail.createdAt) }}</span></p>
+                        <p>계약 코드: <span class="font-mono font-bold px-1">{{ docDetail.contractCode || (docDetail.contractId ? `CNT-${docDetail.contractId}` : '—') }}</span></p>
+                        <p>청구 기간: <span class="font-mono px-1">{{ docDetail.startDate || '—' }} ~ {{ docDetail.endDate || '—' }}</span></p>
+                        <p>청구일: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.invoiceDate || docDetail.date || docDetail.createdAt) }}</span></p>
                         <p>납부기한: <span class="font-bold border-b border-black px-1 text-red-700">{{ formatKRDate(docDetail.dueDate || docDetail.paymentDueDate) }}</span></p>
+                        <p>문서 번호: <span class="font-mono font-bold px-1">{{ docDetail.invoiceCode || docDetail.displayCode || docId }}</span></p>
                       </div>
                       <div class="w-16 h-16 border-2 border-black flex items-center justify-center font-bold text-sm">인</div>
                     </div>
+
+                    <div class="mb-2"><strong class="text-sm">[명세서 목록]</strong></div>
                     <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[11px]">
                       <thead class="bg-[#F7F3EC]">
                       <tr class="border-b-2 border-black">
-                        <th class="border-r border-black p-2">품목</th>
-                        <th class="border-r border-black p-2 w-16">수량</th>
-                        <th class="border-r border-black p-2">단위</th>
-                        <th class="border-r border-black p-2">단가</th>
-                        <th class="p-2">금액</th>
+                        <th class="border-r border-black p-2 text-left px-3">명세서 번호</th>
+                        <th class="border-r border-black p-2 text-right px-3">공급가액</th>
+                        <th class="border-r border-black p-2 text-right px-3">부가세(10%)</th>
+                        <th class="p-2 text-right px-3">합 계</th>
                       </tr>
                       </thead>
                       <tbody>
-                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-i-'+idx" class="border-b border-black">
-                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
-                        <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
-                        <td class="border-r border-black p-2">{{ item.unit }}</td>
-                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
-                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
+                      <tr v-for="(stmt, idx) in resolvedInvoiceStatements" :key="'pdf-inv-stmt-'+idx" class="border-b border-black">
+                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ stmt.statementCode || stmt.code || '-' }}</td>
+                        <td class="border-r border-black p-2 text-right font-mono px-3">{{ stmt.supplyAmount.toLocaleString() }}</td>
+                        <td class="border-r border-black p-2 text-right font-mono px-3">{{ stmt.vatAmount.toLocaleString() }}</td>
+                        <td class="p-2 text-right font-bold px-3">{{ stmt.totalAmount.toLocaleString() }}</td>
+                      </tr>
+                      <tr v-if="resolvedInvoiceStatements.length === 0">
+                        <td colspan="4" class="p-6 text-center text-[#777] italic">명세서 정보가 없습니다.</td>
+                      </tr>
+                      <tr v-if="resolvedInvoiceStatements.length > 0" class="bg-[#FAF7F3] font-bold">
+                        <td colspan="3" class="border-r border-black p-2 text-right px-3">청구 합계 금액 (VAT 포함)</td>
+                        <td class="p-2 text-right font-extrabold px-3 text-lg">{{ invoiceTotals.total.toLocaleString() }}</td>
                       </tr>
                       </tbody>
-                      <tfoot class="bg-[#FAF7F3] font-bold">
-                      <tr>
-                        <td colspan="4" class="border-r border-black p-2 text-sm text-right px-3">합 계</td>
-                        <td class="p-2 text-right font-mono px-3 text-lg">{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</td>
-                      </tr>
-                      </tfoot>
                     </table>
-                    <div class="border-2 border-black p-4 bg-[#FAF7F3] mb-6 text-[13px]">
-                      <div class="flex justify-between font-bold text-base">
-                        <span>청구 금액 합계</span>
-                        <span class="text-blue-700 text-xl font-extrabold">₩{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</span>
-                      </div>
-                      <p class="text-[10px] text-gray-500 mt-1">VAT 포함 금액입니다.</p>
-                    </div>
-                    <div v-if="docDetail.bankAccount || docDetail.accountInfo" class="mb-6 text-[12px]">
-                      <strong class="text-xs">[입금 계좌 안내]</strong>
-                      <p class="mt-2 border border-black p-3 bg-white">{{ docDetail.bankAccount || docDetail.accountInfo }}</p>
-                    </div>
+
                     <div class="absolute bottom-20 left-0 right-0 text-center space-y-4">
-                      <p class="text-sm font-bold">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p>
-                      <p class="text-lg font-black tracking-[5px] border-t-2 border-black pt-5 mx-16">위와 같이 청구함 ( (주) 몬순 )</p>
+                      <p class="text-sm font-bold">{{ formatKRDate(docDetail.invoiceDate || docDetail.date || docDetail.createdAt) }}</p>
+                      <p class="text-lg font-black tracking-[5px] border-t-2 border-black pt-5 mx-16">위 청구 내용을 확인하기 위해 기명 날인함 ( (주) 몬순 )</p>
                     </div>
                   </div>
 
@@ -835,24 +935,20 @@ const getValidityDate = (dateStr) => {
                        class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
                        style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
 
-                    <!-- 헤더 -->
                     <div class="text-center border-b-2 border-black pb-3 mb-10">
                       <h1 class="text-3xl font-bold tracking-[10px]">결 제 확 인 서</h1>
                     </div>
 
-                    <!-- 상태 스탬프 -->
                     <div class="absolute top-16 right-12 w-24 h-24 border-4 border-green-600 rounded-full flex items-center justify-center rotate-[-15deg] opacity-80">
                       <span class="text-green-600 font-black text-lg tracking-widest">완 납</span>
                     </div>
 
-                    <!-- 수신/발신 -->
                     <div class="mb-10 space-y-3 text-[13px]">
                       <p>수신: <span class="border-b border-black font-bold px-2 text-[15px]">{{ docDetail.clientName || '-' }}</span> 귀하</p>
                       <p>발신: <span class="font-bold">(주) 몬순</span></p>
                       <p>담당: <span class="px-2">{{ resolvedMemberName }}</span></p>
                     </div>
 
-                    <!-- 결제 정보 테이블 -->
                     <table class="w-full border-collapse border-2 border-black text-[13px] mb-8">
                       <tbody>
                       <tr class="border-b border-black">
@@ -882,7 +978,6 @@ const getValidityDate = (dateStr) => {
                       </tbody>
                     </table>
 
-                    <!-- 금액 강조 박스 -->
                     <div class="border-2 border-black p-6 bg-[#FAF7F3] mb-8">
                       <div v-if="docDetail.invoiceTotalAmount && docDetail.invoiceTotalAmount !== docDetail.paymentAmount"
                            class="flex justify-between text-[12px] text-gray-500 mb-2">
@@ -898,7 +993,6 @@ const getValidityDate = (dateStr) => {
                       <p class="text-[10px] text-gray-400 mt-2 text-right">VAT 포함 금액입니다.</p>
                     </div>
 
-                    <!-- 하단 -->
                     <div class="absolute bottom-20 left-0 right-0 text-center space-y-4">
                       <p class="text-sm font-bold">{{ formatKRDate(docDetail.paidAt || docDetail.createdAt) }}</p>
                       <p class="text-lg font-black tracking-[5px] border-t-2 border-black pt-5 mx-16">
@@ -906,7 +1000,6 @@ const getValidityDate = (dateStr) => {
                       </p>
                     </div>
                   </div>
-
 
                   <!-- 견적 요청서 -->
                   <div v-else-if="isQuotationRequest" class="bg-white p-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]" style="box-sizing: border-box !important; font-family: 'KoPub Dotum', sans-serif !important;">
@@ -940,17 +1033,70 @@ const getValidityDate = (dateStr) => {
                   <span class="text-[10px] font-bold text-[var(--color-text-sub)]">PARTNER INFO</span>
                 </div>
                 <div class="space-y-5">
-                  <div class="flex flex-col gap-1.5"><label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">상호명 / 법인명</label><div class="p-3 border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] text-base font-black text-[var(--color-text-strong)] shadow-inner">{{ docDetail.clientName || docDetail.client?.name }}</div></div>
-                  <div class="flex flex-col gap-2"><label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">{{ (isQuotationRequest || isOrderDocument) ? '고객사 담당자' : 'SeedFlow+ 담당 영업사원' }}</label><div class="flex items-center justify-between p-3 border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] shadow-inner"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-[var(--color-olive)]/10 border border-[var(--color-olive)]/20 flex items-center justify-center text-[var(--color-olive)] font-black text-xs">{{ (resolvedMemberName || 'M')[0] }}</div><span class="text-sm font-bold text-[var(--color-text-strong)]">{{ resolvedMemberName }}</span></div><span class="text-[9px] bg-[var(--color-olive)] text-white px-2 py-1 rounded-lg font-black tracking-tighter">OFFICIAL</span></div></div>
+                  <div class="flex flex-col gap-1.5"><label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">상호명 / 법인명</label><div class="p-3 border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] text-base font-black text-[var(--color-text-strong)] shadow-inner">{{ resolvedClientName }}</div></div>
+                  <div class="flex flex-col gap-2">
+                    <label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">담당 영업사원</label>
+                    <div class="flex items-center justify-between p-3 border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] shadow-inner">
+                      <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-[var(--color-olive)]/10 border border-[var(--color-olive)]/20 flex items-center justify-center text-[var(--color-olive)] font-black text-xs">{{ (resolvedMemberName || 'M')[0] }}</div>
+                        <span class="text-sm font-bold text-[var(--color-text-strong)]">{{ resolvedMemberName }}</span>
+                      </div>
+                      <span class="text-[9px] bg-[var(--color-olive)] text-white px-2 py-1 rounded-lg font-black tracking-tighter">OFFICIAL</span>
+                    </div>
+                  </div>
                 </div>
               </article>
-              <article class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+
+              <!-- 청구서: statements 기반 패널 -->
+              <article v-if="isInvoiceDocument" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
+                <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
+                  <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-orange)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">포함 명세서</h3></div>
+                  <span class="text-[10px] font-bold text-[var(--color-text-sub)] tracking-tighter">{{ resolvedInvoiceStatements.length }} STMTS</span>
+                </div>
+                <div class="max-h-72 overflow-y-auto border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] p-2 space-y-2 shadow-inner custom-scrollbar mb-5">
+                  <div v-for="(stmt, idx) in resolvedInvoiceStatements" :key="'inv-stmt-'+idx" class="flex justify-between items-center p-3 rounded-lg border-b border-[var(--color-border-divider)] last:border-0 pb-3">
+                    <div class="flex flex-col gap-0.5">
+                      <span class="text-xs font-bold text-[var(--color-text-strong)]">{{ stmt.statementCode || stmt.code }}</span>
+                      <span class="text-[10px] text-[var(--color-text-sub)]">공급가 ₩{{ stmt.supplyAmount.toLocaleString() }}</span>
+                    </div>
+                    <div class="text-right flex flex-col gap-0.5">
+                      <span class="text-[10px] font-bold text-[var(--color-olive)]">₩{{ stmt.totalAmount.toLocaleString() }}</span>
+                      <span class="text-[9px] text-[var(--color-text-sub)]">VAT ₩{{ stmt.vatAmount.toLocaleString() }}</span>
+                    </div>
+                  </div>
+                  <div v-if="resolvedInvoiceStatements.length === 0" class="p-4 text-center text-xs text-[var(--color-text-sub)]">명세서 정보가 없습니다.</div>
+                </div>
+                <div class="space-y-2 bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]">
+                  <div class="flex justify-between text-xs text-[var(--color-text-sub)]"><span>공급가액</span><span>₩{{ invoiceTotals.supply.toLocaleString() }}</span></div>
+                  <div class="flex justify-between text-xs text-[var(--color-text-sub)]"><span>부가세 (10%)</span><span>₩{{ invoiceTotals.vat.toLocaleString() }}</span></div>
+                  <div class="flex justify-between items-end pt-2 border-t border-[var(--color-border-divider)]">
+                    <span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">Total</span>
+                    <span class="text-2xl font-black text-[var(--color-olive)]">₩{{ invoiceTotals.total.toLocaleString() }}</span>
+                  </div>
+                  <p class="text-[9px] font-bold text-[var(--color-text-sub)] text-right">VAT INCLUDED</p>
+                </div>
+              </article>
+
+              <!-- 청구서 외 문서: items 기반 패널 -->
+              <article v-if="!isInvoiceDocument" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
                 <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
                   <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-orange)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">세부 품목 내역</h3></div>
-                  <span class="text-[10px] font-bold text-[var(--color-text-sub)] tracking-tighter">{{ (docDetail.items || []).length }} ITEMS</span>
+                  <span class="text-[10px] font-bold text-[var(--color-text-sub)] tracking-tighter">{{ (isOrderDocument ? resolvedOrderItems : (docDetail.items || [])).length }} ITEMS</span>
                 </div>
-                <div class="max-h-72 overflow-y-auto border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] p-2 space-y-2 shadow-inner custom-scrollbar mb-5"><div v-for="(item, idx) in docDetail.items" :key="'data-sum-'+idx" class="flex justify-between items-center p-3 rounded-lg border-b border-[var(--color-border-divider)] last:border-0 pb-3"><div class="flex flex-col gap-0.5"><span class="text-xs font-bold text-[var(--color-text-strong)]">{{ item.name }}</span><span class="text-[10px] text-[var(--color-text-sub)]">{{ item.variety || '기본 품종' }} | {{ item.unit }}</span></div><div class="text-right flex flex-col gap-0.5"><span class="text-xs font-black text-[var(--color-text-strong)]">{{ item.quantity || item.count }} {{ item.unit }}</span><span v-if="!isQuotationRequest" class="text-[10px] font-bold text-[var(--color-olive)]">₩{{ Number(item.amount || ((item.quantity||item.count)*(item.unitPrice||item.price))).toLocaleString() }}</span></div></div></div>
-                <div v-if="!isQuotationRequest" class="flex justify-between items-end bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]"><div class="flex flex-col"><span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">Final Quote</span><span class="text-xs font-medium text-[var(--color-text-sub)] line-through">₩{{ Number((docDetail.totalAmount || docDetail.amount || 0) * 1.1).toLocaleString() }}</span></div><div class="text-right"><span class="text-2xl font-black text-[var(--color-olive)]">₩{{ Number(docDetail.totalAmount || docDetail.amount || 0).toLocaleString() }}</span><p class="text-[9px] font-bold text-[var(--color-text-sub)] mt-1">VAT INCLUDED</p></div></div>
+                <div class="max-h-72 overflow-y-auto border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] p-2 space-y-2 shadow-inner custom-scrollbar mb-5">
+                  <div v-for="(item, idx) in (isOrderDocument ? resolvedOrderItems : (docDetail.items || []))" :key="'data-sum-'+idx" class="flex justify-between items-center p-3 rounded-lg border-b border-[var(--color-border-divider)] last:border-0 pb-3">
+                    <div class="flex flex-col gap-0.5">
+                      <span class="text-xs font-bold text-[var(--color-text-strong)]">{{ item.productName || item.name }}</span>
+                      <span class="text-[10px] text-[var(--color-text-sub)]">{{ item.variety || item.productCode || '기본 품종' }} | {{ item.unit }}</span>
+                    </div>
+                    <div class="text-right flex flex-col gap-0.5">
+                      <span class="text-xs font-black text-[var(--color-text-strong)]">{{ item.quantity || item.count }} {{ item.unit }}</span>
+                      <span v-if="!isQuotationRequest" class="text-[10px] font-bold text-[var(--color-olive)]">₩{{ Number(item.amount || ((item.quantity||item.count)*(item.unitPrice||item.price||0))).toLocaleString() }}</span>
+                    </div>
+                  </div>
+                  <div v-if="(isOrderDocument ? resolvedOrderItems : (docDetail.items || [])).length === 0" class="p-4 text-center text-xs text-[var(--color-text-sub)]">품목 정보가 없습니다.</div>
+                </div>
+                <div v-if="!isQuotationRequest" class="flex justify-between items-end bg-[var(--color-bg-input)]/50 p-4 rounded-xl border border-[var(--color-border-divider)]"><div class="flex flex-col"><span class="text-[10px] font-black text-[var(--color-text-sub)] uppercase">Final Quote</span></div><div class="text-right"><span class="text-2xl font-black text-[var(--color-olive)]">₩{{ Number(docDetail.totalAmount || docDetail.amount || 0).toLocaleString() }}</span><p class="text-[9px] font-bold text-[var(--color-text-sub)] mt-1">VAT INCLUDED</p></div></div>
               </article>
               <article v-if="isStatementDocument" class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
                 <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
