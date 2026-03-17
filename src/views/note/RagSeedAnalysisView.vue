@@ -199,7 +199,7 @@ onMounted(async () => {
     <div class="mb-6">
       <PageHeader 
         title="RAGseed 전략 분석" 
-        subtitle="영업 데이터(Seed)에서 인출한 AI 전략 리포트입니다." 
+        subtitle="영업 데이터에서 인출한 AI 전략 리포트입니다."
       />
     </div>
 
@@ -275,7 +275,7 @@ onMounted(async () => {
       </div>
 
     <!-- Main Content Area -->
-    <div class="mx-auto max-w-5xl">
+    <div class="">
       <!-- IDLE State -->
       <div v-if="status === 'IDLE'" class="flex flex-col items-center justify-center rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-32 text-center shadow-sm">
         <div class="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[var(--color-bg-base)]">

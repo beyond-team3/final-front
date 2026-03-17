@@ -97,7 +97,7 @@ const renderMarkdown = (text) => {
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
-    <PageHeader title="영업 노트 탐색" subtitle="과거의 영업 활동 기록을 필터링하여 조회할 수 있습니다." />
+    <PageHeader title="영업 노트 검색" subtitle="영업 노트를 필터링하여 조회할 수 있습니다." />
 
     <!-- Filter Bar -->
     <section class="mb-8 rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-sidebar)] p-6 shadow-sm mt-6">
@@ -194,10 +194,10 @@ const renderMarkdown = (text) => {
 
     <!-- Empty State -->
     <div v-else class="py-32 text-center bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border-card)] shadow-sm">
-      <div class="mb-6 flex h-20 w-20 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)] text-[var(--color-text-placeholder)]">
-        <i class="fas fa-box-open text-4xl"></i>
+      <div class="mb-6 flex h-20 w-20 mx-auto items-center justify-center rounded-full bg-[var(--color-bg-base)]">
+        <img src="@/assets/images/Seed_logo.png" alt="No data" class="h-12 w-12 object-contain opacity-40 grayscale" />
       </div>
-      <p class="text-[var(--color-text-sub)] font-medium">조건에 맞는 기록이 없습니다.</p>
+      <p class="text-[var(--color-text-sub)] font-medium">조건에 맞는 영업 노트가 없습니다.</p>
     </div>
 
     <!-- Note Detail Modal -->
