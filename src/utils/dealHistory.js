@@ -1,11 +1,11 @@
 export const DEAL_PIPELINE = [
-    { code: 'RFQ', label: '견적요청서', shortLabel: 'RFQ', order: 1 },
-    { code: 'QUO', label: '견적서', shortLabel: 'QUO', order: 2 },
-    { code: 'CNT', label: '계약서', shortLabel: 'CNT', order: 3 },
-    { code: 'ORD', label: '주문서', shortLabel: 'ORD', order: 4 },
-    { code: 'STMT', label: '명세서', shortLabel: 'STMT', order: 5 },
-    { code: 'INV', label: '청구서', shortLabel: 'INV', order: 6 },
-    { code: 'PAY', label: '결제', shortLabel: 'PAY', order: 7 },
+    { code: 'RFQ', label: '견적요청서', shortLabel: '요청', order: 1 },
+    { code: 'QUO', label: '견적서', shortLabel: '견적', order: 2 },
+    { code: 'CNT', label: '계약서', shortLabel: '계약', order: 3 },
+    { code: 'ORD', label: '주문서', shortLabel: '주문', order: 4 },
+    { code: 'STMT', label: '명세서', shortLabel: '명세', order: 5 },
+    { code: 'INV', label: '청구서', shortLabel: '청구', order: 6 },
+    { code: 'PAY', label: '결제', shortLabel: '결제', order: 7 },
 ]
 
 export const DEAL_STATUS_META = {

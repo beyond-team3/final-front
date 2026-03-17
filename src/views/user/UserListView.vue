@@ -79,7 +79,7 @@ const openDetail = (row) => {
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8 text-[var(--font-body)]">
-    <div class="mx-auto max-w-[1200px] space-y-6">
+    <div class="space-y-6">
       <PageHeader title="계정 목록" subtitle="서비스에 등록된 사원 및 거래처 계정을 관리합니다.">
         <template #actions>
           <button

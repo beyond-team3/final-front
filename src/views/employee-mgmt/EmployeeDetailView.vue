@@ -270,7 +270,7 @@ onMounted(fetchEmployeeDetail)
           <p class="text-sm font-medium text-[var(--color-text-sub)]">배정된 거래처가 없습니다.</p>
         </div>
 
-        <div v-else class="overflow-auto max-h-[200px] rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-card)] custom-scrollbar">
+        <div v-else class="overflow-auto max-h-[500px] rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-card)] custom-scrollbar">
           <table class="w-full min-w-[800px] text-left text-sm border-separate border-spacing-0">
             <thead class="sticky top-0 z-10 bg-[var(--color-bg-section)] text-[var(--color-text-sub)] shadow-[0_1px_0_rgba(0,0,0,0.05)]">
             <tr>

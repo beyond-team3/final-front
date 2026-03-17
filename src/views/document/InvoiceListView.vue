@@ -230,7 +230,7 @@ function nextIssueDateLabel(contract) {
 
       <!-- 헤더 -->
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm font-semibold" style="color: #3D3529;">청구서 관리</p>
+        <p class="text-2xl font-semibold" style="color: #3D3529;">청구서 관리</p>
         <button v-if="canCreateInvoice" type="button"
                 class="rounded px-4 py-2 text-sm font-bold text-white transition-colors hover:opacity-90 shadow-sm"
                 style="background-color: #C8622A;"

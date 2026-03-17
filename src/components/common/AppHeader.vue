@@ -91,12 +91,13 @@ watch(
         </button>
         <button
             type="button"
-            class="text-2xl leading-none"
-            style="font-family: var(--font-display); font-weight: 700; font-style: normal; color: var(--color-text);"
+            class="logo-seedflow text-2xl leading-none"
+            style="color: var(--color-text);"
             @click="navigateTo('/dashboard')"
         >
           SeedFlow+
         </button>
+
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
         <nav class="hidden items-center gap-1 md:flex">
