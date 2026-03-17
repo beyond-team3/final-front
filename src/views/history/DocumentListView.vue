@@ -118,7 +118,7 @@ const loadSummaryDocuments = async () => {
   try {
     const response = await getDocumentSummaries({
       pipelineId,
-      size: 100,
+      size: 50,
       sort: 'createdAt,desc',
     })
     summaryDocuments.value = normalizePageResponse(response)
@@ -312,7 +312,7 @@ watch(() => route.query.pipelineId, () => {
             >
               <td class="px-6 py-4 font-medium text-[var(--color-olive)]">{{ doc.displayCode }}</td>
               <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.date }}</td>
-              <td class="px-6 py-4 font-mono text-[var(--color-text-body)]">{{ doc.amount }}</td>
+              <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.amount }}</td>
               <td class="px-6 py-4">
                 <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="doc.statusClass">{{ doc.statusLabel }}</span>
               </td>
