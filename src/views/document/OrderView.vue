@@ -100,16 +100,33 @@ const loadActiveContracts = async () => {
 onMounted(async () => {
   void historyStore.ensureLoaded()
 
-  // clientMaster가 비어있으면 먼저 로드
   if (documentStore.clientMaster.length === 0) {
     await documentStore.fetchClientMaster()
   }
 
-  void loadActiveContracts()  // clientMaster 로드 후 실행
+  // ✅ 이미 store에 있음 → 가져다 쓰기만 하면 됨
+  if (isClient.value) {
 
-  if (isClient.value && selectedContract.value) {
-    lineItems.value = selectedContract.value.items.map((item) => ({ ...item, quantity: 0 }))
+    // 혹시 아직 안 불러왔으면
+    if (!documentStore.myClient) {
+      await documentStore.fetchMyClient()
+    }
+
+    const client = documentStore.myClient
+
+    if (client) {
+      deliveryAddress.value =
+          `${client.address || ''} ${client.addressDetail || ''}`.trim()
+
+      deliveryRecipient.value =
+          client.managerName || client.clientName || ''
+
+      deliveryPhone.value =
+          client.managerPhone || client.companyPhone || ''
+    }
   }
+
+  void loadActiveContracts()
 })
 
 //  baseClientId 변경 시 계약 다시 로드
@@ -247,10 +264,6 @@ const onSelectContract = async (contract) => {
         quantity: 0
       }))
     }
-
-    deliveryRecipient.value = detailContract.clientName || ''
-    deliveryPhone.value = ''
-    deliveryAddress.value = ''
 
   } catch (error) {
     console.error('계약 상세 조회 실패:', error)
