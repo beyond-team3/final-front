@@ -11,8 +11,8 @@ defineProps({
     <aside class="h-full rounded-[24px] border xl:rounded-none xl:border-0 xl:border-l" :style="{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border-card)' }">
         <div class="p-6">
             <div class="mb-6">
-                <h3 class="text-[16px] font-bold text-[var(--color-text-strong)]">딜 활동 로그</h3>
-                <p class="text-[12px] text-[var(--color-text-placeholder)]">실제 deal timeline</p>
+                <h3 class="text-[16px] font-bold text-[var(--color-text-strong)]">거래 로그</h3>
+                <p class="text-[12px] text-[var(--color-text-placeholder)]">deal timeline</p>
             </div>
 
             <div class="space-y-4">

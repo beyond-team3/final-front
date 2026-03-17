@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getDocumentSummaries } from '@/api/document'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import HistoryModal from '@/components/history/HistoryModal.vue'
@@ -21,17 +22,49 @@ const historyStore = useHistoryStore()
 const selectedStageCode = ref('')
 const isModalOpen = ref(false)
 const selectedDoc = ref(null)
+const summaryDocuments = ref([])
+const summaryLoading = ref(false)
+const summaryError = ref('')
 
 const deal = computed(() => historyStore.getPipelineById(route.params.id))
+const pageError = computed(() => historyStore.error || summaryError.value)
+const isPageLoading = computed(() => historyStore.loading || summaryLoading.value)
+const summaryDocumentMap = computed(() => new Map(
+    summaryDocuments.value.map((doc) => [`${String(doc.docType || '').toUpperCase()}-${String(doc.docId)}`, doc]),
+))
+
+const normalizePageResponse = (response) => {
+    const payload = response?.data ?? response
+    const pageData = payload?.content
+        ? payload
+        : payload?.result === 'SUCCESS' && payload?.data
+            ? payload.data
+            : null
+
+    if (!pageData || !Array.isArray(pageData.content)) {
+        return []
+    }
+
+    return pageData.content
+}
+
 const allStageDocuments = computed(() => (deal.value?.documents || []).filter((document) => document.type === selectedStageCode.value))
 const stageDocuments = computed(() => {
     const latestDocumentsByType = new Map()
 
     allStageDocuments.value.forEach((document) => {
+        const summary = summaryDocumentMap.value.get(`${String(document.type || '').toUpperCase()}-${String(document.id)}`)
+        const mergedDocument = summary
+            ? {
+                ...document,
+                amount: summary.amount ?? document.amount,
+                displayCode: summary.docCode || document.displayCode,
+            }
+            : document
         const current = latestDocumentsByType.get(document.type)
 
-        if (!current || String(document.actionAt || '').localeCompare(String(current.actionAt || '')) > 0) {
-            latestDocumentsByType.set(document.type, document)
+        if (!current || String(mergedDocument.actionAt || '').localeCompare(String(current.actionAt || '')) > 0) {
+            latestDocumentsByType.set(document.type, mergedDocument)
         }
     })
 
@@ -55,6 +88,39 @@ watch(deal, (value) => {
 
 const goBack = () => {
     router.push({ name: 'sales-history' })
+}
+
+const loadSummaryDocuments = async () => {
+    const pipelineId = String(route.params.id || '')
+    if (!pipelineId) {
+        summaryDocuments.value = []
+        return
+    }
+
+    summaryLoading.value = true
+    summaryError.value = ''
+
+    try {
+        const response = await getDocumentSummaries({
+            pipelineId,
+            size: 50,
+            sort: 'createdAt,desc',
+        })
+        summaryDocuments.value = normalizePageResponse(response)
+    } catch (error) {
+        summaryDocuments.value = []
+        summaryError.value = error?.response?.data?.message || error?.message || '문서 요약 정보를 불러오지 못했습니다.'
+    } finally {
+        summaryLoading.value = false
+    }
+}
+
+const retryPageLoad = async () => {
+    await historyStore.fetchPipelines()
+    if (route.params.id) {
+        await historyStore.ensureDealLogs(String(route.params.id))
+    }
+    await loadSummaryDocuments()
 }
 
 const openDocList = () => {
@@ -98,21 +164,26 @@ onMounted(async () => {
 
     if (route.params.id) {
         await historyStore.ensureDealLogs(String(route.params.id))
+        await loadSummaryDocuments()
     }
+})
+
+watch(() => route.params.id, () => {
+    void loadSummaryDocuments()
 })
 </script>
 
 <template>
             <section class="screen-content pipeline-detail-page">
-            <section v-if="historyStore.loading" class="flex min-h-[420px] items-center justify-center">
-                <LoadingSpinner text="딜 정보를 불러오는 중입니다." />
+            <section v-if="isPageLoading" class="flex min-h-[420px] items-center justify-center">
+                <LoadingSpinner text="거래 정보를 불러오는 중입니다." />
             </section>
 
-            <ErrorMessage v-else-if="historyStore.error" :message="historyStore.error" @retry="historyStore.fetchPipelines" />
+            <ErrorMessage v-else-if="pageError" :message="pageError" @retry="retryPageLoad" />
 
             <EmptyState
                 v-else-if="!deal"
-                title="딜 정보를 찾을 수 없습니다."
+                title="거래 정보를 찾을 수 없습니다."
                 description="영업 히스토리 목록에서 다시 선택해주세요."
             />
 
@@ -123,7 +194,7 @@ onMounted(async () => {
                                 <div class="flex items-center gap-2 text-sm">
                                     <button type="button" class="text-[var(--color-text-sub)] hover:underline" @click="goBack">영업 히스토리</button>
                                     <span class="text-[var(--color-text-sub)]">›</span>
-                                    <span class="font-bold text-[var(--color-text-strong)]">{{ deal.clientName }} DEAL #{{ deal.id }}</span>
+                                    <span class="font-bold text-[var(--color-text-strong)]">{{ deal.clientName }} 거래 #{{ deal.id }}</span>
                                 </div>
 
                                 <div class="flex gap-2">
@@ -134,7 +205,7 @@ onMounted(async () => {
                             <div class="flex flex-col gap-5 px-5 pb-5 md:px-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
                                 <div class="flex flex-wrap items-center gap-3">
                                     <h2 class="text-[28px] font-bold text-[var(--color-text-strong)]">{{ deal.clientName }}</h2>
-                                    <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-1 text-[12px] text-[var(--color-text-sub)]">DEAL #{{ deal.id }}</span>
+                                    <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-1 text-[12px] text-[var(--color-text-sub)]">거래 #{{ deal.id }}</span>
                                     <span class="rounded-md bg-[var(--color-olive-light)] px-2 py-1 text-[12px] text-[var(--color-olive-dark)]">{{ deal.currentStatusLabel }}</span>
                                 </div>
 
@@ -173,7 +244,7 @@ onMounted(async () => {
                                 </div>
 
                             <section v-if="historyStore.logsLoading" class="pipeline-card flex justify-center py-12">
-                                <LoadingSpinner text="딜 타임라인을 불러오는 중입니다." />
+                                <LoadingSpinner text="거래 타임라인을 불러오는 중입니다." />
                             </section>
 
                             <section

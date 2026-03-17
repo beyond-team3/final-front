@@ -30,6 +30,7 @@ const isSubmitting = ref(false)
 // ✅ 새로 추가: 진행 중인 계약 로드 상태
 const loadingContracts = ref(false)
 const contractsFromApi = ref([])
+const selectedContractDetail = ref(null)
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
@@ -50,12 +51,11 @@ const contractList = computed(() => {
 })
 
 const selectedContract = computed(() => {
+  if (selectedContractDetail.value) return selectedContractDetail.value  // ✅ 추가
   const contractId = selectedContractId.value
   if (!contractId) return null
-  // store에서 찾기
   const fromStore = documentStore.getContractById(contractId)
   if (fromStore) return fromStore
-  // store에 없으면 contractsFromApi에서 찾기
   return contractsFromApi.value.find(c => String(c.id) === contractId) || null
 })
 
@@ -74,18 +74,21 @@ const pipelineOptions = computed(() => {
 
 //  새로 추가: API에서 진행 중인 계약 로드
 const loadActiveContracts = async () => {
-  console.log('authStore.me:', authStore.me)
-  console.log('baseClientId:', baseClientId.value)
-  console.log('clientMaster:', documentStore.clientMaster)
-
   if (!baseClientId.value) return
 
   loadingContracts.value = true
   try {
     const response = await getContractsByClient(baseClientId.value)
-    const contracts = response.data?.data || response.data || []
-    if (Array.isArray(contracts) && contracts.length > 0) {
-      contractsFromApi.value = contracts
+    const raw = response.data?.data || response.data || []
+    if (Array.isArray(raw) && raw.length > 0) {
+      // ✅ 필드명 정규화
+      contractsFromApi.value = raw.map(c => ({
+        ...c,
+        id: c.id ?? c.docId,
+        contractCode: c.contractCode ?? c.docCode,
+        startDate: c.startDate ?? null,
+        endDate: c.endDate ?? c.expiredDate,
+      }))
     }
   } catch (error) {
     console.error('계약 로드 실패:', error)
@@ -228,6 +231,7 @@ const onSelectContract = async (contract) => {
       return
     }
 
+    selectedContractDetail.value = detailContract
     selectedContractId.value = String(detailContract.id)
     selectedHistoryId.value = detailContract.historyId || ''
     selectedSalesRepName.value = detailContract.salesRepName || '-'

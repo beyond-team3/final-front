@@ -23,14 +23,14 @@ const progress = computed(() => Math.round((props.deal.stageOrder / props.deal.s
         <div class="p-6">
             <div class="mb-6 flex items-start justify-between gap-4">
                 <div>
-                    <div class="text-[12px] text-[var(--color-text-sub)]">딜 요약</div>
+                    <div class="text-[12px] text-[var(--color-text-sub)]">거래 요약</div>
                     <h3 class="mt-2 text-[18px] font-bold text-[var(--color-text-strong)]">{{ deal.clientName }}</h3>
                 </div>
                 <button type="button" class="text-xl text-[var(--color-text-sub)]" @click="emit('close')">×</button>
             </div>
 
             <div class="mb-6 flex items-center gap-2">
-                <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-1 text-[11px] text-[var(--color-text-sub)]">DEAL #{{ deal.id }}</span>
+                <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-1 text-[11px] text-[var(--color-text-sub)]">거래 #{{ deal.id }}</span>
                 <StatusBadge :label="deal.currentStatusLabel" :status="deal.currentStatus" />
             </div>
 

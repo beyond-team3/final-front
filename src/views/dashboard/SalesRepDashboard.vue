@@ -147,6 +147,8 @@ onMounted(() => {
               :key="item.docNo"
               class="billing-item"
               :class="`status-${item.type}`"
+              style="cursor: pointer;"
+              @click="router.push({ path: '/documents/all', query: { keyword: item.docNo } })"
           >
             <div class="billing-left">
               <div class="billing-client">{{ item.client }}</div>
@@ -170,7 +172,14 @@ onMounted(() => {
         </div>
 
         <div class="timeline-list">
-          <div v-for="item in timeline" :key="item.title" class="timeline-item" :class="item.state">
+          <div
+              v-for="item in timeline"
+              :key="item.title"
+              class="timeline-item"
+              :class="item.state"
+              style="cursor: pointer;"
+              @click="router.push(`/history/pipeline/${item.dealId}`)"
+          >
             <div class="timeline-date">{{ item.date }}</div>
             <div class="timeline-content">
               <div class="timeline-content-title">{{ item.title }}</div>
