@@ -1,13 +1,14 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getDocumentSummaries } from '@/api/document'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import HistoryModal from '@/components/history/HistoryModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
-import { DEAL_PIPELINE } from '@/utils/dealHistory'
+import { DEAL_PIPELINE, formatDate } from '@/utils/dealHistory'
 import { ROLES } from '@/utils/constants'
 
 const route = useRoute()
@@ -19,6 +20,9 @@ const searchText = ref('')
 const appliedSearchText = ref('')
 const isModalOpen = ref(false)
 const selectedDoc = ref(null)
+const summaryDocuments = ref([])
+const summaryLoading = ref(false)
+const summaryError = ref('')
 
 const normalizeTab = (tab) => {
   const map = {
@@ -47,6 +51,27 @@ const STEP_SHORT_LABEL = {
 const pipeline = computed(() => historyStore.getPipelineById(route.query.pipelineId))
 const pageTitle = computed(() => `${currentTab.value} 목록`)
 const currentStageLabel = computed(() => pipeline.value?.latestDocTypeLabel || '')
+const pageError = computed(() => historyStore.error || summaryError.value)
+const isPageLoading = computed(() => historyStore.loading || summaryLoading.value)
+
+const normalizePageResponse = (response) => {
+  const payload = response?.data ?? response
+  const pageData = payload?.content
+      ? payload
+      : payload?.result === 'SUCCESS' && payload?.data
+          ? payload.data
+          : null
+
+  if (!pageData || !Array.isArray(pageData.content)) {
+    return []
+  }
+
+  return pageData.content
+}
+
+const summaryDocumentMap = computed(() => new Map(
+  summaryDocuments.value.map((doc) => [`${String(doc.docType || '').toUpperCase()}-${String(doc.docId)}`, doc]),
+))
 
 const stepsData = computed(() => {
   const base = (pipeline.value?.steps || DEAL_PIPELINE).map((step) => step.label)
@@ -58,17 +83,20 @@ const stepsData = computed(() => {
 })
 
 const documents = computed(() => (pipeline.value?.documents || []).map((doc) => {
+  const summary = summaryDocumentMap.value.get(`${String(doc.type || '').toUpperCase()}-${String(doc.id)}`)
   const statusText = doc.statusLabel || doc.status || '진행중'
   const statusClass = statusText.includes('완료') || statusText.includes('발행')
       ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]'
       : 'bg-[var(--color-orange-light)] text-[var(--color-orange-dark)]'
+  const amount = summary?.amount ?? doc.amount
+  const createdAt = summary?.createdAt || doc.actionAt || null
 
   return {
-    id: doc.id,
+    id: summary?.docId || doc.id,
     type: doc.typeLabel,
-    date: doc.date,
-    displayCode: doc.displayCode || doc.id,
-    amount: Number(doc.amount || 0) > 0 ? `${Number(doc.amount).toLocaleString()}원` : '-',
+    date: formatDate(createdAt),
+    displayCode: summary?.docCode || doc.displayCode || doc.id,
+    amount: Number(amount || 0) > 0 ? `${Number(amount).toLocaleString()}원` : '-',
     status: doc.status,
     statusLabel: statusText,
     statusClass,
@@ -76,6 +104,31 @@ const documents = computed(() => (pipeline.value?.documents || []).map((doc) => 
     rejectReason: '',
   }
 }))
+
+const loadSummaryDocuments = async () => {
+  const pipelineId = typeof route.query.pipelineId === 'string' ? route.query.pipelineId : ''
+  if (!pipelineId) {
+    summaryDocuments.value = []
+    return
+  }
+
+  summaryLoading.value = true
+  summaryError.value = ''
+
+  try {
+    const response = await getDocumentSummaries({
+      pipelineId,
+      size: 100,
+      sort: 'createdAt,desc',
+    })
+    summaryDocuments.value = normalizePageResponse(response)
+  } catch (error) {
+    summaryDocuments.value = []
+    summaryError.value = error?.response?.data?.message || error?.message || '문서 요약 정보를 불러오지 못했습니다.'
+  } finally {
+    summaryLoading.value = false
+  }
+}
 
 const filteredDocs = computed(() => {
   return documents.value.filter((doc) => {
@@ -130,6 +183,15 @@ const goBack = () => {
   router.push({ name: 'pipeline-detail', params: { id: pipelineId } })
 }
 
+const retryPageLoad = () => {
+  void historyStore.fetchPipelines().then(() => {
+    if (typeof route.query.pipelineId === 'string') {
+      void historyStore.ensureDealLogs(route.query.pipelineId)
+    }
+  })
+  void loadSummaryDocuments()
+}
+
 const modalMode = computed(() => {
   if (!selectedDoc.value) {
     return 'sales-clean'
@@ -156,6 +218,7 @@ onMounted(() => {
     void historyStore.fetchPipelines().then(() => {
       if (typeof route.query.pipelineId === 'string') {
         void historyStore.ensureDealLogs(route.query.pipelineId)
+        void loadSummaryDocuments()
       }
     })
     return
@@ -163,16 +226,21 @@ onMounted(() => {
 
   if (typeof route.query.pipelineId === 'string') {
     void historyStore.ensureDealLogs(route.query.pipelineId)
+    void loadSummaryDocuments()
   }
+})
+
+watch(() => route.query.pipelineId, () => {
+  void loadSummaryDocuments()
 })
 </script>
 
 <template>
       <section class="screen-content">
-      <section v-if="historyStore.loading" class="flex justify-center p-20">
+      <section v-if="isPageLoading" class="flex justify-center p-20">
         <LoadingSpinner text="문서 목록을 불러오는 중입니다." />
       </section>
-      <ErrorMessage v-else-if="historyStore.error" :message="historyStore.error" @retry="historyStore.fetchPipelines" />
+      <ErrorMessage v-else-if="pageError" :message="pageError" @retry="retryPageLoad" />
       <EmptyState
           v-else-if="!pipeline"
           title="파이프라인 문서를 찾을 수 없습니다."
