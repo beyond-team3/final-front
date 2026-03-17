@@ -23,6 +23,7 @@ import {
     formatDate,
     formatDateTime,
     formatRelativeTime,
+    getDocumentStatusLabel,
     getStageMeta,
     getStageOrder,
     getStatusMeta,
@@ -117,7 +118,7 @@ function buildDocumentSummary(log) {
         typeLabel: stageMeta.label,
         stageNumber: stageMeta.order,
         status: log.toStatus || 'CREATED',
-        statusLabel: statusMeta.label,
+        statusLabel: getDocumentStatusLabel(log.docType, log.toStatus),
         actionType: log.actionType,
         actionLabel: toActionLabel(log.actionType),
         actionAt: log.actionAt,
@@ -153,7 +154,7 @@ function normalizeLogs(logs = []) {
             actionAtAgo: formatRelativeTime(log.actionAt),
             fromStatus: log.fromStatus,
             toStatus: log.toStatus,
-            statusLabel: getStatusMeta(log.toStatus).label,
+            statusLabel: getDocumentStatusLabel(log.docType, log.toStatus),
             actorType: log.actorType,
             actorId: log.actorId,
             description: toActivityDescription(log),
@@ -281,7 +282,7 @@ export const useHistoryStore = defineStore('history', () => {
 
             return getTimelineByPipeline(dealId)
         } catch (e) {
-            error.value = getErrorMessage(e, '딜 상세 로그를 불러오지 못했습니다.')
+            error.value = getErrorMessage(e, '거래 상세 로그를 불러오지 못했습니다.')
             return []
         } finally {
             logsLoading.value = false
@@ -350,7 +351,7 @@ export const useHistoryStore = defineStore('history', () => {
 
             return pipeline.timeline
         } catch (e) {
-            error.value = getErrorMessage(e, '딜 상세 정보를 불러오지 못했습니다.')
+            error.value = getErrorMessage(e, '거래 상세 정보를 불러오지 못했습니다.')
             return []
         } finally {
             logsLoading.value = false
@@ -372,7 +373,7 @@ export const useHistoryStore = defineStore('history', () => {
             dealKpis.value = result || null
             return dealKpis.value
         } catch (e) {
-            dealKpisError.value = getErrorMessage(e, '딜 KPI를 불러오지 못했습니다.')
+            dealKpisError.value = getErrorMessage(e, '거래 KPI를 불러오지 못했습니다.')
             dealKpis.value = null
             return null
         } finally {
@@ -386,7 +387,7 @@ export const useHistoryStore = defineStore('history', () => {
                 if (String(document.refId) === String(docId) || String(document.targetCode) === String(docId)) {
                     const statusMeta = getStatusMeta(status)
                     document.status = status
-                    document.statusLabel = statusMeta.label
+                    document.statusLabel = getDocumentStatusLabel(document.type, status)
                     document.color = statusColorByTone(statusMeta.tone)
                 }
             })

@@ -2,6 +2,7 @@ import {
   formatDate,
   formatDateTime,
   formatRelativeTime,
+  getDocumentStatusLabel,
   getStageMeta,
   getStatusMeta,
   toActionLabel,
@@ -150,7 +151,7 @@ export function mapDealV2DocumentsToTimelineItems(documents = []) {
         typeLabel: stageMeta.label,
         stageNumber: stageMeta.order,
         status,
-        statusLabel: statusMeta.label,
+        statusLabel: getDocumentStatusLabel(stageCode, status),
         actionType: 'UPDATE',
         actionLabel: '반영',
         actionAt,
@@ -216,7 +217,7 @@ export function mapDealV2SchedulesToTimelineItems(schedules = []) {
         statusLabel: getStatusMeta(normalizeStatus(item?.status, 'IN_PROGRESS')).label,
         actorType: 'SYSTEM',
         actorId: pick(item?.assigneeUserId, item?.ownerUserId, null),
-        description: `${pick(item?.title, '거래 일정')} · ${pick(item?.eventType, item?.docType, 'DEAL')}`,
+        description: `${pick(item?.title, '거래 일정')} · ${pick(item?.eventType, item?.docType, '거래')}`,
         color: 'var(--color-olive)',
       }
     })

@@ -7,6 +7,7 @@ import HistoryModal from '@/components/history/HistoryModal.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useHistoryStore } from '@/stores/history'
+import { DEAL_PIPELINE } from '@/utils/dealHistory'
 import { ROLES } from '@/utils/constants'
 
 const route = useRoute()
@@ -27,6 +28,7 @@ const normalizeTab = (tab) => {
     주문: '주문서',
     명세: '명세서',
     청구: '청구서',
+    결제: '결제',
   }
 
   return map[tab] || tab
@@ -39,6 +41,7 @@ const STEP_SHORT_LABEL = {
   주문서: '주문',
   명세서: '명세',
   청구서: '청구',
+  결제: '결제',
 }
 
 const pipeline = computed(() => historyStore.getPipelineById(route.query.pipelineId))
@@ -46,7 +49,7 @@ const pageTitle = computed(() => `${currentTab.value} 목록`)
 const currentStageLabel = computed(() => pipeline.value?.latestDocTypeLabel || '')
 
 const stepsData = computed(() => {
-  const base = ['견적요청서', '견적서', '계약서', '주문서', '명세서', '청구서']
+  const base = (pipeline.value?.steps || DEAL_PIPELINE).map((step) => step.label)
   const stepMap = new Map((pipeline.value?.steps || []).map((step) => [step.label, step.state]))
   return base.map((name) => {
     const state = stepMap.get(name) || 'pending'
@@ -66,7 +69,8 @@ const documents = computed(() => (pipeline.value?.documents || []).map((doc) => 
     date: doc.date,
     displayCode: doc.displayCode || doc.id,
     amount: Number(doc.amount || 0) > 0 ? `${Number(doc.amount).toLocaleString()}원` : '-',
-    status: statusText,
+    status: doc.status,
+    statusLabel: statusText,
     statusClass,
     remark: doc.remark || '',
     rejectReason: '',
@@ -131,7 +135,7 @@ const modalMode = computed(() => {
     return 'sales-clean'
   }
 
-  if (selectedDoc.value.status.includes('반려')) {
+  if (String(selectedDoc.value.statusLabel || '').includes('반려')) {
     return authStore.currentRole === ROLES.ADMIN ? 'admin-rejected' : 'sales-rejected'
   }
 
@@ -242,7 +246,7 @@ onMounted(() => {
               <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.date }}</td>
               <td class="px-6 py-4 font-mono text-[var(--color-text-body)]">{{ doc.amount }}</td>
               <td class="px-6 py-4">
-                <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="doc.statusClass">{{ doc.status }}</span>
+                <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="doc.statusClass">{{ doc.statusLabel }}</span>
               </td>
               <td class="px-6 py-4">
                 <button
