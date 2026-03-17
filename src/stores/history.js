@@ -82,7 +82,7 @@ function normalizeDeal(raw = {}) {
         latestRefId: raw.latestRefId ?? null,
         stageOrder: stageMeta.order,
         currentStatus: raw.currentStatus || 'CREATED',
-        currentStatusLabel: statusMeta.label,
+        currentStatusLabel: getDocumentStatusLabel(stageMeta.code, raw.currentStatus),
         currentStatusTone: statusMeta.tone,
         railColor: statusColorByTone(statusMeta.tone),
         summaryMemo: raw.summaryMemo || '',

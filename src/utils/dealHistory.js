@@ -220,7 +220,7 @@ export function toActionLabel(actionType) {
 
 export function toActivityDescription(log) {
     const stageLabel = getStageMeta(log?.docType).label
-    const statusLabel = getStatusMeta(log?.toStatus).label
+    const statusLabel = getDocumentStatusLabel(log?.docType, log?.toStatus)
     const code = log?.targetCode || `#${log?.refId || '-'}`
     const actionLabel = toActionLabel(log?.actionType)
     return `${stageLabel} ${code} ${actionLabel} · ${statusLabel}`

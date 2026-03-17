@@ -63,8 +63,10 @@ function buildTimelineDescription(item) {
   if (item?.description) return item.description
 
   const stageLabel = getStageMeta(normalizeStageCode(item?.documentType || item?.docType)).label
+  const stageCode = normalizeStageCode(item?.documentType || item?.docType)
   const code = pick(item?.documentCode, item?.targetCode, item?.title, item?.eventType, `#${pick(item?.documentId, item?.id, '-')}`)
-  const statusLabel = getStatusMeta(normalizeStatus(item?.currentStatus || item?.status)).label
+  const normalizedStatus = normalizeStatus(item?.currentStatus || item?.status)
+  const statusLabel = getDocumentStatusLabel(stageCode, normalizedStatus)
   const actionLabel = toActionLabel(pick(item?.actionType, item?.type, item?.eventType, 'UPDATE'))
 
   return `${stageLabel} ${code} ${actionLabel} · ${statusLabel}`
@@ -93,7 +95,7 @@ export function mapDealV2SummaryToViewModel(raw = {}, makeSteps) {
     latestRefId: pick(snapshot.representativeDocumentId, raw.representativeDocumentId, null),
     stageOrder: stageMeta.order,
     currentStatus: status,
-    currentStatusLabel: statusMeta.label,
+    currentStatusLabel: getDocumentStatusLabel(stageCode, status),
     currentStatusTone: statusMeta.tone,
     railColor: statusColorByTone(statusMeta.tone),
     summaryMemo: pick(raw.summaryMemo, raw.dealTitle, ''),
