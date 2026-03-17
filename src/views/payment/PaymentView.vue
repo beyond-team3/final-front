@@ -220,15 +220,19 @@ onMounted(() => {
         </div>
 
         <div class="actions">
-          <button type="button" class="btn-sub" @click="resetSelection">취소</button>
           <button
               type="button"
-              class="btn-primary"
+              class="rounded border px-4 py-2 text-sm font-semibold hover:opacity-90"
+              style="border-color:#DDD7CE;background-color:transparent;color:#6B5F50;"
+              @click="resetSelection"
+          >취소</button>
+          <button
+              type="button"
+              class="rounded px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              style="background-color:#4f6109;"
               :disabled="!canPay"
               @click="handlePay"
-          >
-            {{ isProcessing ? '처리 중...' : '결제 실행' }}
-          </button>
+          >{{ isProcessing ? '처리 중...' : '결제 실행' }}</button>
         </div>
       </section>
     </div>

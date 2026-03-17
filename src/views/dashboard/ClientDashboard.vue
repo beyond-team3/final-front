@@ -189,7 +189,7 @@ onMounted(fetchDashboard)
 .order-amount { font-size: 14px; font-weight: 700; color: var(--text); }
 .order-action { font-size: 12px; color: var(--accent); cursor: pointer; }
 
-.billing-credit-wrap { display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; max-height: 240px; }
+.billing-credit-wrap { display: flex; flex-direction: column; gap: 14px; }
 .billing-cycle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--warm); border-radius: 8px; border-left: 3px solid var(--accent); flex-shrink: 0; }
 .billing-cycle-label { font-size: 11px; color: var(--muted); }
 .billing-cycle-value { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
