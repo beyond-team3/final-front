@@ -20,9 +20,9 @@ const calendarLoading = ref(false)
 const kpiCards = computed(() => {
   const k = dashboard.value?.kpis || {}
   return [
-    { label: '이번 달 전체 매출', iconClass: 'accent', icon: '₩', value: k.totalMonthlySales   || '-', change: `▲ 전년 대비 ${k.salesGrowthRate || '-'}`, changeClass: 'positive' },
-    { label: '전년 대비 증감률',  iconClass: 'olive',  icon: '↑', value: k.salesGrowthRate     || '-', change: '▲ ',                                       changeClass: 'positive' },
-    { label: '승인 대기 문서',    iconClass: 'warn',   icon: '!', value: k.pendingDocumentCount || '-', change: k.pendingDetail || '-',                      changeClass: 'neutral'  },
+    { label: '이번 달 전체 매출', iconClass: 'accent', value: k.totalMonthlySales || '-' },
+    { label: '전년 대비 증감률',  iconClass: 'olive',  value: k.salesGrowthRate   || '-' },
+    { label: '승인 대기 문서',    iconClass: 'warn',   value: k.pendingDocumentCount || '-', change: k.pendingDetail || '-' },
   ]
 })
 
@@ -243,12 +243,9 @@ onMounted(() => {
 
       <div class="kpi-grid">
         <div v-for="kpi in kpiCards" :key="kpi.label" class="kpi-card">
-          <div class="kpi-header">
-            <span class="kpi-label">{{ kpi.label }}</span>
-            <div class="kpi-icon" :class="kpi.iconClass">{{ kpi.icon }}</div>
-          </div>
+          <div class="kpi-label">{{ kpi.label }}</div>
           <div class="kpi-value">{{ kpi.value }}</div>
-          <div class="kpi-change" :class="kpi.changeClass">{{ kpi.change }}</div>
+          <div v-if="kpi.change" class="kpi-change neutral">{{ kpi.change }}</div>
         </div>
       </div>
     </template>
@@ -286,7 +283,13 @@ onMounted(() => {
             </span>
           </div>
           <div class="ranking-list">
-            <div v-for="item in rankings" :key="item.rank" class="ranking-item">
+            <div
+                v-for="item in rankings"
+                :key="item.rank"
+                class="ranking-item"
+                style="cursor: pointer;"
+                @click="router.push(`/employees/${item.employeeId}`)"
+            >
               <div class="rank-number" :class="item.rank <= 3 ? 'top' : ''">{{ item.rank }}</div>
               <div class="rank-info">
                 <div class="rank-name">{{ item.name }}</div>
@@ -301,14 +304,20 @@ onMounted(() => {
         </div>
 
         <div class="operation-card">
-          <div class="operation-header">
+          <div class="operation-header" style="cursor: pointer;" @click="router.push('/approval')">
             <h3 class="operation-title">최근 승인 요청</h3>
             <span class="operation-badge">
-              {{ approvals.length }}<template v-if="approvalsTotalCount > 5"><span class="text-xs"> / {{ approvalsTotalCount }}</span></template>
-            </span>
+      {{ approvals.length }}<template v-if="approvalsTotalCount > 5"><span class="text-xs"> / {{ approvalsTotalCount }}</span></template>
+    </span>
           </div>
           <div class="operation-list">
-            <div v-for="item in approvals" :key="item.title + item.time" class="operation-item">
+            <div
+                v-for="item in approvals"
+                :key="item.title + item.time"
+                class="operation-item"
+                style="cursor: pointer;"
+                @click="router.push({ path: '/approval', query: { keyword: item.approvalId } })"
+            >
               <div class="operation-item-title">{{ item.title }}</div>
               <div class="operation-item-meta">
                 <span>{{ item.meta }}</span>
@@ -357,18 +366,13 @@ onMounted(() => {
   border-bottom: 1px solid var(--c-border);
 }
 
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 28px; }
-.kpi-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
-.kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.kpi-label  { font-size: 14px; color: var(--c-muted); font-weight: 500; }
-.kpi-icon   { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
-.kpi-icon.accent { background: #FEF3E8; color: var(--c-accent); }
-.kpi-icon.olive  { background: #ECF3E5; color: var(--c-olive);  }
-.kpi-icon.warn   { background: #FFF7ED; color: #C25E00; }
-.kpi-value  { font-size: 30px; font-weight: 700; color: var(--c-text); margin-bottom: 8px; }
-.kpi-change { font-size: 13px; }
-.kpi-change.positive { color: var(--c-olive); }
-.kpi-change.neutral  { color: var(--c-muted); }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.kpi-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 10px; padding: 16px 20px; }
+.kpi-label  { font-size: 13px; color: var(--c-muted); font-weight: 500; margin-bottom: 8px; }
+.kpi-value  { font-size: 24px; font-weight: 700; color: var(--c-text); margin-bottom: 4px; }
+.kpi-change { font-size: 12px; }
+.kpi-change.neutral  { color: var(--c-muted);}
+
 
 .chart-section { margin-bottom: 28px; }
 .chart-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
