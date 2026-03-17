@@ -136,7 +136,7 @@
       <!-- 추천 품종 섹션 -->
       <div class="products-section">
         <div class="products-header">
-          <h2 class="section-label">추천 품종</h2>
+          <h2 class="section-label-rec">추천 품종</h2>
           <span v-if="recommendedProducts.length" class="product-count">
             {{ recommendedProducts.length }}종
           </span>
@@ -934,10 +934,17 @@ const AREA_COORDS = {
   border-right: 1px solid var(--color-border-card);
   display: flex;
   flex-direction: column;
-  overflow: visible; /* 팝업이 잘리지 않도록 visible 유지 */
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
   z-index: 10; /* 헤더(z-50)보다 낮게 조정하여 겹침 방지 */
 }
+
+/* 스크롤바 커스텀 */
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--color-border-card); border-radius: 3px; }
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--color-text-placeholder); }
 
 /* 헤더 */
 .sidebar-header {
@@ -984,18 +991,26 @@ const AREA_COORDS = {
 }
 
 .section-label {
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--color-text-sub);
+  color: var(--color-text-body);
   letter-spacing: 0.8px;
   text-transform: uppercase;
   margin: 0 0 14px;
 }
 
+.section-label-rec {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-body);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
 .section-sub-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 400;
-  color: var(--color-text-placeholder);
+  color: var(--color-text-sub);
   text-transform: none;
   letter-spacing: 0;
   margin-left: 6px;
@@ -1009,7 +1024,7 @@ const AREA_COORDS = {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-body);
+  color: var(--color-text-sub);
   margin-bottom: 6px;
 }
 
@@ -1138,7 +1153,7 @@ const AREA_COORDS = {
 .score-guide-popup {
   position: absolute;
   top: 25px;
-  left: 0px;
+  right: 0px;
   width: 280px;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border-card);
@@ -1274,10 +1289,8 @@ const AREA_COORDS = {
 
 /* 추천 품종 */
 .products-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   padding: 16px 20px;
 }
 
@@ -1298,11 +1311,11 @@ const AREA_COORDS = {
 }
 
 .empty-state {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 40px 0;
   gap: 12px;
   color: var(--color-text-placeholder);
   text-align: center;
@@ -1321,12 +1334,10 @@ const AREA_COORDS = {
 }
 
 .product-list {
-  flex: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-right: 2px;
+  padding-bottom: 20px;
 }
 
 .product-list::-webkit-scrollbar { width: 4px; }
