@@ -5,10 +5,6 @@
       <!-- 헤더 -->
       <div class="sidebar-header">
         <div class="sidebar-title-row">
-<!--          <svg class="icon-bug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">-->
-<!--            <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v1h-2v-1a1 1 0 0 0-1-1h-1v1a6 6 0 0 1-12 0v-1H3a1 1 0 0 0-1 1v1H0v-1a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4h4zM9 6h6V5a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1z"/>-->
-<!--            <path d="M2 12H0M24 12h-2M2 17H0M24 17h-2"/>-->
-<!--          </svg>-->
           <h1 class="sidebar-title">병해충+품종 매칭 지도</h1>
           <div class="score-guide-wrap">
             <button class="score-guide-trigger badge-style" @click="showScoreGuide = !showScoreGuide" title="고객관리 점수 산출 기준 안내">
@@ -31,10 +27,32 @@
             </transition>
           </div>
         </div>
+
         <p class="data-source-header">
           농촌진흥청 국가농작물병해충관리시스템(NCPMS)의
           병해충 예찰 데이터를 연동하여 분석된 정보입니다.
         </p>
+
+        <!-- 관리자 전용 동기화 패널 (위치 이동) -->
+        <div v-if="authStore.currentRole === 'ADMIN'" class="admin-sync-panel">
+          <div class="panel-header">
+            <i class="fas fa-sync-alt text-[var(--color-olive)]"></i>
+            <span class="panel-title">병해충 예찰 데이터 동기화</span>
+          </div>
+          <div class="sync-inputs">
+            <input v-model="syncYear" type="text" placeholder="YYYY" class="sync-input year" maxlength="4">
+            <input v-model="syncMonth" type="text" placeholder="MM" class="sync-input month" maxlength="2">
+            <input v-model="syncDay" type="text" placeholder="DD" class="sync-input day" maxlength="2">
+            <button 
+              class="sync-action-btn"
+              :disabled="isSyncing"
+              @click="handleManualSync"
+            >
+              <i v-if="isSyncing" class="fas fa-spinner fa-spin"></i>
+              <span v-else>실행</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- 필터 섹션 -->
@@ -93,23 +111,32 @@
       </div>
 
       <!-- 심각도 범례 -->
-<!--      <div v-if="forecasts.length > 0" class="legend-section">-->
-<!--        <h2 class="section-label">위험도 범례</h2>-->
-<!--        <div class="legend-list">-->
-<!--          <div v-for="level in severityLevels" :key="level.key" class="legend-item">-->
-<!--            <span class="legend-dot" :style="{ background: level.color }"></span>-->
-<!--            <span class="legend-text">{{ level.label }}</span>-->
-<!--            <span class="legend-count">-->
-<!--              {{ forecasts.filter(f => f.severity === level.key).length }}건-->
-<!--            </span>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
+      <div v-if="forecasts.length > 0" class="legend-section">
+        <h2 class="section-label">
+          위험도 범례
+          <span class="section-sub-label">항목 클릭 시 해당 위험도 지역만 선별 표시</span>
+        </h2>
+        <div class="legend-list">
+          <div 
+            v-for="level in severityLevels" 
+            :key="level.key" 
+            class="legend-item clickable-legend"
+            :class="{ 'is-disabled': !selectedSeverities.includes(level.key) }"
+            @click="toggleSeverity(level.key)"
+          >
+            <span class="legend-dot" :style="{ background: level.color }"></span>
+            <span class="legend-text">{{ level.label }}</span>
+            <span class="legend-count">
+              {{ forecasts.filter(f => f.severity === level.key).length }}건
+            </span>
+          </div>
+        </div>
+      </div>
 
       <!-- 추천 품종 섹션 -->
       <div class="products-section">
         <div class="products-header">
-          <h2 class="section-label">추천 품종</h2>
+          <h2 class="section-label-rec">추천 품종</h2>
           <span v-if="recommendedProducts.length" class="product-count">
             {{ recommendedProducts.length }}종
           </span>
@@ -222,10 +249,45 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 import { getForecasts, getSalesOffices } from '@/api/pestMap'
+import { getPriorityContacts } from '@/api/dashboard'
 import { toggleBookmark } from '@/api/product'
 
 // ─── 상태 ───────────────────────────────────────────
+const authStore = useAuthStore()
+
+// --- Admin Sync State ---
+const syncYear = ref('2025')
+const syncMonth = ref('05')
+const syncDay = ref('16')
+const isSyncing = ref(false)
+
+const handleManualSync = async () => {
+  if (!confirm('공공데이터(NCPMS) 동기화를 시작하시겠습니까?')) return
+  
+  isSyncing.value = true
+  try {
+    const response = await axios.post('/api/v1/map/sync', null, {
+      params: {
+        year: syncYear.value,
+        month: syncMonth.value,
+        day: syncDay.value
+      },
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      }
+    })
+    window.alert(response.data.message || '데이터 동기화가 백그라운드에서 시작되었습니다.')
+  } catch (err) {
+    console.error('[Sync Error]', err)
+    window.alert('동기화 요청 중 오류가 발생했습니다.')
+  } finally {
+    isSyncing.value = false
+  }
+}
+
 const mapRef = ref(null)
 const mapReady = ref(false)
 const isLoading = ref(false)
@@ -234,6 +296,23 @@ const selectedPest = ref('')
 const forecasts = ref([])
 const recommendedProducts = ref([])
 const showScoreGuide = ref(false)
+
+// --- 위험도 필터 상태 ---
+const selectedSeverities = ref(['심각', '경고', '주의', '보통'])
+
+const toggleSeverity = (key) => {
+  const index = selectedSeverities.value.indexOf(key)
+  if (index > -1) {
+    selectedSeverities.value.splice(index, 1)
+  } else {
+    selectedSeverities.value.push(key)
+  }
+}
+
+// 필터링된 예찰 데이터
+const filteredForecasts = computed(() =>
+  forecasts.value.filter(f => selectedSeverities.value.includes(f.severity))
+)
 
 let kakaoMap = null
 let officeMarkers = []
@@ -251,6 +330,7 @@ const forecastLoadError = ref('')
 const crops = [
   { code: 'PEPPER',    label: '고추' },
   { code: 'ONION',    label: '양파'  },
+  { code: 'GARLIC',    label: '마늘'  },
   { code: 'CABBAGE',   label: '배추' },
   { code: 'RADISH',    label: '무'   },
   { code: 'TOMATO',    label: '토마토' }
@@ -258,17 +338,23 @@ const crops = [
 
 const pestsByCrop = {
   PEPPER:  [
-    { code: 'PP01', label: '탄저병' },
-    { code: 'PP02', label: '역병'   },
-    // { code: 'P03',  label: '탄저병(공통)' },
-    { code: 'P05',  label: '바이러스/기타' },
+    { code: 'P03', label: '탄저병' },
+    { code: 'P05',  label: '역병' },
+    // { code: 'P09',  label: '나방' },
+    // { code: 'P13',  label: '총채벌레' },
+    // { code: 'P15',  label: '가루이' },
+    { code: 'P21',  label: '바이러스' },
   ],
   ONION:  [
     { code: 'P01', label: '노균병'   },
     // { code: 'PP01', label: '탄저병' },
-    { code: 'PP02', label: '역병'   },
-    // { code: 'P07',  label: '잎마름병' },
-    { code: 'P05',  label: '바이러스/기타' },
+    // { code: 'PP02', label: '역병'   },
+    { code: 'P07',  label: '잎마름병' },
+    { code: 'P11',  label: '균핵병' },
+  ],
+  GARLIC:  [
+    { code: 'P07',  label: '잎마름병' },
+    { code: 'P11',  label: '균핵병' },
   ],
   CABBAGE: [
     { code: 'CB01', label: '무름병' },
@@ -279,9 +365,6 @@ const pestsByCrop = {
   ],
   TOMATO:  [
     { code: 'TM01', label: '역병' },
-  ],
-  GARLIC:  [
-    { code: 'GR01', label: '노균병' },
   ],
 }
 
@@ -302,7 +385,7 @@ const severityLevels = [
 const severityOrder = { '심각': 0, '경고': 1, '주의': 2, '보통': 3 }
 
 const sortedForecasts = computed(() =>
-    [...forecasts.value].sort((a, b) =>
+    [...filteredForecasts.value].sort((a, b) =>
         (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9)
     )
 )
@@ -316,6 +399,11 @@ function getSeverityColor(severity) {
   const found = severityLevels.find(l => l.key === severity)
   return found ? found.color : '#9A8C7E'
 }
+
+// 필터 변경 시 지도 다시 그리기
+watch(selectedSeverities, () => {
+  renderForecastOverlays()
+}, { deep: true })
 
 // ─── 카카오맵 초기화 ─────────────────────────────────
 function initKakaoMap() {
@@ -340,13 +428,31 @@ function initKakaoMap() {
 async function fetchOffices() {
   officeLoadError.value = ''
   try {
-    const data = await getSalesOffices()
-    // PagedModel 구조(VIA_DTO) 또는 일반 리스트 대응
-    const officeList = data.content || data.data?.content || data.data || data
-    renderOfficeMarkers(officeList)
+    const [officesData, priorityData] = await Promise.all([
+      getSalesOffices(),
+      getPriorityContacts()
+    ])
+    
+    const officeList = officesData.content || officesData.data?.content || officesData.data || officesData
+    
+    // 우선순위 데이터 병합 (ID 또는 이름 기준)
+    const mergedList = officeList.map(office => {
+      const priority = priorityData.find(p => 
+        String(p.accountId) === String(office.id) || p.accountName === office.name
+      )
+      if (priority) {
+        return {
+          ...office,
+          totalScore: priority.totalScore,
+          primaryReason: priority.primaryReason
+        }
+      }
+      return office
+    })
+
+    renderOfficeMarkers(mergedList)
   } catch (err) {
     console.error('[PestMap] 영업처 조회 실패:', err)
-    // renderOfficeMarkers(DUMMY_OFFICES)
     officeLoadError.value = '영업처 데이터를 불러오지 못했습니다.'
   }
 }
@@ -362,7 +468,7 @@ function renderOfficeMarkers(offices) {
 
   list.forEach(office => {
     const position = new window.kakao.maps.LatLng(office.lat, office.lng)
-    const score = office.score || 0
+    const score = office.totalScore || office.score || 0
     
     // 점수가 높을수록 긴급 (빨강 > 주황 > 노랑 > 초록)
     let statusClass = 'status-normal'
@@ -404,9 +510,13 @@ function renderOfficeMarkers(offices) {
       <div class="info-score-row">
         <span class="info-score-label">고객관리 점수</span>
         <div class="info-score-track">
-          <div class="info-score-fill" style="width:${Math.min(office.score || 0, 100)}%"></div>
+          <div class="info-score-fill" style="width:${Math.min(score, 100)}%"></div>
         </div>
-        <span class="info-score-value">${office.score || 0}점</span>
+        <span class="info-score-value">${Math.round(score)}점</span>
+      </div>
+      <div class="info-score-row" style="margin-top: -8px; margin-bottom: 12px;">
+        <span class="info-score-label">점수 산출 요인</span>
+        <span class="info-reason-value">${office.primaryReason || '-'}</span>
       </div>
       <div class="info-crops-label">취급 품종</div>
       <div class="info-crop-tags">${cropTags || '<span class="text-xs text-gray-400 italic">정보 없음</span>'}</div>
@@ -469,7 +579,7 @@ async function fetchForecasts() {
       cropCode: selectedCrop.value.toLowerCase(), // 백엔드 기대 형식 대응
       pestCode: selectedPest.value
     })
-    
+
     // API 응답 구조 반영 (forecasts, recommendedProducts 직접 할당)
     if (data) {
       forecasts.value = data.forecasts || []
@@ -493,8 +603,8 @@ function renderForecastOverlays() {
   if (!kakaoMap || !window.kakao) return
   clearForecastOverlays()
 
-  forecasts.value.forEach(forecast => {
-    // 시/도 단위(sigunguCode: "000")는 광역 데이터이므로 지도 마커에서는 제외하고 
+  filteredForecasts.value.forEach(forecast => {
+    // 시/도 단위(sigunguCode: "000")는 광역 데이터이므로 지도 마커에서는 제외하고
     // 상세 시/군/구 데이터만 지도에 표시 (가독성 및 중복 방지)
     if (forecast.sigunguCode === '000') return
 
@@ -733,6 +843,86 @@ const AREA_COORDS = {
   overflow: hidden;
 }
 
+/* 관리자 동기화 패널 */
+.admin-sync-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-card);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(61, 53, 41, 0.05);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sync-inputs {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+.sync-input {
+  min-width: 0; /* flex box 내에서 shrink 가능하도록 설정 */
+  height: 32px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-card);
+  border-radius: 6px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-body);
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.sync-input.year { flex: 2; }
+.sync-input.month, .sync-input.day { flex: 1; }
+
+.sync-input:focus {
+  border-color: var(--color-olive);
+}
+
+.sync-action-btn {
+  flex: none;
+  padding: 0 10px;
+  height: 32px;
+  background: var(--color-olive);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.sync-action-btn:hover:not(:disabled) {
+  background: var(--color-olive-dark);
+}
+
+.sync-action-btn:disabled {
+  background: var(--color-text-placeholder);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 /* ════════════════════════════════════════
    사이드바
 ════════════════════════════════════════ */
@@ -744,10 +934,17 @@ const AREA_COORDS = {
   border-right: 1px solid var(--color-border-card);
   display: flex;
   flex-direction: column;
-  overflow: visible; /* 팝업이 잘리지 않도록 visible 유지 */
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
   z-index: 10; /* 헤더(z-50)보다 낮게 조정하여 겹침 방지 */
 }
+
+/* 스크롤바 커스텀 */
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--color-border-card); border-radius: 3px; }
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--color-text-placeholder); }
 
 /* 헤더 */
 .sidebar-header {
@@ -794,12 +991,29 @@ const AREA_COORDS = {
 }
 
 .section-label {
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--color-text-sub);
+  color: var(--color-text-body);
   letter-spacing: 0.8px;
   text-transform: uppercase;
   margin: 0 0 14px;
+}
+
+.section-label-rec {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-body);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.section-sub-label {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-text-sub);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
 }
 
 .filter-group {
@@ -810,7 +1024,7 @@ const AREA_COORDS = {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-body);
+  color: var(--color-text-sub);
   margin-bottom: 6px;
 }
 
@@ -939,7 +1153,7 @@ const AREA_COORDS = {
 .score-guide-popup {
   position: absolute;
   top: 25px;
-  left: 0px;
+  right: 0px;
   width: 280px;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border-card);
@@ -1034,6 +1248,27 @@ const AREA_COORDS = {
   gap: 8px;
 }
 
+.clickable-legend {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+}
+
+.clickable-legend:hover {
+  background: var(--color-bg-base);
+}
+
+.clickable-legend.is-disabled {
+  opacity: 0.3;
+  filter: grayscale(0.5);
+}
+
+.clickable-legend.is-disabled .legend-dot {
+  background: #ccc !important;
+}
+
 .legend-dot {
   width: 10px;
   height: 10px;
@@ -1054,10 +1289,8 @@ const AREA_COORDS = {
 
 /* 추천 품종 */
 .products-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   padding: 16px 20px;
 }
 
@@ -1078,11 +1311,11 @@ const AREA_COORDS = {
 }
 
 .empty-state {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 40px 0;
   gap: 12px;
   color: var(--color-text-placeholder);
   text-align: center;
@@ -1101,12 +1334,10 @@ const AREA_COORDS = {
 }
 
 .product-list {
-  flex: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-right: 2px;
+  padding-bottom: 20px;
 }
 
 .product-list::-webkit-scrollbar { width: 4px; }
@@ -1547,6 +1778,15 @@ const AREA_COORDS = {
   font-weight: 700;
   color: #7A8C42;
   white-space: nowrap;
+}
+
+.info-reason-value {
+  flex: 1;
+  font-size: 11px;
+  color: var(--color-orange);
+  text-align: right;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 /* 취급 품종 */
