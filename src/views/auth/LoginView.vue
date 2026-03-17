@@ -20,6 +20,12 @@ const showForm = () => {
   isFormVisible.value = true
 }
 
+const setAccount = (id, pw) => {
+  loginId.value = id
+  loginPw.value = pw
+  errorMessage.value = ''
+}
+
 const onSubmit = async () => {
   if (!loginId.value.trim() || !loginPw.value.trim()) {
     errorMessage.value = 'ID와 PW를 확인해주세요'
@@ -124,19 +130,19 @@ const onSubmit = async () => {
             </transition>
 
             <div class="mt-8 pt-6 border-t border-[var(--color-border)] opacity-60">
-              <p class="text-[11px] font-bold text-[var(--color-muted)] mb-3 uppercase tracking-wider">Test Accounts</p>
+              <p class="text-[11px] font-bold text-[var(--color-muted)] mb-3 uppercase tracking-wider">Test Accounts (Click to autofill)</p>
               <div class="space-y-2 text-[12px] text-[var(--color-muted)] font-medium">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('EMP-0001', 'qwer1234')">
                   <span>관리자</span>
-                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)]">EMP-0001 / qwer1234</code>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">EMP-0001 / qwer1234</code>
                 </div>
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('EMP-0003', 'qwer1234')">
                   <span>영업사원</span>
-                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)]">EMP-0005 / qwer1234</code>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">EMP-0003 / qwer1234</code>
                 </div>
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('CLNT-0001', 'qwer1324')">
                   <span>거래처</span>
-                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)]">CLNT-0008 / qwer1324</code>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">CLNT-0001 / qwer1324</code>
                 </div>
               </div>
             </div>
