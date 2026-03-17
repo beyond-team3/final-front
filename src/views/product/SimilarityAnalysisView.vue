@@ -161,9 +161,12 @@ const slotProducts = computed(() => {
 
 const addToCompare = (productId) => {
   const id = Number(productId)
-  if (isInLocalCompare(id)) return
+  if (isInLocalCompare(id)) {
+    removeFromSlot(id)
+    return
+  }
   if (localCompareIds.value.length >= 3) {
-    window.alert('최대 3개의 상품만 비교할 수 있습니다.')
+    window.alert('최대 3개의 품종만 비교할 수 있습니다.')
     return
   }
   localCompareIds.value.push(id)
