@@ -230,7 +230,7 @@ const submitForm = async () => {
 
 <template>
   <section class="pb-10">
-    <PageHeader :title="isEdit ? '품종 정보 수정' : '신규 품종 등록'">
+    <PageHeader :title="isEdit ? '품종 수정' : '품종 등록'">
       <template #actions>
         <button type="button" class="rounded border border-[var(--color-border-card)] px-4 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]" @click="router.back()">
           취소

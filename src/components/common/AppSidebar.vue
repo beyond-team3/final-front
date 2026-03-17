@@ -92,7 +92,7 @@ watch(
 <template>
   <aside
     v-show="visible"
-    class="sidebar fixed inset-y-0 left-0 z-50 mt-14 w-64 shrink-0 overflow-y-auto bg-[var(--color-bg-card)] shadow-xl lg:static lg:mt-0 lg:h-[calc(100vh-56px)] lg:shadow-none"
+    class="sidebar fixed inset-y-0 left-0 z-50 mt-14 w-64 shrink-0 overflow-y-auto bg-[var(--color-bg-card)] shadow-xl lg:h-[calc(100vh-56px)] lg:shadow-none"
   >
     <nav class="p-3">
       <template v-for="menu in visibleMenus" :key="menu.key">
