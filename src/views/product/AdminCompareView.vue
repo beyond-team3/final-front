@@ -99,7 +99,7 @@ const deleteHistory = async (id) => {
     <div class="overflow-x-auto rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)]">
       <div class="grid min-w-[980px] grid-cols-[190px_repeat(3,minmax(240px,1fr))]">
         <div class="border-r border-[var(--color-border-card)] bg-[var(--color-bg-input)] p-4">
-          <div class="mb-6 h-44 rounded-lg bg-[var(--color-bg-section)] p-3 text-sm font-semibold text-[var(--color-text-sub)]">상품정보</div>
+          <div class="mb-6 h-44 rounded-lg bg-[var(--color-bg-section)] p-3 text-sm font-semibold text-[var(--color-text-sub)]">품종정보</div>
           <div v-for="row in labelRows" :key="row.key" class="flex min-h-20 items-center border-t border-[var(--color-border-divider)] py-2 text-sm font-semibold text-[var(--color-text-sub)]">
             {{ row.label }}
           </div>

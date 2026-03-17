@@ -166,7 +166,7 @@ const addToCompare = (productId) => {
   if (!product) return
   if (isInLocalCompare(id)) return
   if (localCompareIds.value.length >= 3) {
-    window.alert('최대 3개의 상품만 비교할 수 있습니다.')
+    window.alert('최대 3개의 품종만 비교할 수 있습니다.')
     return
   }
   localCompareIds.value.push(Number(product.id))
@@ -176,7 +176,7 @@ const addNextToSlot = () => {
   // graphNodes 기준으로 후보 탐색 (현재 그래프에 표시된 상품 중에서)
   const candidate = graphNodes.value.find((node) => !isInLocalCompare(node.graphProductId))
   if (!candidate) {
-    window.alert('추가 가능한 유사 상품이 없습니다.')
+    window.alert('추가 가능한 유사 품종이 없습니다.')
     return
   }
   addToCompare(candidate.graphProductId)
@@ -214,11 +214,11 @@ const similarityText = (product) => {
 
 <template>
   <section style="background-color: #EDE8DF; min-height: 100vh;" class="p-6">
-    <PageHeader title="상품 비교 및 유사도 분석" subtitle="기준 상품 선택 후 유사 상품을 비교하세요." />
+    <PageHeader title="품종 비교 및 유사도 분석" subtitle="기준 품종 선택 후 유사 품종을 비교하세요." />
 
-    <!-- 기준 상품 정보 -->
+    <!-- 기준 품종 정보 -->
     <section class="mb-5 rounded-lg border p-5" style="border-color: #DDD7CE; background-color: white;">
-      <h3 class="mb-3 text-base font-bold" style="color: #3D3529;">기준 상품 정보 요약</h3>
+      <h3 class="mb-3 text-base font-bold" style="color: #3D3529;">기준 품종 정보 요약</h3>
 
       <div v-if="baseProduct">
         <div class="mb-3 flex items-center gap-3">
@@ -235,7 +235,7 @@ const similarityText = (product) => {
           </div>
         </div>
       </div>
-      <p v-else class="text-sm" style="color: #BFB3A5;">기준 상품 정보가 없습니다.</p>
+      <p v-else class="text-sm" style="color: #BFB3A5;">기준 품종 정보가 없습니다.</p>
     </section>
 
     <!-- 왼쪽: 기준 설정, 오른쪽: 그래프 -->
@@ -243,23 +243,30 @@ const similarityText = (product) => {
       <!-- 유사도 분석 기준 설정 -->
       <article class="rounded-lg border p-4" style="border-color: #DDD7CE; background-color: white;">
         <h3 class="mb-4 text-base font-bold" style="color: #3D3529;">유사도 분석 기준 설정</h3>
-        <div class="space-y-2">
-          <CedarCheckbox
-              id="criteria-all"
-              label="전체 선택"
-              :model-value="allChecked"
-              :indeterminate="isIndeterminate"
-              @update:model-value="onToggleAllCriteria"
-          />
+        <div class="flex flex-col gap-3">
+          <!-- 전체 선택 영역 -->
+          <div class="pb-2 border-b border-[var(--color-border-divider)] border-dashed">
+            <CedarCheckbox
+                id="criteria-all"
+                label="전체 선택"
+                :model-value="allChecked"
+                :indeterminate="isIndeterminate"
+                @update:model-value="onToggleAllCriteria"
+            />
+          </div>
 
-          <CedarCheckbox
-              v-for="row in criteriaRows"
-              :id="`criteria-${row.key}`"
-              :key="row.key"
-              :label="row.label"
-              :model-value="selectedKeys.has(row.key)"
-              @update:model-value="(checked) => onCriterionChange(row.key, checked)"
-          />
+          <!-- 개별 기준 가로 정렬 영역 -->
+          <div class="flex flex-wrap gap-x-4 gap-y-1">
+            <CedarCheckbox
+                v-for="row in criteriaRows"
+                :id="`criteria-${row.key}`"
+                :key="row.key"
+                :label="row.label"
+                :model-value="selectedKeys.has(row.key)"
+                @update:model-value="(checked) => onCriterionChange(row.key, checked)"
+                class="min-w-[120px]"
+            />
+          </div>
         </div>
 
         <div class="mt-5">
@@ -303,7 +310,7 @@ const similarityText = (product) => {
             <!-- 기준 상품 -->
             <g transform="translate(400,225)">
               <circle r="30" fill="#C8622A" stroke="#A84F21" stroke-width="3" />
-              <text y="50" text-anchor="middle" class="text-[12px]" fill="#3D3529">{{ baseProduct ? baseProduct.name : '기준 상품' }}</text>
+              <text y="50" text-anchor="middle" class="text-[12px]" fill="#3D3529">{{ baseProduct ? baseProduct.name : '기준 품종' }}</text>
               <text y="64" text-anchor="middle" class="text-[10px]" fill="#6B5F50">(기준)</text>
             </g>
 
@@ -382,7 +389,7 @@ const similarityText = (product) => {
               style="color: #9A8C7E;"
               @click="addNextToSlot"
           >
-            + 상품 추가
+            + 품종 추가
           </button>
         </div>
       </div>
@@ -394,9 +401,9 @@ const similarityText = (product) => {
           <tr style="background-color: #3D3529; color: white;">
             <th class="px-4 py-3 text-left">비교 항목</th>
             <th class="px-4 py-3 text-left">{{ baseProduct ? `${baseProduct.name} (기준)` : '-' }}</th>
-            <th class="px-4 py-3 text-left">{{ slotProducts[0]?.name || '비교 상품 1' }}</th>
-            <th class="px-4 py-3 text-left">{{ slotProducts[1]?.name || '비교 상품 2' }}</th>
-            <th class="px-4 py-3 text-left">{{ slotProducts[2]?.name || '비교 상품 3' }}</th>
+            <th class="px-4 py-3 text-left">{{ slotProducts[0]?.name || '비교 품종 1' }}</th>
+            <th class="px-4 py-3 text-left">{{ slotProducts[1]?.name || '비교 품종 2' }}</th>
+            <th class="px-4 py-3 text-left">{{ slotProducts[2]?.name || '비교 품종 3' }}</th>
           </tr>
           </thead>
           <tbody>

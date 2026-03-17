@@ -74,7 +74,7 @@ const onSubmit = async () => {
         <div class="bg-[var(--color-surface)] rounded-3xl p-8 pt-10 card-shadow border border-[var(--color-border)] relative z-20 form-anim">
           <div class="text-center mb-8">
             <h2 class="text-2xl font-bold text-[var(--color-text)] tracking-tight">반갑습니다!</h2>
-            <p class="text-sm text-[var(--color-muted)] mt-2">MonSoon 시스템에 오신 것을 환영합니다.</p>
+            <p class="text-sm text-[var(--color-muted)] mt-2">SeedFlow+ 시스템에 오신 것을 환영합니다.</p>
           </div>
 
           <form class="space-y-5" @submit.prevent="onSubmit">

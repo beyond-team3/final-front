@@ -38,7 +38,7 @@ const openDetail = () => emit('open-detail', props.deal.id)
             <div class="2xl:w-[260px] 2xl:flex-shrink-0">
                 <div class="mb-1 text-[15px] font-bold text-[var(--color-text-strong)]">{{ deal.clientName }}</div>
                 <div class="mb-3 inline-flex rounded-md bg-[var(--color-bg-section)] px-2 py-0.5 text-[11px] text-[var(--color-text-sub)]">
-                    DEAL #{{ deal.id }}
+                    거래 #{{ deal.id }}
                 </div>
                 <div class="flex items-center gap-2">
                     <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-olive-light)] text-xs font-bold text-[var(--color-olive-dark)]">

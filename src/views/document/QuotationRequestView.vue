@@ -65,6 +65,10 @@ const todayText = computed(() => {
   return `${now.getFullYear()}년 ${String(now.getMonth() + 1).padStart(2, '0')}월 ${String(now.getDate()).padStart(2, '0')}일`
 })
 
+const clientName = computed(() => {
+  return authStore.me?.clientName || authStore.me?.name || '(주) 몬순'
+})
+
 // --- [로직] ---
 
 const varietyOptions = computed(() => {
@@ -288,7 +292,7 @@ const submit = async () => {
 
             <div class="absolute bottom-10 left-0 right-0 text-center space-y-2">
               <p>작성일: {{ todayText }}</p>
-              <p class="text-sm font-bold tracking-widest">요청자: (주) 몬순</p>
+              <p class="text-sm font-bold tracking-widest">요청자: {{ clientName }}</p>
             </div>
           </div>
         </section>

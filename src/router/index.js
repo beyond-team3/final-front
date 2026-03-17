@@ -216,13 +216,13 @@ const routes = [
             { path: 'users/register', name: 'user-register', component: UserRegisterView, meta: { roles: [ROLES.ADMIN], title: '사용자 등록' } },
             { path: 'users/:id', name: 'user-detail', component: UserDetailView, meta: { roles: [ROLES.ADMIN], title: '사용자 상세' } },
 
-            { path: 'products/catalog', name: 'product-catalog', component: CatalogRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '카탈로그' } },
-            { path: 'products/:id', name: 'product-detail', component: ProductDetailRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '상품 상세' } },
-            { path: 'products/compare', name: 'product-compare', component: CompareRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '상품 비교' } },
+            { path: 'products/catalog', name: 'product-catalog', component: CatalogRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '품종 카탈로그' } },
+            { path: 'products/:id', name: 'product-detail', component: ProductDetailRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '품종 상세 정보' } },
+            { path: 'products/compare', name: 'product-compare', component: CompareRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '품종 비교함' } },
             { path: 'products/favorites', name: 'product-favorites', component: FavoritesRoleView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '즐겨찾기' } },
-            { path: 'products/register', name: 'product-register', component: ProductRegisterView, meta: { roles: [ROLES.ADMIN], title: '상품 등록' } },
-            { path: 'products/feedback', name: 'product-feedback', component: ProductFeedbackView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '상품 피드백' } },
-            { path: 'products/similarity', name: 'product-similarity', component: SimilarityAnalysisView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '유사도 분석' } },
+            { path: 'products/register', name: 'product-register', component: ProductRegisterView, meta: { roles: [ROLES.ADMIN], title: '품종 등록' } },
+            { path: 'products/feedback', name: 'product-feedback', component: ProductFeedbackView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN], title: '품종 피드백' } },
+            { path: 'products/similarity', name: 'product-similarity', component: SimilarityAnalysisView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '품종 비교 및 유사도 분석' } },
 
 
             { path: 'documents/request', name: 'document-request', component: QuotationRequestView, meta: { roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], title: '견적 요청서' } },
