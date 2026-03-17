@@ -594,10 +594,6 @@ function onAccessDeniedConfirm() {
                         class="rounded border px-4 py-2 text-sm font-semibold hover:opacity-90"
                         style="border-color:#DDD7CE;background-color:transparent;color:#6B5F50;"
                         @click="router.push('/documents/invoices')">목록으로</button>
-                <button v-if="canCancelInvoice" type="button"
-                        class="rounded px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-                        style="background-color:#B85C5C;"
-                        @click="showCancelModal = true">청구서 취소</button>
                 <button type="button"
                         class="rounded px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         style="background-color:#7A8C42;"
