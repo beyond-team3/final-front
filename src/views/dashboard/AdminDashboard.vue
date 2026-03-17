@@ -1,41 +1,43 @@
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import DashboardCalendar from '@/components/dashboard/DashboardCalendar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import { getAdminDashboard } from '@/api/dashboard'
+import { getAdminDashboard, getWeeklySchedules } from '@/api/dashboard'
 
 const dashboard = ref(null)
-const loading = ref(false)
-const error = ref('')
+const router = useRouter()
+const loading   = ref(false)
+const error     = ref('')
 
-// ── KPI 카드 — API 응답(dashboard.value.kpis)으로 구성 ──────────────────
+// 캘린더 전용 상태
+const calendarData    = ref(null)
+const calendarLoading = ref(false)
+
+// ── KPI 카드 ──────────────────────────────────────────────────────────────
 const kpiCards = computed(() => {
   const k = dashboard.value?.kpis || {}
   return [
-    { label: '이번 달 전체 매출', iconClass: 'accent', icon: '₩', value: k.totalMonthlySales    || '-', change: `▲ 전년 대비 ${k.salesGrowthRate || '-'}`,  changeClass: 'positive' },
-    { label: '전년 대비 증감률',  iconClass: 'olive',  icon: '↑', value: k.salesGrowthRate      || '-', change: '▲ ',                          changeClass: 'positive' },
-    { label: '승인 대기 문서',    iconClass: 'warn',   icon: '!', value: k.pendingDocumentCount  || '-', change: k.pendingDetail || '-',                       changeClass: 'neutral'  },
+    { label: '이번 달 전체 매출', iconClass: 'accent', icon: '₩', value: k.totalMonthlySales   || '-', change: `▲ 전년 대비 ${k.salesGrowthRate || '-'}`, changeClass: 'positive' },
+    { label: '전년 대비 증감률',  iconClass: 'olive',  icon: '↑', value: k.salesGrowthRate     || '-', change: '▲ ',                                       changeClass: 'positive' },
+    { label: '승인 대기 문서',    iconClass: 'warn',   icon: '!', value: k.pendingDocumentCount || '-', change: k.pendingDetail || '-',                      changeClass: 'neutral'  },
   ]
 })
 
-// ── 매출 추이 — API 응답(dashboard.value.salesTrend)으로 구성 ───────────
+// ── 매출 추이 ────────────────────────────────────────────────────────────
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
 const salesTrendData = computed(() => ({
-  labels: MONTHS,
+  labels:   MONTHS,
   lastYear: dashboard.value?.salesTrend?.lastYear ?? [],
   thisYear: dashboard.value?.salesTrend?.thisYear ?? [],
 }))
 
-// ── Canvas ref & Chart 인스턴스 ────────────────────────────────────────────
+// ── Canvas / Chart ───────────────────────────────────────────────────────
 const chartCanvas = ref(null)
 let chartInstance = null
 
-/**
- * Chart.js를 동적 import 후 라인 차트를 그립니다.
- * Chart.js가 설치되어 있지 않을 경우 순수 Canvas로 fallback합니다.
- */
 const renderChart = async () => {
   const canvas = chartCanvas.value
   if (!canvas) return
@@ -87,7 +89,7 @@ const renderChart = async () => {
           legend: {
             position: 'top',
             align: 'end',
-            labels: { boxWidth: 12, boxHeight: 2, font: { size: 12 }, color: '#78716C' },
+            labels: { boxWidth: 12, boxHeight: 2, font: { size: 12, family: "'KoPub Dotum', sans-serif" }, color: '#78716C' },
           },
           tooltip: {
             callbacks: {
@@ -104,7 +106,7 @@ const renderChart = async () => {
           y: {
             grid: { color: 'rgba(0,0,0,0.06)' },
             ticks: {
-              font: { size: 12 },
+              font: { size: 12, family: "'KoPub Dotum', sans-serif" },
               color: '#A8A29E',
               callback: (v) => `₩${(v / 100).toFixed(0)}억`,
             },
@@ -118,45 +120,41 @@ const renderChart = async () => {
   }
 }
 
-/** Chart.js 없이 Canvas 2D API로 직접 그리는 fallback 차트 */
 const renderFallbackChart = (canvas) => {
   const { lastYear, thisYear, labels } = salesTrendData.value
   const ctx = canvas.getContext('2d')
   const { width, height } = canvas.getBoundingClientRect()
-  canvas.width = width * window.devicePixelRatio
+  canvas.width  = width  * window.devicePixelRatio
   canvas.height = height * window.devicePixelRatio
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
 
-  const W = width
-  const H = height
+  const W   = width
+  const H   = height
   const PAD = { top: 30, right: 24, bottom: 40, left: 56 }
   const innerW = W - PAD.left - PAD.right
-  const innerH = H - PAD.top - PAD.bottom
+  const innerH = H - PAD.top  - PAD.bottom
 
   const allValues = [...lastYear, ...thisYear].filter((v) => v !== null)
   if (!allValues.length) return
   const minVal = Math.min(...allValues) * 0.92
   const maxVal = Math.max(...allValues) * 1.05
-  const range = maxVal - minVal
+  const range  = maxVal - minVal
 
   const toX = (i) => PAD.left + (i / (labels.length - 1)) * innerW
-  const toY = (v) => PAD.top + innerH - ((v - minVal) / range) * innerH
+  const toY = (v) => PAD.top  + innerH - ((v - minVal) / range) * innerH
 
-  // 격자선
   ctx.strokeStyle = 'rgba(0,0,0,0.06)'
-  ctx.lineWidth = 1
+  ctx.lineWidth   = 1
   for (let i = 0; i <= 4; i++) {
     const y = PAD.top + (innerH / 4) * i
     ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + innerW, y); ctx.stroke()
   }
 
-  // X축 레이블
-  ctx.fillStyle = '#A8A29E'
-  ctx.font = '11px sans-serif'
-  ctx.textAlign = 'center'
+  ctx.fillStyle  = '#A8A29E'
+  ctx.font       = '11px "KoPub Dotum", sans-serif'
+  ctx.textAlign  = 'center'
   labels.forEach((label, i) => { ctx.fillText(label, toX(i), H - PAD.bottom + 16) })
 
-  // 데이터 라인
   const series = [
     { data: lastYear, color: '#A8A29E', dash: [5, 4] },
     { data: thisYear, color: '#D97757', dash: [] },
@@ -167,35 +165,34 @@ const renderFallbackChart = (canvas) => {
     ctx.beginPath()
     ctx.setLineDash(dash)
     ctx.strokeStyle = color
-    ctx.lineWidth = 2.5
+    ctx.lineWidth   = 2.5
     points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
     ctx.stroke()
     ctx.setLineDash([])
     points.forEach((p) => {
       ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
-      ctx.fillStyle = '#fff'; ctx.fill()
+      ctx.fillStyle   = '#fff'; ctx.fill()
       ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke()
     })
   })
 }
 
-// ── 영업사원별 매출 랭킹 — 최대 5개만 노출 ──────────────────────────────
-const allRankings = computed(() => dashboard.value?.rankings ?? [])
-const rankings = computed(() => allRankings.value.slice(0, 5))
-const rankingsTotalCount = computed(() => allRankings.value.length)
+// ── 랭킹 / 승인 ──────────────────────────────────────────────────────────
+const allRankings         = computed(() => dashboard.value?.rankings   ?? [])
+const rankings            = computed(() => allRankings.value.slice(0, 5))
+const rankingsTotalCount  = computed(() => allRankings.value.length)
 
-// ── Dashboard 데이터 fetch ─────────────────────────────────────────────────
-const title         = computed(() => dashboard.value?.title       || '관리자 대시보드')
-const allApprovals  = computed(() => dashboard.value?.approvals   ?? [])
-// 최근 승인 요청 최대 5개만 노출
-const approvals     = computed(() => allApprovals.value.slice(0, 5))
+const title               = computed(() => dashboard.value?.title       || '관리자 대시보드')
+const allApprovals        = computed(() => dashboard.value?.approvals   ?? [])
+const approvals           = computed(() => allApprovals.value.slice(0, 5))
 const approvalsTotalCount = computed(() => allApprovals.value.length)
-const trendPeriod   = computed(() => dashboard.value?.trendPeriod || '월별 매출 추이')
-const hasData       = computed(() => kpiCards.value.length || rankings.value.length || approvals.value.length)
+const trendPeriod         = computed(() => dashboard.value?.trendPeriod || '월별 매출 추이')
+const hasData             = computed(() => kpiCards.value.length || rankings.value.length || approvals.value.length)
 
+// ── fetch ─────────────────────────────────────────────────────────────────
 const fetchDashboard = async () => {
   loading.value = true
-  error.value = ''
+  error.value   = ''
 
   try {
     dashboard.value = await getAdminDashboard()
@@ -203,13 +200,26 @@ const fetchDashboard = async () => {
     error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
   } finally {
     loading.value = false
-    // DOM이 업데이트된 뒤(nextTick) canvas가 존재하므로 그때 차트를 렌더링
     await nextTick()
     await renderChart()
   }
 }
 
-onMounted(fetchDashboard)
+const fetchCalendar = async () => {
+  calendarLoading.value = true
+  try {
+    calendarData.value = await getWeeklySchedules()
+  } catch {
+    // 캘린더 실패 시 컴포넌트 default 값으로 fallback (무시)
+  } finally {
+    calendarLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchDashboard()
+  fetchCalendar()
+})
 </script>
 
 <template>
@@ -219,7 +229,7 @@ onMounted(fetchDashboard)
       <LoadingSpinner text="관리자 대시보드를 불러오는 중입니다." />
     </template>
 
-    <!-- 에러: 차트는 더미 데이터로 항상 표시, 나머지 섹션에만 에러 메시지 -->
+    <!-- 에러 -->
     <template v-else-if="error">
       <ErrorMessage :message="error" @retry="fetchDashboard" />
     </template>
@@ -228,7 +238,6 @@ onMounted(fetchDashboard)
       <EmptyState title="표시할 관리자 데이터가 없습니다." description="데이터 등록 후 다시 확인해주세요." />
     </template>
 
-    <!-- 정상 렌더링 (에러여도 차트 섹션은 아래에서 항상 표시) -->
     <template v-else>
       <h2 class="screen-title">{{ title }}</h2>
 
@@ -244,12 +253,21 @@ onMounted(fetchDashboard)
       </div>
     </template>
 
-    <!-- 차트 섹션: 로딩 중이 아니면 항상 렌더링 (더미 데이터 사용) -->
+    <!-- 차트 섹션 -->
     <div v-if="!loading" class="chart-section">
       <div class="chart-card">
         <div class="chart-header">
           <h2 class="chart-title">매출 추이</h2>
-          <span class="chart-period">{{ trendPeriod }}</span>
+          <div class="flex items-center gap-3">
+            <span class="chart-period">{{ trendPeriod }}</span>
+            <button
+                class="px-3 py-1.5 rounded-lg border border-[#D97757] text-[12px] font-bold text-[#D97757] hover:bg-[#FEF3E8] transition-colors flex items-center gap-1.5 shadow-sm"
+                @click="router.push('/statistics')"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              상세 통계 분석
+            </button>
+          </div>
         </div>
         <div class="chart-canvas-wrap">
           <canvas ref="chartCanvas" class="chart-canvas" />
@@ -257,13 +275,15 @@ onMounted(fetchDashboard)
       </div>
     </div>
 
-    <!-- 하단 3열 그리드: 정상 데이터일 때만 -->
+    <!-- 하단 3열 그리드 -->
     <template v-if="!loading && !error && hasData">
       <div class="three-column-grid">
         <div class="operation-card">
           <div class="operation-header">
             <h3 class="operation-title">영업사원별 매출 랭킹</h3>
-            <span class="operation-badge">{{ rankings.length }}<template v-if="rankingsTotalCount > 5"><span class="text-xs"> / {{ rankingsTotalCount }}</span></template></span>
+            <span class="operation-badge">
+              {{ rankings.length }}<template v-if="rankingsTotalCount > 5"><span class="text-xs"> / {{ rankingsTotalCount }}</span></template>
+            </span>
           </div>
           <div class="ranking-list">
             <div v-for="item in rankings" :key="item.rank" class="ranking-item">
@@ -283,7 +303,9 @@ onMounted(fetchDashboard)
         <div class="operation-card">
           <div class="operation-header">
             <h3 class="operation-title">최근 승인 요청</h3>
-            <span class="operation-badge">{{ approvals.length }}<template v-if="approvalsTotalCount > 5"><span class="text-xs"> / {{ approvalsTotalCount }}</span></template></span>
+            <span class="operation-badge">
+              {{ approvals.length }}<template v-if="approvalsTotalCount > 5"><span class="text-xs"> / {{ approvalsTotalCount }}</span></template>
+            </span>
           </div>
           <div class="operation-list">
             <div v-for="item in approvals" :key="item.title + item.time" class="operation-item">
@@ -296,14 +318,21 @@ onMounted(fetchDashboard)
           </div>
         </div>
 
-        <DashboardCalendar />
+        <!-- 캘린더: 데이터 있으면 props로 전달, 없으면 컴포넌트 default 사용 -->
+        <DashboardCalendar
+            v-bind="calendarData ? {
+              badge:      calendarData.badge,
+              weekDays:   calendarData.weekDays,
+              dayEvents:  calendarData.dayEvents,
+              listEvents: calendarData.listEvents,
+            } : {}"
+        />
       </div>
     </template>
   </section>
 </template>
 
 <style scoped>
-/* ── 색상 토큰 (Contract / LoginView 테마) ─────────────────────── */
 .dashboard-shell {
   --c-bg:      #FAF9F6;
   --c-surface: #FFFFFF;
@@ -328,7 +357,6 @@ onMounted(fetchDashboard)
   border-bottom: 1px solid var(--c-border);
 }
 
-/* KPI */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 28px; }
 .kpi-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
 .kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -342,7 +370,6 @@ onMounted(fetchDashboard)
 .kpi-change.positive { color: var(--c-olive); }
 .kpi-change.neutral  { color: var(--c-muted); }
 
-/* 차트 */
 .chart-section { margin-bottom: 28px; }
 .chart-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
 .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -351,7 +378,6 @@ onMounted(fetchDashboard)
 .chart-canvas-wrap { height: 300px; border-radius: 8px; overflow: hidden; }
 .chart-canvas { width: 100%; height: 100%; }
 
-/* 하단 3열 */
 .three-column-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .operation-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; }
 .operation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -360,7 +386,6 @@ onMounted(fetchDashboard)
 
 .text-xs { font-size: 9px; }
 
-/* 승인 목록 */
 .operation-list { display: flex; flex-direction: column; gap: 10px; max-height: none; overflow: visible; }
 .operation-item { padding: 12px; background: var(--c-warm); border-radius: 8px; border-left: 3px solid var(--c-accent); flex-shrink: 0; }
 .operation-item-title { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 4px; }
@@ -369,7 +394,6 @@ onMounted(fetchDashboard)
 
 .list-more-indicator { padding: 10px; text-align: center; color: var(--c-muted); font-size: 11px; background: var(--c-warm); border-radius: 8px; margin-top: 8px; }
 
-/* 랭킹 */
 .ranking-list { display: flex; flex-direction: column; gap: 10px; max-height: none; overflow: visible; }
 .ranking-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--c-warm); border-radius: 8px; flex-shrink: 0; }
 .rank-number { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; background: var(--c-warm-md); color: var(--c-muted); flex-shrink: 0; }

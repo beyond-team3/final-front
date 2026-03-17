@@ -171,7 +171,7 @@ const submit = async () => {
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적 요청서 작성</span></p>
+        <p class="text-2xl" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적 요청서 작성</span></p>
       </div>
 
       <div class="grid gap-5 xl:grid-cols-[1.2fr_480px] animate-in">
@@ -252,9 +252,9 @@ const submit = async () => {
         </section>
 
         <section class="rounded-lg bg-[#525659] p-4 shadow-inner">
-          <div class="min-h-[700px] rounded bg-white p-8 text-[11px] text-black shadow-2xl relative" style="font-family: 'KoPub Dotum', sans-serif !important;">
+          <div class="min-h-[700px] rounded bg-white p-8 text-[11px] text-black shadow-2xl relative" style="font-family: var(--font-sans) !important;">
             <div class="mb-5 border-b-2 border-black pb-3 text-center">
-              <h1 class="text-xl font-bold tracking-widest" style="font-family: 'KoPub Dotum', sans-serif !important;">견적 요청서</h1>
+              <h1 class="text-xl font-bold tracking-widest" style="font-family: var(--font-sans) !important;">견적 요청서</h1>
             </div>
             <p class="mb-2">귀하의 무궁한 발전을 기원합니다.</p>
             <p>아래와 같이 견적을 요청하오니 검토 부탁드립니다.</p>
