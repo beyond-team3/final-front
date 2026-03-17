@@ -58,6 +58,13 @@ const toggleCompare = async () => {
       <template #actions>
         <button
           type="button"
+          class="rounded border border-[var(--color-olive)] bg-[var(--color-olive-light)] px-3 py-2 text-sm font-semibold text-[var(--color-olive-dark)] hover:opacity-80"
+          @click="router.push(`/products/similarity?base=${product.id}`)"
+        >
+          유사도 분석
+        </button>
+        <button
+          type="button"
           class="rounded border border-[var(--color-border-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]"
           @click="router.push('/products/catalog')"
         >
