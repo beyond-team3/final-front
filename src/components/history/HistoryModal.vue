@@ -1121,7 +1121,6 @@ const getValidityDate = (dateStr) => {
               <article class="card bg-[var(--color-bg-card)] border border-[var(--color-border-card)] p-6 rounded-2xl shadow-sm">
                 <div class="flex items-center justify-between mb-5 border-b border-[var(--color-border-divider)] pb-3">
                   <div class="flex items-center gap-2"><span class="w-1.5 h-4 bg-[var(--color-olive)] rounded-full"></span><h3 class="text-sm font-black text-[var(--color-text-strong)] uppercase tracking-tight">거래처 및 담당자</h3></div>
-                  <span class="text-[10px] font-bold text-[var(--color-text-sub)]">PARTNER INFO</span>
                 </div>
                 <div class="space-y-5">
                   <div class="flex flex-col gap-1.5"><label class="text-[10px] text-[var(--color-text-sub)] font-extrabold uppercase">상호명 / 법인명</label><div class="p-3 border border-[var(--color-border-card)] rounded-xl bg-[var(--color-bg-input)] text-base font-black text-[var(--color-text-strong)] shadow-inner">{{ resolvedClientName }}</div></div>
@@ -1132,7 +1131,6 @@ const getValidityDate = (dateStr) => {
                         <div class="w-8 h-8 rounded-full bg-[var(--color-olive)]/10 border border-[var(--color-olive)]/20 flex items-center justify-center text-[var(--color-olive)] font-black text-xs">{{ (resolvedMemberName || 'M')[0] }}</div>
                         <span class="text-sm font-bold text-[var(--color-text-strong)]">{{ resolvedMemberName }}</span>
                       </div>
-                      <span class="text-[9px] bg-[var(--color-olive)] text-white px-2 py-1 rounded-lg font-black tracking-tighter">OFFICIAL</span>
                     </div>
                   </div>
                 </div>
