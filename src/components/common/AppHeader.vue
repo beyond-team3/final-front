@@ -26,7 +26,7 @@ const visibleHeaderMenus = computed(() => HEADER_MENU_CONFIG.filter((menu) => ha
 const iconNameMap = {
   schedule: 'calendar', // UPDATED
   notification: 'bell', // UPDATED
-  settings: 'settings', // UPDATED
+  settings: 'user', // UPDATED
 }
 const iconOnlyMenuKeys = ['schedule', 'notification', 'settings'] // UPDATED
 const iconHeaderMenus = computed(() => visibleHeaderMenus.value.filter((menu) => iconOnlyMenuKeys.includes(menu.key))) // UPDATED
