@@ -97,7 +97,7 @@ const renderMarkdown = (text) => {
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
-    <PageHeader title="영업 노트 탐색" subtitle="과거의 영업 활동 기록을 필터링하여 조회할 수 있습니다." />
+    <PageHeader title="영업 노트 검색" subtitle="영업 노트를 필터링하여 조회할 수 있습니다." />
 
     <!-- Filter Bar -->
     <section class="mb-8 rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-sidebar)] p-6 shadow-sm mt-6">
