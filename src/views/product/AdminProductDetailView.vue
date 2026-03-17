@@ -38,7 +38,7 @@ onMounted(() => {
 
 const deleteProduct = () => {
   if (!product.value) return
-  if (window.confirm('정말로 이 상품 정보를 삭제하시겠습니까?')) {
+  if (window.confirm('정말로 이 품종 정보를 삭제하시겠습니까?')) {
     productStore.deleteProduct(product.value.id)
     router.push('/products/catalog')
   }
@@ -54,7 +54,7 @@ const toggleCompare = async () => {
 
 <template>
   <section v-if="product">
-    <PageHeader title="상품 상세 정보(관리자)">
+    <PageHeader title="품종 상세 정보(관리자)">
       <template #actions>
         <button
           type="button"
@@ -157,6 +157,6 @@ const toggleCompare = async () => {
   </section>
 
   <section v-else class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-8 text-center text-sm text-[var(--color-text-sub)]">
-    상품 정보가 없습니다.
+    품종 정보가 없습니다.
   </section>
 </template>

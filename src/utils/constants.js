@@ -48,12 +48,12 @@ export const MENU_CONFIG = [
     },
     {
         key: 'product-management',
-        label: '상품',
+        label: '품종',
         roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT],
         children: [
             { key: 'variety', label: '품종 카탈로그', route: '/products/catalog', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'product-compare', label: '상품 비교', route: '/products/compare', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'product-register', label: '상품 등록', route: '/products/register', roles: [ROLES.ADMIN] },
+            { key: 'product-compare', label: '품종 비교함', route: '/products/compare', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
+            { key: 'product-register', label: '품종 등록', route: '/products/register', roles: [ROLES.ADMIN] },
         ],
     },
     { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },

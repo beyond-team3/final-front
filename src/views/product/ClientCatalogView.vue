@@ -129,7 +129,7 @@ onMounted(async () => {
 
 <template>
   <section v-if="productStore">
-    <PageHeader title="전체 상품 목록" subtitle="거래처용 카탈로그입니다.">
+    <PageHeader title="품종 카탈로그" subtitle="거래처용 카탈로그입니다.">
       <template #actions>
         <button
           type="button"

@@ -549,7 +549,6 @@ const loadDetail = async () => {
     else if (typeKey === 'invoice') detail = documentStore.getInvoiceById(currentId)
     else if (['quotation-request', 'rfq'].includes(typeKey)) detail = documentStore.getRequestById(currentId)
 
-    // ✅ 수정: isOrderDocument, isInvoiceDocument도 fresh fetch 대상에 포함
     const requiresFreshDetail = isQuotationDocument.value || isContractDocument.value || isStatementDocument.value || isOrderDocument.value || isInvoiceDocument.value
 
     if (requiresFreshDetail || !detail || !detail.items || detail.items.length === 0) {
@@ -627,7 +626,7 @@ const downloadDocument = async () => {
 
   const isContract = isContractDocument.value
   const overlay = document.createElement('div')
-  overlay.style.position = 'fixed'; overlay.style.left = '-10000px'; overlay.style.top = '0'; overlay.style.width = '794px'; overlay.style.backgroundColor = '#ffffff'; overlay.style.zIndex = '-999999';
+  // ... 생략 (기존 스타일 유지)
 
   const clone = element.cloneNode(true)
   clone.style.transform = 'none'; clone.style.margin = '0'; clone.style.padding = '0';
@@ -673,8 +672,8 @@ const downloadDocument = async () => {
   }
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    await window.html2pdf().set(opt).from(isContract ? clone : clone).save()
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await window.html2pdf().set(opt).from(clone).save()
   } catch (error) {
     console.error('PDF 다운로드 실패:', error);
     alert('PDF 생성 중 오류가 발생했습니다.')
@@ -795,14 +794,14 @@ const getValidityDate = (dateStr) => {
                     <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[11px]">
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-2">품종</th><th class="border-r border-black p-2">상품명</th><th class="border-r border-black p-2">수량</th><th class="border-r border-black p-2">단위</th><th class="border-r border-black p-2">단가</th><th class="p-2">금액</th></tr></thead>
                       <tbody>
-                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-q-'+idx" class="border-b border-black no-break">
-                        <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
-                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
-                        <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
-                        <td class="border-r border-black p-2">{{ item.unit }}</td>
-                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
-                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
-                      </tr>
+                        <tr v-for="(item, idx) in docDetail.items" :key="'pdf-q-'+idx" class="border-b border-black no-break">
+                          <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
+                          <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
+                          <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
+                          <td class="border-r border-black p-2">{{ item.unit }}</td>
+                          <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
+                          <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
+                        </tr>
                       </tbody>
                       <tfoot class="bg-[#FAF7F3] font-bold"><tr><td colspan="5" class="border-r border-black p-2 text-sm text-right px-3">합 계</td><td class="p-2 text-right font-mono px-3 text-lg">{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</td></tr></tfoot>
                     </table>
@@ -813,7 +812,7 @@ const getValidityDate = (dateStr) => {
                   </div>
 
                   <!-- 계약서 -->
-                  <div v-else-if="isContractDocument" class="bg-white px-12 pt-8 pb-12 w-[794px] shadow-2xl relative text-[13px] text-black flex flex-col" style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
+                  <div v-else-if="isContractDocument" class="bg-white px-12 pt-8 pb-12 w-[794px] min-h-[1110px] shadow-2xl relative text-[13px] text-black flex flex-col" style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
                     <div class="text-center border-b-2 border-black pb-3 mb-10"><h1 class="text-3xl font-bold tracking-widest">물 품 공 급 계 약 서</h1></div>
                     <div class="mb-8 space-y-3 leading-relaxed text-[15px]">
                       <p><strong>계약상대자 (갑):</strong> <span class="border-b border-black px-2 font-bold">{{ docDetail.clientName || docDetail.client?.name || '(빈값)' }}</span></p>
@@ -838,11 +837,13 @@ const getValidityDate = (dateStr) => {
                       </tr>
                       </tbody>
                     </table>
-                    <div v-if="docDetail.specialTerms" class="pt-20 no-break">
+
+                    <div v-if="docDetail.specialTerms" class="pt-10 no-break">
                       <strong class="text-sm border-b border-black pb-1">[특약 사항]</strong>
                       <p class="mt-3 border border-black p-5 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[13px] min-h-[80px]">{{ docDetail.specialTerms }}</p>
                     </div>
-                    <div class="pt-8 pb-2 text-center flex flex-col items-center no-break">
+
+                    <div class="mt-auto pt-8 pb-2 text-center flex flex-col items-center no-break">
                       <p class="text-[15px] font-bold mb-4">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p>
                       <div class="w-full px-16"><div class="border-t-2 border-black pt-5"><p class="font-bold text-xl">위 계약의 내용을 증명하기 위해 기명 날인함</p></div></div>
                     </div>
@@ -1108,7 +1109,7 @@ const getValidityDate = (dateStr) => {
                       </tbody>
                     </table>
                     <div class="mt-8"><strong class="text-xs">[요구사항]</strong><p class="mt-2 min-h-[100px] border border-black p-4 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[12px]">{{ docDetail.requirements || docDetail.memo || '별도 요구사항 없음' }}</p></div>
-                    <div class="absolute bottom-20 left-0 right-0 text-right px-16 space-y-4"><p class="text-sm font-bold">작성일: {{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p><p class="mt-6 font-black text-lg">요청자: (주) 몬순 (인)</p></div>
+                    <div class="absolute bottom-20 left-0 right-0 text-right px-16 space-y-4"><p class="text-sm font-bold">작성일: {{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p><p class="mt-6 font-black text-lg">요청자: {{ resolvedClientName }} (인)</p></div>
                   </div>
 
                 </div>

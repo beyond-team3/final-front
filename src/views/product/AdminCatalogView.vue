@@ -130,7 +130,7 @@ onMounted(async () => {
 
 <template>
   <section v-if="productStore">
-    <PageHeader title="전체 상품 목록(관리자)" subtitle="상품 조회, 비교함, 즐겨찾기를 관리합니다.">
+    <PageHeader title="품종 카탈로그(관리자)" subtitle="품종 조회, 비교함, 즐겨찾기를 관리합니다.">
       <template #actions>
         <button
           type="button"
@@ -151,7 +151,7 @@ onMounted(async () => {
           class="rounded bg-[var(--color-olive)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]"
           @click="router.push('/products/register')"
         >
-          + 상품 등록
+          + 품종 등록
         </button>
       </template>
     </PageHeader>

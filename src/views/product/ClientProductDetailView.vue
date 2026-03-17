@@ -67,7 +67,7 @@ const saveNote = async () => {
 
 <template>
   <section v-if="product">
-    <PageHeader title="상품 상세 정보">
+    <PageHeader title="품종 상세 정보">
       <template #actions>
         <button
           type="button"
@@ -187,6 +187,6 @@ const saveNote = async () => {
 
   <section v-else class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-12 text-center text-sm text-[var(--color-text-sub)]">
     <div class="mb-2 text-4xl">🔍</div>
-    상품 정보를 찾을 수 없습니다.
+    품종 정보를 찾을 수 없습니다.
   </section>
 </template>
