@@ -56,10 +56,9 @@ export const MENU_CONFIG = [
             { key: 'product-register', label: '상품 등록', route: '/products/register', roles: [ROLES.ADMIN] },
         ],
     },
-    { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
     {
         key: 'note',
-        label: '노트',
+        label: '영업 노트',
         roles: [ROLES.SALES_REP],
         children: [
             { key: 'note-main', label: '노트 작성', route: '/notes' },
@@ -68,6 +67,7 @@ export const MENU_CONFIG = [
             { key: 'ragseed-analysis', label: 'RAGseed 분석', route: '/ragseed' },
         ],
     },
+    { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
     { key: 'payment', label: '결제', roles: [ROLES.CLIENT], route: '/payment' },
 ]
 export const DOC_STATUS = {
