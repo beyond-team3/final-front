@@ -112,9 +112,18 @@
 
       <!-- 심각도 범례 -->
       <div v-if="forecasts.length > 0" class="legend-section">
-        <h2 class="section-label">위험도 범례</h2>
+        <h2 class="section-label">
+          위험도 범례
+          <span class="section-sub-label">항목 클릭 시 해당 위험도 지역만 선별 표시</span>
+        </h2>
         <div class="legend-list">
-          <div v-for="level in severityLevels" :key="level.key" class="legend-item">
+          <div 
+            v-for="level in severityLevels" 
+            :key="level.key" 
+            class="legend-item clickable-legend"
+            :class="{ 'is-disabled': !selectedSeverities.includes(level.key) }"
+            @click="toggleSeverity(level.key)"
+          >
             <span class="legend-dot" :style="{ background: level.color }"></span>
             <span class="legend-text">{{ level.label }}</span>
             <span class="legend-count">
@@ -288,6 +297,23 @@ const forecasts = ref([])
 const recommendedProducts = ref([])
 const showScoreGuide = ref(false)
 
+// --- 위험도 필터 상태 ---
+const selectedSeverities = ref(['심각', '경고', '주의', '보통'])
+
+const toggleSeverity = (key) => {
+  const index = selectedSeverities.value.indexOf(key)
+  if (index > -1) {
+    selectedSeverities.value.splice(index, 1)
+  } else {
+    selectedSeverities.value.push(key)
+  }
+}
+
+// 필터링된 예찰 데이터
+const filteredForecasts = computed(() =>
+  forecasts.value.filter(f => selectedSeverities.value.includes(f.severity))
+)
+
 let kakaoMap = null
 let officeMarkers = []
 let forecastOverlays = []
@@ -359,7 +385,7 @@ const severityLevels = [
 const severityOrder = { '심각': 0, '경고': 1, '주의': 2, '보통': 3 }
 
 const sortedForecasts = computed(() =>
-    [...forecasts.value].sort((a, b) =>
+    [...filteredForecasts.value].sort((a, b) =>
         (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9)
     )
 )
@@ -373,6 +399,11 @@ function getSeverityColor(severity) {
   const found = severityLevels.find(l => l.key === severity)
   return found ? found.color : '#9A8C7E'
 }
+
+// 필터 변경 시 지도 다시 그리기
+watch(selectedSeverities, () => {
+  renderForecastOverlays()
+}, { deep: true })
 
 // ─── 카카오맵 초기화 ─────────────────────────────────
 function initKakaoMap() {
@@ -483,7 +514,10 @@ function renderOfficeMarkers(offices) {
         </div>
         <span class="info-score-value">${Math.round(score)}점</span>
       </div>
-      <div class="info-reason">${office.primaryReason || ''}</div>
+      <div class="info-score-row" style="margin-top: -8px; margin-bottom: 12px;">
+        <span class="info-score-label">점수 산출 요인</span>
+        <span class="info-reason-value">${office.primaryReason || '-'}</span>
+      </div>
       <div class="info-crops-label">취급 품종</div>
       <div class="info-crop-tags">${cropTags || '<span class="text-xs text-gray-400 italic">정보 없음</span>'}</div>
     `
@@ -545,7 +579,7 @@ async function fetchForecasts() {
       cropCode: selectedCrop.value.toLowerCase(), // 백엔드 기대 형식 대응
       pestCode: selectedPest.value
     })
-    
+
     // API 응답 구조 반영 (forecasts, recommendedProducts 직접 할당)
     if (data) {
       forecasts.value = data.forecasts || []
@@ -569,8 +603,8 @@ function renderForecastOverlays() {
   if (!kakaoMap || !window.kakao) return
   clearForecastOverlays()
 
-  forecasts.value.forEach(forecast => {
-    // 시/도 단위(sigunguCode: "000")는 광역 데이터이므로 지도 마커에서는 제외하고 
+  filteredForecasts.value.forEach(forecast => {
+    // 시/도 단위(sigunguCode: "000")는 광역 데이터이므로 지도 마커에서는 제외하고
     // 상세 시/군/구 데이터만 지도에 표시 (가독성 및 중복 방지)
     if (forecast.sigunguCode === '000') return
 
@@ -958,6 +992,15 @@ const AREA_COORDS = {
   margin: 0 0 14px;
 }
 
+.section-sub-label {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--color-text-placeholder);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
+}
+
 .filter-group {
   margin-bottom: 12px;
 }
@@ -1188,6 +1231,27 @@ const AREA_COORDS = {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.clickable-legend {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 6px;
+}
+
+.clickable-legend:hover {
+  background: var(--color-bg-base);
+}
+
+.clickable-legend.is-disabled {
+  opacity: 0.3;
+  filter: grayscale(0.5);
+}
+
+.clickable-legend.is-disabled .legend-dot {
+  background: #ccc !important;
 }
 
 .legend-dot {
@@ -1705,13 +1769,12 @@ const AREA_COORDS = {
   white-space: nowrap;
 }
 
-.info-reason {
+.info-reason-value {
+  flex: 1;
   font-size: 11px;
   color: var(--color-orange);
   text-align: right;
-  margin-top: -8px;
-  margin-bottom: 12px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
 }
 
