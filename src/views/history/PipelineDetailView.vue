@@ -105,14 +105,14 @@ onMounted(async () => {
 <template>
             <section class="screen-content pipeline-detail-page">
             <section v-if="historyStore.loading" class="flex min-h-[420px] items-center justify-center">
-                <LoadingSpinner text="딜 정보를 불러오는 중입니다." />
+                <LoadingSpinner text="거래 정보를 불러오는 중입니다." />
             </section>
 
             <ErrorMessage v-else-if="historyStore.error" :message="historyStore.error" @retry="historyStore.fetchPipelines" />
 
             <EmptyState
                 v-else-if="!deal"
-                title="딜 정보를 찾을 수 없습니다."
+                title="거래 정보를 찾을 수 없습니다."
                 description="영업 히스토리 목록에서 다시 선택해주세요."
             />
 
@@ -123,7 +123,7 @@ onMounted(async () => {
                                 <div class="flex items-center gap-2 text-sm">
                                     <button type="button" class="text-[var(--color-text-sub)] hover:underline" @click="goBack">영업 히스토리</button>
                                     <span class="text-[var(--color-text-sub)]">›</span>
-                                    <span class="font-bold text-[var(--color-text-strong)]">{{ deal.clientName }} DEAL #{{ deal.id }}</span>
+                                    <span class="font-bold text-[var(--color-text-strong)]">{{ deal.clientName }} 거래 #{{ deal.id }}</span>
                                 </div>
 
                                 <div class="flex gap-2">
@@ -134,7 +134,7 @@ onMounted(async () => {
                             <div class="flex flex-col gap-5 px-5 pb-5 md:px-8 2xl:flex-row 2xl:items-center 2xl:justify-between">
                                 <div class="flex flex-wrap items-center gap-3">
                                     <h2 class="text-[28px] font-bold text-[var(--color-text-strong)]">{{ deal.clientName }}</h2>
-                                    <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-1 text-[12px] text-[var(--color-text-sub)]">DEAL #{{ deal.id }}</span>
+                                    <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-1 text-[12px] text-[var(--color-text-sub)]">거래 #{{ deal.id }}</span>
                                     <span class="rounded-md bg-[var(--color-olive-light)] px-2 py-1 text-[12px] text-[var(--color-olive-dark)]">{{ deal.currentStatusLabel }}</span>
                                 </div>
 
@@ -173,7 +173,7 @@ onMounted(async () => {
                                 </div>
 
                             <section v-if="historyStore.logsLoading" class="pipeline-card flex justify-center py-12">
-                                <LoadingSpinner text="딜 타임라인을 불러오는 중입니다." />
+                                <LoadingSpinner text="거래 타임라인을 불러오는 중입니다." />
                             </section>
 
                             <section
