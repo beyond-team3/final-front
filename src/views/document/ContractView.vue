@@ -444,6 +444,14 @@ const todayFormatted = computed(() => {
   return `${now.getFullYear()}년 ${String(now.getMonth() + 1).padStart(2, '0')}월 ${String(now.getDate()).padStart(2, '0')}일`
 })
 
+const minDate = computed(() => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+})
+
 const normalizedSourceQuotationId = computed(() => {
   const raw = sourceQuotationId.value
   if (raw === null || raw === undefined || raw === '') {
@@ -460,6 +468,11 @@ const submitContract = async () => {
   if (isViewMode.value || isSubmitting.value) return
   if (!conInCorp.value) return window.alert("거래처 정보가 빠져있습니다.")
   if (selectedItems.value.length === 0) return window.alert("계약할 상품을 하나라도 추가해주세요")
+
+  // 시작일 과거 날짜 체크
+  if (conStartDate.value && conStartDate.value < minDate.value) {
+    return window.alert("계약 시작일은 오늘 이전 날짜로 설정할 수 없습니다.")
+  }
 
   isSubmitting.value = true
   try {
@@ -553,7 +566,7 @@ const submitContract = async () => {
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="text-xs" style="color: #6B5F50;">계약 시작일</label>
-                <input v-model="conStartDate" :readonly="isFieldLocked" type="date" class="w-full p-2 border rounded text-sm mt-1 outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isFieldLocked ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', color: '#3D3529' }">
+                <input v-model="conStartDate" :readonly="isFieldLocked" type="date" :min="minDate" class="w-full p-2 border rounded text-sm mt-1 outline-none focus:ring-1 focus:ring-[#7A8C42]" :style="{ backgroundColor: isFieldLocked ? '#EFEADF' : '#FAF7F3', borderColor: '#DDD7CE', color: '#3D3529' }">
               </div>
               <div>
                 <label class="text-xs" style="color: #6B5F50;">계약 종료일</label>
