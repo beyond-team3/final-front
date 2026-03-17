@@ -461,7 +461,7 @@ const statusBadgeStyle = (tone) => ({
       </div>
 
       <section class="mb-5 rounded-[10px] border p-[18px] shadow-[0_1px_2px_rgba(61,53,41,0.06)]" style="background-color: #EFEADF; border-color: #DDD7CE;">
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto_auto]">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto]">
           <label class="flex flex-col gap-2">
             <input
                 v-model="keyword"
@@ -492,7 +492,7 @@ const statusBadgeStyle = (tone) => ({
             </select>
           </label>
 
-          <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2 lg:col-span-1 xl:col-span-1">
             <div class="relative filter-popover">
               <CdrButton
                   type="button"
@@ -515,9 +515,7 @@ const statusBadgeStyle = (tone) => ({
                 </button>
               </div>
             </div>
-          </div>
 
-          <div class="flex flex-col gap-2">
             <div class="relative filter-popover">
               <CdrButton
                   type="button"
