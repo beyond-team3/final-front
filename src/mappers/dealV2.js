@@ -190,7 +190,7 @@ export function mapDealV2NotificationsToTimelineItems(notifications = []) {
         statusLabel: isRead ? '확인됨' : '미확인',
         actorType: 'SYSTEM',
         actorId: null,
-        description: pick(item?.title, 'Deal 알림'),
+        description: pick(item?.title, '거래 알림'),
         color: isRead ? 'var(--color-status-info)' : 'var(--color-orange)',
       }
     })

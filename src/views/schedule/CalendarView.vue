@@ -382,7 +382,7 @@ const scheduleDetailLinkItems = computed(() => {
     { key: 'ownerUserId', label: '소유자', value: eventItem.ownerUserId },
     { key: 'assigneeUserId', label: '담당자', value: eventItem.assigneeUserId },
     { key: 'clientId', label: '거래처', value: eventItem.clientId },
-    { key: 'dealId', label: '딜', value: eventItem.dealId },
+    { key: 'dealId', label: '거래', value: eventItem.dealId },
     { key: 'docType', label: '문서 타입', value: eventItem.docType },
     { key: 'eventType', label: '이벤트 타입', value: eventItem.eventType },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== '')
@@ -396,7 +396,7 @@ const scheduleDetailReferenceItems = computed(() => {
 
   return [
     { key: 'refDocId', label: '참조 문서 ID', value: eventItem.refDocId },
-    { key: 'refDealLogId', label: '참조 딜로그 ID', value: eventItem.refDealLogId },
+    { key: 'refDealLogId', label: '참조 거래 로그 ID', value: eventItem.refDealLogId },
     { key: 'externalKey', label: '외부 키', value: eventItem.externalKey },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== '')
 })
