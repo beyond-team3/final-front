@@ -7,10 +7,12 @@ import PaginationControls from '@/components/common/PaginationControls.vue'
 import { getDocumentSummaries } from '@/api/document'
 import HistoryModal from '@/components/history/HistoryModal.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { DOC_STATUS } from '@/utils/constants'
+import { DOC_STATUS, ROLES } from '@/utils/constants'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
 const DOC_TYPE_META = {
   RFQ: { label: '견적요청서', tone: 'rfq' },
@@ -310,6 +312,18 @@ const docTypeOptions = [
 
 const statusOptions = computed(() => {
   const options = [{ value: 'ALL', label: '전체 상태' }]
+  const isClient = authStore.currentRole === ROLES.CLIENT
+  const shouldIncludeStatus = (typeKey, statusKey) => {
+    if (statusKey === 'DELETED') {
+      return false
+    }
+
+    if (isClient && ['QUOTATION', 'CONTRACT'].includes(typeKey) && ['WAITING_ADMIN', 'REJECTED_ADMIN'].includes(statusKey)) {
+      return false
+    }
+
+    return true
+  }
   
   // 선택된 문서 유형에 해당하는 상태들만 추출
   if (selectedDocType.value !== 'ALL') {
@@ -320,7 +334,9 @@ const statusOptions = computed(() => {
     
     if (DOC_STATUS[fullType]) {
       Object.entries(DOC_STATUS[fullType]).forEach(([key, val]) => {
-        options.push({ value: key, label: val.label })
+        if (shouldIncludeStatus(fullType, key)) {
+          options.push({ value: key, label: val.label })
+        }
       })
       return options
     }
@@ -328,9 +344,9 @@ const statusOptions = computed(() => {
 
   // 전체인 경우 모든 상태 합집합 (기존 STATUS_META 참고)
   const allStatuses = new Set()
-  Object.values(DOC_STATUS).forEach(typeObj => {
+  Object.entries(DOC_STATUS).forEach(([typeKey, typeObj]) => {
     Object.entries(typeObj).forEach(([key, val]) => {
-      if (!allStatuses.has(key)) {
+      if (shouldIncludeStatus(typeKey, key) && !allStatuses.has(key)) {
         allStatuses.add(key)
         options.push({ value: key, label: val.label })
       }
