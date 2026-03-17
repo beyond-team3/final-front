@@ -161,21 +161,25 @@ const slotProducts = computed(() => {
 
 const addToCompare = (productId) => {
   const id = Number(productId)
+  // store products에서 실제로 존재하는지 확인 후 추가
+  const product = productStore.getProductById(id)
+  if (!product) return
   if (isInLocalCompare(id)) return
   if (localCompareIds.value.length >= 3) {
     window.alert('최대 3개의 상품만 비교할 수 있습니다.')
     return
   }
-  localCompareIds.value.push(id)
+  localCompareIds.value.push(Number(product.id))
 }
 
 const addNextToSlot = () => {
-  const candidate = similarProducts.value.find((item) => !isInLocalCompare(item.id))
+  // graphNodes 기준으로 후보 탐색 (현재 그래프에 표시된 상품 중에서)
+  const candidate = graphNodes.value.find((node) => !isInLocalCompare(node.graphProductId))
   if (!candidate) {
     window.alert('추가 가능한 유사 상품이 없습니다.')
     return
   }
-  addToCompare(candidate.id)
+  addToCompare(candidate.graphProductId)
 }
 
 const removeFromSlot = (productId) => {
@@ -187,9 +191,18 @@ const resetAll = () => {
   productStore.resetSimilarityOptions()
 }
 
+const TAG_KEY_MAP = {
+  '재배환경': 'env',
+  '내병성': 'res',
+  '생육및숙기': 'growth',
+  '과실품질': 'quality',
+  '재배편의성': 'conv',
+}
+
 const tagsText = (product, key) => {
   if (!product) return '-'
-  const tags = product.tags?.[key] || []
+  // 한글 키로 먼저 찾고, 없으면 영문 키로 fallback
+  const tags = product.tags?.[key] || product.tags?.[TAG_KEY_MAP[key]] || []
   return tags.length ? tags.join(', ') : '-'
 }
 
