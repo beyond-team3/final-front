@@ -58,7 +58,7 @@ const stepsData = computed(() => {
 })
 
 const documents = computed(() => (pipeline.value?.documents || []).map((doc) => {
-  const statusText = doc.status || '진행중'
+  const statusText = doc.statusLabel || doc.status || '진행중'
   const statusClass = statusText.includes('완료') || statusText.includes('발행')
       ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]'
       : 'bg-[var(--color-orange-light)] text-[var(--color-orange-dark)]'
