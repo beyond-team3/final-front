@@ -115,8 +115,8 @@ onMounted(async () => {
     const client = documentStore.myClient
 
     if (client) {
-      deliveryAddress.value =
-          `${client.address || ''} ${client.addressDetail || ''}`.trim()
+      deliveryAddress.value = client.addressDetail || ''
+      deliveryAddressDetail.value = ''
 
       deliveryRecipient.value =
           client.managerName || client.clientName || ''
