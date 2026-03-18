@@ -52,7 +52,7 @@ onUnmounted(() => {
         @click="toggleSidebar"
       />
 
-      <main class="min-h-[calc(100vh-56px)] min-w-0 flex-1 p-6 transition-all" :class="{ 'lg:pl-64': isSidebarOpen }">
+      <main class="min-h-[calc(100vh-56px)] min-w-0 flex-1 p-6 transition-all" :class="{ 'lg:pl-[280px]': isSidebarOpen }">
         <ErrorBoundary>
           <router-view />
         </ErrorBoundary>

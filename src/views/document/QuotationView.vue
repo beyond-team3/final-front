@@ -566,7 +566,7 @@ const submitDoc = async () => {
       </div>
 
       <!-- Start Modal -->
-      <div v-if="showStartModal" class="modal-overlay z-[2000] p-4">
+      <div v-if="showStartModal" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
         <div class="modal w-[750px] max-w-[95vw] shadow-2xl relative" style="background-color: #F7F3EC; border: 1px solid #DDD7CE;">
           <div class="modal-header border-b" style="background-color: #C8622A; border-color: rgba(255,255,255,0.1);">
             <h3 class="modal-title text-base font-bold text-white">문서 작성 방식 선택</h3>
@@ -661,7 +661,7 @@ const submitDoc = async () => {
       </div>
 
       <!-- Corp Modal -->
-      <div v-if="showCorpModal" class="modal-overlay z-[2100] p-4">
+      <div v-if="showCorpModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
         <div class="modal w-[600px] max-w-[95vw] shadow-2xl relative" style="background-color: #F7F3EC; border: 1px solid #DDD7CE;">
           <div class="modal-header border-b" style="background-color: #C8622A; border-color: rgba(255,255,255,0.1);">
             <h3 class="modal-title text-base font-bold text-white">거래처 선택</h3>
