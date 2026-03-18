@@ -140,9 +140,9 @@ const onSubmit = async () => {
                   <span>영업사원</span>
                   <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">EMP-0003 / qwer1234</code>
                 </div>
-                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('CLNT-0001', 'qwer1324')">
+                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('CLNT-0003', 'qwer1234')">
                   <span>거래처</span>
-                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">CLNT-0001 / qwer1324</code>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">CLNT-0003 / qwer1234</code>
                 </div>
               </div>
             </div>
