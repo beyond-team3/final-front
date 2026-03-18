@@ -1,9 +1,18 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { getClientDashboard } from '@/api/dashboard'
+
+const router = useRouter()
+
+const goToOrders = () => router.push('/documents/all?type=ORD')
+const goToOrderDetail = (orderNo) => router.push(`/documents/all?type=ORD&keyword=${orderNo}`)
+const goToInvoices = () => router.push('/documents/all?type=INV')
+const goToInvoiceDetail = (invoiceNo) => router.push(`/documents/all?keyword=${invoiceNo}`)
+const goToNotifications = () => router.push('/notifications')
 
 const dashboard = ref(null)
 const loading = ref(false)
@@ -71,7 +80,7 @@ onMounted(fetchDashboard)
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">최근 주문 내역</span>
-          <a class="panel-link">전체 보기</a>
+          <a class="panel-link" @click="goToOrders">전체 보기</a>
         </div>
         <div class="order-list">
           <div v-for="order in orders" :key="order.no" class="order-card">
@@ -85,7 +94,7 @@ onMounted(fetchDashboard)
             <div class="order-items-summary">{{ order.summary }}</div>
             <div class="order-card-footer">
               <div class="order-amount">{{ order.amount }}</div>
-              <span class="order-action">{{ order.action }}</span>
+              <span class="order-action" @click="goToOrderDetail(order.no)">{{ order.action }}</span>
             </div>
           </div>
         </div>
@@ -94,7 +103,7 @@ onMounted(fetchDashboard)
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">결제 요청 현황</span>
-          <a class="panel-link">청구서 전체 보기</a>
+          <a class="panel-link" @click="goToInvoices">청구서 전체 보기</a>
         </div>
 
         <div class="billing-credit-wrap">
@@ -107,7 +116,7 @@ onMounted(fetchDashboard)
           </div>
 
           <div class="billing-list">
-            <div v-for="billing in billings" :key="billing.no" class="billing-item" :class="billing.type">
+            <div v-for="billing in billings" :key="billing.no" class="billing-item" :class="billing.type" @click="goToInvoiceDetail(billing.no)">
               <div class="billing-left">
                 <div class="billing-doc-no">{{ billing.no }}</div>
                 <div class="billing-due" :class="billing.type === 'due-soon' ? 'due-soon' : ''">{{ billing.due }}</div>
@@ -124,7 +133,10 @@ onMounted(fetchDashboard)
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">최근 알림</span>
-          <span class="panel-badge">{{ notifications.length }}<template v-if="notificationsTotalCount > 5"><span class="text-xs text-muted"> / {{ notificationsTotalCount }}</span></template>건</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <a class="panel-link" @click="goToNotifications">전체 보기</a>
+            <span class="panel-badge">{{ notifications.length }}<template v-if="notificationsTotalCount > 5"><span class="text-xs text-muted"> / {{ notificationsTotalCount }}</span></template>건</span>
+          </div>
         </div>
         <div class="notif-list">
           <div v-for="item in notifications" :key="item.time + item.title" class="notif-item" :class="item.isNew ? 'new' : ''">
@@ -171,7 +183,7 @@ onMounted(fetchDashboard)
 .panel { border: 1px solid var(--border); border-radius: 10px; padding: 22px; background: var(--surface); display: flex; flex-direction: column; overflow: hidden; }
 .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
 .panel-title  { font-size: 15px; font-weight: 600; color: var(--text); }
-.panel-link   { font-size: 12px; color: var(--muted); text-decoration: none; }
+.panel-link   { font-size: 12px; color: var(--muted); text-decoration: none; cursor: pointer; }
 .panel-link:hover { color: var(--accent); }
 .panel-badge  { font-size: 11px; color: var(--muted); background: var(--warm-md); padding: 3px 8px; border-radius: 4px; }
 
@@ -195,7 +207,7 @@ onMounted(fetchDashboard)
 .billing-cycle-value { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; }
 .billing-cycle-next  { font-size: 12px; color: var(--muted); }
 .billing-list { display: flex; flex-direction: column; gap: 8px; }
-.billing-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--warm); border-radius: 6px; border-left: 3px solid var(--faint); flex-shrink: 0; }
+.billing-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--warm); border-radius: 6px; border-left: 3px solid var(--faint); flex-shrink: 0; cursor: pointer; }
 .billing-item.due-soon { border-left-color: var(--accent); }
 .billing-item.paid     { border-left-color: var(--olive); }
 .billing-left    { display: flex; flex-direction: column; gap: 3px; }

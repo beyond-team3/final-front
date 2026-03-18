@@ -37,9 +37,7 @@ const invoices = computed(() => {
     paymentId: payment.paymentId,
     paymentCode: payment.paymentCode,
     // 거래처명과 주문번호는 백엔드에서 안 주므로 임시로 처리
-    company: `거래처-${payment.paymentId}`,
     supply: payment.paymentAmount ? Math.round(payment.paymentAmount / 1.1) : 0,
-    orderNo: `ORD-${payment.invoiceCode.substring(5)}`,
     issueDate: payment.createdAt ? new Date(payment.createdAt).toLocaleDateString('ko-KR', {
       year: 'numeric',
       month: '2-digit',
@@ -151,8 +149,8 @@ onMounted(() => {
         <table v-else class="table">
           <thead>
           <tr>
-            <th>번호</th>
-            <th>거래처</th>
+            <th>청구서코드</th>
+            <th>결제코드</th>
             <th class="right">금액(부가세 포함)</th>
             <th>발행일</th>
             <th>상태</th>
@@ -165,8 +163,8 @@ onMounted(() => {
               :class="{ selected: invoice.id === selectedInvId, paid: invoice.status === 'paid' }"
               @click="selectInvoice(invoice.id)"
           >
-            <td>{{ invoice.id }}<br><small>{{ invoice.orderNo }}</small></td>
-            <td>{{ invoice.company }}</td>
+            <td>{{ invoice.id }}</td>
+            <td>{{ invoice.paymentCode }}</td>
             <td class="right">₩{{ (invoice.supply + Math.round(invoice.supply * 0.1)).toLocaleString() }}</td>
             <td>{{ invoice.issueDate }}</td>
             <td>
