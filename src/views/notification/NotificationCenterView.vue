@@ -144,6 +144,10 @@ const formatCreatedAt = (value) => {
 const getTypeMeta = (type) => typeMetaMap[type] || { icon: '알', label: type || '일반 알림', tone: 'tone-neutral' }
 
 const buildNotificationRoute = (item) => {
+  if (item?.type === 'ACCOUNT_ACTIVATED' || String(item?.targetType || '').toUpperCase() === 'ACCOUNT') {
+    return { name: 'settings' }
+  }
+
   if (String(item?.targetType || '').toUpperCase() === 'APPROVAL' && item?.targetId != null) {
     return {
       name: 'approval',
@@ -199,7 +203,6 @@ const buildNotificationRoute = (item) => {
           openFromNotification: 'true',
         },
       }
-    case 'ACCOUNT':
     case 'DEAL':
     case 'CLIENT':
     case 'INVENTORY':

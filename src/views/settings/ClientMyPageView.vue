@@ -300,7 +300,7 @@ watch(
           :loading="historyStore.loading"
           :error="historyStore.error"
           :show-client-filter="false"
-          search-placeholder="담당자명, deal 번호, 문서코드 검색"
+          search-placeholder="담당자명, 거래 번호, 문서코드 검색"
           empty-title="거래 히스토리가 없습니다."
           empty-description="아직 진행된 거래가 없거나 조회 권한이 있는 히스토리가 없습니다."
           @retry="fetchClientHistory"

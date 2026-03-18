@@ -12,7 +12,7 @@ defineProps({
         <div class="p-6">
             <div class="mb-6">
                 <h3 class="text-[16px] font-bold text-[var(--color-text-strong)]">거래 로그</h3>
-                <p class="text-[12px] text-[var(--color-text-placeholder)]">deal timeline</p>
+                <p class="text-[12px] text-[var(--color-text-placeholder)]">거래 타임라인</p>
             </div>
 
             <div class="space-y-4">
