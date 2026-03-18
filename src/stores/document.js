@@ -12,6 +12,7 @@ import {
     getStatements,
     getStatement as getStatementApi,
     getInvoices,
+    getMyClient,
     getInvoice,
     getInvoice as getInvoiceApi,
     getInvoiceDetail as getInvoiceDetailApi,
@@ -470,6 +471,19 @@ export const useDocumentStore = defineStore('document', () => {
             })
         return set
     })
+
+    const myClient = ref(null)
+
+    async function fetchMyClient() {
+        try {
+            const res = await getMyClient()
+            myClient.value = unwrapData(res)
+            return myClient.value
+        } catch (e) {
+            console.error('내 거래처 조회 실패:', e)
+            return null
+        }
+    }
 
     async function fetchProductMaster(type = 'contract') {
         try {
@@ -1249,12 +1263,14 @@ export const useDocumentStore = defineStore('document', () => {
         allRawDocuments.value.unshift(next)
         emitDocumentCreated('order', id)
 
+        const sourceClient = myClient.value || client
+
         const payload = {
             headerId: contractId,
-            shippingName: client.managerName || '-',
-            shippingPhone: client.companyPhone || '-',
-            shippingAddress: client.address || '-',
-            shippingAddressDetail: '',
+            shippingName: sourceClient.managerName || sourceClient.clientName || '-',
+            shippingPhone: sourceClient.managerPhone || sourceClient.companyPhone || '-',
+            shippingAddress: sourceClient.address || '-',
+            shippingAddressDetail: sourceClient.addressDetail || '',
             deliveryRequest: memo || '',
             items: lineItems.map(item => ({
                 contractDetailId: item.detailId || item.id,
@@ -1467,6 +1483,7 @@ export const useDocumentStore = defineStore('document', () => {
         error.value = null
         try {
             await fetchClientMaster()
+            await fetchMyClient()
             // orders가 먼저 로드되어야 getStatementsByContract에서 orderId→contractId 매핑이 가능
             await Promise.all([
                 fetchProductMaster(),
@@ -1556,5 +1573,7 @@ export const useDocumentStore = defineStore('document', () => {
         fetchContractDetail,
         fetchOrderDetail,
         fetchPaymentDetail,
+        myClient,
+        fetchMyClient,
     }
 })
