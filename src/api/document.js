@@ -188,3 +188,7 @@ export function getMyInvoices() {
 export function createManualInvoiceDraft(contractId) {
     return api.post(`invoices/contracts/${contractId}/manual-draft`)
 }
+
+export const getMyClient = () => {
+    return api.get('/accounts/clients/me')
+}

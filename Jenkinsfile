@@ -35,6 +35,8 @@ spec:
 
 		ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
 		DISCORD_WEBHOOK = credentials('discord-webhook-url')
+
+		VITE_KAKAO_MAP_KEY = credentials('vite-kakao-map-key')
 	}
 
 	stages {
