@@ -742,7 +742,7 @@ const getValidityDate = (dateStr) => {
 
 <template>
   <teleport to="body">
-    <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="close">
+    <div v-if="modelValue" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click.self="close">
       <section class="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-[var(--color-bg-base)] shadow-xl border border-[var(--color-border-card)]">
         <header class="flex items-center justify-between border-b border-[var(--color-border-divider)] bg-[var(--color-bg-sidebar)] px-5 py-3">
           <div class="flex items-center gap-4">

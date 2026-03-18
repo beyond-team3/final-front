@@ -61,12 +61,12 @@ export const MENU_CONFIG = [
         roles: [ROLES.SALES_REP],
         children: [
             { key: 'note-main', label: '노트 작성', route: '/notes' },
-            { key: 'note-search', label: '노트 검색', route: '/notes/search' },
-            { key: 'note-briefing', label: 'AI 영업 브리핑', route: '/notes/briefing' },
-            { key: 'ragseed-analysis', label: 'RAGseed 분석', route: '/ragseed' },
+            { key: 'note-search', label: '노트 탐색', route: '/notes/search' },
+            { key: 'note-briefing', label: '영업 브리핑', route: '/notes/briefing' },
+            { key: 'ragseed-analysis', label: '영업 전략 분석', route: '/ragseed' },
         ],
     },
-    { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
+    { key: 'pest-map', label: '병해충-품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
     { key: 'payment', label: '결제', roles: [ROLES.CLIENT], route: '/payment' },
 ]
 export const DOC_STATUS = {
