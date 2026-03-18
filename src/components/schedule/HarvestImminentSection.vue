@@ -38,6 +38,8 @@ const props = defineProps({
 const emit = defineEmits(['retry', 'select-client'])
 
 const failedImageMap = ref({})
+const currentPage = ref(1)
+const itemsPerPage = 1
 const rawClients = computed(() => (Array.isArray(props.clients) ? props.clients : []))
 
 const visibleClients = computed(() => (
@@ -50,6 +52,24 @@ const visibleClients = computed(() => (
     }))
     .filter((client) => client.crops.length > 0)
 ))
+
+const totalPages = computed(() => Math.ceil(visibleClients.value.length / itemsPerPage))
+const paginatedClients = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return visibleClients.value.slice(start, start + itemsPerPage)
+})
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
 const hasFilteredOutContent = computed(() => rawClients.value.length > 0 && visibleClients.value.length === 0)
 
 const markImageFailed = (productId) => {
@@ -69,6 +89,7 @@ watch(
   () => [props.month, props.nextMonth, visibleClients.value.length],
   () => {
     failedImageMap.value = {}
+    currentPage.value = 1
   },
 )
 </script>
@@ -109,8 +130,33 @@ watch(
       />
 
       <div v-else class="harvest-client-list">
+        <!-- 페이징 컨트롤 -->
+        <div v-if="totalPages > 1" class="pagination-header">
+          <span class="pagination-info">
+            총 <strong>{{ visibleClients.length }}</strong>개의 거래처 중 <strong>{{ currentPage }}</strong>페이지
+          </span>
+          <div class="pagination-controls">
+            <button 
+              type="button" 
+              class="paging-btn" 
+              :disabled="currentPage === 1"
+              @click="prevPage"
+            >
+              <span class="arrow">‹</span> 이전
+            </button>
+            <button 
+              type="button" 
+              class="paging-btn" 
+              :disabled="currentPage === totalPages"
+              @click="nextPage"
+            >
+              다음 <span class="arrow">›</span>
+            </button>
+          </div>
+        </div>
+
         <article
-          v-for="client in visibleClients"
+          v-for="client in paginatedClients"
           :key="client.clientId"
           class="client-group"
         >
@@ -172,6 +218,19 @@ watch(
             </section>
           </div>
         </article>
+
+        <!-- 하단 페이지 인디케이터 (모바일/가독성용) -->
+        <div v-if="totalPages > 1" class="pagination-footer">
+          <div class="page-dots">
+            <span 
+              v-for="p in totalPages" 
+              :key="p" 
+              class="page-dot"
+              :class="{ active: p === currentPage }"
+              @click="currentPage = p"
+            ></span>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -438,6 +497,101 @@ watch(
   .product-image {
     width: 100%;
     height: 180px;
+  }
+}
+
+/* Pagination Styles */
+.pagination-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px 12px;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--color-text-body, #6B5F50);
+}
+
+.pagination-info strong {
+  color: var(--color-text-strong, #3D3529);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.paging-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-card, #DDD7CE);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-text-body, #6B5F50);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.paging-btn:hover:not(:disabled) {
+  background: var(--color-bg-section, #EFEADF);
+  border-color: var(--color-border-divider, #E8E3D8);
+}
+
+.paging-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.paging-btn .arrow {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.pagination-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+
+.page-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.page-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border-card, #DDD7CE);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-dot.active {
+  background: var(--color-orange-dark, #A34E20);
+  width: 20px;
+  border-radius: 4px;
+}
+
+@media (max-width: 640px) {
+  .pagination-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .paging-btn {
+    flex: 1;
+    justify-content: center;
   }
 }
 </style>
