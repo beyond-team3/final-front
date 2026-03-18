@@ -1269,6 +1269,10 @@ const sectionList = computed(() => {
 onMounted(async () => {
   await authStore.initializeAuth()
   await loadApprovals()
+  if (route.query.keyword) {
+    filterForm.keyword = String(route.query.keyword)
+  }
+  await openApprovalFromRouteQuery()
 })
 
 watch(
