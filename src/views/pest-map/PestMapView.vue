@@ -5,7 +5,7 @@
       <!-- 헤더 -->
       <div class="sidebar-header">
         <div class="sidebar-title-row">
-          <h1 class="sidebar-title">병해충+품종 매칭 지도</h1>
+          <h1 class="sidebar-title">병해충-품종 매칭 지도</h1>
           <div class="score-guide-wrap">
             <button class="score-guide-trigger badge-style" @click="showScoreGuide = !showScoreGuide" title="고객관리 점수 산출 기준 안내">
               고객관리 점수 기반
@@ -111,7 +111,7 @@
       </div>
 
       <!-- 심각도 범례 -->
-      <div v-if="forecasts.length > 0" class="legend-section">
+      <div class="legend-section">
         <h2 class="section-label">
           위험도 범례
           <span class="section-sub-label">항목 클릭 시 해당 위험도 지역만 선별 표시</span>
@@ -121,8 +121,8 @@
             v-for="level in severityLevels" 
             :key="level.key" 
             class="legend-item clickable-legend"
-            :class="{ 'is-disabled': !selectedSeverities.includes(level.key) }"
-            @click="toggleSeverity(level.key)"
+            :class="{ 'is-disabled': !searchPerformed || !selectedSeverities.includes(level.key) }"
+            @click="searchPerformed && toggleSeverity(level.key)"
           >
             <span class="legend-dot" :style="{ background: level.color }"></span>
             <span class="legend-text">{{ level.label }}</span>
@@ -291,6 +291,7 @@ const handleManualSync = async () => {
 const mapRef = ref(null)
 const mapReady = ref(false)
 const isLoading = ref(false)
+const searchPerformed = ref(false)
 const selectedCrop = ref('')
 const selectedPest = ref('')
 const forecasts = ref([])
@@ -584,6 +585,7 @@ async function fetchForecasts() {
     if (data) {
       forecasts.value = data.forecasts || []
       recommendedProducts.value = data.recommendedProducts || []
+      searchPerformed.value = true
     }
   } catch (err) {
     console.error('[PestMap] 예찰 데이터 조회 실패:', err)
@@ -967,7 +969,7 @@ const AREA_COORDS = {
 }
 
 .sidebar-title {
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--color-text-strong);
   margin: 0;
