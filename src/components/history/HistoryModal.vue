@@ -1075,7 +1075,7 @@ const getValidityDate = (dateStr) => {
                         <td class="p-3 font-mono font-bold">{{ docDetail.paymentCode || docDetail.displayCode || '-' }}</td>
                       </tr>
                       <tr class="border-b border-black">
-                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left"> 청구서</th>
+                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left">청구서</th>
                         <td class="p-3 font-mono">{{ docDetail.invoiceCode || '-' }}</td>
                       </tr>
                       <tr class="border-b border-black">
