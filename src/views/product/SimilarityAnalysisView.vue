@@ -161,10 +161,17 @@ const slotProducts = computed(() => {
 
 const addToCompare = (productId) => {
   const id = Number(productId)
-  // store products에서 실제로 존재하는지 확인 후 추가
+  
+  // 이미 있는 경우 제거 (Toggle)
+  if (isInLocalCompare(id)) {
+    removeFromSlot(id)
+    return
+  }
+
+  // 없는 경우 추가 시도
   const product = productStore.getProductById(id)
   if (!product) return
-  if (isInLocalCompare(id)) return
+  
   if (localCompareIds.value.length >= 3) {
     window.alert('최대 3개의 품종만 비교할 수 있습니다.')
     return
