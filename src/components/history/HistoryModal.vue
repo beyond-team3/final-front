@@ -600,6 +600,33 @@ const loadDetail = async () => {
       orderContract.value = null
     }
 
+    // ✅ 청구서: contractId로 getContract 호출 → salesRepName + contractCode 보완
+    //    주문서가 orderContract에서 계약 정보를 가져오는 것과 동일한 방식
+    //    GET /contracts/{id} 응답에 salesRepName, contractCode 포함됨 (CLIENT도 접근 가능)
+    if (isInvoiceDocument.value && docDetail.value) {
+      const contractId = docDetail.value.contractId
+      if (contractId) {
+        try {
+          const res = await getContract(contractId)
+          const contract = res?.data?.data || res?.data || null
+          if (contract) {
+            const patch = {}
+            if (!docDetail.value.contractCode && (contract.contractCode || contract.code)) {
+              patch.contractCode = contract.contractCode || contract.code
+            }
+            if (!docDetail.value.salesRepName && contract.salesRepName) {
+              patch.salesRepName = contract.salesRepName
+            }
+            if (Object.keys(patch).length > 0) {
+              docDetail.value = { ...docDetail.value, ...patch }
+            }
+          }
+        } catch (e) {
+          console.error('[HistoryModal] 청구서 계약 상세 조회 실패:', e)
+        }
+      }
+    }
+
     // ✅ employeeStore 로드 — SALES_REP/ADMIN만 호출 (CLIENT는 403)
     if (authStore.currentRole !== ROLES.CLIENT && employeeStore.employees.length === 0) {
       try { await employeeStore.fetchEmployees() } catch (e) {}
@@ -794,14 +821,14 @@ const getValidityDate = (dateStr) => {
                     <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[11px]">
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-2">품종</th><th class="border-r border-black p-2">상품명</th><th class="border-r border-black p-2">수량</th><th class="border-r border-black p-2">단위</th><th class="border-r border-black p-2">단가</th><th class="p-2">금액</th></tr></thead>
                       <tbody>
-                        <tr v-for="(item, idx) in docDetail.items" :key="'pdf-q-'+idx" class="border-b border-black no-break">
-                          <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
-                          <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
-                          <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
-                          <td class="border-r border-black p-2">{{ item.unit }}</td>
-                          <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
-                          <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
-                        </tr>
+                      <tr v-for="(item, idx) in docDetail.items" :key="'pdf-q-'+idx" class="border-b border-black no-break">
+                        <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
+                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
+                        <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
+                        <td class="border-r border-black p-2">{{ item.unit }}</td>
+                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
+                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
+                      </tr>
                       </tbody>
                       <tfoot class="bg-[#FAF7F3] font-bold"><tr><td colspan="5" class="border-r border-black p-2 text-sm text-right px-3">합 계</td><td class="p-2 text-right font-mono px-3 text-lg">{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</td></tr></tfoot>
                     </table>
@@ -983,7 +1010,7 @@ const getValidityDate = (dateStr) => {
                         <p>계약 코드: <span class="font-mono font-bold px-1">{{ docDetail.contractCode || (docDetail.contractId ? `CNT-${docDetail.contractId}` : '—') }}</span></p>
                         <p>청구 기간: <span class="font-mono px-1">{{ docDetail.startDate || '—' }} ~ {{ docDetail.endDate || '—' }}</span></p>
                         <p>청구일: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.invoiceDate || docDetail.date || docDetail.createdAt) }}</span></p>
-                        <p>납부기한: <span class="font-bold border-b border-black px-1 text-red-700">{{ formatKRDate(docDetail.dueDate || docDetail.paymentDueDate) }}</span></p>
+                        <p>납부기한: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.dueDate || docDetail.paymentDueDate || docDetail.endDate) }}</span></p>
                         <p>문서 번호: <span class="font-mono font-bold px-1">{{ docDetail.invoiceCode || docDetail.displayCode || docId }}</span></p>
                       </div>
                       <div class="w-16 h-16 border-2 border-black flex items-center justify-center font-bold text-sm">인</div>
@@ -1048,7 +1075,7 @@ const getValidityDate = (dateStr) => {
                         <td class="p-3 font-mono font-bold">{{ docDetail.paymentCode || docDetail.displayCode || '-' }}</td>
                       </tr>
                       <tr class="border-b border-black">
-                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left">연결 청구서</th>
+                        <th class="bg-[#F7F3EC] border-r border-black p-3 text-left"> 청구서</th>
                         <td class="p-3 font-mono">{{ docDetail.invoiceCode || '-' }}</td>
                       </tr>
                       <tr class="border-b border-black">
