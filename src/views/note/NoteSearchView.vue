@@ -97,7 +97,7 @@ const renderMarkdown = (text) => {
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
-    <PageHeader title="영업 노트 검색" subtitle="영업 노트를 필터링하여 조회할 수 있습니다." />
+    <PageHeader title="영업 노트 탐색" subtitle="AI 요약으로 주요 흐름을 파악하고 필요한 영업 기록을 찾아보세요." />
 
     <!-- Filter Bar -->
     <section class="mb-8 rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-sidebar)] p-6 shadow-sm mt-6">
@@ -180,7 +180,7 @@ const renderMarkdown = (text) => {
         <div class="flex justify-between items-center text-sm relative z-10 gap-3">
           <span class="text-[var(--color-text-sub)] truncate font-medium flex items-center gap-2 flex-1 min-w-0">
             <i class="fa-regular fa-file-lines text-[var(--color-text-placeholder)]"></i>
-            {{ note.contractId || '일반 상담' }}
+            {{ note.contractId || '계약 미지정' }}
           </span>
           <div class="flex items-center gap-4 flex-shrink-0">
             <button @click="goEdit(note.id)" class="text-[var(--color-orange)] font-bold hover:underline">수정</button>

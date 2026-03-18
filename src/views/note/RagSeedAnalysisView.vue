@@ -198,8 +198,8 @@ onMounted(async () => {
     <!-- Header -->
     <div class="mb-6">
       <PageHeader 
-        title="RAGseed 전략 분석" 
-        subtitle="영업 데이터에서 인출한 AI 전략 리포트입니다."
+        title="영업 전략 분석"
+        subtitle="AI 지식 엔진이 영업 노트와 품종 카탈로그를 실시간 분석하여 검증된 영업 전략을 생성합니다."
       />
     </div>
 
@@ -254,7 +254,7 @@ onMounted(async () => {
             :disabled="!selectedClientId || !queryText.trim() || status === 'LOADING'"
           >
             <i v-if="status === 'LOADING'" class="fas fa-spinner fa-spin mr-2"></i>
-            <i v-else class="fas fa-magic mr-2 opacity-80 group-hover:opacity-100 transition-opacity"></i>
+            <i v-else class="fas fa-magic opacity-80 group-hover:opacity-100 transition-opacity"></i>
             분석 실행
           </button>
         </div>
@@ -292,7 +292,7 @@ onMounted(async () => {
           <i class="fas fa-seedling absolute inset-0 flex items-center justify-center text-[var(--color-olive)]"></i>
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">영업 지식 베이스 분석 중...</h3>
-        <p class="text-[var(--color-text-sub)]">RAGseed 엔진이 최적의 비즈니스 전략을 생성하고 있습니다.</p>
+        <p class="text-[var(--color-text-sub)]">최적의 비즈니스 전략을 생성하고 있습니다.</p>
       </div>
 
       <!-- ERROR State -->
@@ -301,7 +301,7 @@ onMounted(async () => {
           <i class="fas fa-exclamation-triangle text-4xl"></i>
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">분석 도중 오류 발생</h3>
-        <p class="text-[var(--color-text-sub)]">AI 엔진과의 통신이 원활하지 않습니다. 다시 한 번 시도해 주세요.</p>
+        <p class="text-[var(--color-text-sub)]">AI 지식 엔진과의 통신이 원활하지 않습니다. 다시 한 번 시도해 주세요.</p>
       </div>
 
       <!-- EMPTY State -->
@@ -310,7 +310,7 @@ onMounted(async () => {
           <i class="fas fa-comment-slash text-4xl"></i>
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">분석 결과 없음</h3>
-        <p class="text-[var(--color-text-sub)]">선택한 범위 내에 분석할 수 있는 영업 활동 기록이 충분하지 않습니다.</p>
+        <p class="text-[var(--color-text-sub)]">해당 거래처에 대한 데이터가 부족하여 분석을 실행할 수 없습니다. 더 많은 영업 노트를 작성해 보세요.</p>
       </div>
 
       <!-- SUCCESS State -->
@@ -323,7 +323,7 @@ onMounted(async () => {
             <div class="mb-10 flex items-start justify-between border-b border-[var(--color-border-divider)] pb-8">
               <div>
                 <div class="mb-4 flex items-center gap-2">
-                  <span class="rounded-full bg-[var(--color-olive)] px-3 py-1 text-[10px] font-bold text-white uppercase tracking-widest">RAGseed Engine</span>
+<!--                  <span class="rounded-full bg-[var(&#45;&#45;color-olive)] px-3 py-1 text-[10px] font-bold text-white uppercase tracking-widest">RAGseed Engine</span>-->
 <!--                  <span class="text-[var(&#45;&#45;text-caption)] text-[var(&#45;&#45;color-text-placeholder)] font-medium">Verified Analysis</span>-->
                 </div>
                 <h3 class="text-4xl font-extrabold text-[var(--color-text-strong)]">{{ selectedClientName }} 전략 리포트</h3>

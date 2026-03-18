@@ -182,7 +182,7 @@ const renderMarkdown = (text) => {
           <button 
             @click="saveNote" 
             :disabled="isLoading"
-            class="min-w-[200px] h-12 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center gap-3"
+            class="min-w-[200px] h-12 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center"
             :class="[
               isEditMode ? 'bg-[var(--color-orange)] hover:bg-[var(--color-orange-dark)]' : 'bg-[var(--color-olive)] hover:bg-[var(--color-olive-dark)]',
               { 'opacity-50 cursor-not-allowed shadow-none': isLoading }
