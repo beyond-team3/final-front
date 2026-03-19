@@ -71,6 +71,8 @@ const selectedDocument = ref(null)
 const isHistoryModalOpen = ref(false)
 const showSortMenu = ref(false)
 const showPageSizeMenu = ref(false)
+const showDocTypeMenu = ref(false) // 추가
+const showStatusMenu = ref(false)  // 추가
 let keywordDebounceTimer = null
 
 const columns = [
@@ -400,6 +402,18 @@ const applyPageSize = (size) => {
   page.value = 1 // 페이지 크기 변경 시 1페이지로 리셋
 }
 
+const applyDocType = (value) => {
+  selectedDocType.value = value
+  showDocTypeMenu.value = false
+  page.value = 1
+}
+
+const applyStatus = (value) => {
+  selectedStatus.value = value
+  showStatusMenu.value = false
+  page.value = 1
+}
+
 const clearNotificationTargetFilter = () => {
   notificationTargetType.value = ''
   notificationTargetId.value = ''
@@ -504,25 +518,59 @@ const statusBadgeStyle = (tone) => ({
             >
           </label>
 
-          <label class="flex flex-col gap-2">
-            <select
-                v-model="selectedDocType"
-                class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
+          <!-- 문서 유형 필터 -->
+          <div class="relative filter-popover h-10">
+            <button
+                type="button"
+                class="flex h-full w-full items-center justify-between rounded border px-3 text-sm outline-none"
                 style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
+                @click="showDocTypeMenu = !showDocTypeMenu; showStatusMenu = false; showSortMenu = false; showPageSizeMenu = false"
             >
-              <option v-for="option in docTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
-          </label>
+              <span>{{ docTypeOptions.find(o => o.value === selectedDocType)?.label }}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div v-if="showDocTypeMenu" class="filter-dropdown document-filter-dropdown w-full" @click.stop>
+              <button
+                  v-for="option in docTypeOptions"
+                  :key="option.value"
+                  type="button"
+                  class="filter-dropdown-item"
+                  :class="{ active: selectedDocType === option.value }"
+                  @click="applyDocType(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
 
-          <label class="flex flex-col gap-2">
-            <select
-                v-model="selectedStatus"
-                class="h-10 rounded border px-3 text-sm outline-none focus:ring-1 focus:ring-[#7A8C42]"
+          <!-- 상태 필터 -->
+          <div class="relative filter-popover h-10">
+            <button
+                type="button"
+                class="flex h-full w-full items-center justify-between rounded border px-3 text-sm outline-none"
                 style="background-color: #FAF7F3; border-color: #DDD7CE; color: #3D3529;"
+                @click="showStatusMenu = !showStatusMenu; showDocTypeMenu = false; showSortMenu = false; showPageSizeMenu = false"
             >
-              <option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
-          </label>
+              <span>{{ statusOptions.find(o => o.value === selectedStatus)?.label }}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div v-if="showStatusMenu" class="filter-dropdown document-filter-dropdown w-full max-h-60 overflow-y-auto custom-scrollbar" @click.stop>
+              <button
+                  v-for="option in statusOptions"
+                  :key="option.value"
+                  type="button"
+                  class="filter-dropdown-item"
+                  :class="{ active: selectedStatus === option.value }"
+                  @click="applyStatus(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
 
           <div class="flex items-center gap-2 lg:col-span-1 xl:col-span-1">
             <div class="relative filter-popover">
@@ -534,7 +582,7 @@ const statusBadgeStyle = (tone) => ({
                   class="filter-icon-btn"
                   :aria-expanded="showSortMenu"
                   aria-label="정렬 선택"
-                  @click="showSortMenu = !showSortMenu; showPageSizeMenu = false"
+                  @click="showSortMenu = !showSortMenu; showPageSizeMenu = false; showDocTypeMenu = false; showStatusMenu = false"
               >
                 <IconSort />
               </CdrButton>
@@ -557,7 +605,7 @@ const statusBadgeStyle = (tone) => ({
                   class="filter-icon-btn"
                   :aria-expanded="showPageSizeMenu"
                   aria-label="페이지 크기 선택"
-                  @click="showPageSizeMenu = !showPageSizeMenu; showSortMenu = false"
+                  @click="showPageSizeMenu = !showPageSizeMenu; showSortMenu = false; showDocTypeMenu = false; showStatusMenu = false"
               >
                 <IconListView />
               </CdrButton>
