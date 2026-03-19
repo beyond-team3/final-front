@@ -822,10 +822,10 @@ const getValidityDate = (dateStr) => {
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-2">품종</th><th class="border-r border-black p-2">상품명</th><th class="border-r border-black p-2">수량</th><th class="border-r border-black p-2">단위</th><th class="border-r border-black p-2">단가</th><th class="p-2">금액</th></tr></thead>
                       <tbody>
                       <tr v-for="(item, idx) in docDetail.items" :key="'pdf-q-'+idx" class="border-b border-black no-break">
-                        <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
-                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
+                        <td class="border-r border-black p-2">{{ item.variety || item.productCategory || '-' }}</td>
+                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.productName || item.name }}</td>
                         <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
-                        <td class="border-r border-black p-2">{{ item.unit }}</td>
+                        <td class="border-r border-black p-2">{{ item.unit || 'EA' }}</td>
                         <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
                         <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
                       </tr>
@@ -852,9 +852,9 @@ const getValidityDate = (dateStr) => {
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-3">상품명</th><th class="border-r border-black p-3 w-16">수량</th><th class="border-r border-black p-3">단위</th><th class="border-r border-black p-3">단가</th><th class="p-3">금액</th></tr></thead>
                       <tbody>
                       <tr v-for="(item, idx) in docDetail.items" :key="'pdf-c-'+idx" class="border-b border-black no-break">
-                        <td class="border-r border-black p-3 text-left font-bold px-4">{{ item.name }}</td>
+                        <td class="border-r border-black p-3 text-left font-bold px-4">{{ item.productName || item.name }}</td>
                         <td class="border-r border-black p-3">{{ item.quantity ?? item.count ?? 0 }}</td>
-                        <td class="border-r border-black p-3">{{ item.unit }}</td>
+                        <td class="border-r border-black p-3">{{ item.unit || 'EA' }}</td>
                         <td class="border-r border-black p-3 text-right font-mono">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
                         <td class="p-3 text-right font-bold px-4">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
                       </tr>
@@ -976,21 +976,23 @@ const getValidityDate = (dateStr) => {
                     <table class="w-full border-collapse border-2 border-black text-center mb-6 text-[11px]">
                       <thead class="bg-[#F7F3EC]">
                       <tr class="border-b-2 border-black">
-                        <th class="border-r border-black p-2">품종</th>
                         <th class="border-r border-black p-2">상품명</th>
-                        <th class="border-r border-black p-2 w-20">수량</th>
-                        <th class="p-2 w-20">단위</th>
+                        <th class="border-r border-black p-2 w-16">수량</th>
+                        <th class="border-r border-black p-2 w-16">단위</th>
+                        <th class="border-r border-black p-2">단가</th>
+                        <th class="p-2">금액</th>
                       </tr>
                       </thead>
                       <tbody>
                       <tr v-for="(item, idx) in docDetail.items" :key="'pdf-s-'+idx" class="border-b border-black">
-                        <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
-                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name || '-' }}</td>
-                        <td class="border-r border-black p-2">{{ item.quantity ?? 0 }}</td>
-                        <td class="p-2">{{ item.unit || '-' }}</td>
+                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.productName || item.name || '-' }}</td>
+                        <td class="border-r border-black p-2">{{ item.quantity ?? item.count ?? 0 }}</td>
+                        <td class="border-r border-black p-2">{{ item.unit || 'EA' }}</td>
+                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? item.price ?? 0).toLocaleString() }}</td>
+                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? ((item.quantity ?? item.count ?? 0) * (item.unitPrice ?? item.price ?? 0))).toLocaleString() }}</td>
                       </tr>
                       <tr v-if="(docDetail.items || []).length === 0">
-                        <td colspan="4" class="p-6 text-center text-[#777]">품목 정보가 없습니다.</td>
+                        <td colspan="5" class="p-6 text-center text-[#777]">품목 정보가 없습니다.</td>
                       </tr>
                       </tbody>
                     </table>
@@ -1153,10 +1155,10 @@ const getValidityDate = (dateStr) => {
                       <thead class="bg-[#F7F3EC]"><tr class="border-b-2 border-black"><th class="border-r border-black p-2 grayscale">품종명</th><th class="border-r border-black p-2">상품명</th><th class="border-r border-black p-2 w-16">수량</th><th class="p-2">단위</th></tr></thead>
                       <tbody>
                       <tr v-for="(item, idx) in docDetail.items" :key="'pdf-r-' + idx" class="border-b border-black">
-                        <td class="border-r border-black p-2">{{ item.variety || '-' }}</td>
-                        <td class="border-r border-black p-2 text-left font-bold px-4">{{ item.name }}</td>
+                        <td class="border-r border-black p-2">{{ item.variety || item.productCategory || '-' }}</td>
+                        <td class="border-r border-black p-2 text-left font-bold px-4">{{ item.productName || item.name }}</td>
                         <td class="border-r border-black p-2 font-mono">{{ item.quantity ?? item.count ?? 0 }}</td>
-                        <td class="p-2">{{ item.unit }}</td>
+                        <td class="p-2">{{ item.unit || 'EA' }}</td>
                       </tr>
                       </tbody>
                     </table>
@@ -1272,7 +1274,6 @@ const getValidityDate = (dateStr) => {
                   <div v-for="(item, idx) in (isOrderDocument ? resolvedOrderItems : (docDetail.items || []))" :key="'data-sum-'+idx" class="flex justify-between items-center p-3 rounded-lg border-b border-[var(--color-border-divider)] last:border-0 pb-3">
                     <div class="flex flex-col gap-0.5">
                       <span class="text-xs font-bold text-[var(--color-text-strong)]">{{ item.productName || item.name }}</span>
-                      <span class="text-[10px] text-[var(--color-text-sub)]">{{ item.variety || item.productCode || '기본 품종' }} | {{ item.unit }}</span>
                     </div>
                     <div class="text-right flex flex-col gap-0.5">
                       <span class="text-xs font-black text-[var(--color-text-strong)]">{{ item.quantity || item.count }} {{ item.unit }}</span>
