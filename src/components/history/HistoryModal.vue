@@ -876,59 +876,84 @@ const getValidityDate = (dateStr) => {
                     </div>
                   </div>
 
-                  <!-- 주문서 -->
-                  <!-- ✅ 수정: resolvedOrderItems, resolvedClientName 사용 (contractDetailId → 상품명/단가 매핑) -->
+                  <!-- 주문서 (OrderView 디자인 적용) -->
                   <div v-else-if="isOrderDocument"
-                       class="bg-white px-12 pt-8 pb-12 h-[1110px] overflow-hidden shadow-2xl relative text-[11px] text-black w-[794px]"
+                       class="pdf-preview-container bg-white px-10 pt-8 pb-10 shadow-2xl relative text-black w-[794px] min-h-[1110px]"
                        style="box-sizing: border-box !important; font-family: var(--font-sans) !important;">
-                    <div class="text-center border-b-2 border-black pb-3 mb-8">
-                      <h1 class="text-3xl font-bold tracking-[10px]">주 문 서</h1>
-                    </div>
-                    <div class="flex justify-between items-start mb-8 text-[13px]">
-                      <div class="space-y-2">
-                        <p>공급자: <span class="border-b border-black font-bold px-2 text-[15px]">(주) 몬순</span></p>
-                        <p>주문자: <span class="border-b border-black font-bold px-2 text-[15px]">{{ resolvedClientName }}</span> 귀하</p>
-                        <p>담당자: <span class="px-2">{{ resolvedMemberName }}</span></p>
-                        <p>주문일: <span class="font-bold border-b border-black px-1">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</span></p>
+                    <div class="pdf-title">주문서</div>
+
+                    <div class="pdf-meta-grid">
+                      <div class="pdf-meta-row">
+                        <span class="label">주문번호</span>
+                        <span class="value">{{ docDetail.displayCode || docDetail.orderCode || docId }}</span>
+                        <span class="label">주문일</span>
+                        <span class="value">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</span>
                       </div>
-                      <div class="w-16 h-16 border-2 border-black flex items-center justify-center font-bold text-sm">인</div>
                     </div>
-                    <table class="w-full border-collapse border-2 border-black text-center mb-8 text-[11px]">
-                      <thead class="bg-[#F7F3EC]">
-                      <tr class="border-b-2 border-black">
-                        <th class="border-r border-black p-2">상품명</th>
-                        <th class="border-r border-black p-2 w-16">수량</th>
-                        <th class="border-r border-black p-2">단위</th>
-                        <th class="border-r border-black p-2">단가</th>
-                        <th class="p-2">금액</th>
+
+                    <div class="pdf-section-title">▪ 거래처 정보</div>
+                    <div class="pdf-delivery-grid">
+                      <div class="pdf-label-cell">거래처명</div>
+                      <div class="pdf-value-cell">{{ resolvedClientName }}</div>
+                      <div class="pdf-label-cell border-t">계약번호</div>
+                      <div class="pdf-value-cell border-t font-bold text-[#C8622A]">
+                        {{ docDetail.contractCode || orderContract?.contractCode || orderContract?.displayCode || '-' }}
+                      </div>
+                    </div>
+
+                    <div class="pdf-section-title">▪ 배송지 정보</div>
+                    <div class="pdf-delivery-grid">
+                      <div class="pdf-label-cell">배송지</div>
+                      <div class="pdf-value-cell">{{ [docDetail.shippingAddress, docDetail.shippingAddressDetail].filter(Boolean).join(' ') || docDetail.address || '-' }}</div>
+                      <div class="pdf-label-cell border-t">수령인</div>
+                      <div class="pdf-value-cell border-t">{{ docDetail.shippingName || docDetail.recipient || '-' }}</div>
+                      <div class="pdf-label-cell border-t">연락처</div>
+                      <div class="pdf-value-cell border-t">{{ docDetail.shippingPhone || docDetail.phone || '-' }}</div>
+                    </div>
+
+                    <div class="pdf-section-title">▪ 주문 상품</div>
+                    <table class="pdf-table" v-if="resolvedOrderItems.length > 0">
+                      <thead>
+                      <tr>
+                        <th style="width: 50%;">상품명</th>
+                        <th style="width: 15%;">단가</th>
+                        <th style="width: 15%;">수량</th>
+                        <th style="width: 20%;">금액</th>
                       </tr>
                       </thead>
                       <tbody>
-                      <tr v-for="(item, idx) in resolvedOrderItems" :key="'pdf-o-'+idx" class="border-b border-black no-break">
-                        <td class="border-r border-black p-2 text-left font-bold px-3">{{ item.name }}</td>
-                        <td class="border-r border-black p-2">{{ item.quantity ?? 0 }}</td>
-                        <td class="border-r border-black p-2">{{ item.unit }}</td>
-                        <td class="border-r border-black p-2 text-right px-3">{{ Number(item.unitPrice ?? 0).toLocaleString() }}</td>
-                        <td class="p-2 text-right font-bold px-3">{{ Number(item.amount ?? 0).toLocaleString() }}</td>
+                      <tr v-for="(item, idx) in resolvedOrderItems" :key="'pdf-o-'+idx">
+                        <td class="text-left font-bold px-3">{{ item.name }}</td>
+                        <td>{{ Number(item.unitPrice || 0).toLocaleString() }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td class="right">{{ Number(item.amount || 0).toLocaleString() }}</td>
                       </tr>
-                      <tr v-if="resolvedOrderItems.length === 0">
-                        <td colspan="5" class="p-6 text-center text-[#777]">품목 정보가 없습니다.</td>
+                      <tr class="pdf-total-row">
+                        <td colspan="3" style="text-align: center;">합 계</td>
+                        <td class="right">{{ Number(docDetail.totalAmount || docDetail.amount || 0).toLocaleString() }}</td>
                       </tr>
                       </tbody>
-                      <tfoot class="bg-[#FAF7F3] font-bold">
-                      <tr>
-                        <td colspan="4" class="border-r border-black p-2 text-sm text-right px-3">합 계</td>
-                        <td class="p-2 text-right font-mono px-3 text-lg">{{ Number(docDetail.totalAmount ?? docDetail.amount ?? 0).toLocaleString() }}</td>
-                      </tr>
-                      </tfoot>
                     </table>
-                    <div v-if="docDetail.memo || docDetail.deliveryRequest" class="mb-6">
-                      <strong class="text-xs">[비고]</strong>
-                      <p class="mt-2 min-h-[60px] border border-black p-4 bg-[#FAF7F3] leading-relaxed whitespace-pre-wrap text-[12px]">{{ docDetail.memo || docDetail.deliveryRequest }}</p>
+                    <div class="pdf-empty" v-else>입력된 상품이 없습니다</div>
+
+                    <div class="pdf-section-title" v-if="docDetail.memo || docDetail.deliveryRequest">▪ 배송 요청사항</div>
+                    <div style="font-size: 11px; padding: 8px 0; white-space: pre-wrap;" v-if="docDetail.memo || docDetail.deliveryRequest">
+                      {{ docDetail.memo || docDetail.deliveryRequest }}
                     </div>
-                    <div class="absolute bottom-20 left-0 right-0 text-center space-y-4">
-                      <p class="text-sm font-bold">{{ formatKRDate(docDetail.date || docDetail.createdAt) }}</p>
-                      <p class="text-lg font-black tracking-[5px] border-t-2 border-black pt-5 mx-16">위와 같이 주문함 ( (주) 몬순 )</p>
+
+                    <div class="pdf-footer-section">
+                      <div class="pdf-sign-box">
+                        <div class="sign-title">발주처</div>
+                        <div class="sign-line-box">
+                          {{ resolvedClientName }}
+                        </div>
+                      </div>
+                      <div class="pdf-sign-box">
+                        <div class="sign-title">공급처</div>
+                        <div class="sign-line-box">
+                          (주)몬순
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1430,4 +1455,25 @@ const getValidityDate = (dateStr) => {
 .card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .no-break { break-inside: avoid; page-break-inside: avoid; }
 .current-pdf-template { width: 210mm; min-height: 297mm; background-color: #FFFFFF !important; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); color: #1e293b; line-height: 1.5; }
+
+/* ───── 주문서 PDF (OrderView 디자인 이식) ───── */
+.pdf-title { text-align: center; font-size: 20px; font-weight: 800; letter-spacing: 6px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid black; }
+.pdf-meta-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; border: 1px solid black; margin-bottom: 16px; }
+.pdf-meta-row { display: contents; }
+.pdf-meta-row .label { background: #F7F3EC; padding: 6px 10px; font-size: 10px; font-weight: 700; color: #3D3529; border-bottom: 1px solid black; border-right: 1px solid black; white-space: nowrap; }
+.pdf-meta-row .value { padding: 6px 10px; font-size: 11px; font-weight: 500; color: #1a1a1a; border-bottom: 1px solid black; border-right: 1px solid black; }
+.pdf-section-title { font-size: 11px; font-weight: 800; color: #1a1a1a; margin: 14px 0 8px; }
+.pdf-delivery-grid { display: grid; grid-template-columns: 100px 1fr; border: 1px solid black; margin-bottom: 10px; }
+.pdf-label-cell { background: #F7F3EC; padding: 8px 10px; font-size: 10px; font-weight: 700; border-right: 1px solid black; display: flex; align-items: center; }
+.pdf-value-cell { padding: 8px 10px; font-size: 11px; display: flex; align-items: center; }
+.pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+.pdf-table th { background: #F7F3EC; padding: 6px 10px; font-size: 10px; font-weight: 700; text-align: center; border: 1px solid black; }
+.pdf-table td { padding: 6px 10px; font-size: 11px; border: 1px solid black; text-align: center; }
+.pdf-table td.right { text-align: right; font-weight: 700; }
+.pdf-total-row td { background: #EFEADF; font-weight: 800; color: #3D3529; font-size: 12px; border: 1px solid black; }
+.pdf-footer-section { display: flex; justify-content: flex-end; gap: 40px; margin-top: 30px; padding-top: 14px; border-top: 1px solid black; }
+.pdf-sign-box { text-align: center; font-size: 11px; color: #6B5F50; width: 100px; }
+.sign-title { margin-bottom: 4px; }
+.sign-line-box { width: 100%; height: 40px; border-bottom: 1px solid #9A8C7E; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; font-weight: 700; color: #3D3529; }
+.border-t { border-top: 1px solid black !important; }
 </style>
