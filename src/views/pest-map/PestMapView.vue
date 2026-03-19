@@ -342,7 +342,6 @@ const pestsByCrop = {
     { code: 'P03', label: '탄저병' },
     { code: 'P05',  label: '역병' },
     // { code: 'P09',  label: '나방' },
-    // { code: 'P13',  label: '총채벌레' },
     // { code: 'P15',  label: '가루이' },
     { code: 'P21',  label: '바이러스' },
   ],
@@ -356,6 +355,7 @@ const pestsByCrop = {
   GARLIC:  [
     { code: 'P07',  label: '잎마름병' },
     { code: 'P11',  label: '균핵병' },
+    { code: 'P13',  label: '잎집썩음병' },
   ],
   CABBAGE: [
     { code: 'CB01', label: '무름병' },
