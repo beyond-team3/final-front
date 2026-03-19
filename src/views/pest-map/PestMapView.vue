@@ -417,7 +417,7 @@ function initKakaoMap() {
   window.kakao.maps.load(() => {
     const options = {
       center: new window.kakao.maps.LatLng(36.5, 127.8), // 한국 중심
-      level: 8,
+      level: 11,
     }
     kakaoMap = new window.kakao.maps.Map(mapRef.value, options)
     mapReady.value = true
