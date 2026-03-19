@@ -123,10 +123,18 @@ const fetchAnalysis = async () => {
       let raw = result.content
       
       // 백엔드 AI가 JSON 문자열로 응답했을 경우를 대비한 파싱 처리
-      if (typeof raw === 'string' && (raw.startsWith('{') || raw.startsWith('['))) {
+      // 백엔드 AI가 JSON 문자열로 응답했을 경우를 대비한 파싱 처리
+      if (typeof raw === 'string' && (raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
         try {
           const parsed = JSON.parse(raw)
-          raw = parsed.content || parsed.response || parsed.summary || raw
+          // 명시적인 키 확인
+          raw = parsed.content || parsed.retrieval_strategy_markdown || parsed.response || parsed.summary || parsed.text || raw
+
+          // 만약 객체인데 위의 키가 없고 문자열 값이 하나만 있다면 그것을 추출
+          if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
+            const values = Object.values(raw).filter(v => typeof v === 'string')
+            if (values.length > 0) raw = values[0]
+          }
         } catch (e) {
           console.warn('Failed to parse AI response as JSON, using raw string.')
         }
