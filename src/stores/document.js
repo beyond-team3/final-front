@@ -193,8 +193,8 @@ const normalizeDocument = (doc = {}) => {
         // 표시용 코드 (docCode가 없으면 displayCode라도 id 기반으로 생성)
         displayCode: doc.displayCode || docCode || String(id || ''),
         docCode: isTemp ? '' : (docCode || String(id || '')),
-        client: normalizeClient(doc),
-        items,
+        startDate: doc.startDate || null,
+        expiredDate: doc.expiredDate || doc.endDate || null,
         totalAmount,
         // 요구사항과 비고를 명확히 분리
         requirements: doc.requirements || doc.memo || '',

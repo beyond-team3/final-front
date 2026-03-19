@@ -77,6 +77,8 @@ const baseVariants = {
   ISSUED: 'status-info',
   PAID: 'status-approved',
   EXPIRED: 'status-warning',
+  ACTIVE: 'status-approved',
+  ACTIVE_CONTRACT: 'status-approved',
 }
 
 const normalizedStatus = computed(() => normalizeStatus(props.status))
