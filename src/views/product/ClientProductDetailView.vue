@@ -19,11 +19,11 @@ const noteDraft = ref('')
 
 const tagRows = computed(() => {
   const rows = [
-    { key: '재배환경', label: '재배환경' },
-    { key: '내병성', label: '내병성' },
-    { key: '생육및숙기', label: '생육/숙기' },
-    { key: '과실품질', label: '과실품질' },
-    { key: '재배편의성', label: '재배편의성' },
+    { key: 'env', label: '재배환경' },
+    { key: 'res', label: '내병성' },
+    { key: 'growth', label: '생육/숙기' },
+    { key: 'quality', label: '과실품질' },
+    { key: 'conv', label: '재배편의성' },
   ]
   if (!product.value) return []
   return rows.filter((row) => (product.value.tags?.[row.key] || []).length > 0)
