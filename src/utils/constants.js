@@ -14,6 +14,7 @@ export const PRODUCT_CATEGORY = {
     TOMATO: '토마토/대목',
     SQUASH: '호박',
     ONION: '양파/파',
+    GARLIC: '마늘',
     CARROT: '당근',
     CORN: '옥수수',
     BEAN: '콩',
