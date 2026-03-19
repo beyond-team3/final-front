@@ -1,11 +1,13 @@
+import { DOC_STATUS } from '@/utils/constants'
+
 export const DEAL_PIPELINE = [
-    { code: 'RFQ', label: '견적요청서', shortLabel: 'RFQ', order: 1 },
-    { code: 'QUO', label: '견적서', shortLabel: 'QUO', order: 2 },
-    { code: 'CNT', label: '계약서', shortLabel: 'CNT', order: 3 },
-    { code: 'ORD', label: '주문서', shortLabel: 'ORD', order: 4 },
-    { code: 'STMT', label: '명세서', shortLabel: 'STMT', order: 5 },
-    { code: 'INV', label: '청구서', shortLabel: 'INV', order: 6 },
-    { code: 'PAY', label: '결제', shortLabel: 'PAY', order: 7 },
+    { code: 'RFQ', label: '견적요청서', shortLabel: '요청', order: 1 },
+    { code: 'QUO', label: '견적서', shortLabel: '견적', order: 2 },
+    { code: 'CNT', label: '계약서', shortLabel: '계약', order: 3 },
+    { code: 'ORD', label: '주문서', shortLabel: '주문', order: 4 },
+    { code: 'STMT', label: '명세서', shortLabel: '명세', order: 5 },
+    { code: 'INV', label: '청구서', shortLabel: '청구', order: 6 },
+    { code: 'PAY', label: '결제', shortLabel: '결제', order: 7 },
 ]
 
 export const DEAL_STATUS_META = {
@@ -54,6 +56,112 @@ export function getStageOrder(code) {
 
 export function getStatusMeta(status) {
     return DEAL_STATUS_META[String(status || '').toUpperCase()] || { label: status || '-', tone: 'default' }
+}
+
+function normalizeDocumentType(type) {
+    const raw = String(type || '').trim().toUpperCase()
+    const typeMap = {
+        RFQ: 'QUOTATION_REQUEST',
+        QUO: 'QUOTATION',
+        CNT: 'CONTRACT',
+        ORD: 'ORDER',
+        STMT: 'STATEMENT',
+        INV: 'INVOICE',
+        PAY: 'INVOICE',
+    }
+
+    return typeMap[raw] || raw
+}
+
+function normalizeDocumentStatus(type, status) {
+    const normalizedType = normalizeDocumentType(type)
+    const raw = String(status || '').trim().toUpperCase()
+
+    const commonMap = {
+        CREATED: 'DRAFT',
+        IN_PROGRESS: 'REVIEWING',
+        PENDING_ADMIN: 'WAITING_ADMIN',
+        PENDING_CLIENT: 'WAITING_CLIENT',
+        REJECTED_ADMIN: 'REJECTED_ADMIN',
+        REJECTED_CLIENT: 'REJECTED_CLIENT',
+        APPROVED: 'APPROVED',
+        CONFIRMED: 'CONFIRMED',
+        ISSUED: 'ISSUED',
+        PUBLISHED: 'PUBLISHED',
+        PAID: 'PAID',
+        EXPIRED: 'EXPIRED',
+        CANCELED: 'CANCELED',
+        DELETED: 'DELETED',
+        REQUESTED: 'PENDING',
+        PENDING: 'PENDING',
+        COMPLETED: 'COMPLETED',
+    }
+
+    const mapped = commonMap[raw] || raw
+
+    if (normalizedType === 'QUOTATION_REQUEST') {
+        const requestMap = {
+            DRAFT: 'PENDING',
+            REVIEWING: 'REVIEWING',
+            APPROVED: 'COMPLETED',
+            CONFIRMED: 'COMPLETED',
+            CANCELED: 'DELETED',
+        }
+        return requestMap[mapped] || mapped
+    }
+
+    if (normalizedType === 'QUOTATION') {
+        const quotationMap = {
+            APPROVED: 'FINAL_APPROVED',
+            CONFIRMED: 'FINAL_APPROVED',
+            CANCELED: 'DELETED',
+        }
+        return quotationMap[mapped] || mapped
+    }
+
+    if (normalizedType === 'CONTRACT') {
+        const contractMap = {
+            APPROVED: 'COMPLETED',
+            CONFIRMED: 'COMPLETED',
+        }
+        return contractMap[mapped] || mapped
+    }
+
+    if (normalizedType === 'ORDER') {
+        const orderMap = {
+            DRAFT: 'PENDING',
+            REVIEWING: 'PENDING',
+            APPROVED: 'CONFIRMED',
+            COMPLETED: 'CONFIRMED',
+        }
+        return orderMap[mapped] || mapped
+    }
+
+    if (normalizedType === 'STATEMENT') {
+        const statementMap = {
+            CONFIRMED: 'APPROVED',
+            COMPLETED: 'APPROVED',
+        }
+        return statementMap[mapped] || mapped
+    }
+
+    if (normalizedType === 'INVOICE') {
+        const invoiceMap = {
+            REVIEWING: 'DRAFT',
+            APPROVED: 'PAID',
+            COMPLETED: 'PAID',
+            CONFIRMED: 'PAID',
+        }
+        return invoiceMap[mapped] || mapped
+    }
+
+    return mapped
+}
+
+export function getDocumentStatusLabel(type, status, fallback = '-') {
+    const normalizedType = normalizeDocumentType(type)
+    const normalizedStatus = normalizeDocumentStatus(type, status)
+    return DOC_STATUS[normalizedType]?.[normalizedStatus]?.label || getStatusMeta(status).label || fallback
 }
 
 export function formatDateTime(value) {
@@ -112,7 +220,7 @@ export function toActionLabel(actionType) {
 
 export function toActivityDescription(log) {
     const stageLabel = getStageMeta(log?.docType).label
-    const statusLabel = getStatusMeta(log?.toStatus).label
+    const statusLabel = getDocumentStatusLabel(log?.docType, log?.toStatus)
     const code = log?.targetCode || `#${log?.refId || '-'}`
     const actionLabel = toActionLabel(log?.actionType)
     return `${stageLabel} ${code} ${actionLabel} · ${statusLabel}`

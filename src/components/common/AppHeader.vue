@@ -26,7 +26,7 @@ const visibleHeaderMenus = computed(() => HEADER_MENU_CONFIG.filter((menu) => ha
 const iconNameMap = {
   schedule: 'calendar', // UPDATED
   notification: 'bell', // UPDATED
-  settings: 'settings', // UPDATED
+  settings: 'user', // UPDATED
 }
 const iconOnlyMenuKeys = ['schedule', 'notification', 'settings'] // UPDATED
 const iconHeaderMenus = computed(() => visibleHeaderMenus.value.filter((menu) => iconOnlyMenuKeys.includes(menu.key))) // UPDATED
@@ -78,7 +78,7 @@ watch(
 
 <template>
   <header class="fixed inset-x-0 top-0 z-50 h-14 border-b px-4" style="background: var(--color-sidebar); border-color: var(--color-border);">
-    <div class="mx-auto flex h-full max-w-screen-2xl items-center justify-between">
+    <div class="flex h-full items-center justify-between">
       <div class="flex items-center gap-3">
         <button
             type="button"
@@ -91,12 +91,13 @@ watch(
         </button>
         <button
             type="button"
-            class="text-2xl leading-none"
-            style="font-family: var(--font-display); font-weight: 700; font-style: normal; color: var(--color-text);"
+            class="logo-seedflow text-2xl leading-none"
+            style="color: var(--color-text);"
             @click="navigateTo('/dashboard')"
         >
           SeedFlow+
         </button>
+
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
         <nav class="hidden items-center gap-1 md:flex">

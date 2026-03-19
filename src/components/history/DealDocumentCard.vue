@@ -36,7 +36,7 @@ const emit = defineEmits(['open'])
             <div class="flex flex-wrap items-center gap-2 text-[12px] text-[var(--color-text-sub)]">
                 <span>{{ document.actionAtText }}</span>
                 <span class="rounded-md bg-[var(--color-bg-section)] px-2 py-0.5 text-[11px]">{{ document.actionLabel }}</span>
-                <span>금액 {{ formatCurrency(document.amount) }}</span>
+                <span class="font-normal">금액 {{ formatCurrency(document.amount) }}</span>
             </div>
         </div>
     </article>

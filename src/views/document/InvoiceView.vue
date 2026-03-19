@@ -594,10 +594,6 @@ function onAccessDeniedConfirm() {
                         class="rounded border px-4 py-2 text-sm font-semibold hover:opacity-90"
                         style="border-color:#DDD7CE;background-color:transparent;color:#6B5F50;"
                         @click="router.push('/documents/invoices')">목록으로</button>
-                <button v-if="canCancelInvoice" type="button"
-                        class="rounded px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-                        style="background-color:#B85C5C;"
-                        @click="showCancelModal = true">청구서 취소</button>
                 <button type="button"
                         class="rounded px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         style="background-color:#7A8C42;"
@@ -619,7 +615,7 @@ function onAccessDeniedConfirm() {
           <aside class="w-full xl:w-[500px] sticky top-5 rounded-lg bg-[#525659] p-4 shadow-inner overflow-y-auto custom-scrollbar max-h-[90vh]">
             <div class="flex flex-col items-center">
               <div class="bg-white px-12 pt-8 pb-12 w-[794px] min-h-[1115px] shadow-2xl relative text-[13px] text-black flex flex-col"
-                   style="font-family:'KoPub Dotum',sans-serif !important;transform:scale(0.55);transform-origin:top center;margin-bottom:calc(-1115px * 0.45);">
+                   style="font-family: var(--font-sans) !important; transform: scale(0.55); transform-origin: top center; margin-bottom: calc(-1115px * 0.45);">
 
                 <!-- 제목 -->
                 <div class="text-center border-b-2 border-black pb-3 mb-10">

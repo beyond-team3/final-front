@@ -206,7 +206,7 @@ watch(
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-5">
-    <div class="mx-auto max-w-6xl space-y-4">
+    <div class="space-y-4">
       <PageHeader class="!bg-transparent !p-0 !mb-4" :title="profile.name">
         <template #title>
           <div class="flex items-center gap-3">
@@ -286,7 +286,7 @@ watch(
               {{ crop }}
             </div>
             <div v-if="profile.crops.length === 0" class="flex w-full flex-col items-center justify-center py-4 text-sm text-[var(--color-text-placeholder)]">
-              <span class="mb-1 text-2xl">🌿</span>
+              <img src="@/assets/images/Seed_logo.png" alt="Seed Logo" class="mb-2 h-10 w-auto opacity-20 grayscale" />
               등록된 품종이 없습니다.
             </div>
           </div>
@@ -300,7 +300,7 @@ watch(
           :loading="historyStore.loading"
           :error="historyStore.error"
           :show-client-filter="false"
-          search-placeholder="담당자명, deal 번호, 문서코드 검색"
+          search-placeholder="담당자명, 거래 번호, 문서코드 검색"
           empty-title="거래 히스토리가 없습니다."
           empty-description="아직 진행된 거래가 없거나 조회 권한이 있는 히스토리가 없습니다."
           @retry="fetchClientHistory"

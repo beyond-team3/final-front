@@ -27,7 +27,7 @@ onMounted(async () => {
 // 태그 템플릿 및 한국어 라벨 매핑
 const tagSchema = [
   { key: '재배환경', label: '재배환경', options: ['노지', '시설하우스', '고랭지', '가정원예'] },
-  { key: '내병성', label: '내병성', options: ['탄저병', '바이러스', '시들음병', '역병', '무름병'] },
+  { key: '내병성', label: '내병성', options: ['탄저병', '바이러스', '시들음병', '역병', '무름병', '균핵병', '잎마름병', '노균병'] },
   { key: '생육및숙기', label: '생육 및 숙기', options: ['조생종', '중생종', '만생종', '극조생'] },
   { key: '과실품질', label: '과실 품질', options: ['고당도', '대과종', '저장성우수', '착색우수'] },
   { key: '재배편의성', label: '재배 편의성', options: ['초세강', '착과용이', '밀식적응', '작업용이'] },
@@ -230,7 +230,7 @@ const submitForm = async () => {
 
 <template>
   <section class="pb-10">
-    <PageHeader :title="isEdit ? '품종 정보 수정' : '신규 품종 등록'">
+    <PageHeader :title="isEdit ? '품종 수정' : '품종 등록'">
       <template #actions>
         <button type="button" class="rounded border border-[var(--color-border-card)] px-4 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]" @click="router.back()">
           취소

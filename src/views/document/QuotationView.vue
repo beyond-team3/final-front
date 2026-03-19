@@ -156,7 +156,7 @@ onUnmounted(() => {
 const handleCloseModal = () => {
   showStartModal.value = false
   if (!isProcessStarted.value) {
-    router.push('/documents/create')
+    router.push('/documents/all')
   }
 }
 
@@ -404,7 +404,7 @@ const submitDoc = async () => {
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
+        <p class="text-2xl" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">견적서 {{ isViewMode ? '상세' : '작성' }}</span></p>
         <span v-if="useQuotationV2() && !isViewMode" class="rounded-full border border-[#C8622A] bg-[#FFF3EB] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[#C8622A]">V2 TEST</span>
       </div>
       <div v-if="isProcessStarted" class="flex flex-col xl:flex-row gap-6 items-start animate-in">
@@ -526,9 +526,9 @@ const submitDoc = async () => {
 
         <div class="w-full xl:w-[500px] sticky top-5">
           <div class="bg-[#525659] p-4 rounded-lg shadow-inner">
-            <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black" style="font-family: 'KoPub Dotum', sans-serif !important;">
+            <div class="bg-white p-8 min-h-[700px] shadow-2xl relative text-[11px] text-black" style="font-family: var(--font-sans) !important;">
               <div class="text-center border-b-2 border-black pb-3 mb-5">
-                <h1 class="text-2xl font-bold tracking-widest" style="font-family: 'KoPub Dotum', sans-serif !important;">견 적 서</h1>
+                <h1 class="text-2xl font-bold tracking-widest" style="font-family: var(--font-sans) !important;">견 적 서</h1>
                 <p v-if="quotationCode" class="text-[10px] mt-1 text-right">No. {{ quotationCode }}</p>
               </div>
               <div class="flex justify-between items-start mb-6 text-[12px]">
@@ -537,7 +537,6 @@ const submitDoc = async () => {
                   <p>담당: <span class="px-2">{{ inName || '(빈값)' }}</span></p>
                   <p>견적 유효기간: <span class="font-bold border-b border-black px-1">{{ validityDate }}</span> (발행일로부터 30일)</p>
                 </div>
-                <div class="w-14 h-14 border border-black flex items-center justify-center font-bold text-xs">인</div>
               </div>
               <table class="w-full border-collapse border border-black text-center mb-5 text-[10px]">
                 <thead class="bg-[#F7F3EC]">
@@ -567,7 +566,7 @@ const submitDoc = async () => {
       </div>
 
       <!-- Start Modal -->
-      <div v-if="showStartModal" class="modal-overlay z-[2000] p-4">
+      <div v-if="showStartModal" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
         <div class="modal w-[750px] max-w-[95vw] shadow-2xl relative" style="background-color: #F7F3EC; border: 1px solid #DDD7CE;">
           <div class="modal-header border-b" style="background-color: #C8622A; border-color: rgba(255,255,255,0.1);">
             <h3 class="modal-title text-base font-bold text-white">문서 작성 방식 선택</h3>
@@ -601,7 +600,7 @@ const submitDoc = async () => {
             </div>
 
             <div v-if="currentTab === 'pending-rfq'">
-              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">진행 중인 견적 요청서 참조</p>
+              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">요청된 견적 요청서</p>
               <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
                 <table class="w-full text-sm text-center border-collapse">
                   <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
@@ -627,7 +626,7 @@ const submitDoc = async () => {
             </div>
 
             <div v-else-if="currentTab === 'rejected-quo'">
-              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">이전 반려/만료된 견적서의 내용을 가져옵니다.</p>
+              <p class="mb-4 text-sm font-bold" style="color: #6B5F50;">반려/만료된 견적서</p>
               <div class="max-h-[300px] overflow-y-auto border rounded mb-6" style="background-color: #FAF7F3; border-color: #DDD7CE;">
                 <table class="w-full text-sm text-center border-collapse">
                   <thead class="sticky top-0 z-10" style="background-color: #EFEADF; color: #6B5F50; border-bottom: 1px solid #DDD7CE;">
@@ -662,7 +661,7 @@ const submitDoc = async () => {
       </div>
 
       <!-- Corp Modal -->
-      <div v-if="showCorpModal" class="modal-overlay z-[2100] p-4">
+      <div v-if="showCorpModal" class="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
         <div class="modal w-[600px] max-w-[95vw] shadow-2xl relative" style="background-color: #F7F3EC; border: 1px solid #DDD7CE;">
           <div class="modal-header border-b" style="background-color: #C8622A; border-color: rgba(255,255,255,0.1);">
             <h3 class="modal-title text-base font-bold text-white">거래처 선택</h3>

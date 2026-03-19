@@ -38,7 +38,7 @@ const openDetail = () => emit('open-detail', props.deal.id)
             <div class="2xl:w-[260px] 2xl:flex-shrink-0">
                 <div class="mb-1 text-[15px] font-bold text-[var(--color-text-strong)]">{{ deal.clientName }}</div>
                 <div class="mb-3 inline-flex rounded-md bg-[var(--color-bg-section)] px-2 py-0.5 text-[11px] text-[var(--color-text-sub)]">
-                    DEAL #{{ deal.id }}
+                    거래 #{{ deal.id }}
                 </div>
                 <div class="flex items-center gap-2">
                     <div class="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-olive-light)] text-xs font-bold text-[var(--color-olive-dark)]">
@@ -53,7 +53,7 @@ const openDetail = () => emit('open-detail', props.deal.id)
                     <template v-for="(step, index) in deal.steps" :key="step.code">
                         <div class="flex flex-col items-center gap-2">
                             <div
-                                class="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-semibold"
+                                class="flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-[11px] font-semibold"
                                 :style="{
                                     backgroundColor: step.state === 'pending' ? 'var(--color-border-divider)' : 'var(--color-olive)',
                                     color: step.state === 'pending' ? 'var(--color-text-sub)' : '#fff',

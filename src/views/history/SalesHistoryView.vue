@@ -14,7 +14,7 @@ const dealKpiCards = computed(() => {
   const kpis = historyStore.dealKpis || {}
 
   return [
-    { key: 'dealCount', label: '전체 Deal', value: Number(kpis.dealCount ?? 0) },
+    { key: 'dealCount', label: '전체 거래', value: Number(kpis.dealCount ?? 0) },
     { key: 'openDealCount', label: '진행중', value: Number(kpis.openDealCount ?? 0) },
     { key: 'closedDealCount', label: '종결', value: Number(kpis.closedDealCount ?? 0) },
     { key: 'successRate', label: '성공률', value: `${Number(kpis.successRate ?? 0).toFixed(1)}%` },

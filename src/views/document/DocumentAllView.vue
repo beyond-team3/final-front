@@ -7,10 +7,12 @@ import PaginationControls from '@/components/common/PaginationControls.vue'
 import { getDocumentSummaries } from '@/api/document'
 import HistoryModal from '@/components/history/HistoryModal.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { DOC_STATUS } from '@/utils/constants'
+import { DOC_STATUS, ROLES } from '@/utils/constants'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
 const DOC_TYPE_META = {
   RFQ: { label: '견적요청서', tone: 'rfq' },
@@ -88,6 +90,8 @@ const formatDate = (value) => {
   return date.toLocaleDateString('ko-KR')
 }
 
+const firstFilled = (...values) => values.find((value) => value !== null && value !== undefined && String(value).trim() !== '')
+
 const decorateDocument = (doc) => ({
   ...doc,
   docTypeLabel: DOC_TYPE_META[doc.docType]?.label || doc.docType,
@@ -96,8 +100,22 @@ const decorateDocument = (doc) => ({
   statusTone: STATUS_META[doc.status]?.tone || 'default',
   expiredDateLabel: formatDate(doc.expiredDate),
   createdAtLabel: formatDate(doc.createdAt),
-  ownerEmployeeName: doc.ownerEmployeeName || '-',
-  clientName: doc.clientName || '-',
+  ownerEmployeeName: firstFilled(
+    doc.ownerEmployeeName,
+    doc.ownerEmpName,
+    doc.salesRepName,
+    doc.authorName,
+    doc.managerName,
+    doc.client?.contact,
+    doc.clientContact,
+    '-',
+  ),
+  clientName: firstFilled(
+    doc.clientName,
+    doc.client?.name,
+    doc.name,
+    '-',
+  ),
 })
 
 const matchesNotificationTarget = (doc, targetType, targetId) => {
@@ -294,6 +312,18 @@ const docTypeOptions = [
 
 const statusOptions = computed(() => {
   const options = [{ value: 'ALL', label: '전체 상태' }]
+  const isClient = authStore.currentRole === ROLES.CLIENT
+  const shouldIncludeStatus = (typeKey, statusKey) => {
+    if (statusKey === 'DELETED') {
+      return false
+    }
+
+    if (isClient && ['QUOTATION', 'CONTRACT'].includes(typeKey) && ['WAITING_ADMIN', 'REJECTED_ADMIN'].includes(statusKey)) {
+      return false
+    }
+
+    return true
+  }
   
   // 선택된 문서 유형에 해당하는 상태들만 추출
   if (selectedDocType.value !== 'ALL') {
@@ -304,7 +334,9 @@ const statusOptions = computed(() => {
     
     if (DOC_STATUS[fullType]) {
       Object.entries(DOC_STATUS[fullType]).forEach(([key, val]) => {
-        options.push({ value: key, label: val.label })
+        if (shouldIncludeStatus(fullType, key)) {
+          options.push({ value: key, label: val.label })
+        }
       })
       return options
     }
@@ -312,9 +344,9 @@ const statusOptions = computed(() => {
 
   // 전체인 경우 모든 상태 합집합 (기존 STATUS_META 참고)
   const allStatuses = new Set()
-  Object.values(DOC_STATUS).forEach(typeObj => {
+  Object.entries(DOC_STATUS).forEach(([typeKey, typeObj]) => {
     Object.entries(typeObj).forEach(([key, val]) => {
-      if (!allStatuses.has(key)) {
+      if (shouldIncludeStatus(typeKey, key) && !allStatuses.has(key)) {
         allStatuses.add(key)
         options.push({ value: key, label: val.label })
       }
@@ -461,7 +493,7 @@ const statusBadgeStyle = (tone) => ({
       </div>
 
       <section class="mb-5 rounded-[10px] border p-[18px] shadow-[0_1px_2px_rgba(61,53,41,0.06)]" style="background-color: #EFEADF; border-color: #DDD7CE;">
-        <div class="grid gap-3 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto_auto]">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto]">
           <label class="flex flex-col gap-2">
             <input
                 v-model="keyword"
@@ -492,7 +524,7 @@ const statusBadgeStyle = (tone) => ({
             </select>
           </label>
 
-          <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2 lg:col-span-1 xl:col-span-1">
             <div class="relative filter-popover">
               <CdrButton
                   type="button"
@@ -515,9 +547,7 @@ const statusBadgeStyle = (tone) => ({
                 </button>
               </div>
             </div>
-          </div>
 
-          <div class="flex flex-col gap-2">
             <div class="relative filter-popover">
               <CdrButton
                   type="button"
@@ -566,11 +596,7 @@ const statusBadgeStyle = (tone) => ({
         </template>
 
         <template #footer>
-          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p class="text-sm" style="color: #9A8C7E;">
-              총 {{ totalElements }}건 중
-              {{ visibleStart }}-{{ visibleEnd }}건 표시
-            </p>
+          <div class="flex justify-center py-2">
             <PaginationControls v-model="page" :total-pages="totalPages" />
           </div>
         </template>
@@ -581,6 +607,7 @@ const statusBadgeStyle = (tone) => ({
           :title="selectedDocument?.docCode || '문서 상세'"
           :doc-id="String(selectedDocument?.docId || '')"
           :doc-type="selectedDocument?.docTypeLabel || selectedDocument?.docType || ''"
+          @cancelled="loadDocuments"
       />
     </section>
 </template>

@@ -23,6 +23,7 @@ import {
     formatDate,
     formatDateTime,
     formatRelativeTime,
+    getDocumentStatusLabel,
     getStageMeta,
     getStageOrder,
     getStatusMeta,
@@ -30,6 +31,8 @@ import {
     toActionLabel,
     toActivityDescription,
 } from '@/utils/dealHistory'
+import { useAuthStore } from '@/stores/auth'
+import { ROLES } from '@/utils/constants'
 
 function getErrorMessage(error, fallback = '요청 처리 중 오류가 발생했습니다.') {
     return error?.response?.data?.error?.message || error?.response?.data?.message || error?.message || fallback
@@ -79,7 +82,7 @@ function normalizeDeal(raw = {}) {
         latestRefId: raw.latestRefId ?? null,
         stageOrder: stageMeta.order,
         currentStatus: raw.currentStatus || 'CREATED',
-        currentStatusLabel: statusMeta.label,
+        currentStatusLabel: getDocumentStatusLabel(stageMeta.code, raw.currentStatus),
         currentStatusTone: statusMeta.tone,
         railColor: statusColorByTone(statusMeta.tone),
         summaryMemo: raw.summaryMemo || '',
@@ -115,7 +118,7 @@ function buildDocumentSummary(log) {
         typeLabel: stageMeta.label,
         stageNumber: stageMeta.order,
         status: log.toStatus || 'CREATED',
-        statusLabel: statusMeta.label,
+        statusLabel: getDocumentStatusLabel(log.docType, log.toStatus),
         actionType: log.actionType,
         actionLabel: toActionLabel(log.actionType),
         actionAt: log.actionAt,
@@ -151,7 +154,7 @@ function normalizeLogs(logs = []) {
             actionAtAgo: formatRelativeTime(log.actionAt),
             fromStatus: log.fromStatus,
             toStatus: log.toStatus,
-            statusLabel: getStatusMeta(log.toStatus).label,
+            statusLabel: getDocumentStatusLabel(log.docType, log.toStatus),
             actorType: log.actorType,
             actorId: log.actorId,
             description: toActivityDescription(log),
@@ -171,6 +174,7 @@ function normalizeLogs(logs = []) {
 }
 
 export const useHistoryStore = defineStore('history', () => {
+    const authStore = useAuthStore()
     const pipelines = ref([])
     const loading = ref(false)
     const logsLoading = ref(false)
@@ -191,6 +195,24 @@ export const useHistoryStore = defineStore('history', () => {
     const getPipelinesByClient = (clientId) => pipelines.value.filter((item) => String(item.clientId) === String(clientId))
     const getDocumentsByPipeline = (id) => getPipelineById(id)?.documents || []
     const getTimelineByPipeline = (id) => getPipelineById(id)?.timeline || []
+
+    const shouldHideClientDocument = (document = {}) => {
+        if (authStore.currentRole !== ROLES.CLIENT) return false
+
+        const type = String(document.type || document.docType || '').trim().toUpperCase()
+        const status = String(document.status || document.toStatus || '').trim().toUpperCase()
+
+        if (status === 'DELETED') return true
+        if (['QUO', 'CNT'].includes(type) && ['PENDING_ADMIN', 'REJECTED_ADMIN'].includes(status)) {
+            return true
+        }
+
+        return false
+    }
+
+    const filterDocumentsForViewer = (documents = []) => documents.filter((document) => !shouldHideClientDocument(document))
+
+    const filterTimelineForViewer = (timeline = []) => timeline.filter((item) => !shouldHideClientDocument(item))
 
     async function fetchPipelines(params = {}) {
         loading.value = true
@@ -243,22 +265,24 @@ export const useHistoryStore = defineStore('history', () => {
             const pipeline = getPipelineById(dealId)
             if (pipeline) {
                 const normalized = normalizeLogs(rawLogs)
-                pipeline.documents = normalized.documents
-                pipeline.summaryDocuments = normalized.documents.slice(0, 3)
-                pipeline.timeline = normalized.timeline
-                pipeline.timelinePreview = normalized.timelinePreview
-                pipeline.documentCount = normalized.documentCount
-                pipeline.latestAmount = normalized.latestAmount
+                const visibleDocuments = filterDocumentsForViewer(normalized.documents)
+                const visibleTimeline = filterTimelineForViewer(normalized.timeline)
+                pipeline.documents = visibleDocuments
+                pipeline.summaryDocuments = visibleDocuments.slice(0, 3)
+                pipeline.timeline = visibleTimeline
+                pipeline.timelinePreview = visibleTimeline.slice(0, 3)
+                pipeline.documentCount = visibleDocuments.length
+                pipeline.latestAmount = visibleDocuments.find((document) => Number.isFinite(Number(document.amount)))?.amount ?? null
                 pipeline.steps = pipeline.steps.map((step) => ({
                     ...step,
-                    documentCount: normalized.documents.filter((document) => document.type === step.code).length,
+                    documentCount: visibleDocuments.filter((document) => document.type === step.code).length,
                 }))
                 pipeline.logsLoaded = true
             }
 
             return getTimelineByPipeline(dealId)
         } catch (e) {
-            error.value = getErrorMessage(e, '딜 상세 로그를 불러오지 못했습니다.')
+            error.value = getErrorMessage(e, '거래 상세 로그를 불러오지 못했습니다.')
             return []
         } finally {
             logsLoading.value = false
@@ -299,19 +323,21 @@ export const useHistoryStore = defineStore('history', () => {
             const mappedDocuments = mapDealV2DocumentsToTimelineItems(documents)
             const mappedNotifications = mapDealV2NotificationsToTimelineItems(notifications)
             const mappedSchedules = mapDealV2SchedulesToTimelineItems(schedules)
+            const visibleDocuments = filterDocumentsForViewer(mappedDocuments)
             const timeline = mergeDealV2Timeline({
-                documents: mappedDocuments,
+                documents: visibleDocuments,
                 notifications: mappedNotifications,
                 schedules: mappedSchedules,
             })
+            const visibleTimeline = filterTimelineForViewer(timeline)
 
             Object.assign(pipeline, mappedDetail, {
-                documents: mappedDocuments,
-                summaryDocuments: mappedDocuments.slice(0, 3),
-                timeline,
-                timelinePreview: timeline.slice(0, 3),
-                documentCount: mappedDocuments.length,
-                latestAmount: mappedDocuments.find((document) => Number.isFinite(Number(document.amount)))?.amount ?? null,
+                documents: visibleDocuments,
+                summaryDocuments: visibleDocuments.slice(0, 3),
+                timeline: visibleTimeline,
+                timelinePreview: visibleTimeline.slice(0, 3),
+                documentCount: visibleDocuments.length,
+                latestAmount: visibleDocuments.find((document) => Number.isFinite(Number(document.amount)))?.amount ?? null,
                 notifications,
                 schedules,
                 logsLoaded: true,
@@ -320,12 +346,12 @@ export const useHistoryStore = defineStore('history', () => {
 
             pipeline.steps = pipeline.steps.map((step) => ({
                 ...step,
-                documentCount: mappedDocuments.filter((document) => document.type === step.code).length,
+                documentCount: visibleDocuments.filter((document) => document.type === step.code).length,
             }))
 
             return pipeline.timeline
         } catch (e) {
-            error.value = getErrorMessage(e, '딜 상세 정보를 불러오지 못했습니다.')
+            error.value = getErrorMessage(e, '거래 상세 정보를 불러오지 못했습니다.')
             return []
         } finally {
             logsLoading.value = false
@@ -347,7 +373,7 @@ export const useHistoryStore = defineStore('history', () => {
             dealKpis.value = result || null
             return dealKpis.value
         } catch (e) {
-            dealKpisError.value = getErrorMessage(e, '딜 KPI를 불러오지 못했습니다.')
+            dealKpisError.value = getErrorMessage(e, '거래 KPI를 불러오지 못했습니다.')
             dealKpis.value = null
             return null
         } finally {
@@ -361,7 +387,7 @@ export const useHistoryStore = defineStore('history', () => {
                 if (String(document.refId) === String(docId) || String(document.targetCode) === String(docId)) {
                     const statusMeta = getStatusMeta(status)
                     document.status = status
-                    document.statusLabel = statusMeta.label
+                    document.statusLabel = getDocumentStatusLabel(document.type, status)
                     document.color = statusColorByTone(statusMeta.tone)
                 }
             })

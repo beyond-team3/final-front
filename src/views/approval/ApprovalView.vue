@@ -1269,6 +1269,10 @@ const sectionList = computed(() => {
 onMounted(async () => {
   await authStore.initializeAuth()
   await loadApprovals()
+  if (route.query.keyword) {
+    filterForm.keyword = String(route.query.keyword)
+  }
+  await openApprovalFromRouteQuery()
 })
 
 watch(
@@ -1441,9 +1445,6 @@ onBeforeUnmount(() => {
 
           <footer class="board-footer">
             <PaginationControls :model-value="page" :total-pages="totalPages" @update:modelValue="handlePageChange" />
-            <span class="footer-meta">
-              총 {{ listResponse.totalElements }}건 · {{ page }}/{{ totalPages }} 페이지
-            </span>
           </footer>
         </template>
       </template>
@@ -1935,7 +1936,7 @@ onBeforeUnmount(() => {
 .board-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   margin-top: 22px;
   padding-top: 18px;

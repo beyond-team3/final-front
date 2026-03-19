@@ -16,9 +16,9 @@ const props = defineProps({
   showBadge: { type: Boolean, default: false },
   badgeLabel: { type: String, default: 'V2 TEST' },
   kpiCards: { type: Array, default: () => [] },
-  searchPlaceholder: { type: String, default: '담당자명, deal 번호, 문서코드 검색' },
-  emptyTitle: { type: String, default: '조회된 deal이 없습니다.' },
-  emptyDescription: { type: String, default: '검색 조건을 조정하거나 deal 데이터가 생성되었는지 확인해주세요.' },
+  searchPlaceholder: { type: String, default: '담당자명, 거래 번호, 문서코드 검색' },
+  emptyTitle: { type: String, default: '조회된 거래가 없습니다.' },
+  emptyDescription: { type: String, default: '검색 조건을 조정하거나 거래 데이터가 생성되었는지 확인해주세요.' },
 })
 
 const emit = defineEmits(['retry', 'open-detail', 'deal-focus'])
@@ -70,8 +70,8 @@ watch(filteredDeals, (deals) => {
   if (!deals.some((deal) => String(deal.id) === String(selectedDealId.value))) {
     selectedDealId.value = deals[0]?.id || ''
   }
-  if (deals.length > 0) {
-    summaryVisible.value = true
+  if (deals.length === 0) {
+    summaryVisible.value = false
   }
 }, { immediate: true })
 
@@ -151,29 +151,29 @@ onBeforeUnmount(() => {
         class="mb-5 rounded-[20px] border px-5 py-4"
         :style="{ backgroundColor: 'var(--color-bg-section)', borderColor: 'var(--color-border-card)' }"
       >
-        <div class="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <label class="block xl:w-[320px]">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,2.2fr)_repeat(2,minmax(0,1fr))_auto]">
+          <label class="block">
             <input
               v-model="searchKeyword"
               type="text"
               :placeholder="searchPlaceholder"
-              class="w-full rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-strong)] outline-none"
+              class="h-10 w-full rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-strong)] outline-none"
             >
           </label>
 
           <select
             v-if="showClientFilter"
             v-model="selectedClient"
-            class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-body)] outline-none"
+            class="h-10 w-full rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-body)] outline-none"
           >
             <option v-for="client in clientOptions" :key="client" :value="client">{{ client === '전체' ? '거래처 전체' : client }}</option>
           </select>
 
-          <select v-model="selectedStage" class="rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-body)] outline-none">
+          <select v-model="selectedStage" class="h-10 w-full rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 py-2 text-sm text-[var(--color-text-body)] outline-none">
             <option v-for="stage in stageOptions" :key="stage" :value="stage">{{ stage === '전체' ? '단계 전체' : stage }}</option>
           </select>
 
-          <div class="relative xl:ml-auto" @click.stop>
+          <div class="relative flex items-center justify-start xl:justify-end" @click.stop>
             <CdrButton
               type="button"
               modifier="secondary"
@@ -205,7 +205,7 @@ onBeforeUnmount(() => {
         <EmptyState :title="emptyTitle" :description="emptyDescription" />
       </section>
 
-      <section v-else class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section v-else class="grid gap-6" :class="selectedDeal ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : 'xl:grid-cols-1'">
         <div class="space-y-3">
           <DealHistoryRow
             v-for="deal in filteredDeals"

@@ -8,6 +8,7 @@ import HarvestImminentSection from '@/components/schedule/HarvestImminentSection
 import RecommendedVarietiesCarousel from '@/components/schedule/RecommendedVarietiesCarousel.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/utils/constants'
+import { getStageMeta } from '@/utils/dealHistory'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
@@ -96,7 +97,12 @@ const normalizeScheduleItem = (item = {}) => {
   }
 }
 
-const dealLabel = (ev) => ev?.docType || ev?.eventType || '거래 일정'
+const dealLabel = (ev) => {
+  if (ev?.docType) {
+    return getStageMeta(ev.docType).shortLabel
+  }
+  return ev?.eventType || '거래 일정'
+}
 
 const dealLabelWithOwner = (ev) => {
   const baseLabel = dealLabel(ev)
@@ -376,7 +382,7 @@ const scheduleDetailLinkItems = computed(() => {
     { key: 'ownerUserId', label: '소유자', value: eventItem.ownerUserId },
     { key: 'assigneeUserId', label: '담당자', value: eventItem.assigneeUserId },
     { key: 'clientId', label: '거래처', value: eventItem.clientId },
-    { key: 'dealId', label: '딜', value: eventItem.dealId },
+    { key: 'dealId', label: '거래', value: eventItem.dealId },
     { key: 'docType', label: '문서 타입', value: eventItem.docType },
     { key: 'eventType', label: '이벤트 타입', value: eventItem.eventType },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== '')
@@ -390,7 +396,7 @@ const scheduleDetailReferenceItems = computed(() => {
 
   return [
     { key: 'refDocId', label: '참조 문서 ID', value: eventItem.refDocId },
-    { key: 'refDealLogId', label: '참조 딜로그 ID', value: eventItem.refDealLogId },
+    { key: 'refDealLogId', label: '참조 거래 로그 ID', value: eventItem.refDealLogId },
     { key: 'externalKey', label: '외부 키', value: eventItem.externalKey },
   ].filter((item) => item.value !== null && item.value !== undefined && item.value !== '')
 })
@@ -1190,26 +1196,24 @@ onBeforeUnmount(() => {
 }
 
 .schedule-filter :deep(.schedule-filter-btn) {
+  padding: 6px 14px;
   border-radius: 10px;
   border: none;
   background: linear-gradient(135deg, rgba(250, 247, 243, 0.96) 0%, rgba(239, 234, 223, 0.96) 100%);
   color: var(--color-text-body, #6B5F50);
-  font-weight: 500;
-  box-shadow: 0 1px 2px rgba(61, 53, 41, 0.08);
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .schedule-filter :deep(.schedule-filter-btn:hover),
 .schedule-filter :deep(.schedule-filter-btn:focus-visible) {
-  background: linear-gradient(135deg, rgba(239, 234, 223, 0.95) 0%, rgba(200, 212, 160, 0.55) 100%);
+  background: var(--color-bg-section, #EFEADF);
   color: var(--color-text-strong, #3D3529);
-  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.12), 0 6px 14px rgba(61, 53, 41, 0.14);
 }
 
 .schedule-filter :deep(.schedule-filter-btn.is-active) {
   background: linear-gradient(120deg, rgba(200, 212, 160, 0.92) 0%, rgba(122, 140, 66, 0.48) 100%);
   color: var(--color-text-strong, #3D3529);
-  box-shadow: 0 0 0 4px rgba(122, 140, 66, 0.16), 0 6px 14px rgba(88, 104, 48, 0.2);
 }
 
 .schedule-filter :deep(.schedule-filter-btn:active) {

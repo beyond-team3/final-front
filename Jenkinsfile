@@ -35,8 +35,8 @@ spec:
 
 		ARGOCD_CREDENTIAL_ID = 'argocd-admin-login'
 		DISCORD_WEBHOOK = credentials('discord-webhook-url')
-		APP_VERSION_PREFIX = '0.0'
-		FINAL_TAG = ""
+
+		VITE_KAKAO_MAP_KEY = credentials('vite-kakao-map-key')
 	}
 
 	stages {
@@ -49,12 +49,12 @@ spec:
 		stage('Prepare Tag') {
 			steps {
 				script {
-					def gitCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-					def branchName = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-					if (branchName == "HEAD") { branchName = env.BRANCH_NAME ?: "main" }
+					sh 'git rev-parse --short HEAD > tag.txt'
 
-					env.FINAL_TAG = "0.0.${branchName.replaceAll('/', '-')}.${env.BUILD_NUMBER}.${gitCommit}"
-					echo "완벽하게 생성된 태그: ${env.FINAL_TAG}"
+					env.FINAL_TAG = readFile('tag.txt').trim()
+
+					echo "생성 태그: ${env.FINAL_TAG}"
+					sh 'rm tag.txt'
 				}
 			}
 		}
@@ -128,7 +128,7 @@ spec:
                             cd temp-manifests
                             git checkout ${targetBranch}
 
-                            sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
+                            sed -i "s|image: .*monsoon-frontend:.*|image: ${IMAGE_NAME}:${env.FINAL_TAG}|g" frontend/deployment.yml
 
                             git config user.email "jenkins-bot@monsoon.com"
                             git config user.name "Jenkins-CI-Bot"
@@ -152,14 +152,23 @@ spec:
 		stage('Notify Deployment') {
 			steps {
 				script {
-					if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
+					if (env.BRANCH_NAME == 'main') {
 						discordSend(
 							webhookURL: env.DISCORD_WEBHOOK,
-							title: "🚀 [Frontend] 배포 준비 완료 (${env.BRANCH_NAME})",
-							description: "도메인: https://www.monsoonseed.com\n새 버전(${env.FINAL_TAG}) 매니페스트가 성공적으로 업데이트되었습니다.\n ArgoCD가 곧 자동 동기화를 시작합니다!",
+							title: "🚀 [Frontend] Preview 배포 준비 완료 (main)",
+							description: """새 버전(${env.FINAL_TAG}) 매니페스트가 성공적으로 업데이트되었습니다.
+ArgoCD 동기화가 완료되면 아래 링크에서 새 API를 테스트해 주세요!
+
+👀 **미리보기(Preview) 도메인 (프론트/백엔드 연동):**
+https://preview.monsoonseed.com
+
+✅ **테스트 완료 후 실제 운영 배포 방법:**
+ArgoCD 대시보드에서 'monsoon-frontend' Rollout의 **[Promote]** 버튼을 누르거나,
+터미널에서 'kubectl argo rollouts promote monsoon-frontend -n monsoon-dev' 를 실행해 주세요. (무중단 전환)""",
 							result: 'SUCCESS'
 						)
-					} else {
+					}
+					else {
 						discordSend(
 							webhookURL: env.DISCORD_WEBHOOK,
 							title: "🟢 [Frontend] 빌드 성공 (${env.BRANCH_NAME})",

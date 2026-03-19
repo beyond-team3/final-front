@@ -126,11 +126,11 @@ const renderMarkdown = (text) => {
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
     <PageHeader 
-      :title="isEditMode ? '영업 활동 수정' : '영업 활동 기록'" 
+      :title="isEditMode ? '영업 노트 수정' : '영업 노트 작성'"
       subtitle="고객과의 미팅 내용을 기록하고 AI 분석을 수행합니다." 
     />
 
-    <article class="mx-auto max-w-4xl rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-8 lg:p-10 shadow-sm mt-6">
+    <article class="rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-8 lg:p-10 shadow-sm">
       <div class="space-y-8">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div class="flex flex-col gap-1">
@@ -182,7 +182,7 @@ const renderMarkdown = (text) => {
           <button 
             @click="saveNote" 
             :disabled="isLoading"
-            class="min-w-[200px] h-12 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center gap-3"
+            class="min-w-[200px] h-12 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center"
             :class="[
               isEditMode ? 'bg-[var(--color-orange)] hover:bg-[var(--color-orange-dark)]' : 'bg-[var(--color-olive)] hover:bg-[var(--color-olive-dark)]',
               { 'opacity-50 cursor-not-allowed shadow-none': isLoading }

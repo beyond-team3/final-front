@@ -30,6 +30,7 @@ const isSubmitting = ref(false)
 // ✅ 새로 추가: 진행 중인 계약 로드 상태
 const loadingContracts = ref(false)
 const contractsFromApi = ref([])
+const selectedContractDetail = ref(null)
 
 const isSalesRep = computed(() => authStore.currentRole === ROLES.SALES_REP)
 const isClient = computed(() => authStore.currentRole === ROLES.CLIENT)
@@ -50,12 +51,11 @@ const contractList = computed(() => {
 })
 
 const selectedContract = computed(() => {
+  if (selectedContractDetail.value) return selectedContractDetail.value  // ✅ 추가
   const contractId = selectedContractId.value
   if (!contractId) return null
-  // store에서 찾기
   const fromStore = documentStore.getContractById(contractId)
   if (fromStore) return fromStore
-  // store에 없으면 contractsFromApi에서 찾기
   return contractsFromApi.value.find(c => String(c.id) === contractId) || null
 })
 
@@ -74,18 +74,21 @@ const pipelineOptions = computed(() => {
 
 //  새로 추가: API에서 진행 중인 계약 로드
 const loadActiveContracts = async () => {
-  console.log('authStore.me:', authStore.me)
-  console.log('baseClientId:', baseClientId.value)
-  console.log('clientMaster:', documentStore.clientMaster)
-
   if (!baseClientId.value) return
 
   loadingContracts.value = true
   try {
     const response = await getContractsByClient(baseClientId.value)
-    const contracts = response.data?.data || response.data || []
-    if (Array.isArray(contracts) && contracts.length > 0) {
-      contractsFromApi.value = contracts
+    const raw = response.data?.data || response.data || []
+    if (Array.isArray(raw) && raw.length > 0) {
+      // ✅ 필드명 정규화
+      contractsFromApi.value = raw.map(c => ({
+        ...c,
+        id: c.id ?? c.docId,
+        contractCode: c.contractCode ?? c.docCode,
+        startDate: c.startDate ?? null,
+        endDate: c.endDate ?? c.expiredDate,
+      }))
     }
   } catch (error) {
     console.error('계약 로드 실패:', error)
@@ -97,16 +100,33 @@ const loadActiveContracts = async () => {
 onMounted(async () => {
   void historyStore.ensureLoaded()
 
-  // clientMaster가 비어있으면 먼저 로드
   if (documentStore.clientMaster.length === 0) {
     await documentStore.fetchClientMaster()
   }
 
-  void loadActiveContracts()  // clientMaster 로드 후 실행
+  // ✅ 이미 store에 있음 → 가져다 쓰기만 하면 됨
+  if (isClient.value) {
 
-  if (isClient.value && selectedContract.value) {
-    lineItems.value = selectedContract.value.items.map((item) => ({ ...item, quantity: 0 }))
+    // 혹시 아직 안 불러왔으면
+    if (!documentStore.myClient) {
+      await documentStore.fetchMyClient()
+    }
+
+    const client = documentStore.myClient
+
+    if (client) {
+      deliveryAddress.value = client.addressDetail || ''
+      deliveryAddressDetail.value = ''
+
+      deliveryRecipient.value =
+          client.managerName || client.clientName || ''
+
+      deliveryPhone.value =
+          client.managerPhone || client.companyPhone || ''
+    }
   }
+
+  void loadActiveContracts()
 })
 
 //  baseClientId 변경 시 계약 다시 로드
@@ -228,6 +248,7 @@ const onSelectContract = async (contract) => {
       return
     }
 
+    selectedContractDetail.value = detailContract
     selectedContractId.value = String(detailContract.id)
     selectedHistoryId.value = detailContract.historyId || ''
     selectedSalesRepName.value = detailContract.salesRepName || '-'
@@ -244,10 +265,6 @@ const onSelectContract = async (contract) => {
       }))
     }
 
-    deliveryRecipient.value = detailContract.clientName || ''
-    deliveryPhone.value = ''
-    deliveryAddress.value = ''
-
   } catch (error) {
     console.error('계약 상세 조회 실패:', error)
     window.alert('계약 정보 조회에 실패했습니다.')
@@ -259,7 +276,7 @@ const onSelectContract = async (contract) => {
   <div class="content-wrapper p-6" style="background-color: #EDE8DF; min-height: 100vh;">
     <div class="screen-content">
       <div class="mb-5 flex items-center justify-between border-b pb-4" style="border-color: #E8E3D8;">
-        <p class="text-sm" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">{{ isClient ? '주문서 작성' : '주문서' }}</span></p>
+        <p class="text-2xl" style="color: #9A8C7E;">문서 작성 > <span class="font-semibold" style="color: #3D3529;">{{ isClient ? '주문서 작성' : '주문서' }}</span></p>
         <button
             type="button"
             class="rounded px-3 py-2 text-sm font-semibold transition-colors hover:opacity-90"
@@ -763,7 +780,7 @@ const onSelectContract = async (contract) => {
   padding: 32px;
   min-height: 700px;
   border-radius: 2px;
-  font-family: 'KoPub Dotum', sans-serif;
+  font-family: var(--font-sans);
   font-size: 11px;
   color: #1a1a1a;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);

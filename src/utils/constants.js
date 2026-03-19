@@ -14,6 +14,7 @@ export const PRODUCT_CATEGORY = {
     TOMATO: '토마토/대목',
     SQUASH: '호박',
     ONION: '양파/파',
+    GARLIC: '마늘',
     CARROT: '당근',
     CORN: '옥수수',
     BEAN: '콩',
@@ -28,17 +29,18 @@ export const HEADER_MENU_CONFIG = [
 
 export const MENU_CONFIG = [
     { key: 'dashboard', label: '대시보드', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT], route: '/dashboard' },
-    { key: 'client-management', label: '거래처', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/clients' },
+    { key: 'client-management', label: '거래처 관리', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/clients' },
+    { key: 'employee-management', label: '사원 관리', roles: [ROLES.ADMIN], route: '/employees' },
     {
         key: 'sales-management',
         label: '문서 관리',
         roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT],
         children: [
-            { key: 'quote-request', label: '견적 요청서', route: '/documents/request', roles: [ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'quote', label: '견적서', route: '/documents/quotation', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
-            { key: 'contract', label: '계약서', route: '/documents/contract', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
-            { key: 'order', label: '주문서', route: '/documents/order', roles: [ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'statement', label: '청구서', route: '/documents/invoices', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
+            { key: 'quote-request', label: '견적 요청서 작성', route: '/documents/request', roles: [ROLES.CLIENT] },
+            { key: 'quote', label: '견적서 작성', route: '/documents/quotation', roles: [ROLES.SALES_REP] },
+            { key: 'contract', label: '계약서 작성', route: '/documents/contract', roles: [ROLES.SALES_REP] },
+            { key: 'order', label: '주문서 작성', route: '/documents/order', roles: [ROLES.CLIENT] },
+            { key: 'statement', label: '청구서 작성', route: '/documents/invoices', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
 
             { key: 'document-history', label: '영업 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
             { key: 'document-all', label: '모든 문서', route: '/documents/all', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
@@ -47,30 +49,26 @@ export const MENU_CONFIG = [
     },
     {
         key: 'product-management',
-        label: '상품',
+        label: '품종',
         roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT],
         children: [
             { key: 'variety', label: '품종 카탈로그', route: '/products/catalog', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'product-favorites', label: '즐겨찾기', route: '/products/favorites', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'product-compare', label: '상품 비교', route: '/products/compare', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
-            { key: 'product-register', label: '상품 등록', route: '/products/register', roles: [ROLES.ADMIN] },
+            { key: 'product-register', label: '품종 등록', route: '/products/register', roles: [ROLES.ADMIN] },
         ],
     },
-    { key: 'pest-map', label: '병해충+품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
-    { key: 'employee-management', label: '사원 관리', roles: [ROLES.ADMIN], route: '/employees' },
     {
         key: 'note',
-        label: '노트',
+        label: '영업 노트',
         roles: [ROLES.SALES_REP],
         children: [
             { key: 'note-main', label: '노트 작성', route: '/notes' },
-            { key: 'note-search', label: '노트 검색', route: '/notes/search' },
-            { key: 'note-briefing', label: 'AI 영업 브리핑', route: '/notes/briefing' },
-            { key: 'ragseed-analysis', label: 'RAGseed 분석', route: '/ragseed' },
+            { key: 'note-search', label: '노트 탐색', route: '/notes/search' },
+            { key: 'note-briefing', label: '영업 브리핑', route: '/notes/briefing' },
+            { key: 'ragseed-analysis', label: '영업 전략 분석', route: '/ragseed' },
         ],
     },
+    { key: 'pest-map', label: '병해충-품종 매칭 지도', route: '/pest-map', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
     { key: 'payment', label: '결제', roles: [ROLES.CLIENT], route: '/payment' },
-    { key: 'statistics', label: '통계', roles: [ROLES.SALES_REP, ROLES.ADMIN], route: '/statistics' },
 ]
 export const DOC_STATUS = {
     QUOTATION_REQUEST: {

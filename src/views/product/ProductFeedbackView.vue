@@ -154,7 +154,7 @@ const scrollToBottom = () => {
 
 <template>
   <section class="flex flex-col h-[calc(100vh-60px)]">
-    <PageHeader :title="product ? `${product.name} — 피드백 커뮤니티` : '피드백 커뮤니티'">
+    <PageHeader :title="product ? `${product.name} — 품종 피드백` : '품종 피드백'">
       <template #actions>
         <button
           type="button"
@@ -166,7 +166,7 @@ const scrollToBottom = () => {
       </template>
     </PageHeader>
 
-    <!-- 상품 요약 헤더 -->
+    <!-- 품종 요약 헤더 -->
     <div
       v-if="product"
       class="flex items-center gap-4 rounded-xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] p-4 shadow-sm mb-4"
@@ -281,7 +281,7 @@ const scrollToBottom = () => {
         v-model="draft"
         type="text"
         class="flex-1 h-11 rounded-lg border border-[var(--color-border-card)] px-4 text-sm focus:border-[var(--color-olive)] focus:outline-none"
-        placeholder="이 상품에 대한 영업 피드백을 남겨주세요..."
+        placeholder="이 품종에 대한 영업 피드백을 남겨주세요..."
         :disabled="isSubmitting"
         @keyup.enter="sendMessage"
       />

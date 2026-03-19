@@ -105,12 +105,17 @@ function onChange(event) {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 24px;
+  padding: 4px 8px;
   gap: 8px;
   cursor: pointer;
   user-select: none;
-  vertical-align: middle;
-  line-height: 1.2;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.cedar-checkbox:hover {
+  background-color: var(--cdr-color-background-input-default-hover, #f0f1ee);
 }
 
 .cedar-checkbox.is-disabled {
@@ -152,7 +157,8 @@ function onChange(event) {
 .cedar-checkbox__label {
   font-size: 14px;
   line-height: 20px;
-  color: #4b4a48;
+  font-weight: 500;
+  color: #3d3529;
 }
 
 .cedar-checkbox:hover .cedar-checkbox__figure {

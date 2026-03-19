@@ -37,9 +37,7 @@ const invoices = computed(() => {
     paymentId: payment.paymentId,
     paymentCode: payment.paymentCode,
     // 거래처명과 주문번호는 백엔드에서 안 주므로 임시로 처리
-    company: `거래처-${payment.paymentId}`,
     supply: payment.paymentAmount ? Math.round(payment.paymentAmount / 1.1) : 0,
-    orderNo: `ORD-${payment.invoiceCode.substring(5)}`,
     issueDate: payment.createdAt ? new Date(payment.createdAt).toLocaleDateString('ko-KR', {
       year: 'numeric',
       month: '2-digit',
@@ -151,8 +149,8 @@ onMounted(() => {
         <table v-else class="table">
           <thead>
           <tr>
-            <th>번호</th>
-            <th>거래처</th>
+            <th>청구서코드</th>
+            <th>결제코드</th>
             <th class="right">금액(부가세 포함)</th>
             <th>발행일</th>
             <th>상태</th>
@@ -165,8 +163,8 @@ onMounted(() => {
               :class="{ selected: invoice.id === selectedInvId, paid: invoice.status === 'paid' }"
               @click="selectInvoice(invoice.id)"
           >
-            <td>{{ invoice.id }}<br><small>{{ invoice.orderNo }}</small></td>
-            <td>{{ invoice.company }}</td>
+            <td>{{ invoice.id }}</td>
+            <td>{{ invoice.paymentCode }}</td>
             <td class="right">₩{{ (invoice.supply + Math.round(invoice.supply * 0.1)).toLocaleString() }}</td>
             <td>{{ invoice.issueDate }}</td>
             <td>
@@ -220,15 +218,19 @@ onMounted(() => {
         </div>
 
         <div class="actions">
-          <button type="button" class="btn-sub" @click="resetSelection">취소</button>
           <button
               type="button"
-              class="btn-primary"
+              class="rounded border px-4 py-2 text-sm font-semibold hover:opacity-90"
+              style="border-color:#DDD7CE;background-color:transparent;color:#6B5F50;"
+              @click="resetSelection"
+          >취소</button>
+          <button
+              type="button"
+              class="rounded px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              style="background-color:#4f6109;"
               :disabled="!canPay"
               @click="handlePay"
-          >
-            {{ isProcessing ? '처리 중...' : '결제 실행' }}
-          </button>
+          >{{ isProcessing ? '처리 중...' : '결제 실행' }}</button>
         </div>
       </section>
     </div>
@@ -258,32 +260,42 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.layout { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
-.card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 14px; }
-.card h3 { font-size: 15px; color: var(--color-text); font-weight: 700; margin-bottom: 10px; }
-.table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th { text-align: left; color: var(--color-muted); font-weight: 700; border-bottom: 1px solid var(--color-border); padding: 8px; }
-.table td { padding: 10px 8px; border-bottom: 1px solid #eef2f7; color: #334155; }
+.layout { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; }
+.card { background: var(--color-bg-card); border: 1px solid var(--color-border-card); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); }
+.card h3 { font-size: 18px; color: var(--color-text-strong); font-weight: 700; margin-bottom: 20px; border-bottom: 1px solid var(--color-border-divider); padding-bottom: 12px; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { text-align: left; color: var(--color-text-sub); font-weight: 700; border-bottom: 1px solid var(--color-border-divider); padding: 12px 8px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 12px; }
+.table td { padding: 16px 8px; border-bottom: 1px solid var(--color-border-divider); color: var(--color-text-body); }
 .table .right { text-align: right; }
-.table tr { cursor: pointer; }
-.table tr.selected { background: #f0f9ff; }
-.table tr.paid { background: #f8fafc; color: #94a3b8; cursor: default; }
-.status { border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 700; }
-.status.unpaid { background: #fef3c7; color: #92400e; }
-.status.paid { background: #dcfce7; color: #166534; }
-.empty { color: #94a3b8; padding: 30px 8px; text-align: center; }
-.rows { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 10px; }
-.rows p { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13px; color: #334155; }
-.rows p span { color: #64748b; font-weight: 700; }
-.rows p.total { border-top: 1px solid var(--color-border); margin-top: 4px; padding-top: 10px; font-size: 14px; font-weight: 800; }
-.method-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.method { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 10px 8px; background: #fff; font-size: 12px; font-weight: 700; color: #334155; cursor: pointer; transition: all 0.2s; }
-.method:disabled { opacity: 0.5; cursor: not-allowed; }
-.method.active { border-color: var(--color-accent); background: #fdf0ea; color: var(--color-accent); }
-.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.success-text { font-size: 15px; color: var(--color-text); font-weight: 700; }
-.success-message { margin-top: 8px; font-size: 13px; color: #475569; }
-.error-text { font-size: 15px; color: #991b1b; font-weight: 700; }
-.error-message { margin-top: 8px; font-size: 13px; color: #7c2d12; }
+.table tr { cursor: pointer; transition: background var(--transition-fast); }
+.table tr:hover { background: var(--color-bg-section); }
+.table tr.selected { background: var(--color-bg-section); border-left: 4px solid var(--color-olive); }
+.table tr.paid { background: transparent; opacity: 0.5; cursor: default; }
+.status { border-radius: var(--radius-full); padding: 4px 12px; font-size: 12px; font-weight: 700; }
+.status.unpaid { background: var(--color-orange-light); color: var(--color-orange-dark); }
+.status.paid { background: var(--color-olive-light); color: var(--color-olive-dark); }
+.empty { color: var(--color-text-placeholder); padding: 40px 8px; text-align: center; }
+.rows { background: var(--color-bg-section); border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px; }
+.rows p { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: var(--color-text-body); }
+.rows p span { color: var(--color-text-sub); font-weight: 700; }
+.rows p.total { border-top: 1px solid var(--color-border-card); margin-top: 8px; padding-top: 12px; font-size: 16px; font-weight: 800; color: var(--color-text-strong); }
+.method-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.method { border: 1px solid var(--color-border-card); border-radius: var(--radius-md); padding: 12px 8px; background: var(--color-bg-input); font-size: 13px; font-weight: 700; color: var(--color-text-body); cursor: pointer; transition: all 0.2s; }
+.method:hover:not(:disabled) { border-color: var(--color-olive); background: var(--color-surface); }
+.method:disabled { opacity: 0.4; cursor: not-allowed; }
+.method.active { border-color: var(--color-olive); background: var(--color-olive-light); color: var(--color-olive-dark); box-shadow: 0 0 0 2px var(--color-olive-light); }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.btn-primary { background: var(--color-olive); color: #fff; border: none; border-radius: var(--radius-md); padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm); }
+.btn-primary:hover:not(:disabled) { background: var(--color-olive-dark); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-primary:active:not(:disabled) { transform: translateY(0); box-shadow: var(--shadow-sm); }
+.btn-primary:disabled { background: var(--color-text-placeholder); opacity: 0.6; cursor: not-allowed; }
+
+.btn-sub { background: transparent; border: 1px solid var(--color-border-card); color: var(--color-text-body); border-radius: var(--radius-md); padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.btn-sub:hover { background: var(--color-bg-section); border-color: var(--color-text-sub); }
+
+.success-text { font-size: 18px; color: var(--color-olive-dark); font-weight: 700; }
+.success-message { margin-top: 12px; font-size: 14px; color: var(--color-text-body); background: var(--color-bg-section); padding: 12px; border-radius: var(--radius-md); }
+.error-text { font-size: 18px; color: var(--color-status-error); font-weight: 700; }
+.error-message { margin-top: 12px; font-size: 14px; color: var(--color-text-body); background: #FDECEC; padding: 12px; border-radius: var(--radius-md); }
 @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
 </style>

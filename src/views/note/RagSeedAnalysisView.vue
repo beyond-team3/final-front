@@ -13,18 +13,29 @@ const router = useRouter()
 // --- State ---
 const selectedClientId = ref('')
 const selectedContractId = ref('')
-const queryType = ref('RECAP') // RECAP, RISK, MATCHING, CHECKLIST
+const queryText = ref('') // Free text input
 const analysisResult = ref(null)
 const status = ref('IDLE') // IDLE, LOADING, SUCCESS, EMPTY, ERROR
 
 const selectedNote = ref(null)
 const showDetailModal = ref(false)
 
+const recommendedThemes = [
+  { label: '지난 맥락 요약', value: 'RECAP', display: '지난 맥락을 요약해줘' },
+  { label: '리스크 탐지', value: 'RISK', display: '영업 리스크를 탐지해줘' },
+  { label: '종자 매칭 전략', value: 'MATCHING', display: '맞춤형 종자 매칭 전략을 제안해줘' },
+  { label: '미팅 체크리스트', value: 'CHECKLIST', display: '다음 미팅을 위한 체크리스트를 만들어줘' }
+]
+
 // --- Computed ---
 const selectedClientName = computed(() => noteStore.getClientName(selectedClientId.value))
 const availableContracts = computed(() => noteStore.contractOptions)
 
 // --- Methods ---
+const setQuery = (theme) => {
+  queryText.value = theme.display
+}
+
 const handleClientChange = async () => {
   selectedContractId.value = ''
   if (selectedClientId.value) {
@@ -90,8 +101,7 @@ const formatObjectToMarkdown = (data) => {
 }
 
 const fetchAnalysis = async () => {
-  if (!selectedClientId.value) {
-    status.value = 'IDLE'
+  if (!selectedClientId.value || !queryText.value.trim()) {
     return
   }
 
@@ -99,15 +109,38 @@ const fetchAnalysis = async () => {
   analysisResult.value = null
 
   try {
+    // 추천 검색어 중 일치하는 항목이 있으면 value(상수)를 사용하고, 없으면 입력값 그대로 사용
+    const matchedTheme = recommendedThemes.find(t => t.display === queryText.value)
+    const finalQuery = matchedTheme ? matchedTheme.value : queryText.value
+
     const result = await noteStore.askRagSeed({
       clientId: selectedClientId.value,
       contractId: selectedContractId.value || 'NONE',
-      query: queryType.value
+      query: finalQuery
     })
 
     if (result && result.content) {
-      const raw = result.content
-      // 백엔드에서 JSON 객체 그대로 응답하므로, 객체일 경우 포맷터 적용 / 문자열일 경우 그대로 사용
+      let raw = result.content
+      
+      // 백엔드 AI가 JSON 문자열로 응답했을 경우를 대비한 파싱 처리
+      // 백엔드 AI가 JSON 문자열로 응답했을 경우를 대비한 파싱 처리
+      if (typeof raw === 'string' && (raw.trim().startsWith('{') || raw.trim().startsWith('['))) {
+        try {
+          const parsed = JSON.parse(raw)
+          // 명시적인 키 확인
+          raw = parsed.content || parsed.retrieval_strategy_markdown || parsed.response || parsed.summary || parsed.text || raw
+
+          // 만약 객체인데 위의 키가 없고 문자열 값이 하나만 있다면 그것을 추출
+          if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
+            const values = Object.values(raw).filter(v => typeof v === 'string')
+            if (values.length > 0) raw = values[0]
+          }
+        } catch (e) {
+          console.warn('Failed to parse AI response as JSON, using raw string.')
+        }
+      }
+
+      // 객체일 경우 포맷터 적용 / 문자열일 경우 그대로 사용
       const content = (typeof raw === 'object' && raw !== null) 
         ? formatObjectToMarkdown(raw) 
         : raw
@@ -170,75 +203,94 @@ onMounted(async () => {
 
 <template>
   <section class="min-h-screen bg-[var(--color-bg-base)] p-4 lg:p-8">
-    <!-- Header & Filter Bar -->
-    <div class="mb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between">
+    <!-- Header -->
+    <div class="mb-6">
       <PageHeader 
-        title="RAGseed 전략 분석" 
-        subtitle="영업 데이터(Seed)에서 인출한 AI 전략 리포트입니다." 
+        title="영업 전략 분석"
+        subtitle="AI 지식 엔진이 영업 노트와 품종 카탈로그를 실시간 분석하여 검증된 영업 전략을 생성합니다."
       />
-
-      <div class="flex flex-wrap gap-3 rounded-xl bg-[var(--color-bg-sidebar)] p-4 shadow-sm border border-[var(--color-border-card)]">
-        <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">거래처</label>
-          <select 
-            v-model="selectedClientId" 
-            @change="handleClientChange"
-            class="h-10 w-48 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
-          >
-            <option value="">거래처 선택</option>
-            <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">
-              {{ client.name }}
-            </option>
-          </select>
-        </div>
-
-        <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">계약 범위</label>
-          <select 
-            v-model="selectedContractId"
-            class="h-10 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
-            :disabled="!selectedClientId"
-          >
-            <option value="">전체</option>
-            <option v-for="contract in availableContracts" :key="contract.id" :value="contract.contractCode">
-              {{ contract.contractCode }}
-            </option>
-          </select>
-        </div>
-
-        <div class="flex flex-col gap-1">
-          <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">분석 테마</label>
-          <select 
-            v-model="queryType"
-            class="h-10 w-44 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm"
-          >
-            <option value="RECAP">지난 맥락 요약</option>
-            <option value="RISK">리스크 탐지</option>
-            <option value="MATCHING">종자 매칭 전략</option>
-            <option value="CHECKLIST">미팅 체크리스트</option>
-          </select>
-        </div>
-
-        <button 
-          @click="fetchAnalysis"
-          class="mt-auto h-10 rounded-lg bg-[var(--color-olive)] px-6 text-sm font-bold text-white transition-all hover:bg-[var(--color-olive-dark)] shadow-sm disabled:bg-gray-400"
-          :disabled="!selectedClientId || status === 'LOADING'"
-        >
-          <i v-if="status === 'LOADING'" class="fas fa-spinner fa-spin mr-2"></i>
-          분석 실행
-        </button>
-      </div>
     </div>
 
+    <!-- Filter Bar -->
+    <div class="mb-10 flex flex-col gap-4 rounded-xl bg-[var(--color-bg-sidebar)] p-5 shadow-sm border border-[var(--color-border-card)] w-full">
+      <div class="flex flex-wrap gap-4 items-end">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">거래처</label>
+            <select 
+              v-model="selectedClientId" 
+              @change="handleClientChange"
+              class="h-11 w-48 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm transition-all"
+            >
+              <option value="">거래처 선택</option>
+              <option v-for="client in noteStore.clients" :key="client.id" :value="client.id">
+                {{ client.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">계약 범위</label>
+            <select 
+              v-model="selectedContractId"
+              class="h-11 w-40 rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] px-3 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm transition-all"
+              :disabled="!selectedClientId"
+            >
+              <option value="">전체 계약</option>
+              <option v-for="contract in availableContracts" :key="contract.id" :value="contract.contractCode">
+                {{ contract.contractCode }}
+              </option>
+            </select>
+          </div>
+
+          <div class="flex flex-col gap-1.5 flex-1 min-w-[300px]">
+            <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">분석 요청 사항</label>
+            <div class="relative">
+              <input 
+                v-model="queryText"
+                type="text"
+                placeholder="어떤 분석이 필요하신가요? (직접 입력 가능)"
+                class="h-11 w-full rounded-lg border border-[var(--color-border-card)] bg-[var(--color-bg-input)] pl-4 pr-10 text-sm text-[var(--color-text-body)] outline-none focus:border-[var(--color-olive)] shadow-sm transition-all"
+                @keyup.enter="fetchAnalysis"
+              />
+              <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-placeholder)]"></i>
+            </div>
+          </div>
+
+          <button 
+            @click="fetchAnalysis"
+            class="h-11 rounded-lg bg-[var(--color-olive)] px-8 text-sm font-bold text-white transition-all hover:bg-[var(--color-olive-dark)] hover:shadow-md shadow-sm disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed group"
+            :disabled="!selectedClientId || !queryText.trim() || status === 'LOADING'"
+          >
+            <i v-if="status === 'LOADING'" class="fas fa-spinner fa-spin mr-2"></i>
+            <i v-else class="fas fa-magic opacity-80 group-hover:opacity-100 transition-opacity"></i>
+            분석 실행
+          </button>
+        </div>
+
+        <!-- 추천 검색어 배지 -->
+        <div class="flex flex-wrap items-center gap-2 pt-1">
+          <span class="text-[11px] font-bold text-[var(--color-text-placeholder)] uppercase mr-1">추천 검색어:</span>
+          <button
+            v-for="theme in recommendedThemes"
+            :key="theme.label"
+            type="button"
+            @click="setQuery(theme)"
+            class="rounded-full border border-[var(--color-border-card)] bg-white px-3.5 py-1.5 text-xs font-medium text-[var(--color-text-body)] transition-all hover:border-[var(--color-olive)] hover:text-[var(--color-olive)] hover:shadow-sm active:scale-95"
+          >
+            # {{ theme.label }}
+          </button>
+        </div>
+      </div>
+
     <!-- Main Content Area -->
-    <div class="mx-auto max-w-5xl">
+    <div class="">
       <!-- IDLE State -->
       <div v-if="status === 'IDLE'" class="flex flex-col items-center justify-center rounded-2xl border border-[var(--color-border-card)] bg-[var(--color-bg-card)] py-32 text-center shadow-sm">
         <div class="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-[var(--color-bg-base)]">
           <img :src="seedLogo" alt="Seed Logo" class="w-14 h-14 object-contain opacity-50" />
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">전략 인출 준비 완료</h3>
-        <p class="text-[var(--color-text-sub)]">분석할 거래처와 테마를 상단에서 선택해 주세요.</p>
+        <p class="text-[var(--color-text-sub)]">거래처를 선택하고 분석 요청 사항을 입력해 주세요.</p>
       </div>
 
       <!-- LOADING State -->
@@ -248,7 +300,7 @@ onMounted(async () => {
           <i class="fas fa-seedling absolute inset-0 flex items-center justify-center text-[var(--color-olive)]"></i>
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">영업 지식 베이스 분석 중...</h3>
-        <p class="text-[var(--color-text-sub)]">RAGseed 엔진이 최적의 비즈니스 전략을 생성하고 있습니다.</p>
+        <p class="text-[var(--color-text-sub)]">최적의 비즈니스 전략을 생성하고 있습니다.</p>
       </div>
 
       <!-- ERROR State -->
@@ -257,7 +309,7 @@ onMounted(async () => {
           <i class="fas fa-exclamation-triangle text-4xl"></i>
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">분석 도중 오류 발생</h3>
-        <p class="text-[var(--color-text-sub)]">AI 엔진과의 통신이 원활하지 않습니다. 다시 한 번 시도해 주세요.</p>
+        <p class="text-[var(--color-text-sub)]">AI 지식 엔진과의 통신이 원활하지 않습니다. 다시 한 번 시도해 주세요.</p>
       </div>
 
       <!-- EMPTY State -->
@@ -266,7 +318,7 @@ onMounted(async () => {
           <i class="fas fa-comment-slash text-4xl"></i>
         </div>
         <h3 class="mb-2 text-xl font-bold text-[var(--color-text-strong)]">분석 결과 없음</h3>
-        <p class="text-[var(--color-text-sub)]">선택한 범위 내에 분석할 수 있는 영업 활동 기록이 충분하지 않습니다.</p>
+        <p class="text-[var(--color-text-sub)]">해당 거래처에 대한 데이터가 부족하여 분석을 실행할 수 없습니다. 더 많은 영업 노트를 작성해 보세요.</p>
       </div>
 
       <!-- SUCCESS State -->
@@ -279,7 +331,7 @@ onMounted(async () => {
             <div class="mb-10 flex items-start justify-between border-b border-[var(--color-border-divider)] pb-8">
               <div>
                 <div class="mb-4 flex items-center gap-2">
-                  <span class="rounded-full bg-[var(--color-olive)] px-3 py-1 text-[10px] font-bold text-white uppercase tracking-widest">RAGseed Engine</span>
+<!--                  <span class="rounded-full bg-[var(&#45;&#45;color-olive)] px-3 py-1 text-[10px] font-bold text-white uppercase tracking-widest">RAGseed Engine</span>-->
 <!--                  <span class="text-[var(&#45;&#45;text-caption)] text-[var(&#45;&#45;color-text-placeholder)] font-medium">Verified Analysis</span>-->
                 </div>
                 <h3 class="text-4xl font-extrabold text-[var(--color-text-strong)]">{{ selectedClientName }} 전략 리포트</h3>
@@ -298,7 +350,7 @@ onMounted(async () => {
             ></div>
 
             <!-- Risk Highlight Area -->
-            <div v-if="queryType === 'RISK' || analysisResult.content.includes('위험') || analysisResult.content.includes('리스크')" class="mt-12 rounded-2xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/10 p-8 shadow-inner">
+            <div v-if="queryText.toUpperCase().includes('RISK') || queryText.includes('리스크') || analysisResult.content.includes('위험') || analysisResult.content.includes('리스크')" class="mt-12 rounded-2xl border border-[var(--color-status-error)]/20 bg-[var(--color-orange-light)]/10 p-8 shadow-inner">
               <h5 class="mb-4 flex items-center gap-3 font-bold text-[var(--color-status-error)] text-lg">
                 <i class="fas fa-shield-virus"></i>
                 집중 리스크 탐지 및 권고 사항

@@ -2,6 +2,7 @@ import {
   formatDate,
   formatDateTime,
   formatRelativeTime,
+  getDocumentStatusLabel,
   getStageMeta,
   getStatusMeta,
   toActionLabel,
@@ -62,8 +63,10 @@ function buildTimelineDescription(item) {
   if (item?.description) return item.description
 
   const stageLabel = getStageMeta(normalizeStageCode(item?.documentType || item?.docType)).label
+  const stageCode = normalizeStageCode(item?.documentType || item?.docType)
   const code = pick(item?.documentCode, item?.targetCode, item?.title, item?.eventType, `#${pick(item?.documentId, item?.id, '-')}`)
-  const statusLabel = getStatusMeta(normalizeStatus(item?.currentStatus || item?.status)).label
+  const normalizedStatus = normalizeStatus(item?.currentStatus || item?.status)
+  const statusLabel = getDocumentStatusLabel(stageCode, normalizedStatus)
   const actionLabel = toActionLabel(pick(item?.actionType, item?.type, item?.eventType, 'UPDATE'))
 
   return `${stageLabel} ${code} ${actionLabel} · ${statusLabel}`
@@ -92,7 +95,7 @@ export function mapDealV2SummaryToViewModel(raw = {}, makeSteps) {
     latestRefId: pick(snapshot.representativeDocumentId, raw.representativeDocumentId, null),
     stageOrder: stageMeta.order,
     currentStatus: status,
-    currentStatusLabel: statusMeta.label,
+    currentStatusLabel: getDocumentStatusLabel(stageCode, status),
     currentStatusTone: statusMeta.tone,
     railColor: statusColorByTone(statusMeta.tone),
     summaryMemo: pick(raw.summaryMemo, raw.dealTitle, ''),
@@ -150,7 +153,7 @@ export function mapDealV2DocumentsToTimelineItems(documents = []) {
         typeLabel: stageMeta.label,
         stageNumber: stageMeta.order,
         status,
-        statusLabel: statusMeta.label,
+        statusLabel: getDocumentStatusLabel(stageCode, status),
         actionType: 'UPDATE',
         actionLabel: '반영',
         actionAt,
@@ -187,7 +190,7 @@ export function mapDealV2NotificationsToTimelineItems(notifications = []) {
         statusLabel: isRead ? '확인됨' : '미확인',
         actorType: 'SYSTEM',
         actorId: null,
-        description: pick(item?.title, 'Deal 알림'),
+        description: pick(item?.title, '거래 알림'),
         color: isRead ? 'var(--color-status-info)' : 'var(--color-orange)',
       }
     })
@@ -216,7 +219,7 @@ export function mapDealV2SchedulesToTimelineItems(schedules = []) {
         statusLabel: getStatusMeta(normalizeStatus(item?.status, 'IN_PROGRESS')).label,
         actorType: 'SYSTEM',
         actorId: pick(item?.assigneeUserId, item?.ownerUserId, null),
-        description: `${pick(item?.title, '거래 일정')} · ${pick(item?.eventType, item?.docType, 'DEAL')}`,
+        description: `${pick(item?.title, '거래 일정')} · ${pick(item?.eventType, item?.docType, '거래')}`,
         color: 'var(--color-olive)',
       }
     })

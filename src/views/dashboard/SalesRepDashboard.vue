@@ -1,36 +1,55 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import DashboardCalendar from '@/components/dashboard/DashboardCalendar.vue'
 import DashboardReference from '@/components/dashboard/DashboardReference.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import { getSalesRepDashboard } from '@/api/dashboard'
+import { getSalesRepDashboard, getWeeklySchedules, getPriorityContacts } from '@/api/dashboard'
 
 const dashboard = ref(null)
+const router = useRouter()
+const priorityContacts = ref([])
 const loading = ref(false)
 const error = ref('')
+
+// 캘린더 전용 상태
+const calendarData    = ref(null)
+const calendarLoading = ref(false)
+
 const selectedTimelineFilter = ref('전체')
 
-const timelineFilters = computed(() => dashboard.value?.timelineFilters ?? ['전체', '견적', '계약', '주문'])
-const monthlyBars = computed(() => dashboard.value?.monthlyBars ?? [])
-const billings = computed(() => (dashboard.value?.billings ?? []).slice(0, 3))
-const timeline = computed(() => dashboard.value?.timeline ?? [])
-const headerTitle = computed(() => dashboard.value?.header?.title || '내 영업 현황')
-const headerSubtitle = computed(() => dashboard.value?.header?.subtitle || '')
-const periodLabel = computed(() => dashboard.value?.monthlySales?.periodLabel || '')
-const monthlyAmount = computed(() => dashboard.value?.monthlySales?.amount || '-')
-const monthlyChange = computed(() => dashboard.value?.monthlySales?.change || '-')
-const monthlyDiff = computed(() => dashboard.value?.monthlySales?.diff || '-')
+const timelineFilters  = computed(() => dashboard.value?.timelineFilters ?? ['전체', '견적', '계약', '주문'])
+const monthlyBars      = computed(() => dashboard.value?.monthlyBars ?? [])
+const billings         = computed(() => (dashboard.value?.billings ?? []).slice(0, 3))
+const timeline         = computed(() => dashboard.value?.timeline ?? [])
+const headerTitle      = computed(() => dashboard.value?.header?.title || '내 영업 현황')
+const headerSubtitle   = computed(() => dashboard.value?.header?.subtitle || '')
+const periodLabel      = computed(() => dashboard.value?.monthlySales?.periodLabel || '')
+const monthlyAmount    = computed(() => dashboard.value?.monthlySales?.amount || '-')
+const monthlyChange    = computed(() => dashboard.value?.monthlySales?.change || '-')
+const monthlyDiff      = computed(() => dashboard.value?.monthlySales?.diff || '-')
 const monthlyCompleted = computed(() => dashboard.value?.monthlySales?.completedCount || '-')
-const hasData = computed(() => monthlyBars.value.length || billings.value.length || timeline.value.length)
+const hasData = computed(() => monthlyBars.value.length || billings.value.length || timeline.value.length || priorityContacts.value.length)
+
+// 캘린더 props (API 데이터 우선, 없으면 컴포넌트 default 사용)
+const calendarBadge    = computed(() => calendarData.value?.badge    ?? undefined)
+const calendarWeekDays = computed(() => calendarData.value?.weekDays ?? undefined)
+const calendarDayEvents= computed(() => calendarData.value?.dayEvents ?? undefined)
+const calendarListEvents=computed(() => calendarData.value?.listEvents ?? undefined)
 
 const fetchDashboard = async () => {
   loading.value = true
-  error.value = ''
+  error.value   = ''
 
   try {
-    dashboard.value = await getSalesRepDashboard()
+    const [dashData, priorityData] = await Promise.all([
+      getSalesRepDashboard(),
+      getPriorityContacts()
+    ])
+    dashboard.value = dashData
+    priorityContacts.value = priorityData.slice(0, 5) // Top 5
   } catch (e) {
     error.value = e?.response?.data?.message || e?.message || '대시보드 데이터를 불러오지 못했습니다.'
   } finally {
@@ -38,7 +57,21 @@ const fetchDashboard = async () => {
   }
 }
 
-onMounted(fetchDashboard)
+const fetchCalendar = async () => {
+  calendarLoading.value = true
+  try {
+    calendarData.value = await getWeeklySchedules()
+  } catch {
+    // 캘린더 실패 시 컴포넌트 default 값으로 fallback (무시)
+  } finally {
+    calendarLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchDashboard()
+  fetchCalendar()
+})
 </script>
 
 <template>
@@ -66,7 +99,16 @@ onMounted(fetchDashboard)
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">개인 월별 매출</span>
-          <span class="panel-badge">{{ periodLabel }}</span>
+          <div class="flex items-center gap-2">
+            <span class="panel-badge">{{ periodLabel }}</span>
+            <button
+                class="text-[11px] font-bold text-[#D97757] hover:underline flex items-center gap-1"
+                @click="router.push('/statistics')"
+            >
+              상세 통계 보기
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
         </div>
         <div class="monthly-sales-summary">
           <div class="monthly-main-row">
@@ -105,6 +147,8 @@ onMounted(fetchDashboard)
               :key="item.docNo"
               class="billing-item"
               :class="`status-${item.type}`"
+              style="cursor: pointer;"
+              @click="router.push({ path: '/documents/all', query: { keyword: item.docNo } })"
           >
             <div class="billing-left">
               <div class="billing-client">{{ item.client }}</div>
@@ -120,7 +164,7 @@ onMounted(fetchDashboard)
     </div>
 
     <div class="dashboard-grid-bottom">
-      <DashboardReference />
+      <DashboardReference :items="priorityContacts" />
 
       <div class="panel">
         <div class="timeline-header-row">
@@ -128,7 +172,14 @@ onMounted(fetchDashboard)
         </div>
 
         <div class="timeline-list">
-          <div v-for="item in timeline" :key="item.title" class="timeline-item" :class="item.state">
+          <div
+              v-for="item in timeline"
+              :key="item.title"
+              class="timeline-item"
+              :class="item.state"
+              style="cursor: pointer;"
+              @click="router.push(`/history/pipeline/${item.dealId}`)"
+          >
             <div class="timeline-date">{{ item.date }}</div>
             <div class="timeline-content">
               <div class="timeline-content-title">{{ item.title }}</div>
@@ -138,7 +189,15 @@ onMounted(fetchDashboard)
         </div>
       </div>
 
-      <DashboardCalendar />
+      <!-- 캘린더: 데이터 있으면 props로 전달, 없으면 컴포넌트 default 사용 -->
+      <DashboardCalendar
+          v-bind="calendarData ? {
+            badge:      calendarBadge,
+            weekDays:   calendarWeekDays,
+            dayEvents:  calendarDayEvents,
+            listEvents: calendarListEvents,
+          } : {}"
+      />
     </div>
   </section>
 </template>
@@ -255,10 +314,6 @@ onMounted(fetchDashboard)
   margin-bottom: 18px;
   flex-shrink: 0;
 }
-.timeline-filter     { display: flex; gap: 6px; }
-.timeline-filter-btn { padding: 4px 10px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
-.timeline-filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
-
 .timeline-list {
   position: relative;
   padding-left: 28px;

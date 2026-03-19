@@ -168,7 +168,7 @@ const formatDate = (dateStr) => {
 
     <!-- Header -->
     <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
-      <PageHeader title="AI 영업 브리핑" subtitle="거래처별 핵심 활동과 전략 인사이트를 제공합니다." />
+      <PageHeader title="영업 브리핑" subtitle="AI가 누적된 영업 데이터를 분석하여 거래처별 핵심 현황과 맞춤형 대응 전략을 브리핑합니다." />
       
       <div class="flex flex-col gap-1 w-full lg:w-64">
         <label class="text-[var(--text-caption)] font-bold text-[var(--color-text-sub)] uppercase tracking-wider">브리핑 대상</label>

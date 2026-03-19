@@ -545,7 +545,7 @@ onUnmounted(() => {
               </div>
             </template>
             <div v-if="(isCropEditing ? tempCrops.length : clientCrops.length) === 0" class="flex w-full flex-col items-center justify-center py-4 text-sm text-[var(--color-text-placeholder)]">
-              <span class="mb-1 text-2xl">🌿</span>
+              <img src="@/assets/images/Seed_logo.png" alt="Seed Logo" class="mb-2 h-10 w-auto opacity-20 grayscale" />
               등록된 품종이 없습니다.
             </div>
           </div>
@@ -559,7 +559,7 @@ onUnmounted(() => {
           :loading="historyStore.loading"
           :error="historyStore.error"
           :show-client-filter="false"
-          search-placeholder="담당자명, deal 번호, 문서코드 검색"
+          search-placeholder="담당자명, 거래 번호, 문서코드 검색"
           empty-title="영업 히스토리가 없습니다."
           :empty-description="isAdmin ? '해당 거래처에 연결된 히스토리가 없습니다.' : '본인이 담당한 거래 히스토리가 없습니다.'"
           @retry="fetchScopedHistory"

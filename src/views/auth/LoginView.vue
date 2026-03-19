@@ -20,6 +20,12 @@ const showForm = () => {
   isFormVisible.value = true
 }
 
+const setAccount = (id, pw) => {
+  loginId.value = id
+  loginPw.value = pw
+  errorMessage.value = ''
+}
+
 const onSubmit = async () => {
   if (!loginId.value.trim() || !loginPw.value.trim()) {
     errorMessage.value = 'ID와 PW를 확인해주세요'
@@ -74,7 +80,7 @@ const onSubmit = async () => {
         <div class="bg-[var(--color-surface)] rounded-3xl p-8 pt-10 card-shadow border border-[var(--color-border)] relative z-20 form-anim">
           <div class="text-center mb-8">
             <h2 class="text-2xl font-bold text-[var(--color-text)] tracking-tight">반갑습니다!</h2>
-            <p class="text-sm text-[var(--color-muted)] mt-2">MonSoon 시스템에 오신 것을 환영합니다.</p>
+            <p class="text-sm text-[var(--color-muted)] mt-2">SeedFlow+ 시스템에 오신 것을 환영합니다.</p>
           </div>
 
           <form class="space-y-5" @submit.prevent="onSubmit">
@@ -122,6 +128,24 @@ const onSubmit = async () => {
                 <p class="text-sm font-medium text-red-600">{{ errorMessage || error }}</p>
               </div>
             </transition>
+
+            <div class="mt-8 pt-6 border-t border-[var(--color-border)] opacity-60">
+              <p class="text-[11px] font-bold text-[var(--color-muted)] mb-3 uppercase tracking-wider">Test Accounts (Click to autofill)</p>
+              <div class="space-y-2 text-[12px] text-[var(--color-muted)] font-medium">
+                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('EMP-0001', 'qwer1234')">
+                  <span>관리자</span>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">EMP-0001 / qwer1234</code>
+                </div>
+                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('EMP-0003', 'qwer1234')">
+                  <span>영업사원</span>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">EMP-0003 / qwer1234</code>
+                </div>
+                <div class="flex justify-between items-center cursor-pointer hover:text-[var(--color-accent)] transition-colors group/item" @click="setAccount('CLNT-0003', 'qwer1234')">
+                  <span>거래처</span>
+                  <code class="bg-[#FAF9F6] px-1.5 py-0.5 rounded border border-[var(--color-border)] group-hover/item:border-[var(--color-accent)] group-hover/item:bg-[var(--color-olive-light)] transition-all">CLNT-0003 / qwer1234</code>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
       </div>

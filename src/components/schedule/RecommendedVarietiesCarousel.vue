@@ -35,10 +35,31 @@ const emit = defineEmits(['retry', 'select-product'])
 
 const activeIndex = ref(0)
 const failedImageMap = ref({})
-
+// Calculate Visible Dots (Sliding window of 5 dots)
+const MAX_VISIBLE_DOTS = 5
 const safeItems = computed(() => (Array.isArray(props.items) ? props.items : []))
 const currentItem = computed(() => safeItems.value[activeIndex.value] || null)
 const hasMultipleItems = computed(() => safeItems.value.length > 1)
+
+const visibleDots = computed(() => {
+  if (safeItems.value.length <= MAX_VISIBLE_DOTS) {
+    // Show all dots if total items are 5 or fewer
+    return safeItems.value.map((_, i) => i)
+  }
+
+  // 활성 도트가 5번째(마지막) 자리에 오도록 윈도우를 밀어내는 방식 (Push-to-scroll)
+  // 1~4번째까지는 가만히 있다가 5번째부터 옆으로 밀리게 되어 기준점이 되어 넘어가는 느낌을 줍니다.
+  let start = activeIndex.value - (MAX_VISIBLE_DOTS - 1)
+
+  // Boundary checks to ensure exactly 5 dots display
+  if (start < 0) {
+    start = 0
+  } else if (start + MAX_VISIBLE_DOTS > safeItems.value.length) {
+    start = safeItems.value.length - MAX_VISIBLE_DOTS
+  }
+
+  return Array.from({ length: MAX_VISIBLE_DOTS }, (_, i) => start + i)
+})
 
 let autoSlideTimer = null
 
@@ -90,6 +111,13 @@ const markImageFailed = (productId) => {
 }
 
 const hasValidImage = (item) => Boolean(item?.imageUrl) && !failedImageMap.value[item.productId]
+
+watch(
+  () => [props.month, props.nextMonth],
+  () => {
+    failedImageMap.value = {}
+  },
+)
 
 watch(
   () => [props.month, safeItems.value.length],
@@ -210,14 +238,14 @@ onBeforeUnmount(() => {
 
         <div v-if="hasMultipleItems" class="carousel-dots" role="group" aria-label="추천 품종 슬라이드 선택">
           <button
-            v-for="(item, index) in safeItems"
-            :key="item.productId || index"
+            v-for="idx in visibleDots"
+            :key="safeItems[idx]?.productId || idx"
             type="button"
             class="carousel-dot"
-            :class="{ active: index === activeIndex }"
-            :aria-label="`${item.productName} 보기`"
-            :aria-pressed="index === activeIndex"
-            @click="selectIndex(index)"
+            :class="{ active: idx === activeIndex }"
+            :aria-label="`${safeItems[idx]?.productName} 보기`"
+            :aria-pressed="idx === activeIndex"
+            @click="selectIndex(idx)"
           />
         </div>
       </div>
@@ -386,6 +414,7 @@ onBeforeUnmount(() => {
   line-height: 1.6;
   display: -webkit-box;
   overflow: hidden;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }

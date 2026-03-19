@@ -104,7 +104,7 @@ const submitPassword = async () => {
 
 <template>
   <section class="min-h-[calc(100vh-80px)] bg-[var(--color-bg-base)] px-4 py-6 lg:px-8 lg:py-10 text-[var(--font-body)]">
-    <div class="mx-auto max-w-[1000px] space-y-6">
+    <div class="space-y-6">
       <PageHeader title="계정 상세 조회" subtitle="내 계정 정보를 확인하고 보안 설정을 관리합니다.">
         <template #actions>
           <button
