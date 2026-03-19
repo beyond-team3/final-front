@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDocumentSummaries } from '@/api/document'
+import { getPaymentDetail } from '@/api/payment'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorMessage from '@/components/common/ErrorMessage.vue'
 import HistoryModal from '@/components/history/HistoryModal.vue'
@@ -23,6 +24,7 @@ const selectedDoc = ref(null)
 const summaryDocuments = ref([])
 const summaryLoading = ref(false)
 const summaryError = ref('')
+const paymentAmountMap = ref(new Map())
 
 const normalizeTab = (tab) => {
   const map = {
@@ -70,7 +72,7 @@ const normalizePageResponse = (response) => {
 }
 
 const summaryDocumentMap = computed(() => new Map(
-  summaryDocuments.value.map((doc) => [`${String(doc.docType || '').toUpperCase()}-${String(doc.docId)}`, doc]),
+    summaryDocuments.value.map((doc) => [`${String(doc.docType || '').toUpperCase()}-${String(doc.docId)}`, doc]),
 ))
 
 const stepsData = computed(() => {
@@ -88,7 +90,9 @@ const documents = computed(() => (pipeline.value?.documents || []).map((doc) => 
   const statusClass = statusText.includes('완료') || statusText.includes('발행')
       ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]'
       : 'bg-[var(--color-orange-light)] text-[var(--color-orange-dark)]'
-  const amount = summary?.amount ?? doc.amount
+  const amount = summary?.amount
+      ?? (doc.type === 'PAY' ? paymentAmountMap.value.get(String(doc.id)) : null)
+      ?? doc.amount
   const createdAt = summary?.createdAt || doc.actionAt || null
 
   return {
@@ -128,6 +132,21 @@ const loadSummaryDocuments = async () => {
   } finally {
     summaryLoading.value = false
   }
+}
+
+const loadPaymentAmounts = async () => {
+  const payDocs = (pipeline.value?.documents || []).filter((doc) => doc.type === 'PAY')
+  if (payDocs.length === 0) return
+
+  await Promise.all(payDocs.map(async (doc) => {
+    try {
+      const response = await getPaymentDetail(doc.id)
+      const amount = response?.data?.data?.paymentAmount ?? response?.data?.paymentAmount ?? null
+      paymentAmountMap.value.set(String(doc.id), amount)
+    } catch {
+      // 실패 시 무시
+    }
+  }))
 }
 
 const filteredDocs = computed(() => {
@@ -217,7 +236,9 @@ onMounted(() => {
   if (!pipeline.value) {
     void historyStore.fetchPipelines().then(() => {
       if (typeof route.query.pipelineId === 'string') {
-        void historyStore.ensureDealLogs(route.query.pipelineId)
+        void historyStore.ensureDealLogs(route.query.pipelineId).then(() => {
+          void loadPaymentAmounts()
+        })
         void loadSummaryDocuments()
       }
     })
@@ -225,127 +246,132 @@ onMounted(() => {
   }
 
   if (typeof route.query.pipelineId === 'string') {
-    void historyStore.ensureDealLogs(route.query.pipelineId)
+    void historyStore.ensureDealLogs(route.query.pipelineId).then(() => {
+      void loadPaymentAmounts()
+    })
     void loadSummaryDocuments()
   }
 })
 
 watch(() => route.query.pipelineId, () => {
   void loadSummaryDocuments()
+  void historyStore.ensureDealLogs(route.query.pipelineId).then(() => {
+    void loadPaymentAmounts()
+  })
 })
 </script>
 
 <template>
-      <section class="screen-content">
-      <section v-if="isPageLoading" class="flex justify-center p-20">
-        <LoadingSpinner text="문서 목록을 불러오는 중입니다." />
-      </section>
-      <ErrorMessage v-else-if="pageError" :message="pageError" @retry="retryPageLoad" />
-      <EmptyState
-          v-else-if="!pipeline"
-          title="파이프라인 문서를 찾을 수 없습니다."
-          description="히스토리 화면에서 파이프라인을 다시 선택해주세요."
-      />
-      <template v-else>
-        <header class="mb-6 flex items-center gap-4 border-b border-[var(--color-border-divider)] pb-4">
-          <button type="button" class="rounded-lg p-2 text-xl hover:bg-[var(--color-bg-section)]" @click="goBack">←</button>
-          <div>
-            <p class="text-sm text-[var(--color-text-sub)]">현재 위치: {{ pipeline.clientName }} > {{ currentTab }}</p>
-            <h2 class="text-2xl font-semibold text-[var(--color-text-strong)]">{{ pageTitle }}</h2>
-            <p class="mt-1 text-xs text-[var(--color-text-sub)]">현재 진행 단계: {{ currentStageLabel || '-' }}</p>
-          </div>
-        </header>
+  <section class="screen-content">
+    <section v-if="isPageLoading" class="flex justify-center p-20">
+      <LoadingSpinner text="문서 목록을 불러오는 중입니다." />
+    </section>
+    <ErrorMessage v-else-if="pageError" :message="pageError" @retry="retryPageLoad" />
+    <EmptyState
+        v-else-if="!pipeline"
+        title="파이프라인 문서를 찾을 수 없습니다."
+        description="히스토리 화면에서 파이프라인을 다시 선택해주세요."
+    />
+    <template v-else>
+      <header class="mb-6 flex items-center gap-4 border-b border-[var(--color-border-divider)] pb-4">
+        <button type="button" class="rounded-lg p-2 text-xl hover:bg-[var(--color-bg-section)]" @click="goBack">←</button>
+        <div>
+          <p class="text-sm text-[var(--color-text-sub)]">현재 위치: {{ pipeline.clientName }} > {{ currentTab }}</p>
+          <h2 class="text-2xl font-semibold text-[var(--color-text-strong)]">{{ pageTitle }}</h2>
+          <p class="mt-1 text-xs text-[var(--color-text-sub)]">현재 진행 단계: {{ currentStageLabel || '-' }}</p>
+        </div>
+      </header>
 
-        <section class="mb-6 overflow-x-auto rounded-[20px] border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-section);">
-          <div class="flex min-w-[680px] items-start justify-between gap-2">
-            <button
-                v-for="step in stepsData"
-                :key="step.name"
-                type="button"
-                class="group relative flex flex-1 flex-col items-center gap-2 px-1"
-                @click="setTab(step.name)"
-            >
+      <section class="mb-6 overflow-x-auto rounded-[20px] border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-section);">
+        <div class="flex min-w-[680px] items-start justify-between gap-2">
+          <button
+              v-for="step in stepsData"
+              :key="step.name"
+              type="button"
+              class="group relative flex flex-1 flex-col items-center gap-2 px-1"
+              @click="setTab(step.name)"
+          >
               <span class="flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-sm font-semibold transition-all" :class="stepClass(step.status)">
                 {{ STEP_SHORT_LABEL[step.name] || step.name.slice(0, 1) }}
               </span>
-              <span class="text-center text-xs font-medium" :class="stepLabelClass(step.name)">
+            <span class="text-center text-xs font-medium" :class="stepLabelClass(step.name)">
                 {{ step.name }}
               </span>
-            </button>
-          </div>
-        </section>
-
-        <section class="mb-6 flex gap-2 rounded-[20px] border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-section);">
-          <input
-              v-model="searchText"
-              type="text"
-              class="flex-1 rounded-lg border border-[var(--color-border-card)] px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-olive)] focus:outline-none"
-              style="background-color: var(--color-bg-input);"
-              placeholder="문서코드로 검색해주세요"
-          >
-          <button
-              type="button"
-              class="rounded-lg bg-[var(--color-orange)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-orange-dark)]"
-              @click="applySearch"
-          >
-            검색
           </button>
-        </section>
-
-        <section class="overflow-hidden rounded-lg border border-[var(--color-border-card)] shadow-sm" style="background-color: var(--color-bg-card);">
-          <table v-if="filteredDocs.length > 0" class="w-full border-collapse text-sm">
-            <thead>
-            <tr class="text-left text-[var(--color-text-sub)]" style="background-color: var(--color-bg-section);">
-              <th class="px-6 py-3 font-semibold">문서코드</th>
-              <th class="px-6 py-3 font-semibold">작성일</th>
-              <th class="px-6 py-3 font-semibold">금액</th>
-              <th class="px-6 py-3 font-semibold">상태</th>
-              <th class="px-6 py-3 font-semibold">상세</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr
-                v-for="doc in filteredDocs"
-                :key="doc.id"
-                class="cursor-pointer border-t border-[var(--color-border-divider)] transition-colors hover:bg-[var(--color-bg-section)]"
-                @click="openDetail(doc)"
-            >
-              <td class="px-6 py-4 font-medium text-[var(--color-olive)]">{{ doc.displayCode }}</td>
-              <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.date }}</td>
-              <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.amount }}</td>
-              <td class="px-6 py-4">
-                <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="doc.statusClass">{{ doc.statusLabel }}</span>
-              </td>
-              <td class="px-6 py-4">
-                <button
-                    type="button"
-                    class="rounded bg-[var(--color-orange)] px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-[var(--color-orange-dark)]"
-                    @click.stop="openDetail(doc)"
-                >
-                  보기
-                </button>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-
-          <div v-else class="p-16 text-center text-[var(--color-text-placeholder)]">
-            <p class="mb-2 text-base font-bold">데이터가 없습니다</p>
-            <p class="text-sm">작성된 {{ currentTab }}가 없습니다.</p>
-          </div>
-        </section>
-
-        <HistoryModal
-            v-model="isModalOpen"
-            :title="selectedDoc ? selectedDoc.displayCode : '문서코드'"
-            :doc-id="selectedDoc ? String(selectedDoc.id) : ''"
-            :doc-type="selectedDoc ? String(selectedDoc.type) : ''"
-            :mode="modalMode"
-            :show-download="canDownload"
-            :hide-remark="shouldHideRemark"
-            :remark="selectedDoc ? selectedDoc.remark : ''"
-            :reject-reason="selectedDoc ? selectedDoc.rejectReason : ''"
-        />
-      </template>
+        </div>
       </section>
+
+      <section class="mb-6 flex gap-2 rounded-[20px] border border-[var(--color-border-card)] p-4 shadow-sm" style="background-color: var(--color-bg-section);">
+        <input
+            v-model="searchText"
+            type="text"
+            class="flex-1 rounded-lg border border-[var(--color-border-card)] px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-olive)] focus:outline-none"
+            style="background-color: var(--color-bg-input);"
+            placeholder="문서코드로 검색해주세요"
+        >
+        <button
+            type="button"
+            class="rounded-lg bg-[var(--color-orange)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--color-orange-dark)]"
+            @click="applySearch"
+        >
+          검색
+        </button>
+      </section>
+
+      <section class="overflow-hidden rounded-lg border border-[var(--color-border-card)] shadow-sm" style="background-color: var(--color-bg-card);">
+        <table v-if="filteredDocs.length > 0" class="w-full border-collapse text-sm">
+          <thead>
+          <tr class="text-left text-[var(--color-text-sub)]" style="background-color: var(--color-bg-section);">
+            <th class="px-6 py-3 font-semibold">문서코드</th>
+            <th class="px-6 py-3 font-semibold">작성일</th>
+            <th class="px-6 py-3 font-semibold">금액</th>
+            <th class="px-6 py-3 font-semibold">상태</th>
+            <th class="px-6 py-3 font-semibold">상세</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr
+              v-for="doc in filteredDocs"
+              :key="doc.id"
+              class="cursor-pointer border-t border-[var(--color-border-divider)] transition-colors hover:bg-[var(--color-bg-section)]"
+              @click="openDetail(doc)"
+          >
+            <td class="px-6 py-4 font-medium text-[var(--color-olive)]">{{ doc.displayCode }}</td>
+            <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.date }}</td>
+            <td class="px-6 py-4 text-[var(--color-text-body)]">{{ doc.amount }}</td>
+            <td class="px-6 py-4">
+              <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="doc.statusClass">{{ doc.statusLabel }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <button
+                  type="button"
+                  class="rounded bg-[var(--color-orange)] px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-[var(--color-orange-dark)]"
+                  @click.stop="openDetail(doc)"
+              >
+                보기
+              </button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+
+        <div v-else class="p-16 text-center text-[var(--color-text-placeholder)]">
+          <p class="mb-2 text-base font-bold">데이터가 없습니다</p>
+          <p class="text-sm">작성된 {{ currentTab }}가 없습니다.</p>
+        </div>
+      </section>
+
+      <HistoryModal
+          v-model="isModalOpen"
+          :title="selectedDoc ? selectedDoc.displayCode : '문서코드'"
+          :doc-id="selectedDoc ? String(selectedDoc.id) : ''"
+          :doc-type="selectedDoc ? String(selectedDoc.type) : ''"
+          :mode="modalMode"
+          :show-download="canDownload"
+          :hide-remark="shouldHideRemark"
+          :remark="selectedDoc ? selectedDoc.remark : ''"
+          :reject-reason="selectedDoc ? selectedDoc.rejectReason : ''"
+      />
+    </template>
+  </section>
 </template>
