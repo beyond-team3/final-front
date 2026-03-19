@@ -94,7 +94,7 @@ const renderChart = async () => {
           tooltip: {
             callbacks: {
               label: (ctx) =>
-                  ctx.parsed.y !== null ? ` ${ctx.dataset.label}: ₩${ctx.parsed.y.toLocaleString()}만` : '',
+                  ctx.parsed.y !== null ? ` ${ctx.dataset.label}: ₩${ctx.parsed.y.toLocaleString()}원` : '',
             },
           },
         },
@@ -105,12 +105,16 @@ const renderChart = async () => {
           },
           y: {
             grid: { color: 'rgba(0,0,0,0.06)' },
+            beginAtZero: true,
             ticks: {
               font: { size: 12, family: "'KoPub Dotum', sans-serif" },
               color: '#A8A29E',
-              callback: (v) => `₩${(v / 100).toFixed(0)}억`,
+              callback: (v) => {
+                if (v >= 100_000_000) return `₩${(v / 100_000_000).toFixed(1)}억`
+                if (v >= 10_000)      return `₩${(v / 10_000).toFixed(0)}만`
+                return `₩${v.toLocaleString()}`
+              },
             },
-            beginAtZero: false,
           },
         },
       },
@@ -307,8 +311,8 @@ onMounted(() => {
           <div class="operation-header" style="cursor: pointer;" @click="router.push('/approval')">
             <h3 class="operation-title">최근 승인 요청</h3>
             <span class="operation-badge">
-      {{ approvals.length }}<template v-if="approvalsTotalCount > 5"><span class="text-xs"> / {{ approvalsTotalCount }}</span></template>
-    </span>
+              {{ approvals.length }}<template v-if="approvalsTotalCount > 5"><span class="text-xs"> / {{ approvalsTotalCount }}</span></template>
+            </span>
           </div>
           <div class="operation-list">
             <div
@@ -372,7 +376,6 @@ onMounted(() => {
 .kpi-value  { font-size: 24px; font-weight: 700; color: var(--c-text); margin-bottom: 4px; }
 .kpi-change { font-size: 12px; }
 .kpi-change.neutral  { color: var(--c-muted);}
-
 
 .chart-section { margin-bottom: 28px; }
 .chart-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 24px; }
