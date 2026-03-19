@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, onBeforeUnmount } from 'vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 
 const props = defineProps({
   modelValue: {
@@ -81,7 +82,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
                 <th class="px-4 py-2.5">계약 번호</th>
                 <th class="px-4 py-2.5">계약 기간</th>
                 <th class="px-4 py-2.5">상태</th>
-                <th class="px-4 py-2.5"></th>
               </tr>
               </thead>
 
@@ -90,29 +90,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
               <tr
                   v-for="contract in contracts"
                   :key="contract.id"
-                  class="border-t border-[#E8E3D8] transition hover:bg-[#FAF7F3]"
+                  class="cursor-pointer border-t border-[#E8E3D8] transition hover:bg-[#FAF7F3]"
+                  @click="selectContract(contract)"
               >
                 <td class="px-4 py-3 font-bold text-[#C8622A]">
-                  {{ contract.contractCode || contract.id }}
+                  {{ contract.displayCode }}
                 </td>
 
                 <td class="px-4 py-3 text-[#6B5F50]">
-                  {{ contract.startDate }} ~ {{ contract.endDate }}
+                  {{ contract.startDate }} - {{ contract.endDate }}
                 </td>
 
                 <td class="px-4 py-3">
-                    <span class="rounded-full bg-[#C8D4A0] px-2 py-0.5 text-xs font-bold text-[#3D3529]">
-                      체결
-                    </span>
-                </td>
-
-                <td class="px-4 py-3">
-                  <button
-                      class="rounded bg-[#C8622A] px-3 py-1 text-xs font-bold text-white transition hover:opacity-90 active:scale-95"
-                      @click="selectContract(contract)"
-                  >
-                    선택
-                  </button>
+                  <StatusBadge type="CNT" :status="contract.status" />
                 </td>
               </tr>
 
@@ -129,16 +119,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
 
             </table>
           </div>
-        </div>
-
-        <!-- footer -->
-        <div class="flex justify-end border-t border-[#E8E3D8] bg-[#EFEADF] px-6 py-3">
-          <button
-              class="rounded border border-[#DDD7CE] px-4 py-2 text-sm font-semibold text-[#6B5F50] transition hover:opacity-90"
-              @click="close"
-          >
-            닫기
-          </button>
         </div>
 
       </div>

@@ -72,10 +72,8 @@ const pipelineOptions = computed(() => {
   return historyStore.getPipelinesByClient(baseClientId.value)
 })
 
-//  새로 추가: API에서 진행 중인 계약 로드
+// 새로 추가: API에서 진행 중인 계약 로드
 const loadActiveContracts = async () => {
-  if (!baseClientId.value) return
-
   loadingContracts.value = true
   try {
     const response = await getContractsByClient(baseClientId.value)
@@ -86,6 +84,8 @@ const loadActiveContracts = async () => {
         ...c,
         id: c.id ?? c.docId,
         contractCode: c.contractCode ?? c.docCode,
+        displayCode: c.contractCode ?? c.docCode ?? String(c.id ?? ''),
+        status: c.status,
         startDate: c.startDate ?? null,
         endDate: c.endDate ?? c.expiredDate,
       }))
@@ -307,7 +307,6 @@ const onSelectContract = async (contract) => {
                 </div>
                 <div class="header-right">
                   <StatusBadge v-if="selectedContract" type="CONTRACT" :status="selectedContract.status" />
-                  <StatusBadge v-else status="DRAFT" />
                   <!-- 계약서 선택 버튼 (영업사원 + 거래처 모두) -->
                   <button
                       v-if="isSalesRep || isClient"
@@ -354,7 +353,7 @@ const onSelectContract = async (contract) => {
                 <table class="product-table">
                   <thead>
                   <tr>
-                    <th>상품명 / 코드</th>
+                    <th>상품명</th>
                     <th class="center">계약 단가</th>
                     <th class="center">계약 최소 수량</th>
                     <th class="center">주문 수량</th>
@@ -368,7 +367,6 @@ const onSelectContract = async (contract) => {
                   <tr v-for="item in lineItems" :key="item.productId">
                     <td>
                       <div class="product-name">{{ item.productName }}</div>
-                      <div class="product-code">{{ item.productCode }}</div>
                     </td>
                     <td class="center">
                       <span class="unit-price">{{ Number(item.unitPrice || 0).toLocaleString() }}</span>
@@ -489,7 +487,7 @@ const onSelectContract = async (contract) => {
                     <div style="padding: 8px 10px; border-right: 1px solid black; border-top: 1px solid black; font-weight: 700; font-size: 10px; background: #F7F3EC; width: 100px;">
                       계약번호
                     </div>
-                    <div class="field-value" :class="selectedContract ? 'highlight' : 'empty'">
+                    <div style="padding: 8px 10px; border-top: 1px solid black; font-size: 11px;" :style="{ color: selectedContract ? '#C8622A' : '#BFB3A5', fontWeight: selectedContract ? '700' : '400' }">
                       {{ selectedContract?.contractCode || '계약서가 선택되지 않았습니다' }}
                     </div>
                   </div>
@@ -520,7 +518,7 @@ const onSelectContract = async (contract) => {
                   <table class="pdf-table" v-if="pdfItems.length > 0">
                     <thead>
                     <tr>
-                      <th style="width: 50%;">상품명 / 코드</th>
+                      <th style="width: 50%;">상품명</th>
                       <th style="width: 15%;">단가</th>
                       <th style="width: 15%;">수량</th>
                       <th style="width: 20%;">금액</th>
@@ -530,14 +528,13 @@ const onSelectContract = async (contract) => {
                     <tr v-for="item in pdfItems" :key="item.productId">
                       <td>
                         <div>{{ item.productName }}</div>
-                        <div style="font-size: 9px; color: #9A8C7E;">{{ item.productCode }}</div>
                       </td>
                       <td>{{ Number(item.unitPrice || 0).toLocaleString() }}</td>
                       <td>{{ item.quantity }}</td>
                       <td class="right">{{ (item.quantity * item.unitPrice).toLocaleString() }}</td>
                     </tr>
                     <tr class="pdf-total-row">
-                      <td colspan="3">합 계</td>
+                      <td colspan="3" style="text-align: center;">합 계</td>
                       <td class="right">{{ total.toLocaleString() }}</td>
                     </tr>
                     </tbody>
@@ -554,11 +551,15 @@ const onSelectContract = async (contract) => {
                   <div class="pdf-footer">
                     <div class="pdf-sign">
                       <div>발주처</div>
-                      <div class="sign-line"></div>
+                      <div class="sign-line">
+                        {{ isClient ? documentStore.clientMaster[0]?.name : (selectedContract?.client?.name || '-') }}
+                      </div>
                     </div>
                     <div class="pdf-sign">
                       <div>공급처</div>
-                      <div class="sign-line"></div>
+                      <div class="sign-line">
+                        (주)몬순
+                      </div>
                     </div>
                   </div>
 
@@ -593,8 +594,9 @@ const onSelectContract = async (contract) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
   border-bottom: 1px solid #E8E3D8;
 }
 .header-left {
@@ -606,7 +608,9 @@ const onSelectContract = async (contract) => {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 .contract-card-label {
   font-size: 12px;
@@ -851,8 +855,16 @@ const onSelectContract = async (contract) => {
   margin-top: 30px; padding-top: 14px;
   border-top: 1px solid black;
 }
-.pdf-sign { text-align: center; font-size: 11px; color: #6B5F50; }
-.sign-line { width: 100px; height: 40px; border-bottom: 1px solid #9A8C7E; margin-bottom: 6px; }
+.pdf-sign { text-align: center; font-size: 11px; color: #6B5F50; width: 100px; }
+.sign-line {
+  width: 100%; height: 40px;
+  border-bottom: 1px solid #9A8C7E;
+  margin-bottom: 6px;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 4px;
+  font-weight: 700;
+  color: #3D3529;
+}
 
 /* ───── 배송정보 pdf ───── */
 .pdf-delivery-grid {
@@ -880,8 +892,8 @@ button:active { transform: scale(0.98); }
 @media (max-width: 768px) {
   .contract-card-body { grid-template-columns: 1fr; }
   .delivery-grid { grid-template-columns: 1fr; }
-  .header-right { flex-direction: column; width: 100%; }
-  .header-right .btn { width: 100%; justify-content: center; }
+  .header-right { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; width: auto; gap: 8px; }
+  .header-right .btn { width: auto; }
 }
 
 /* ───── 애니메이션 ───── */

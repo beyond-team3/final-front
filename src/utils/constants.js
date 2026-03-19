@@ -42,7 +42,7 @@ export const MENU_CONFIG = [
             { key: 'order', label: '주문서 작성', route: '/documents/order', roles: [ROLES.CLIENT] },
             { key: 'statement', label: '청구서 작성', route: '/documents/invoices', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
 
-            { key: 'document-history', label: '영업 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN] },
+            { key: 'document-history', label: '영업 히스토리', route: '/documents/history', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'document-all', label: '모든 문서', route: '/documents/all', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
             { key: 'approval', label: '승인 관리', route: '/approval', roles: [ROLES.SALES_REP, ROLES.ADMIN, ROLES.CLIENT] },
         ],
@@ -94,7 +94,7 @@ export const DOC_STATUS = {
         WAITING_CLIENT: { label: '거래처 승인 대기', variant: 'info' },
         REJECTED_CLIENT: { label: '거래처 반려', variant: 'REJECTED' },
         COMPLETED: { label: '계약 체결', variant: 'APPROVED' },
-        ACTIVE_CONTRACT: { label: '계약 진행 중', variant: 'APPROVED' },
+        ACTIVE_CONTRACT: { label: '계약 진행 중', variant: 'ACTIVE_CONTRACT' },
         EXPIRED: { label: '계약 기간 만료', variant: 'EXPIRED' },
         DELETED: { label: '계약 파기', variant: 'CANCELED' },
     },
