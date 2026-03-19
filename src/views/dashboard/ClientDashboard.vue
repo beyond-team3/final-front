@@ -18,6 +18,14 @@ const dashboard = ref(null)
 const loading = ref(false)
 const error = ref('')
 
+const goToNotificationTarget = (item) => {
+  if (!item.targetCode || !item.targetType) {
+    router.push('/notifications')
+    return
+  }
+  router.push(`/documents/all?type=${item.targetType}&keyword=${item.targetCode}`)
+}
+
 const allOrders = computed(() => dashboard.value?.orders ?? [])
 // 최근 주문 내역 최대 3개만 노출
 const orders = computed(() => allOrders.value.slice(0, 3))
@@ -139,7 +147,10 @@ onMounted(fetchDashboard)
           </div>
         </div>
         <div class="notif-list">
-          <div v-for="item in notifications" :key="item.time + item.title" class="notif-item" :class="item.isNew ? 'new' : ''">
+          <div v-for="item in notifications" :key="item.time + item.title"
+               class="notif-item" :class="(item.new || item.isNew) ? 'new' : ''"
+               style="cursor: pointer;"
+               @click="goToNotificationTarget(item)">
             <div class="notif-time">{{ item.time }}</div>
             <div class="notif-content">
               <div class="notif-title">{{ item.title }}</div>

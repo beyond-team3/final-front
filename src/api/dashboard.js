@@ -82,6 +82,8 @@ function normalizeClientDashboard(payload) {
                 title: n.title,
                 detail: n.detail,
                 isNew: n.new ?? false,
+                targetType: n.targetType ?? null,   // 추가
+                targetCode: n.targetCode ?? null,   // 추가
             }))
             : [],
     }
