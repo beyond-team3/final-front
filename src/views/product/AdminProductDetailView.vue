@@ -57,30 +57,30 @@ const toggleCompare = async () => {
     <PageHeader title="품종 상세 정보(관리자)">
       <template #actions>
         <button
-          type="button"
-          class="rounded border border-[var(--color-olive)] bg-[var(--color-olive-light)] px-3 py-2 text-sm font-semibold text-[var(--color-olive-dark)] hover:opacity-80"
-          @click="router.push(`/products/similarity?base=${product.id}`)"
+            type="button"
+            class="rounded border border-[var(--color-olive)] bg-[var(--color-olive-light)] px-3 py-2 text-sm font-semibold text-[var(--color-olive-dark)] hover:opacity-80"
+            @click="router.push(`/products/similarity?base=${product.id}`)"
         >
           유사도 분석
         </button>
         <button
-          type="button"
-          class="rounded border border-[var(--color-border-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]"
-          @click="router.push('/products/catalog')"
+            type="button"
+            class="rounded border border-[var(--color-border-card)] px-3 py-2 text-sm font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-bg-section)]"
+            @click="router.push('/products/catalog')"
         >
           목록으로
         </button>
         <button
-          type="button"
-          class="rounded border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-          @click="deleteProduct"
+            type="button"
+            class="rounded border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+            @click="deleteProduct"
         >
           삭제
         </button>
         <button
-          type="button"
-          class="rounded bg-[var(--color-olive)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]"
-          @click="router.push(`/products/register?id=${product.id}`)"
+            type="button"
+            class="rounded bg-[var(--color-olive)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--color-olive-dark)]"
+            @click="router.push(`/products/register?id=${product.id}`)"
         >
           수정
         </button>
@@ -97,7 +97,7 @@ const toggleCompare = async () => {
           <div>
             <p class="text-xs font-semibold uppercase tracking-wide text-blue-600">{{ product.category }}</p>
             <h3 class="mt-2 text-3xl font-bold text-[var(--color-text-strong)]">{{ product.name }}</h3>
-            
+
             <!-- 단가 정보 추가 -->
             <div class="mt-3 flex items-baseline gap-2">
               <span class="text-2xl font-bold text-[var(--color-text-strong)]">₩{{ (product.price || 0).toLocaleString() }}</span>
@@ -106,7 +106,7 @@ const toggleCompare = async () => {
 
             <div class="mt-2 flex items-center gap-3">
               <span class="rounded px-2 py-1 text-xs font-semibold"
-                :class="product.status === 'SALE' || !product.status ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]' : (product.status === 'HIDDEN' ? 'bg-gray-100 text-gray-500' : 'bg-[#F0D4D4] text-[var(--color-status-error)]')"
+                    :class="product.status === 'SALE' || !product.status ? 'bg-[var(--color-olive-light)] text-[var(--color-olive-dark)]' : (product.status === 'HIDDEN' ? 'bg-gray-100 text-gray-500' : 'bg-[#F0D4D4] text-[var(--color-status-error)]')"
               >
                 {{ product.status === 'SOLDOUT' ? '일시 품절' : (product.status === 'STOP' ? '단종' : (product.status === 'HIDDEN' ? '숨김' : '판매 중')) }}
               </span>
@@ -115,18 +115,18 @@ const toggleCompare = async () => {
 
           <div class="flex gap-2">
             <button
-              type="button"
-              class="rounded-full border px-3 py-1 text-sm font-semibold"
-              :class="productStore.isInCompare(product.id) ? 'border-[var(--color-olive)] text-[var(--color-olive-dark)] bg-[var(--color-olive-light)]' : 'border-[var(--color-border-card)] text-[var(--color-text-body)]'"
-              @click="toggleCompare"
+                type="button"
+                class="rounded-full border px-3 py-1 text-sm font-semibold"
+                :class="productStore.isInCompare(product.id) ? 'border-[var(--color-olive)] text-[var(--color-olive-dark)] bg-[var(--color-olive-light)]' : 'border-[var(--color-border-card)] text-[var(--color-text-body)]'"
+                @click="toggleCompare"
             >
               {{ productStore.isInCompare(product.id) ? '담기 완료' : '+ 비교담기' }}
             </button>
             <button
-              type="button"
-              class="rounded-full border px-3 py-1 text-sm font-semibold"
-              :class="productStore.isFavorite(product.id) ? 'border-[var(--color-orange)] text-[var(--color-orange-dark)] bg-[var(--color-orange-light)]' : 'border-[var(--color-border-card)] text-[var(--color-text-body)]'"
-              @click="productStore.toggleFavoriteItem(product.id)"
+                type="button"
+                class="rounded-full border px-3 py-1 text-sm font-semibold"
+                :class="productStore.isFavorite(product.id) ? 'border-[var(--color-orange)] text-[var(--color-orange-dark)] bg-[var(--color-orange-light)]' : 'border-[var(--color-border-card)] text-[var(--color-text-body)]'"
+                @click="productStore.toggleFavoriteItem(product.id)"
             >
               {{ productStore.isFavorite(product.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
             </button>
@@ -140,9 +140,9 @@ const toggleCompare = async () => {
             <p class="text-sm font-semibold text-[var(--color-text-sub)]">{{ row.label }}</p>
             <div class="flex flex-wrap gap-2">
               <span
-                v-for="tag in (product.tags?.[row.key] || [])"
-                :key="`${row.key}-${tag}`"
-                class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+                  v-for="tag in (product.tags?.[row.key] || [])"
+                  :key="`${row.key}-${tag}`"
+                  class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
               >
                 {{ tag }}
               </span>
