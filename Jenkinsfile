@@ -182,6 +182,16 @@ ArgoCD 대시보드에서 'monsoon-frontend' Rollout의 **[Promote]** 버튼을 
 	}
 
 	post {
+		always {
+			container('docker-cli') {
+				script {
+					echo "Cleaning up Docker resources to free up disk space..."
+					// 사용하지 않는 이미지, 멈춘 컨테이너, 빌드 캐시를 모두 삭제
+					sh 'docker system prune -a -f --volumes || true'
+				}
+			}
+		}
+
 		failure {
 			discordSend (webhookURL: env.DISCORD_WEBHOOK,
 				title: "🔴 [Frontend] 빌드 실패",
