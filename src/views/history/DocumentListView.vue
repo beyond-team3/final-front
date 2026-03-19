@@ -135,6 +135,7 @@ const loadSummaryDocuments = async () => {
 }
 
 const loadPaymentAmounts = async () => {
+  paymentAmountMap.value = new Map()
   const payDocs = (pipeline.value?.documents || []).filter((doc) => doc.type === 'PAY')
   if (payDocs.length === 0) return
 
@@ -144,7 +145,7 @@ const loadPaymentAmounts = async () => {
       const amount = response?.data?.data?.paymentAmount ?? response?.data?.paymentAmount ?? null
       paymentAmountMap.value.set(String(doc.id), amount)
     } catch {
-      // 실패 시 무시
+      paymentAmountMap.value.delete(String(doc.id))
     }
   }))
 }
@@ -253,9 +254,14 @@ onMounted(() => {
   }
 })
 
-watch(() => route.query.pipelineId, () => {
+watch(() => route.query.pipelineId, (pipelineId) => {
+  if (typeof pipelineId !== 'string' || !pipelineId) {
+    summaryDocuments.value = []
+    paymentAmountMap.value = new Map()
+    return
+  }
   void loadSummaryDocuments()
-  void historyStore.ensureDealLogs(route.query.pipelineId).then(() => {
+  void historyStore.ensureDealLogs(pipelineId).then(() => {
     void loadPaymentAmounts()
   })
 })
