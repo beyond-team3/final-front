@@ -55,7 +55,8 @@ const navigateTo = (path) => {
 const logout = async () => {
   notificationStore.stopSse()
   await authStore.logout()
-  router.push('/login')
+  // 모든 Store와 API 캐시를 완전히 비우기 위해 페이지를 새로고침하며 이동합니다.
+  window.location.href = '/login'
 }
 
 const toggleSidebar = () => {

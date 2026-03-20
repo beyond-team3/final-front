@@ -105,25 +105,17 @@ api.interceptors.response.use(
             status: status || 0,
             failed: true,
         })
-
         if (status === 401) {
-            let router = null
-
             try {
-                const [{ useAuthStore }, routerModule] = await Promise.all([
-                    import('@/stores/auth'),
-                    import('@/router'),
-                ])
-
-                router = routerModule.default
+                const { useAuthStore } = await import('@/stores/auth')
                 const authStore = useAuthStore()
                 await authStore.logout()
             } catch (logoutError) {
                 console.error('401 처리 중 로그아웃 실패:', logoutError)
             }
 
-            if (router && window.location.pathname !== '/login') {
-                router.push('/login')
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login'
             }
         }
 
