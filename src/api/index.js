@@ -105,19 +105,19 @@ api.interceptors.response.use(
             status: status || 0,
             failed: true,
         })
-if (status === 401) {
-    try {
-        const { useAuthStore } = await import('@/stores/auth')
-        const authStore = useAuthStore()
-        await authStore.logout()
-    } catch (logoutError) {
-        console.error('401 처리 중 로그아웃 실패:', logoutError)
-    }
+        if (status === 401) {
+            try {
+                const { useAuthStore } = await import('@/stores/auth')
+                const authStore = useAuthStore()
+                await authStore.logout()
+            } catch (logoutError) {
+                console.error('401 처리 중 로그아웃 실패:', logoutError)
+            }
 
-    if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
-    }
-}
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login'
+            }
+        }
 
         if (status === 403) {
             emitApiEvent('api:error', {
